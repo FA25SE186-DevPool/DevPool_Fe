@@ -43,7 +43,7 @@ export default function DeveloperPaymentsList() {
             if (!user) return;
             
             try {
-                const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+                const token = localStorage.getItem('accessToken');
                 let userId: string | null = null;
                 
                 if (token) {

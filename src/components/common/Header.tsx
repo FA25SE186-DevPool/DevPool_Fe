@@ -18,6 +18,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import logoDevPool from '../../assets/logo-DevPool.jpg';
 import { getDashboardRoute, ROUTES, NOTIFICATION_CENTER_ROUTE } from '../../router/routes';
 import {
   notificationService,
@@ -86,8 +87,8 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
 
   const resolvedUserId = useMemo(() => {
     if (!user) return null;
-    // Kiểm tra cả localStorage và sessionStorage (do "Remember Me" có thể lưu ở sessionStorage)
-    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+    // Lấy token từ localStorage
+    const token = localStorage.getItem('accessToken');
     if (!token) return user.id;
     const decoded = decodeJWT(token);
     const idFromToken = decoded?.nameid || decoded?.sub || decoded?.userId || decoded?.uid;
@@ -128,8 +129,8 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
       // Fetch notifications mới cho user mới
       const fetchNotifications = async () => {
         // Check lại user và resolvedUserId trước khi fetch
-        // Kiểm tra cả localStorage và sessionStorage (do "Remember Me" có thể lưu ở sessionStorage)
-        const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+        // Lấy token từ localStorage
+        const token = localStorage.getItem('accessToken');
         if (!token || !user || !resolvedUserId) {
           return;
         }
@@ -156,8 +157,8 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
           
           // Check lại userKey một lần nữa trước khi set items
           // Đảm bảo không set notifications của user cũ
-          // Kiểm tra cả localStorage và sessionStorage
-          const tokenCheck = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+          // Lấy token từ localStorage
+          const tokenCheck = localStorage.getItem('accessToken');
           const finalKey = `${user.id}-${user.role}-${resolvedUserId}`;
           if (tokenCheck && user && resolvedUserId && finalKey === userKeyToFetch && prevUserKeyRef.current === userKeyToFetch) {
             // Merge với items hiện tại để không mất real-time notifications
@@ -191,8 +192,8 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
         } catch (error: any) {
           // Không log error khi logout (401 Unauthorized)
           const isUnauthorized = error?.response?.status === 401 || error?.status === 401;
-          // Kiểm tra cả localStorage và sessionStorage
-          const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+          // Lấy token từ localStorage
+          const token = localStorage.getItem('accessToken');
           
           // Chỉ xử lý error nếu:
           // 1. Có token (không phải logout)
@@ -602,9 +603,11 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
           <div className="flex items-center min-h-[40px]">
             {showPublicBranding ? (
               <Link to="/" className="group flex items-center space-x-2 transition-all duration-300 hover:scale-105">
-                <div className="w-10 h-10 bg-gradient-to-r from-primary-600 to-accent-600 rounded-xl flex items-center justify-center shadow-soft group-hover:shadow-glow transition-all duration-300">
-                  <span className="text-white font-bold text-lg">D</span>
-                </div>
+                <img 
+                  src={logoDevPool} 
+                  alt="DevPool Logo" 
+                  className="h-10 w-auto object-contain"
+                />
                 <span className="font-bold text-xl bg-gradient-to-r from-gray-900 to-primary-700 bg-clip-text text-transparent">
                   DevPool
                 </span>

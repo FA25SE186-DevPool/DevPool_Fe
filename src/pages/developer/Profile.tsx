@@ -71,7 +71,7 @@ export default function DeveloperProfilePage() {
         setError('');
 
         // Get userId from token
-        const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+        const token = localStorage.getItem('accessToken');
         let userId: string | null = null;
 
         if (token) {
@@ -349,7 +349,7 @@ export default function DeveloperProfilePage() {
       setErrors({});
 
       // Get userId from token
-      const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+      const token = localStorage.getItem('accessToken');
       let userId: string | null = null;
 
       if (token) {

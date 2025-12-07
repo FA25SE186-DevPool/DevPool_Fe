@@ -137,9 +137,9 @@ export default function ProjectCreatePage() {
       errors.marketId = "Vui lòng chọn thị trường!";
     }
 
-    // Validation: Ngành (bắt buộc - ít nhất 1 ngành)
+    // Validation: Lĩnh vực (bắt buộc - ít nhất 1 lĩnh vực)
     if (!form.industryIds || form.industryIds.length === 0) {
-      errors.industryIds = "Vui lòng chọn ít nhất một ngành!";
+      errors.industryIds = "Vui lòng chọn ít nhất một lĩnh vực!";
     }
 
     // Validation: Trạng thái (bắt buộc, nhưng sẽ tự động set nếu không có EndDate)
@@ -613,7 +613,7 @@ export default function ProjectCreatePage() {
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
                   <Factory className="w-4 h-4" />
-                  Ngành <span className="text-red-500">*</span>
+                  Lĩnh vực <span className="text-red-500">*</span>
                 </label>
                 <div className={`bg-neutral-50 border rounded-2xl p-4 space-y-4 ${
                   fieldErrors.industryIds
@@ -625,7 +625,7 @@ export default function ProjectCreatePage() {
                       type="text"
                       value={industrySearch}
                       onChange={(e) => setIndustrySearch(e.target.value)}
-                      placeholder="Tìm kiếm ngành..."
+                      placeholder="Tìm kiếm lĩnh vực..."
                       className="w-full pl-4 pr-10 py-2 border border-neutral-200 rounded-xl focus:border-primary-500 focus:ring-primary-500 bg-white"
                     />
                     {industrySearch && (
@@ -633,7 +633,7 @@ export default function ProjectCreatePage() {
                         type="button"
                         onClick={() => setIndustrySearch("")}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
-                        aria-label="Xoá tìm kiếm ngành"
+                        aria-label="Xoá tìm kiếm lĩnh vực"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -686,7 +686,7 @@ export default function ProjectCreatePage() {
                     ))}
                     {!filteredIndustries.length && (
                       <div className="col-span-2 text-center text-sm text-neutral-500 py-6">
-                        Không tìm thấy ngành phù hợp
+                        Không tìm thấy lĩnh vực phù hợp
                       </div>
                     )}
                   </div>

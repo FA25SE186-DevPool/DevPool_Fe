@@ -5,7 +5,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { authService, getRoleFromToken, authenticateWithFirebase } from '../../services/Auth';
 import { startNotificationConnection, onReceiveNotification, onUnreadCountUpdated, getUnreadCount } from '../../services/notificationHub';
 import { useNotification } from '../../contexts/NotificationContext';
-import { setTokens, setUser } from '../../utils/storage';
+import { setTokens, setUser, getUser, getAccessToken } from '../../utils/storage';
+import logoDevPool from '../../assets/logo-DevPool.jpg';
 
 
 export default function LoginForm() {
@@ -47,6 +48,16 @@ export default function LoginForm() {
     }
 
     try {
+      // Kiểm tra nếu đã có tài khoản khác đang đăng nhập
+      const existingUser = getUser();
+      const existingToken = getAccessToken();
+      
+      if (existingUser && existingToken && existingUser.email !== email) {
+        // Có tài khoản khác đang đăng nhập, cảnh báo nhưng vẫn cho phép đăng nhập
+        // Token cũ sẽ bị ghi đè, tài khoản cũ sẽ bị logout
+        console.warn(`Đang đăng nhập tài khoản mới (${email}). Tài khoản cũ (${existingUser.email}) sẽ bị đăng xuất.`);
+      }
+      
       // Gọi API login
       const response = await authService.login({ email, password });
       
@@ -60,7 +71,11 @@ export default function LoginForm() {
       }
       
       // Lưu tokens vào storage dựa trên rememberMe
+      // Lưu ý: Token cũ sẽ bị ghi đè, tài khoản cũ sẽ bị logout
       setTokens(response.accessToken, response.refreshToken, rememberMe);
+      
+      // Phát sự kiện để các tab khác biết token đã thay đổi
+      window.dispatchEvent(new Event('storage'));
       
       // Authenticate với Firebase để có quyền truy cập Firestore/Storage
       // Cần role để sync vào Firestore
@@ -156,8 +171,12 @@ export default function LoginForm() {
   return (
     <div className="w-full max-w-md mx-auto p-8 animate-fade-in-up">
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary-500 to-indigo-600 rounded-2xl mb-4 shadow-glow animate-float">
-          <span className="text-white font-bold text-2xl">D</span>
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl mb-4 shadow-glow animate-float border border-white/20 p-2">
+          <img 
+            src={logoDevPool} 
+            alt="DevPool Logo" 
+            className="w-full h-full object-contain"
+          />
         </div>
         <h2 className="text-3xl font-bold leading-normal bg-gradient-to-r from-neutral-900 via-primary-700 to-indigo-700 bg-clip-text text-transparent">
           Đăng Nhập

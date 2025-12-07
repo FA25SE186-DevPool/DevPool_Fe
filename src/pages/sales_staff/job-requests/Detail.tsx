@@ -6,14 +6,13 @@ import { sidebarItems } from "../../../components/sales_staff/SidebarItems";
 import { jobRequestService } from "../../../services/JobRequest";
 import { clientCompanyService, type ClientCompany } from "../../../services/ClientCompany";
 import { projectService, type Project } from "../../../services/Project";
-import { jobRoleLevelService, type JobRoleLevel } from "../../../services/JobRoleLevel";
+import { jobRoleLevelService, type JobRoleLevel, TalentLevel } from "../../../services/JobRoleLevel";
 import { jobRoleService } from "../../../services/JobRole";
 import { skillService, type Skill } from "../../../services/Skill";
 import { locationService } from "../../../services/location";
 import { applyProcessTemplateService } from "../../../services/ApplyProcessTemplate";
 import { Button } from "../../../components/ui/button";
 import { jobSkillService, type JobSkill } from "../../../services/JobSkill";
-import { clientCompanyCVTemplateService } from "../../../services/ClientCompanyTemplate";
 import { talentApplicationService } from "../../../services/TalentApplication";
 import {  
   Edit, 
@@ -54,7 +53,6 @@ interface JobRequestDetail {
   locationId?: number | null;
   description?: string;
   requirements?: string;
-  clientCompanyCVTemplateName?: string;
   jobSkills?: { id: number; name: string }[];
 }
 
@@ -66,6 +64,7 @@ export default function JobRequestDetailPage() {
   const [jobRoleName, setJobRoleName] = useState<string>("—");
   const [locationName, setLocationName] = useState<string>("—");
   const [applyProcessTemplateName, setApplyProcessTemplateName] = useState<string>("—");
+  const [jobRoleLevelDisplay, setJobRoleLevelDisplay] = useState<string>("—");
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>("general");
   
@@ -131,17 +130,25 @@ export default function JobRequestDetailPage() {
           (pos) => pos.id === jobReqData.jobRoleLevelId
         );
 
-        // 🧩 Gọi danh sách template hiệu lực của khách hàng
-        let templateName = "—";
-        if (clientCompany) {
-          const templates = await clientCompanyCVTemplateService.listEffectiveTemplates(clientCompany.id);
-          const matched = templates.find(t => t.templateId === jobReqData.clientCompanyCVTemplateId);
-          templateName = matched ? matched.templateName : "—";
-        }
         if (position) {
           try {
             const role = await jobRoleService.getById(position.jobRoleId);
             setJobRoleName(role?.name ?? "—");
+            
+            // Format level text
+            const getLevelText = (level: number): string => {
+              const levelMap: Record<number, string> = {
+                [TalentLevel.Junior]: "Junior",
+                [TalentLevel.Middle]: "Middle",
+                [TalentLevel.Senior]: "Senior",
+                [TalentLevel.Lead]: "Lead"
+              };
+              return levelMap[level] || "Unknown";
+            };
+            
+            // Set display text với name và level
+            const levelText = getLevelText(position.level);
+            setJobRoleLevelDisplay(`${position.name} - ${levelText}`);
           } catch {}
         }
 
@@ -164,7 +171,6 @@ export default function JobRequestDetailPage() {
           projectName: project?.name || "—",
           clientCompanyName: clientCompany?.name || "—",
           jobPositionName: position?.name || "—",
-          clientCompanyCVTemplateName: templateName,
         };
 
         const jobSkillData = await jobSkillService.getAll({
@@ -475,7 +481,7 @@ export default function JobRequestDetailPage() {
                 />
                 <InfoItem 
                   label="Vị trí tuyển dụng" 
-                  value={jobRequest.jobPositionName ?? "—"} 
+                  value={jobRoleLevelDisplay} 
                   icon={<Users className="w-4 h-4" />}
                 />            
                 <InfoItem 
@@ -492,11 +498,6 @@ export default function JobRequestDetailPage() {
                   label="Chế độ làm việc" 
                   value={workingModeLabels[Number(jobRequest.workingMode ?? 0)] ?? "—"} 
                   icon={<Target className="w-4 h-4" />}
-                />
-                <InfoItem 
-                  label="Mẫu CV khách hàng" 
-                  value={jobRequest.clientCompanyCVTemplateName ?? "—"} 
-                  icon={<FileText className="w-4 h-4" />}
                 />
                 <InfoItem 
                   label="Mẫu quy trình ứng tuyển" 

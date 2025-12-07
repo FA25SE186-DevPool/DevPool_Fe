@@ -46,7 +46,7 @@ export default function DeveloperContractsList() {
             
             try {
                 // Lấy userId từ token hoặc user object
-                const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+                const token = localStorage.getItem('accessToken');
                 let userId: string | null = null;
                 
                 if (token) {

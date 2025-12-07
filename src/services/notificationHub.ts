@@ -39,17 +39,8 @@ const MAX_RECONNECT_ATTEMPTS = 3;
 // Hàm refresh token (sử dụng cùng logic như axios config)
 const refreshToken = async (): Promise<string | null> => {
 	try {
-		// Xác định storage dựa trên rememberMe trước khi lấy token
-		const rememberMe = localStorage.getItem('remember_me') === 'true';
-		const storage = rememberMe ? localStorage : sessionStorage;
-		
-		// Lấy refresh token từ đúng storage (ưu tiên storage hiện tại, fallback sang storage kia)
-		let refreshTokenValue = storage.getItem('refreshToken');
-		if (!refreshTokenValue) {
-			// Fallback: thử storage còn lại
-			const fallbackStorage = rememberMe ? sessionStorage : localStorage;
-			refreshTokenValue = fallbackStorage.getItem('refreshToken');
-		}
+		// Luôn lấy refresh token từ localStorage
+		const refreshTokenValue = localStorage.getItem('refreshToken');
 		
 		if (!refreshTokenValue) {
 			console.warn('⚠️ No refresh token found in storage (notificationHub)');
@@ -79,21 +70,18 @@ const refreshToken = async (): Promise<string | null> => {
 			localStorage.removeItem('accessToken');
 			localStorage.removeItem('refreshToken');
 			localStorage.removeItem('remember_me');
+			// Xóa từ sessionStorage để đảm bảo (nếu có)
 			sessionStorage.removeItem('accessToken');
 			sessionStorage.removeItem('refreshToken');
-			sessionStorage.removeItem('remember_me');
 			return null;
 		}
 
 		const data = await response.json();
 		if (data.accessToken) {
-			// Lưu token mới vào storage
-			storage.setItem('accessToken', data.accessToken);
+			// Lưu token mới vào localStorage
+			localStorage.setItem('accessToken', data.accessToken);
 			if (data.refreshToken) {
-				storage.setItem('refreshToken', data.refreshToken);
-				// Xóa token cũ ở storage kia nếu có (tránh conflict)
-				const otherStorage = rememberMe ? sessionStorage : localStorage;
-				otherStorage.removeItem('refreshToken');
+				localStorage.setItem('refreshToken', data.refreshToken);
 			}
 			return data.accessToken;
 		}

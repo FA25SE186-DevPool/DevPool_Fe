@@ -10,8 +10,8 @@ function RealtimeBootstrap() {
   const handlersRef = useRef<{ onMsg?: (n:any)=>void; onCount?: (c:number)=>void }>({});
 
   useEffect(() => {
-    // Kiểm tra token từ cả localStorage và sessionStorage
-    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+    // Kiểm tra token từ localStorage
+    const token = localStorage.getItem('accessToken');
     if (!token) return;
 
     (async () => {
