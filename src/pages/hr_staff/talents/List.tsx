@@ -50,10 +50,14 @@ import { partnerService, type Partner } from "../../../services/Partner";
 export default function ListDev() {
   const [loading, setLoading] = useState(true);
   const [talents, setTalents] = useState<Talent[]>([]);
+  const [myManagedTalents, setMyManagedTalents] = useState<Talent[]>([]);
   const [filteredTalents, setFilteredTalents] = useState<Talent[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [isCreatingAccount, setIsCreatingAccount] = useState<number | null>(null);
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState<"all" | "my">("all");
 
   // Bộ lọc
   const [showFilters, setShowFilters] = useState(false);
@@ -68,41 +72,42 @@ export default function ListDev() {
   const statsPageSize = 4;
   const [statsStartIndex, setStatsStartIndex] = useState(0);
 
-  // Thống kê
+  // Thống kê - dựa trên tab hiện tại
+  const currentTalentsList = activeTab === "all" ? talents : myManagedTalents;
   const stats = [
     {
-      title: "Tổng nhân sự",
-      value: talents.length.toString(),
+      title: activeTab === "all" ? "Tổng nhân sự" : "Nhân sự của tôi",
+      value: currentTalentsList.length.toString(),
       color: "blue",
       icon: <Users className="w-6 h-6" />,
     },
     {
     title: "Sẵn sàng làm việc",
-      value: talents.filter((t) => t.status === "Available").length.toString(),
+      value: currentTalentsList.filter((t) => t.status === "Available").length.toString(),
       color: "green",
       icon: <Briefcase className="w-6 h-6" />,
     },
     {
       title: "Đang bận",
-      value: talents.filter((t) => t.status === "Busy").length.toString(),
+      value: currentTalentsList.filter((t) => t.status === "Busy").length.toString(),
       color: "orange",
       icon: <MapPin className="w-6 h-6" />,
     },
   {
     title: "Đang làm việc",
-    value: talents.filter((t) => t.status === "Working").length.toString(),
+    value: currentTalentsList.filter((t) => t.status === "Working").length.toString(),
     color: "blue",
     icon: <Briefcase className="w-6 h-6" />,
   },
   {
     title: "Đang ứng tuyển",
-    value: talents.filter((t) => t.status === "Applying").length.toString(),
+    value: currentTalentsList.filter((t) => t.status === "Applying").length.toString(),
     color: "purple",
     icon: <Users className="w-6 h-6" />,
   },
     {
       title: "Tạm ngưng",
-      value: talents
+      value: currentTalentsList
         .filter((t) => t.status === "Unavailable")
         .length.toString(),
       color: "gray",
@@ -120,11 +125,13 @@ export default function ListDev() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [talentData, locationData, partnerData] = await Promise.all([
+        const [talentData, locationData, partnerData, myManagedData] = await Promise.all([
           talentService.getAll(),
           locationService.getAll({ excludeDeleted: true }),
           partnerService.getAll(),
+          talentService.getMyManagedTalents().catch(() => []), // Nếu lỗi, trả về mảng rỗng
         ]);
+        
         const sortedTalents = [...talentData].sort((a, b) => {
           const createdAtA = (a as { createdAt?: string }).createdAt;
           const createdAtB = (b as { createdAt?: string }).createdAt;
@@ -139,7 +146,22 @@ export default function ListDev() {
           return b.id - a.id;
         });
 
+        const sortedMyManaged = [...myManagedData].sort((a, b) => {
+          const createdAtA = (a as { createdAt?: string }).createdAt;
+          const createdAtB = (b as { createdAt?: string }).createdAt;
+
+          const timeA = createdAtA ? new Date(createdAtA).getTime() : 0;
+          const timeB = createdAtB ? new Date(createdAtB).getTime() : 0;
+
+          if (timeA !== timeB) {
+            return timeB - timeA;
+          }
+
+          return b.id - a.id;
+        });
+
         setTalents(sortedTalents);
+        setMyManagedTalents(sortedMyManaged);
         setFilteredTalents(sortedTalents);
         setLocations(locationData);
         setPartners(partnerData);
@@ -152,9 +174,35 @@ export default function ListDev() {
     fetchData();
   }, []);
 
-  // Lọc dữ liệu
+  // Refresh my managed talents khi chuyển tab
   useEffect(() => {
-    let filtered = [...talents];
+    if (activeTab === "my") {
+      const fetchMyManaged = async () => {
+        try {
+          const myManagedData = await talentService.getMyManagedTalents();
+          const sorted = [...myManagedData].sort((a, b) => {
+            const createdAtA = (a as { createdAt?: string }).createdAt;
+            const createdAtB = (b as { createdAt?: string }).createdAt;
+            const timeA = createdAtA ? new Date(createdAtA).getTime() : 0;
+            const timeB = createdAtB ? new Date(createdAtB).getTime() : 0;
+            if (timeA !== timeB) {
+              return timeB - timeA;
+            }
+            return b.id - a.id;
+          });
+          setMyManagedTalents(sorted);
+        } catch (err) {
+          console.error("❌ Không thể tải nhân sự của tôi:", err);
+        }
+      };
+      fetchMyManaged();
+    }
+  }, [activeTab]);
+
+  // Lọc dữ liệu - dựa trên tab hiện tại
+  useEffect(() => {
+    const sourceList = activeTab === "all" ? talents : myManagedTalents;
+    let filtered = [...sourceList];
 
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
@@ -183,7 +231,7 @@ export default function ListDev() {
 
     setFilteredTalents(filtered);
     setCurrentPage(1); // Reset về trang đầu khi filter thay đổi
-  }, [searchTerm, filterLocation, filterStatus, filterWorkingMode, talents, locations]);
+  }, [searchTerm, filterLocation, filterStatus, filterWorkingMode, talents, myManagedTalents, locations, activeTab]);
   
   // Tính toán pagination
   const totalPages = Math.ceil(filteredTalents.length / itemsPerPage);
@@ -232,10 +280,12 @@ export default function ListDev() {
       
       if (result.success) {
         alert(`Đã cấp tài khoản thành công cho ${talent.fullName}.\nEmail: ${talent.email}\nMật khẩu đã được gửi qua email.`);
-        // Refresh danh sách
-        const [talentData] = await Promise.all([
+        // Refresh cả hai danh sách
+        const [talentData, myManagedData] = await Promise.all([
           talentService.getAll(),
+          talentService.getMyManagedTalents().catch(() => []),
         ]);
+        
         const sortedTalents = [...talentData].sort((a, b) => {
           const createdAtA = (a as { createdAt?: string }).createdAt;
           const createdAtB = (b as { createdAt?: string }).createdAt;
@@ -246,8 +296,23 @@ export default function ListDev() {
           }
           return b.id - a.id;
         });
+        
+        const sortedMyManaged = [...myManagedData].sort((a, b) => {
+          const createdAtA = (a as { createdAt?: string }).createdAt;
+          const createdAtB = (b as { createdAt?: string }).createdAt;
+          const timeA = createdAtA ? new Date(createdAtA).getTime() : 0;
+          const timeB = createdAtB ? new Date(createdAtB).getTime() : 0;
+          if (timeA !== timeB) {
+            return timeB - timeA;
+          }
+          return b.id - a.id;
+        });
+        
         setTalents(sortedTalents);
-        setFilteredTalents(sortedTalents);
+        setMyManagedTalents(sortedMyManaged);
+        // Cập nhật filteredTalents dựa trên tab hiện tại
+        const currentList = activeTab === "all" ? sortedTalents : sortedMyManaged;
+        setFilteredTalents(currentList);
       } else {
         alert(result.message || "Không thể cấp tài khoản. Vui lòng thử lại.");
       }
@@ -323,6 +388,38 @@ export default function ListDev() {
                 Tạo nhân sự mới
               </Button>
             </Link>
+          </div>
+
+          {/* Tabs */}
+          <div className="mb-6">
+            <div className="flex gap-2 border-b border-neutral-200">
+              <button
+                onClick={() => setActiveTab("all")}
+                className={`px-6 py-3 font-medium text-sm transition-all duration-300 border-b-2 ${
+                  activeTab === "all"
+                    ? "border-primary-600 text-primary-600 bg-primary-50"
+                    : "border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-50"
+                }`}
+              >
+                Tất cả nhân sự
+                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-neutral-200 text-neutral-700">
+                  {talents.length}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab("my")}
+                className={`px-6 py-3 font-medium text-sm transition-all duration-300 border-b-2 ${
+                  activeTab === "my"
+                    ? "border-primary-600 text-primary-600 bg-primary-50"
+                    : "border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-50"
+                }`}
+              >
+                Nhân sự của tôi
+                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-neutral-200 text-neutral-700">
+                  {myManagedTalents.length}
+                </span>
+              </button>
+            </div>
           </div>
 
         {/* Thống kê */}
