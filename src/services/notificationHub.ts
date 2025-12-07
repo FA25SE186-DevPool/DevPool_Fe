@@ -139,10 +139,14 @@ export const createNotificationConnection = (): HubConnection => {
 				return token;
 			},
 			withCredentials: true,
-			// Thử tất cả transport methods: WebSockets, Server-Sent Events, Long Polling
-			// Nếu WebSocket bị block, sẽ tự động fallback sang SSE hoặc Long Polling
-			transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling,
+			// Chỉ sử dụng SSE (Server-Sent Events) và Long Polling để tránh lỗi WebSocket trong console
+			// WebSocket thường bị chặn bởi proxy/firewall hoặc không được hỗ trợ
+			// SSE và Long Polling hoạt động ổn định hơn và không gây lỗi trong console
+			// Nếu cần WebSocket, có thể thêm: HttpTransportType.WebSockets |
+			transport: HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling,
 			skipNegotiation: false,
+			// Thêm timeout cho negotiation
+			timeout: 10000,
 		})
 		.withAutomaticReconnect({
 			nextRetryDelayInMilliseconds: (retryContext) => {
@@ -153,7 +157,7 @@ export const createNotificationConnection = (): HubConnection => {
 				return 30000;
 			},
 		})
-		.configureLogging(LogLevel.Error) // Chỉ log lỗi thực sự, bỏ qua warning về transport fallback
+		.configureLogging(LogLevel.None) // Tắt log từ SignalR library để tránh log lỗi WebSocket không cần thiết
 		.build();
 
 	// Optional: lắng nghe sự kiện hệ thống để debug
@@ -210,7 +214,15 @@ export const startNotificationConnection = async (forceRestart: boolean = false)
 		await newConn.start();
 		reconnectAttempts = 0; // Reset counter khi kết nối thành công
 		if (import.meta.env.DEV) {
-			console.log('✅ Notification Hub connected successfully to:', HUB_URL);
+			// Log transport type đang sử dụng (nếu có)
+			try {
+				const transport = (newConn as any).connection?.transport?.name || 
+				                  (newConn as any).connectionState?.transport?.name || 
+				                  'unknown';
+				console.log(`✅ Notification Hub connected successfully to: ${HUB_URL} (transport: ${transport})`);
+			} catch {
+				console.log(`✅ Notification Hub connected successfully to: ${HUB_URL}`);
+			}
 		}
 	} catch (err: any) {
 		const errorMessage = err?.message || '';
@@ -221,28 +233,42 @@ export const startNotificationConnection = async (forceRestart: boolean = false)
 		const isWebSocketTransportError = errorMessage.includes('WebSocket failed to connect') ||
 			errorMessage.includes('WebSockets transport') ||
 			errorMessage.includes('connection could not be found on the server') ||
-			errorMessage.includes('sticky sessions');
+			errorMessage.includes('sticky sessions') ||
+			errorMessage.includes('The connection could not be found on the server');
 		
-		// Nếu chỉ là lỗi WebSocket transport, không log (SignalR sẽ tự fallback)
+		// Nếu chỉ là lỗi WebSocket transport, đợi và kiểm tra xem có fallback thành công không
+		let isWebSocketOnlyError = false;
 		if (isWebSocketTransportError) {
-			// Đợi một chút để xem connection có thành công qua transport khác không
-			await new Promise(resolve => setTimeout(resolve, 500));
+			// Đợi lâu hơn để SignalR có thời gian fallback sang transport khác
+			await new Promise(resolve => setTimeout(resolve, 2000));
 			// Kiểm tra lại state sau khi đợi
 			const currentState = newConn.state;
 			if (String(currentState) === 'Connected') {
-				// Connection đã thành công qua transport khác (SSE/LongPolling), không cần log lỗi
+				// Connection đã thành công qua transport khác (SSE/LongPolling)
+				if (import.meta.env.DEV) {
+					console.log('✅ Notification Hub connected via fallback transport (SSE/LongPolling)');
+				}
 				reconnectAttempts = 0;
 				return;
 			}
+			// Nếu vẫn chưa kết nối được, đánh dấu là lỗi WebSocket only
+			// (có thể fallback transport cũng thất bại, nhưng không log error vì đây là expected behavior)
+			isWebSocketOnlyError = true;
+			if (import.meta.env.DEV) {
+				console.warn('⚠️ WebSocket connection failed, fallback transport also failed. Will retry...');
+			}
 		}
 		
-		// Chỉ log lỗi khi thực sự không kết nối được
-		console.error('❌ Failed to start notification connection:', {
-			url: HUB_URL,
-			error: errorMessage,
-			statusCode,
-			attempts: reconnectAttempts + 1,
-		});
+		// Chỉ log lỗi khi thực sự không kết nối được (sau khi đã thử fallback)
+		// Và không phải là lỗi WebSocket only (vì đó là expected behavior)
+		if (!isWebSocketOnlyError) {
+			console.error('❌ Failed to start notification connection:', {
+				url: HUB_URL,
+				error: errorMessage,
+				statusCode,
+				attempts: reconnectAttempts + 1,
+			});
+		}
 		
 		// Nếu lỗi 401, thử refresh token và reconnect
 		if (statusCode === 401 || errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
