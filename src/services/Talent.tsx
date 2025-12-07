@@ -415,4 +415,47 @@ export const talentService = {
       throw { message: "Unexpected error occurred" };
     }
   },
+
+  /**
+   * Lấy danh sách Talent mà user hiện tại đang quản lý
+   * Endpoint: GET /talent/my-managed-talents
+   * Trả về các Talent có active TalentStaffAssignment với Responsibility = TaManagement
+   * @returns Promise với mảng Talent
+   */
+  async getMyManagedTalents(): Promise<Talent[]> {
+    try {
+      const response = await axios.get(`/talent/my-managed-talents`);
+      
+      // Backend trả về format { success, message, data }
+      if (response.data?.success && response.data?.data) {
+        return response.data.data;
+      }
+      
+      // Fallback nếu format khác (trả về trực tiếp mảng)
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      
+      // Nếu không có data, trả về mảng rỗng
+      return [];
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        const status = error.response?.status;
+        const errorData = error.response?.data;
+        
+        // Xử lý lỗi 401 (Unauthorized)
+        if (status === 401) {
+          const message = errorData?.message || "Không có quyền truy cập. Vui lòng đăng nhập lại.";
+          throw { message };
+        }
+        
+        // Xử lý các lỗi khác
+        if (errorData?.message) {
+          throw errorData;
+        }
+        throw { message: "Không thể lấy danh sách Talent đang quản lý" };
+      }
+      throw { message: "Lỗi không xác định khi lấy danh sách Talent đang quản lý" };
+    }
+  },
 };

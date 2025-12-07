@@ -158,6 +158,7 @@ export default function TalentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"projects" | "cvs" | "jobRoleLevels" | "skills" | "availableTimes" | "certificates" | "experiences">(initialTab || "cvs");
   const [basicInfoTab, setBasicInfoTab] = useState<"info" | "blacklist">("info"); // Tab cho phần Thông tin cơ bản
+  const [myManagedTalents, setMyManagedTalents] = useState<Talent[]>([]);
 
   // Inline form states
   const [showInlineForm, setShowInlineForm] = useState<"project" | "skill" | "certificate" | "experience" | "jobRoleLevel" | "availableTime" | "cv" | null>(null);
@@ -485,9 +486,10 @@ export default function TalentDetailPage() {
       try {
         setLoading(true);
 
-        // Fetch talent data và các lookup services song song (không phụ thuộc lẫn nhau)
+        // Fetch talent data, my managed talents, và các lookup services song song
         const [
           talentData,
+          myManagedData,
           allJobRoleLevelsForCV,
           allJobRoleLevelsForTalent,
           allJobRoles,
@@ -498,6 +500,7 @@ export default function TalentDetailPage() {
           blacklistData
         ] = await Promise.all([
           talentService.getById(Number(id)),
+          talentService.getMyManagedTalents().catch(() => []), // Lấy danh sách talents mà user đang quản lý
           jobRoleLevelService.getAll({ excludeDeleted: true, distinctByName: true }), // Cho CV
           jobRoleLevelService.getAll({ excludeDeleted: true }), // Cho vị trí của talent
           jobRoleService.getAll(),
@@ -507,6 +510,9 @@ export default function TalentDetailPage() {
           partnerService.getAll().catch(() => []),
           clientTalentBlacklistService.getByTalentId(Number(id), true).catch(() => null)
         ]);
+        
+        // Lưu danh sách talents đang quản lý
+        setMyManagedTalents(myManagedData);
         
         // Set jobRoles
         setJobRoles(allJobRoles);
@@ -741,6 +747,13 @@ export default function TalentDetailPage() {
     setIsCVsExpanded(talentCVs.length > 0);
   }, [talentCVs.length]);
 
+  // Kiểm tra quyền chỉnh sửa: chỉ TA đang quản lý talent này mới được chỉnh sửa
+  const canEdit = useMemo(() => {
+    if (!talent || !id) return false;
+    // Kiểm tra xem talent này có trong danh sách talents mà user đang quản lý không
+    return myManagedTalents.some((t) => t.id === Number(id));
+  }, [myManagedTalents, talent, id]);
+
   // 🗑️ Xóa nhân sự
   const handleDelete = async () => {
     if (!id) return;
@@ -889,6 +902,12 @@ export default function TalentDetailPage() {
     if (!id) return;
     if (!cv.cvFileUrl) {
       alert("⚠️ Không tìm thấy đường dẫn CV để phân tích.");
+      return;
+    }
+    
+    // Kiểm tra quyền chỉnh sửa
+    if (!canEdit) {
+      alert("Bạn không có quyền phân tích CV. Chỉ TA đang quản lý nhân sự này mới được phân tích CV.");
       return;
     }
 
@@ -1041,6 +1060,12 @@ export default function TalentDetailPage() {
   };
 
   const handleCancelAnalysis = async () => {
+    // Kiểm tra quyền chỉnh sửa
+    if (!canEdit) {
+      alert("Bạn không có quyền hủy phân tích CV. Chỉ TA đang quản lý nhân sự này mới được hủy phân tích.");
+      return;
+    }
+    
     // Kiểm tra nếu có file đã upload lên Firebase trong form
     const hasFirebaseFile = showInlineForm === "cv" && isCVUploadedFromFirebase && uploadedCVUrl && inlineCVForm.cvFileUrl && uploadedCVUrl === inlineCVForm.cvFileUrl;
     
@@ -1749,6 +1774,13 @@ export default function TalentDetailPage() {
       alert("⚠️ Kỹ năng này chưa được gắn nhóm kỹ năng, không thể verify theo group.");
       return;
     }
+    
+    // Kiểm tra quyền chỉnh sửa
+    if (!canEdit) {
+      alert("Bạn không có quyền verify nhóm kỹ năng. Chỉ TA đang quản lý nhân sự này mới được verify.");
+      return;
+    }
+    
     const group = lookupSkillGroups.find((g) => g.id === skillGroupId);
     setSkillGroupVerifyModal({
       isOpen: true,
@@ -1803,6 +1835,12 @@ export default function TalentDetailPage() {
   const handleInvalidateSkillGroup = async (skillGroupId: number | undefined) => {
     if (!id || !skillGroupId) {
       alert("⚠️ Không thể vô hiệu hóa đánh giá cho nhóm kỹ năng này.");
+      return;
+    }
+
+    // Kiểm tra quyền chỉnh sửa
+    if (!canEdit) {
+      alert("Bạn không có quyền hủy đánh giá nhóm kỹ năng. Chỉ TA đang quản lý nhân sự này mới được hủy đánh giá.");
       return;
     }
 
@@ -2098,6 +2136,13 @@ export default function TalentDetailPage() {
     if (isSubmitting) {
       return; // Chỉ chặn khi đang submit
     }
+    
+    // Kiểm tra quyền chỉnh sửa
+    if (!canEdit) {
+      alert("Bạn không có quyền chỉnh sửa nhân sự này. Chỉ TA đang quản lý nhân sự này mới được chỉnh sửa.");
+      return;
+    }
+    
     // Cho phép mở form của tab khác (sẽ tự động đóng form cũ)
     setShowInlineForm(type);
     // Reset form based on type
@@ -2978,6 +3023,12 @@ export default function TalentDetailPage() {
       alert("⚠️ Không tìm thấy ID nhân sự để phân tích CV.");
       return;
     }
+    
+    // Kiểm tra quyền chỉnh sửa
+    if (!canEdit) {
+      alert("Bạn không có quyền phân tích CV. Chỉ TA đang quản lý nhân sự này mới được phân tích CV.");
+      return;
+    }
 
     // Nếu đã có kết quả phân tích CV, thông báo và hủy phân tích hiện tại trước (không đóng form)
     if (analysisResult) {
@@ -3418,7 +3469,8 @@ export default function TalentDetailPage() {
   };
 
   const statusConfig = getStatusConfig(talent.status);
-  const isDisabled = talent.status === "Applying" || talent.status === "Working";
+  const isDisabled = !canEdit || talent.status === "Applying" || talent.status === "Working";
+  
   const formatLinkDisplay = (url?: string) => {
     if (!url) return "—";
     try {
@@ -3477,7 +3529,13 @@ export default function TalentDetailPage() {
               <Button
                 onClick={handleEdit}
                 disabled={isDisabled}
-                title={isDisabled ? "Không thể sửa khi nhân sự đang ứng tuyển hoặc đang làm việc" : ""}
+                title={
+                  !canEdit 
+                    ? "Bạn không có quyền chỉnh sửa nhân sự này. Chỉ TA đang quản lý nhân sự này mới được chỉnh sửa."
+                    : isDisabled 
+                    ? "Không thể sửa khi nhân sự đang ứng tuyển hoặc đang làm việc" 
+                    : ""
+                }
                 className={`group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${isDisabled
                   ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
                   : "bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white"
@@ -3489,7 +3547,13 @@ export default function TalentDetailPage() {
               <Button
                 onClick={handleDelete}
                 disabled={isDisabled}
-                title={isDisabled ? "Không thể xóa khi nhân sự đang ứng tuyển hoặc đang làm việc" : ""}
+                title={
+                  !canEdit 
+                    ? "Bạn không có quyền xóa nhân sự này. Chỉ TA đang quản lý nhân sự này mới được xóa."
+                    : isDisabled 
+                    ? "Không thể xóa khi nhân sự đang ứng tuyển hoặc đang làm việc" 
+                    : ""
+                }
                 className={`group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${isDisabled
                   ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
                   : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
@@ -3899,9 +3963,9 @@ export default function TalentDetailPage() {
                     {showInlineForm !== "project" && (
                       <Button
                         onClick={() => handleOpenInlineForm("project")}
-                        disabled={isSubmitting}
-                        className={`group flex items-center justify-center bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        title={isSubmitting ? "Đang xử lý..." : "Tạo dự án"}
+                        disabled={isSubmitting || !canEdit}
+                        className={`group flex items-center justify-center bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${(isSubmitting || !canEdit) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title={!canEdit ? "Bạn không có quyền chỉnh sửa. Chỉ TA đang quản lý nhân sự này mới được chỉnh sửa." : isSubmitting ? "Đang xử lý..." : "Tạo dự án"}
                       >
                         <Plus className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
                       </Button>
@@ -3909,7 +3973,9 @@ export default function TalentDetailPage() {
                     {selectedProjects.length > 0 && (
                       <Button
                         onClick={handleDeleteProjects}
-                        className="group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
+                        disabled={!canEdit}
+                        className={`group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title={!canEdit ? "Bạn không có quyền xóa. Chỉ TA đang quản lý nhân sự này mới được xóa." : ""}
                       >
                         <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
                         Xóa dự án ({selectedProjects.length})
@@ -4022,7 +4088,9 @@ export default function TalentDetailPage() {
                       </div>
                       <Button
                         onClick={handleCancelAnalysis}
-                        className="px-4 py-2 rounded-xl bg-neutral-600 text-white hover:bg-neutral-700 transition-all duration-300"
+                        disabled={!canEdit}
+                        className={`px-4 py-2 rounded-xl bg-neutral-600 text-white hover:bg-neutral-700 transition-all duration-300 ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title={!canEdit ? "Bạn không có quyền hủy phân tích CV. Chỉ TA đang quản lý nhân sự này mới được hủy phân tích." : ""}
                       >
                         Hủy phân tích
                       </Button>
@@ -4568,9 +4636,9 @@ export default function TalentDetailPage() {
                 {showInlineForm !== "cv" && (
                   <Button
                     onClick={() => handleOpenInlineForm("cv")}
-                    disabled={isSubmitting}
-                    className={`group flex items-center justify-center bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    title={isSubmitting ? "Đang xử lý..." : "Thêm CV"}
+                    disabled={isSubmitting || !canEdit}
+                    className={`group flex items-center justify-center bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${(isSubmitting || !canEdit) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title={!canEdit ? "Bạn không có quyền chỉnh sửa. Chỉ TA đang quản lý nhân sự này mới được chỉnh sửa." : isSubmitting ? "Đang xử lý..." : "Thêm CV"}
                   >
                     <Upload className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
                   </Button>
@@ -4578,7 +4646,9 @@ export default function TalentDetailPage() {
                 {selectedCVs.length > 0 && (
                   <Button
                     onClick={handleDeleteCVs}
-                    className="group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
+                    disabled={!canEdit}
+                    className={`group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title={!canEdit ? "Bạn không có quyền xóa. Chỉ TA đang quản lý nhân sự này mới được xóa." : ""}
                   >
                     <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
                     Xóa CV ({selectedCVs.length})
@@ -4652,8 +4722,9 @@ export default function TalentDetailPage() {
                             <button
                               type="button"
                               onClick={handleAnalyzeCV}
-                              disabled={extractingCV}
+                              disabled={extractingCV || !canEdit}
                               className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-primary-600 to-secondary-600 text-white rounded-lg hover:from-primary-700 hover:to-secondary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 font-semibold text-sm px-4 py-3"
+                              title={!canEdit ? "Bạn không có quyền phân tích CV. Chỉ TA đang quản lý nhân sự này mới được phân tích CV." : ""}
                             >
                               {extractingCV ? (
                                 <>
@@ -5138,13 +5209,13 @@ export default function TalentDetailPage() {
                                         e.stopPropagation();
                                         handleAnalyzeCVFromUrl(cv);
                                       }}
-                                      disabled={isLoading || !canAnalyze}
+                                      disabled={isLoading || !canAnalyze || !canEdit}
                                       className={`group flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 text-xs ${
-                                        isLoading || !canAnalyze
+                                        isLoading || !canAnalyze || !canEdit
                                           ? "bg-neutral-200 text-neutral-500 cursor-not-allowed"
                                           : "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
                                       }`}
-                                      title={!canAnalyze ? "Vui lòng hủy phân tích CV đang hiển thị trước khi phân tích CV khác" : ""}
+                                      title={!canEdit ? "Bạn không có quyền phân tích CV. Chỉ TA đang quản lý nhân sự này mới được phân tích CV." : !canAnalyze ? "Vui lòng hủy phân tích CV đang hiển thị trước khi phân tích CV khác" : ""}
                                     >
                                       <Workflow className="w-3 h-3" />
                                       {isLoading ? "Đang phân tích..." : "Phân tích"}
@@ -5561,9 +5632,9 @@ export default function TalentDetailPage() {
                       {showInlineForm !== "jobRoleLevel" && (
                         <Button
                           onClick={() => handleOpenInlineForm("jobRoleLevel")}
-                          disabled={isSubmitting}
-                          className={`group flex items-center justify-center bg-gradient-to-r from-warning-600 to-warning-700 hover:from-warning-700 hover:to-warning-800 text-white px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          title={isSubmitting ? "Đang xử lý..." : "Thêm vị trí"}
+                          disabled={isSubmitting || !canEdit}
+                          className={`group flex items-center justify-center bg-gradient-to-r from-warning-600 to-warning-700 hover:from-warning-700 hover:to-warning-800 text-white px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${(isSubmitting || !canEdit) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={!canEdit ? "Bạn không có quyền chỉnh sửa. Chỉ TA đang quản lý nhân sự này mới được chỉnh sửa." : isSubmitting ? "Đang xử lý..." : "Thêm vị trí"}
                         >
                           <Plus className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
                         </Button>
@@ -5571,7 +5642,9 @@ export default function TalentDetailPage() {
                       {selectedJobRoleLevels.length > 0 && (
                         <Button
                           onClick={handleDeleteJobRoleLevels}
-                          className="group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
+                          disabled={!canEdit}
+                          className={`group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={!canEdit ? "Bạn không có quyền xóa. Chỉ TA đang quản lý nhân sự này mới được xóa." : ""}
                         >
                           <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
                           Xóa vị trí ({selectedJobRoleLevels.length})
@@ -5968,9 +6041,9 @@ export default function TalentDetailPage() {
                       {showInlineForm !== "skill" && (
                         <Button
                           onClick={() => handleOpenInlineForm("skill")}
-                          disabled={isSubmitting}
-                          className={`group flex items-center justify-center bg-gradient-to-r from-secondary-600 to-secondary-700 hover:from-secondary-700 hover:to-secondary-800 text-white px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          title={isSubmitting ? "Đang xử lý..." : "Thêm kỹ năng"}
+                          disabled={isSubmitting || !canEdit}
+                          className={`group flex items-center justify-center bg-gradient-to-r from-secondary-600 to-secondary-700 hover:from-secondary-700 hover:to-secondary-800 text-white px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${(isSubmitting || !canEdit) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={!canEdit ? "Bạn không có quyền chỉnh sửa. Chỉ TA đang quản lý nhân sự này mới được chỉnh sửa." : isSubmitting ? "Đang xử lý..." : "Thêm kỹ năng"}
                         >
                           <Plus className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
                         </Button>
@@ -5978,7 +6051,9 @@ export default function TalentDetailPage() {
                       {selectedSkills.length > 0 && (
                         <Button
                           onClick={handleDeleteSkills}
-                          className="group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
+                          disabled={!canEdit}
+                          className={`group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={!canEdit ? "Bạn không có quyền xóa. Chỉ TA đang quản lý nhân sự này mới được xóa." : ""}
                         >
                           <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
                           Xóa kỹ năng ({selectedSkills.length})
@@ -6389,7 +6464,9 @@ export default function TalentDetailPage() {
                                               onClick={() =>
                                                 handleOpenVerifySkillGroup(group.skillGroupId)
                                               }
-                                              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-secondary-600 text-white hover:bg-secondary-700"
+                                              disabled={!canEdit}
+                                              className={`px-3 py-1.5 text-xs font-semibold rounded-lg bg-secondary-600 text-white hover:bg-secondary-700 ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                              title={!canEdit ? "Bạn không có quyền verify. Chỉ TA đang quản lý nhân sự này mới được verify." : ""}
                                             >
                                               Verify group
                                             </button>
@@ -6415,7 +6492,9 @@ export default function TalentDetailPage() {
                                               onClick={() =>
                                                 handleInvalidateSkillGroup(group.skillGroupId)
                                               }
-                                              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
+                                              disabled={!canEdit}
+                                              className={`px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                              title={!canEdit ? "Bạn không có quyền hủy đánh giá. Chỉ TA đang quản lý nhân sự này mới được hủy đánh giá." : ""}
                                             >
                                               Hủy đánh giá
                                             </button>
@@ -7005,9 +7084,9 @@ export default function TalentDetailPage() {
                       {showInlineForm !== "availableTime" && (
                         <Button
                           onClick={() => handleOpenInlineForm("availableTime")}
-                          disabled={isSubmitting}
-                          className={`group flex items-center justify-center bg-gradient-to-r from-secondary-600 to-secondary-700 hover:from-secondary-700 hover:to-secondary-800 text-white px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          title={isSubmitting ? "Đang xử lý..." : "Thêm thời gian"}
+                          disabled={isSubmitting || !canEdit}
+                          className={`group flex items-center justify-center bg-gradient-to-r from-secondary-600 to-secondary-700 hover:from-secondary-700 hover:to-secondary-800 text-white px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${(isSubmitting || !canEdit) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={!canEdit ? "Bạn không có quyền chỉnh sửa. Chỉ TA đang quản lý nhân sự này mới được chỉnh sửa." : isSubmitting ? "Đang xử lý..." : "Thêm thời gian"}
                         >
                           <Plus className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
                         </Button>
@@ -7015,7 +7094,9 @@ export default function TalentDetailPage() {
                       {selectedAvailableTimes.length > 0 && (
                         <Button
                           onClick={handleDeleteAvailableTimes}
-                          className="group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
+                          disabled={!canEdit}
+                          className={`group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={!canEdit ? "Bạn không có quyền xóa. Chỉ TA đang quản lý nhân sự này mới được xóa." : ""}
                         >
                           <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
                           Xóa thời gian ({selectedAvailableTimes.length})
@@ -7430,9 +7511,9 @@ export default function TalentDetailPage() {
                       {showInlineForm !== "certificate" && (
                         <Button
                           onClick={() => handleOpenInlineForm("certificate")}
-                          disabled={isSubmitting}
-                          className={`group flex items-center justify-center bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          title={isSubmitting ? "Đang xử lý..." : "Thêm chứng chỉ"}
+                          disabled={isSubmitting || !canEdit}
+                          className={`group flex items-center justify-center bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${(isSubmitting || !canEdit) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={!canEdit ? "Bạn không có quyền chỉnh sửa. Chỉ TA đang quản lý nhân sự này mới được chỉnh sửa." : isSubmitting ? "Đang xử lý..." : "Thêm chứng chỉ"}
                         >
                           <Plus className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
                         </Button>
@@ -7440,7 +7521,9 @@ export default function TalentDetailPage() {
                       {selectedCertificates.length > 0 && (
                         <Button
                           onClick={handleDeleteCertificates}
-                          className="group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
+                          disabled={!canEdit}
+                          className={`group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={!canEdit ? "Bạn không có quyền xóa. Chỉ TA đang quản lý nhân sự này mới được xóa." : ""}
                         >
                           <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
                           Xóa chứng chỉ ({selectedCertificates.length})
@@ -7755,9 +7838,9 @@ export default function TalentDetailPage() {
                       {showInlineForm !== "experience" && (
                         <Button
                           onClick={() => handleOpenInlineForm("experience")}
-                          disabled={isSubmitting}
-                          className={`group flex items-center justify-center bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          title={isSubmitting ? "Đang xử lý..." : "Thêm kinh nghiệm"}
+                          disabled={isSubmitting || !canEdit}
+                          className={`group flex items-center justify-center bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${(isSubmitting || !canEdit) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={!canEdit ? "Bạn không có quyền chỉnh sửa. Chỉ TA đang quản lý nhân sự này mới được chỉnh sửa." : isSubmitting ? "Đang xử lý..." : "Thêm kinh nghiệm"}
                         >
                           <Plus className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
                         </Button>
@@ -7765,7 +7848,9 @@ export default function TalentDetailPage() {
                       {selectedExperiences.length > 0 && (
                         <Button
                           onClick={handleDeleteExperiences}
-                          className="group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
+                          disabled={!canEdit}
+                          className={`group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={!canEdit ? "Bạn không có quyền xóa. Chỉ TA đang quản lý nhân sự này mới được xóa." : ""}
                         >
                           <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
                           Xóa kinh nghiệm ({selectedExperiences.length})
