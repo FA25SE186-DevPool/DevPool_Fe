@@ -532,7 +532,7 @@ export default function ManagerProjectDetailPage() {
                     icon={<Globe2 className="w-4 h-4" />}
                   />
                   <InfoItem 
-                    label="Ngành nghề" 
+                    label="Lĩnh vực" 
                     value={
                       project.industryNames && project.industryNames.length > 0
                         ? project.industryNames.join(", ")

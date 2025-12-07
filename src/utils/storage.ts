@@ -1,6 +1,6 @@
 /**
  * Utility functions để quản lý token và user data
- * Hỗ trợ cả localStorage (remember me) và sessionStorage (không remember)
+ * Luôn sử dụng localStorage cho token và user data
  */
 
 const TOKEN_KEYS = {
@@ -11,85 +11,53 @@ const TOKEN_KEYS = {
 } as const;
 
 /**
- * Lấy token từ storage (kiểm tra cả localStorage và sessionStorage)
+ * Lấy token từ localStorage
  */
 export const getAccessToken = (): string | null => {
-  // Ưu tiên localStorage trước
-  const localToken = localStorage.getItem(TOKEN_KEYS.ACCESS_TOKEN);
-  if (localToken) return localToken;
-  
-  // Nếu không có trong localStorage, thử sessionStorage
-  const sessionToken = sessionStorage.getItem(TOKEN_KEYS.ACCESS_TOKEN);
-  return sessionToken;
+  return localStorage.getItem(TOKEN_KEYS.ACCESS_TOKEN);
 };
 
 /**
- * Lấy refresh token từ storage
+ * Lấy refresh token từ localStorage
  */
 export const getRefreshToken = (): string | null => {
-  const localToken = localStorage.getItem(TOKEN_KEYS.REFRESH_TOKEN);
-  if (localToken) return localToken;
-  
-  const sessionToken = sessionStorage.getItem(TOKEN_KEYS.REFRESH_TOKEN);
-  return sessionToken;
+  return localStorage.getItem(TOKEN_KEYS.REFRESH_TOKEN);
 };
 
 /**
- * Lưu token vào storage dựa trên rememberMe
+ * Lưu token vào localStorage
  */
 export const setTokens = (accessToken: string, refreshToken: string, rememberMe: boolean): void => {
-  const storage = rememberMe ? localStorage : sessionStorage;
-  
-  // Lưu tokens
-  storage.setItem(TOKEN_KEYS.ACCESS_TOKEN, accessToken);
-  storage.setItem(TOKEN_KEYS.REFRESH_TOKEN, refreshToken);
-  
-  // Lưu remember me setting vào localStorage để biết dùng storage nào
+  // Luôn lưu vào localStorage
+  localStorage.setItem(TOKEN_KEYS.ACCESS_TOKEN, accessToken);
+  localStorage.setItem(TOKEN_KEYS.REFRESH_TOKEN, refreshToken);
   localStorage.setItem(TOKEN_KEYS.REMEMBER_ME, String(rememberMe));
   
-  // Nếu không remember, xóa tokens khỏi localStorage (nếu có)
-  if (!rememberMe) {
-    localStorage.removeItem(TOKEN_KEYS.ACCESS_TOKEN);
-    localStorage.removeItem(TOKEN_KEYS.REFRESH_TOKEN);
-  } else {
-    // Nếu remember, xóa tokens khỏi sessionStorage (nếu có)
-    sessionStorage.removeItem(TOKEN_KEYS.ACCESS_TOKEN);
-    sessionStorage.removeItem(TOKEN_KEYS.REFRESH_TOKEN);
-  }
+  // Xóa tokens khỏi sessionStorage nếu có (để tránh conflict)
+  sessionStorage.removeItem(TOKEN_KEYS.ACCESS_TOKEN);
+  sessionStorage.removeItem(TOKEN_KEYS.REFRESH_TOKEN);
 };
 
 /**
- * Lưu user data vào storage
+ * Lưu user data vào localStorage
  */
 export const setUser = (userData: any, rememberMe: boolean): void => {
-  const storage = rememberMe ? localStorage : sessionStorage;
-  storage.setItem(TOKEN_KEYS.USER, JSON.stringify(userData));
+  // Luôn lưu vào localStorage
+  localStorage.setItem(TOKEN_KEYS.USER, JSON.stringify(userData));
+  localStorage.setItem(TOKEN_KEYS.REMEMBER_ME, String(rememberMe));
   
-  // Xóa user data khỏi storage còn lại
-  if (rememberMe) {
-    sessionStorage.removeItem(TOKEN_KEYS.USER);
-  } else {
-    localStorage.removeItem(TOKEN_KEYS.USER);
-  }
+  // Xóa user data khỏi sessionStorage nếu có (để tránh conflict)
+  sessionStorage.removeItem(TOKEN_KEYS.USER);
 };
 
 /**
- * Lấy user data từ storage (kiểm tra cả 2)
+ * Lấy user data từ localStorage
  */
 export const getUser = (): any | null => {
   const localUser = localStorage.getItem(TOKEN_KEYS.USER);
   if (localUser) {
     try {
       return JSON.parse(localUser);
-    } catch {
-      return null;
-    }
-  }
-  
-  const sessionUser = sessionStorage.getItem(TOKEN_KEYS.USER);
-  if (sessionUser) {
-    try {
-      return JSON.parse(sessionUser);
     } catch {
       return null;
     }
@@ -102,12 +70,13 @@ export const getUser = (): any | null => {
  * Xóa tất cả tokens và user data
  */
 export const clearAuthData = (): void => {
-  // Xóa từ cả 2 storage để đảm bảo
+  // Xóa từ localStorage
   localStorage.removeItem(TOKEN_KEYS.ACCESS_TOKEN);
   localStorage.removeItem(TOKEN_KEYS.REFRESH_TOKEN);
   localStorage.removeItem(TOKEN_KEYS.USER);
   localStorage.removeItem(TOKEN_KEYS.REMEMBER_ME);
   
+  // Xóa từ sessionStorage để đảm bảo (nếu có)
   sessionStorage.removeItem(TOKEN_KEYS.ACCESS_TOKEN);
   sessionStorage.removeItem(TOKEN_KEYS.REFRESH_TOKEN);
   sessionStorage.removeItem(TOKEN_KEYS.USER);

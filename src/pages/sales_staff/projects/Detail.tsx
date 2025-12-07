@@ -1109,6 +1109,7 @@ export default function ProjectDetailPage() {
   Planned: "Đã lên kế hoạch",
   Ongoing: "Đang thực hiện",
   Completed: "Đã hoàn thành",
+  OnHold: "Tạm dừng",
 };
 
   const assignmentStatusLabels: Record<string, string> = {
@@ -1420,7 +1421,7 @@ export default function ProjectDetailPage() {
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 border border-green-200">
                 <CheckCircle className="w-4 h-4 text-green-600" />
                 <span className="text-sm font-medium text-green-800">
-                  {project.status ? statusLabels[project.status] || project.status : "Đang hoạt động"}
+                  {project.status ? (statusLabels[project.status] || "Không xác định") : "Đang hoạt động"}
                 </span>
               </div>
             </div>
@@ -1441,7 +1442,7 @@ export default function ProjectDetailPage() {
                     ? "bg-red-600 hover:bg-red-700 text-white hover:shadow-glow"
                     : "bg-gray-400 text-white cursor-not-allowed opacity-50"
                 }`}
-                title={project?.status !== "Planned" ? "Chỉ có thể xóa dự án khi ở trạng thái 'Planned'" : "Xóa dự án"}
+                title={project?.status !== "Planned" ? "Chỉ có thể xóa dự án khi ở trạng thái 'Đã lên kế hoạch'" : "Xóa dự án"}
               >
                 <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
                 Xóa
@@ -1564,7 +1565,7 @@ export default function ProjectDetailPage() {
                   icon={<Globe2 className="w-4 h-4" />}
                 />
                 <InfoItem 
-                  label="Ngành nghề" 
+                  label="Lĩnh vực" 
                   value={
                     project.industryNames && project.industryNames.length > 0
                       ? project.industryNames.join(", ")
@@ -1700,7 +1701,7 @@ export default function ProjectDetailPage() {
                                     : "bg-gray-100 text-gray-700"
                                 }`}>
                                   {jr.status !== undefined && jr.status !== null
-                                    ? (jobRequestStatusLabels[jr.status] || String(jr.status))
+                                    ? (jobRequestStatusLabels[jr.status] || "Không xác định")
                                     : "—"}
                                 </span>
                               </td>
@@ -1801,7 +1802,7 @@ export default function ProjectDetailPage() {
                             "Pending": "bg-yellow-100 text-yellow-700",
                             "Processing": "bg-blue-100 text-blue-700"
                           };
-                          const statusLabel = statusLabels[period.status] || period.status;
+                          const statusLabel = statusLabels[period.status] || "Không xác định";
                           const statusColor = statusColors[period.status] || "bg-neutral-100 text-neutral-700";
                           
                           return (
@@ -2085,7 +2086,7 @@ export default function ProjectDetailPage() {
                                 assignment.status === "Inactive" ? "bg-gray-100 text-gray-800" :
                                 "bg-neutral-100 text-neutral-800"
                               }`}>
-                                {assignment.status ? (assignmentStatusLabels[assignment.status] || assignment.status) : "—"}
+                                {assignment.status ? (assignmentStatusLabels[assignment.status] || "Không xác định") : "—"}
                               </span>
                             </td>
                             <td className="py-3 px-4">
@@ -2324,7 +2325,7 @@ export default function ProjectDetailPage() {
                     <option value="">Không chọn</option>
                     {hiredApplications.map((app) => (
                       <option key={app.id} value={app.id}>
-                        Application #{app.id} - {app.status ? (applicationStatusLabels[app.status] || app.status) : app.status}
+                        Application #{app.id} - {app.status ? (applicationStatusLabels[app.status] || "Không xác định") : "Không xác định"}
                       </option>
                     ))}
                   </select>
@@ -2918,7 +2919,7 @@ export default function ProjectDetailPage() {
                   selectedAssignment.status === "Draft" ? "bg-yellow-100 text-yellow-800" :
                   "bg-neutral-100 text-neutral-800"
                 }`}>
-                  {selectedAssignment.status ? (assignmentStatusLabels[selectedAssignment.status] || selectedAssignment.status) : "—"}
+                  {selectedAssignment.status ? (assignmentStatusLabels[selectedAssignment.status] || "Không xác định") : "—"}
                 </span>
               </div>
 

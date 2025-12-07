@@ -623,7 +623,7 @@ export default function TalentCVCreatePage() {
       // Ưu tiên dùng authUser.role từ context, fallback về JWT token nếu không có
       const isDeveloper = authUser?.role === 'Developer' || 
         (() => {
-          const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+          const token = localStorage.getItem('accessToken');
           if (!token) return false;
           const decoded = decodeJWT(token);
           const userRoles = decoded?.role || decoded?.roles || [];

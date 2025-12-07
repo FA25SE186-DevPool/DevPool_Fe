@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Facebook, Linkedin, Mail, Phone, MapPin } from 'lucide-react';
+import logoDevPool from '../../assets/logo-DevPool.jpg';
 
 export default function Footer() {
   return (
@@ -9,8 +10,12 @@ export default function Footer() {
           {/* Company Info */}
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">D</span>
+              <div className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-lg flex items-center justify-center p-1">
+                <img 
+                  src={logoDevPool} 
+                  alt="DevPool Logo" 
+                  className="w-full h-full object-contain"
+                />
               </div>
               <span className="font-bold text-xl">DevPool</span>
             </div>

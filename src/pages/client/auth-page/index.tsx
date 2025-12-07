@@ -1,4 +1,5 @@
 import LoginForm from "../../../components/auth/LoginForm"
+import logoDevPool from "../../../assets/logo-DevPool.jpg"
 
 export default function Auth() {
   return (
@@ -50,12 +51,12 @@ export default function Auth() {
           {/* New Logo Design */}
           <div className="space-y-6">
             <div className="relative inline-flex items-center justify-center">
-              <div className="w-24 h-24 bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600 rounded-2xl shadow-2xl transform rotate-3 animate-bounce-gentle">
-                <div className="w-full h-full bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 flex items-center justify-center">
-                  <div className="text-white font-bold text-2xl tracking-wider">
-                    <span className="bg-gradient-to-r from-white to-cyan-200 bg-clip-text text-transparent">DP</span>
-                  </div>
-                </div>
+              <div className="w-24 h-24 bg-white/10 backdrop-blur-sm rounded-2xl shadow-2xl transform rotate-3 animate-bounce-gentle border border-white/20 flex items-center justify-center p-2">
+                <img 
+                  src={logoDevPool} 
+                  alt="DevPool Logo" 
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-ping"></div>
             </div>

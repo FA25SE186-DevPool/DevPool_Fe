@@ -27,7 +27,7 @@ export default function AdminProfilePage() {
                 setLoading(true);
                 setError('');
                 
-                const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+                const token = localStorage.getItem('accessToken');
                 let userId: string | null = null;
                 
                 if (token) {
@@ -77,7 +77,7 @@ export default function AdminProfilePage() {
             setError('');
             setSuccess(false);
             
-            const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+            const token = localStorage.getItem('accessToken');
             let userId: string | null = null;
             
             if (token) {

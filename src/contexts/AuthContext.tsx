@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { authService } from '../services/Auth';
 import { auth, onAuthStateChanged } from '../configs/firebase';
@@ -54,12 +54,19 @@ function roleDisplayName(role: Role, email: string) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const userRef = useRef<User | null>(null);
+
+  // Cập nhật ref khi user thay đổi
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   useEffect(() => {
     // Restore user từ storage (kiểm tra cả localStorage và sessionStorage)
     const storedUser = getUser();
     if (storedUser) {
       setUser(storedUser);
+      userRef.current = storedUser;
     }
 
     // Kiểm tra Firebase auth state
@@ -75,8 +82,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     });
 
-    return () => unsubscribe();
-  }, []);
+    // Lắng nghe thay đổi localStorage từ các tab khác
+    const handleStorageChange = (e: StorageEvent) => {
+      // Nếu token hoặc user data thay đổi từ tab khác
+      if (e.key === 'accessToken' || e.key === 'devpool_user') {
+        const newToken = localStorage.getItem('accessToken');
+        const newUser = getUser();
+        const currentUser = userRef.current;
+        
+        // Nếu token bị xóa (logout từ tab khác)
+        if (!newToken && currentUser) {
+          console.log('Token removed from another tab, logging out...');
+          setUser(null);
+          userRef.current = null;
+          return;
+        }
+        
+        // Nếu token thay đổi (đăng nhập tài khoản khác từ tab khác)
+        if (newToken && newUser) {
+          const currentUserId = currentUser?.id;
+          const newUserId = newUser.id;
+          
+          // Nếu user ID khác nhau, đây là đăng nhập tài khoản mới
+          if (currentUserId && newUserId && currentUserId !== newUserId) {
+            console.log('Different user logged in from another tab, updating user...');
+            setUser(newUser);
+            userRef.current = newUser;
+            // Reload page để đảm bảo tất cả state được cập nhật
+            window.location.reload();
+          } else if (!currentUserId && newUserId) {
+            // Nếu chưa có user nhưng có user mới, cập nhật
+            setUser(newUser);
+            userRef.current = newUser;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []); // Không có dependency để chỉ chạy 1 lần khi mount
 
   const login: AuthContextType['login'] = async (email, _password, role) => {
     setIsLoading(true);

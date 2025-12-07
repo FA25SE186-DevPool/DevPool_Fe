@@ -55,17 +55,8 @@ const notifyRefreshSubscribers = (token: string | null) => {
 };
 
 const handleRefreshToken = async (): Promise<string | null> => {
-    // Xác định storage dựa trên rememberMe trước khi lấy token
-    const rememberMe = localStorage.getItem('remember_me') === 'true';
-    const storage = rememberMe ? localStorage : sessionStorage;
-    
-    // Lấy refresh token từ đúng storage (ưu tiên storage hiện tại, fallback sang storage kia)
-    let refreshToken = storage.getItem('refreshToken');
-    if (!refreshToken) {
-        // Fallback: thử storage còn lại
-        const fallbackStorage = rememberMe ? sessionStorage : localStorage;
-        refreshToken = fallbackStorage.getItem('refreshToken');
-    }
+    // Luôn lấy refresh token từ localStorage
+    const refreshToken = localStorage.getItem('refreshToken');
     
     if (!refreshToken) {
         console.warn('⚠️ No refresh token found in storage');
@@ -77,16 +68,13 @@ const handleRefreshToken = async (): Promise<string | null> => {
         const { accessToken, refreshToken: newRefreshToken } = response.data ?? {};
 
         if (accessToken) {
-            storage.setItem('accessToken', accessToken);
+            localStorage.setItem('accessToken', accessToken);
         }
 
         // Backend có thể không trả về newRefreshToken nếu không rotate token
         // Nếu có newRefreshToken, cập nhật; nếu không, giữ nguyên token cũ
         if (newRefreshToken) {
-            storage.setItem('refreshToken', newRefreshToken);
-            // Xóa token cũ ở storage kia nếu có (tránh conflict)
-            const otherStorage = rememberMe ? sessionStorage : localStorage;
-            otherStorage.removeItem('refreshToken');
+            localStorage.setItem('refreshToken', newRefreshToken);
         }
 
         return accessToken ?? null;
@@ -100,15 +88,15 @@ const handleRefreshToken = async (): Promise<string | null> => {
             console.warn('⚠️ Refresh token mismatch - user may have logged in elsewhere');
         }
         
-        // Xóa từ cả 2 storage để đảm bảo clean state
+        // Xóa từ localStorage
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('devpool_user');
         localStorage.removeItem('remember_me');
+        // Xóa từ sessionStorage để đảm bảo (nếu có)
         sessionStorage.removeItem('accessToken');
         sessionStorage.removeItem('refreshToken');
         sessionStorage.removeItem('devpool_user');
-        sessionStorage.removeItem('remember_me');
         return null;
     }
 };
@@ -116,8 +104,8 @@ const handleRefreshToken = async (): Promise<string | null> => {
 // 🧩 Request interceptor: tự động thêm token vào header
 axiosInstance.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
-        // Lấy token từ cả localStorage và sessionStorage
-        const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+        // Lấy token từ localStorage
+        const token = localStorage.getItem('accessToken');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -175,10 +163,11 @@ axiosInstance.interceptors.response.use(
 
         if (status === 401) {
             console.warn('🔒 Token expired or unauthorized.');
-            // Xóa từ cả 2 storage
+            // Xóa từ localStorage
             localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
             localStorage.removeItem('devpool_user');
+            // Xóa từ sessionStorage để đảm bảo (nếu có)
             sessionStorage.removeItem('accessToken');
             sessionStorage.removeItem('refreshToken');
             sessionStorage.removeItem('devpool_user');
