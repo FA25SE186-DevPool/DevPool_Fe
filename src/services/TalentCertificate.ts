@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { TalentCertificate, TalentCertificateFilter, TalentCertificateCreate } from "../types/talentcertificate.types";
 
@@ -13,7 +13,7 @@ export const talentCertificateService = {
       if (filter?.isVerified !== undefined) params.append("IsVerified", filter.isVerified.toString());
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
       const url = `/talentcertificate${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -24,7 +24,7 @@ export const talentCertificateService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/talentcertificate/${id}`);
+      const response = await apiClient.get(`/talentcertificate/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -35,7 +35,7 @@ export const talentCertificateService = {
 
   async create(payload: TalentCertificateCreate) {
     try {
-      const response = await axios.post("/talentcertificate", payload);
+      const response = await apiClient.post("/talentcertificate", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -46,7 +46,7 @@ export const talentCertificateService = {
 
   async update(id: number, payload: Partial<TalentCertificateCreate>) {
     try {
-      const response = await axios.put(`/talentcertificate/${id}`, payload);
+      const response = await apiClient.put(`/talentcertificate/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -57,7 +57,7 @@ export const talentCertificateService = {
 
   async deleteById(id: number) {
     try {
-      const response = await axios.delete(`/talentcertificate/${id}`);
+      const response = await apiClient.delete(`/talentcertificate/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

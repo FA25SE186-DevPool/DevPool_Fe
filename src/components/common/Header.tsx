@@ -17,8 +17,8 @@ import {
   UserPen,
   MessageCircle,
 } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
-import logoDevPool from '../../assets/logo-DevPool.jpg';
+import { useAuth } from '../../context/AuthContext';
+import logoDevPool from '../../assets/images/logo-DevPool.jpg';
 import { getDashboardRoute, ROUTES, NOTIFICATION_CENTER_ROUTE } from '../../router/routes';
 import {
   notificationService,
@@ -27,7 +27,7 @@ import {
   NotificationPriority,
 } from '../../services/Notification';
 import { decodeJWT } from '../../services/Auth';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 import { talentCVService } from '../../services/TalentCV';
 import { talentService } from '../../services/Talent';
 import { jobRoleLevelService } from '../../services/JobRoleLevel';

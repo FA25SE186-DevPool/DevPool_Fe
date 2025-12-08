@@ -28,11 +28,11 @@ import { clientTalentBlacklistService, type ClientTalentBlacklist } from "../../
 import { notificationService, NotificationPriority, NotificationType } from "../../../services/Notification";
 import { userService } from "../../../services/User";
 import { decodeJWT } from "../../../services/Auth";
-import { WorkingMode } from "../../../types/WorkingMode";
+import { WorkingMode } from "../../../constants/WORKING_MODE";
 import { uploadFile, uploadTalentCV, downloadFileFromFirebase } from "../../../utils/firebaseStorage";
 import { saveFileToIndexedDB, getFileFromIndexedDB, deleteFileFromIndexedDB } from "../../../utils/indexedDBStorage";
 import { ref, deleteObject } from "firebase/storage";
-import { storage } from "../../../configs/firebase";
+import { storage } from "../../../config/firebase";
 import { Button } from "../../../components/ui/button";
 import {
   Edit,

@@ -82,13 +82,6 @@ export interface ContactInquiryStatusTransitionResult {
   validationErrors?: string[];
 }
 
-export interface PagedResult<T> {
-  items: T[];
-  totalCount: number;
-  pageNumber: number;
-  pageSize: number;
-  totalPages: number;
-  hasPreviousPage: boolean;
-  hasNextPage: boolean;
-}
+// PagedResult đã được chuyển sang common.types.ts
+export type { PagedResult } from './common.types';
 

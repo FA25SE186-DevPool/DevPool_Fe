@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { Location, LocationCreatePayload, LocationFilter } from "../types/location.types";
 
@@ -14,7 +14,7 @@ export const locationService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/location${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -25,7 +25,7 @@ export const locationService = {
 
   async getById(id: number): Promise<Location> {
     try {
-      const response = await axios.get(`/location/${id}`);
+      const response = await apiClient.get(`/location/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -36,7 +36,7 @@ export const locationService = {
 
   async create(payload: LocationCreatePayload): Promise<Location> {
     try {
-      const response = await axios.post("/location", payload);
+      const response = await apiClient.post("/location", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -47,7 +47,7 @@ export const locationService = {
 
   async update(id: number, payload: Partial<LocationCreatePayload>): Promise<Location> {
     try {
-      const response = await axios.put(`/location/${id}`, payload);
+      const response = await apiClient.put(`/location/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -58,7 +58,7 @@ export const locationService = {
 
   async delete(id: number): Promise<void> {
     try {
-      await axios.delete(`/location/${id}`);
+      await apiClient.delete(`/location/${id}`);
     } catch (error: unknown) {
       if (error instanceof AxiosError)
         throw error.response?.data || { message: "Không thể xóa khu vực làm việc" };

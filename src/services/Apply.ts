@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { Apply, ApplyCreate, ApplyStatusUpdate, ApplyFilter } from "../types/apply.types";
 
@@ -14,7 +14,7 @@ export const applyService = {
       if (filter?.status) params.append("Status", filter.status);
 
       const url = `/apply${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
 
       return response.data as Apply[];
     } catch (error: unknown) {
@@ -26,7 +26,7 @@ export const applyService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/apply/${id}`);
+      const response = await apiClient.get(`/apply/${id}`);
       return response.data as Apply;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -37,7 +37,7 @@ export const applyService = {
 
   async create(payload: ApplyCreate) {
     try {
-      const response = await axios.post("/apply", payload);
+      const response = await apiClient.post("/apply", payload);
       return response.data as Apply;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -48,7 +48,7 @@ export const applyService = {
 
   async update(id: number, payload: Partial<ApplyCreate> & { status?: string }) {
     try {
-      const response = await axios.put(`/apply/${id}`, payload);
+      const response = await apiClient.put(`/apply/${id}`, payload);
       return response.data as Apply;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -59,7 +59,7 @@ export const applyService = {
 
   async updateStatus(id: number, payload: ApplyStatusUpdate) {
     try {
-      const response = await axios.patch(`/apply/${id}/status`, payload);
+      const response = await apiClient.patch(`/apply/${id}/status`, payload);
       return response.data as Apply;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -70,7 +70,7 @@ export const applyService = {
 
   async delete(id: number) {
     try {
-      const response = await axios.delete(`/apply/${id}`);
+      const response = await apiClient.delete(`/apply/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { SkillGroup, SkillGroupCreate, SkillGroupFilter } from "../types/skillgroup.types";
 
@@ -15,7 +15,7 @@ export const skillGroupService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/skillgroup${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
 
       return response.data;
     } catch (error: unknown) {
@@ -27,7 +27,7 @@ export const skillGroupService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/skillgroup/${id}`);
+      const response = await apiClient.get(`/skillgroup/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -38,7 +38,7 @@ export const skillGroupService = {
 
   async create(payload: SkillGroupCreate) {
     try {
-      const response = await axios.post("/skillgroup", payload);
+      const response = await apiClient.post("/skillgroup", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -49,7 +49,7 @@ export const skillGroupService = {
 
   async update(id: number, payload: Partial<SkillGroupCreate>) {
     try {
-      const response = await axios.put(`/skillgroup/${id}`, payload);
+      const response = await apiClient.put(`/skillgroup/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -60,7 +60,7 @@ export const skillGroupService = {
 
   async delete(id: number) {
     try {
-      const response = await axios.delete(`/skillgroup/${id}`);
+      const response = await apiClient.delete(`/skillgroup/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

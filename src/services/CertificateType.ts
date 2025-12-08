@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { CertificateType, CertificateTypeFilter, CertificateTypeCreate } from "../types/certificatetype.types";
 
@@ -12,7 +12,7 @@ export const certificateTypeService = {
       if (filter?.skillGroupId) params.append("SkillGroupId", filter.skillGroupId.toString());
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
       const url = `/certificatetype${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -23,7 +23,7 @@ export const certificateTypeService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/certificatetype/${id}`);
+      const response = await apiClient.get(`/certificatetype/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -34,7 +34,7 @@ export const certificateTypeService = {
 
   async create(payload: CertificateTypeCreate) {
     try {
-      const response = await axios.post("/certificatetype", payload);
+      const response = await apiClient.post("/certificatetype", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -45,7 +45,7 @@ export const certificateTypeService = {
 
   async update(id: number, payload: Partial<CertificateTypeCreate>) {
     try {
-      const response = await axios.put(`/certificatetype/${id}`, payload);
+      const response = await apiClient.put(`/certificatetype/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -56,7 +56,7 @@ export const certificateTypeService = {
 
   async deleteById(id: number) {
     try {
-      const response = await axios.delete(`/certificatetype/${id}`);
+      const response = await apiClient.delete(`/certificatetype/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

@@ -1,4 +1,4 @@
-import { WorkingMode } from "./WorkingMode";
+import { WorkingMode } from "../constants/WORKING_MODE";
 import type { TalentSkill } from "./talentskill.types";
 import type { TalentWorkExperience } from "./talentworkexperience.types";
 import type { TalentProject } from "./talentproject.types";

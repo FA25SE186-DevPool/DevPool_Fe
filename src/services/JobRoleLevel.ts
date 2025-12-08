@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import { TalentLevel, type JobRoleLevel, type JobRoleLevelPayload, type JobRoleLevelFilter } from "../types/jobrolelevel.types";
 
@@ -20,7 +20,7 @@ export const jobRoleLevelService = {
         params.append("DistinctByName", filter.distinctByName ? "true" : "false");
 
       const url = `/jobrolelevel${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -33,7 +33,7 @@ export const jobRoleLevelService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/jobrolelevel/${id}`);
+      const response = await apiClient.get(`/jobrolelevel/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -46,7 +46,7 @@ export const jobRoleLevelService = {
 
   async create(payload: JobRoleLevelPayload) {
     try {
-      const response = await axios.post("/jobrolelevel", payload);
+      const response = await apiClient.post("/jobrolelevel", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -59,7 +59,7 @@ export const jobRoleLevelService = {
 
   async update(id: number, payload: Partial<JobRoleLevelPayload>) {
     try {
-      const response = await axios.put(`/jobrolelevel/${id}`, payload);
+      const response = await apiClient.put(`/jobrolelevel/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -72,7 +72,7 @@ export const jobRoleLevelService = {
 
   async delete(id: number) {
     try {
-      const response = await axios.delete(`/jobrolelevel/${id}`);
+      const response = await apiClient.delete(`/jobrolelevel/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

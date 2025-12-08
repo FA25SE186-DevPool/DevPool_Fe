@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import { 
   auth,
@@ -6,8 +6,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut
-} from "../configs/firebase";
-import { db } from "../configs/firebase";
+} from "../config/firebase";
+import { db } from "../config/firebase";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { BackendRole, type FrontendRole, type LoginPayload, type RegisterPayload, type UserProvisionPayload, type UserProvisionResponse, type LoginResponse, type JwtPayload } from "../types/auth.types";
 
@@ -226,7 +226,7 @@ export async function ensureFirebaseAuth(): Promise<boolean> {
 export const authService = {
   async login(payload: LoginPayload): Promise<LoginResponse> {
     try {
-      const response = await axios.post<LoginResponse>("/auth/login", payload);
+      const response = await apiClient.post<LoginResponse>("/auth/login", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -237,7 +237,7 @@ export const authService = {
 
   async register(payload: RegisterPayload) {
     try {
-      const response = await axios.post("/auth/register", payload);
+      const response = await apiClient.post("/auth/register", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -253,7 +253,7 @@ export const authService = {
    */
   async adminProvision(payload: UserProvisionPayload): Promise<UserProvisionResponse> {
     try {
-      const response = await axios.post<UserProvisionResponse>("/auth/register", payload);
+      const response = await apiClient.post<UserProvisionResponse>("/auth/register", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -268,7 +268,7 @@ export const authService = {
    */
   async logout(): Promise<void> {
     try {
-      const response = await axios.post("/auth/logout");
+      const response = await apiClient.post("/auth/logout");
       console.log('Backend logout successful:', response.data);
       return response.data;
     } catch (error: unknown) {

@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { Project, ProjectPayload, ProjectFilter, ProjectStatusUpdateModel, ProjectStatusTransitionResult, ProjectDetailedModel } from "../types/project.types";
 
@@ -30,7 +30,7 @@ export const projectService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/project${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -41,7 +41,7 @@ export const projectService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/project/${id}`);
+      const response = await apiClient.get(`/project/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -52,7 +52,7 @@ export const projectService = {
 
   async getDetailedById(id: number): Promise<ProjectDetailedModel> {
     try {
-      const response = await axios.get(`/project/${id}/detailed`);
+      const response = await apiClient.get(`/project/${id}/detailed`);
       // Backend trả về { success: true, message: "...", data: ProjectDetailedModel }
       return response.data.data;
     } catch (error: unknown) {
@@ -64,7 +64,7 @@ export const projectService = {
 
   async create(payload: Partial<ProjectPayload>) {
     try {
-      const response = await axios.post("/project", payload);
+      const response = await apiClient.post("/project", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -75,7 +75,7 @@ export const projectService = {
 
   async update(id: number, payload: Partial<ProjectPayload>) {
     try {
-      const response = await axios.put(`/project/${id}`, payload);
+      const response = await apiClient.put(`/project/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -86,7 +86,7 @@ export const projectService = {
 
   async delete(id: number) {
     try {
-      const response = await axios.delete(`/project/${id}`);
+      const response = await apiClient.delete(`/project/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -97,7 +97,7 @@ export const projectService = {
 
   async updateStatus(id: number, payload: ProjectStatusUpdateModel): Promise<ProjectStatusTransitionResult> {
     try {
-      const response = await axios.put(`/project/${id}/change-status`, payload);
+      const response = await apiClient.put(`/project/${id}/change-status`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

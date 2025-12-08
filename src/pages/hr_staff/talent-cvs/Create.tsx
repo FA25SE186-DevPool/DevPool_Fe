@@ -7,8 +7,8 @@ import { talentCVService, type TalentCVCreate } from "../../../services/TalentCV
 import { jobRoleLevelService, type JobRoleLevel } from "../../../services/JobRoleLevel";
 import { uploadTalentCV } from "../../../utils/firebaseStorage";
 import { ref, deleteObject } from "firebase/storage";
-import { storage } from "../../../configs/firebase";
-import { useAuth } from "../../../contexts/AuthContext";
+import { storage } from "../../../config/firebase";
+import { useAuth } from "../../../context/AuthContext";
 import { decodeJWT } from "../../../services/Auth";
 import { ROUTES } from "../../../router/routes";
   import { 

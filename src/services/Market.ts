@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { Market, MarketPayload, MarketFilter } from "../types/market.types";
 
@@ -14,7 +14,7 @@ export const marketService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/market${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -26,7 +26,7 @@ export const marketService = {
   // Lấy Market theo id
   async getById(id: number) {
     try {
-      const response = await axios.get(`/market/${id}`);
+      const response = await apiClient.get(`/market/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -38,7 +38,7 @@ export const marketService = {
   // Tạo mới Market
   async create(payload: MarketPayload) {
     try {
-      const response = await axios.post("/market", payload);
+      const response = await apiClient.post("/market", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -50,7 +50,7 @@ export const marketService = {
   // Cập nhật Market
   async update(id: number, payload: Partial<MarketPayload>) {
     try {
-      const response = await axios.put(`/market/${id}`, payload);
+      const response = await apiClient.put(`/market/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -62,7 +62,7 @@ export const marketService = {
   // Xóa Market
   async delete(id: number) {
     try {
-      const response = await axios.delete(`/market/${id}`);
+      const response = await apiClient.delete(`/market/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

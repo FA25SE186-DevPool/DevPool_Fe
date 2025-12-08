@@ -8,7 +8,7 @@ import { certificateTypeService, type CertificateType } from "../../../services/
 import { type ExtractedCertificate } from "../../../services/TalentCV";
 import { uploadFile } from "../../../utils/firebaseStorage";
 import { ref, deleteObject } from "firebase/storage";
-import { storage } from "../../../configs/firebase";
+import { storage } from "../../../config/firebase";
 import { 
   Plus, 
   Save, 

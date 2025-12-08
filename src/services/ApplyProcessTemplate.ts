@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { ApplyProcessTemplate, ApplyProcessTemplateFilter, ApplyProcessTemplateCreatePayload } from "../types/applyprocesstemplate.types";
 
@@ -13,7 +13,7 @@ export const applyProcessTemplateService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/applyprocesstemplate${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -24,7 +24,7 @@ export const applyProcessTemplateService = {
 
   async getById(id: number): Promise<ApplyProcessTemplate> {
     try {
-      const response = await axios.get(`/applyprocesstemplate/${id}`);
+      const response = await apiClient.get(`/applyprocesstemplate/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -35,7 +35,7 @@ export const applyProcessTemplateService = {
 
   async create(payload: ApplyProcessTemplateCreatePayload): Promise<ApplyProcessTemplate> {
     try {
-      const response = await axios.post("/applyprocesstemplate", payload);
+      const response = await apiClient.post("/applyprocesstemplate", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -46,7 +46,7 @@ export const applyProcessTemplateService = {
 
   async update(id: number, payload: Partial<ApplyProcessTemplateCreatePayload>): Promise<ApplyProcessTemplate> {
     try {
-      const response = await axios.put(`/applyprocesstemplate/${id}`, payload);
+      const response = await apiClient.put(`/applyprocesstemplate/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -57,7 +57,7 @@ export const applyProcessTemplateService = {
 
   async delete(id: number): Promise<void> {
     try {
-      await axios.delete(`/applyprocesstemplate/${id}`);
+      await apiClient.delete(`/applyprocesstemplate/${id}`);
     } catch (error: unknown) {
       if (error instanceof AxiosError)
         throw error.response?.data || { message: "Không thể xóa mẫu quy trình apply" };

@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { User, UserCreate, UserUpdate, UserUpdateRole, UserRegister, UserFilter, PagedResult } from "../types/user.types";
 
@@ -23,7 +23,7 @@ export const userService = {
         params.append("PageSize", filter.pageSize.toString());
 
       const url = `/user${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
 
       return response.data;
     } catch (error: unknown) {
@@ -35,7 +35,7 @@ export const userService = {
 
   async getById(id: string): Promise<User> {
     try {
-      const response = await axios.get(`/user/${id}`);
+      const response = await apiClient.get(`/user/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -46,7 +46,7 @@ export const userService = {
 
   async register(payload: UserRegister): Promise<User> {
     try {
-      const response = await axios.post("/auth/register", payload);
+      const response = await apiClient.post("/auth/register", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -57,7 +57,7 @@ export const userService = {
 
   async create(payload: UserCreate): Promise<User> {
     try {
-      const response = await axios.post("/user", payload);
+      const response = await apiClient.post("/user", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -68,7 +68,7 @@ export const userService = {
 
   async update(id: string, payload: UserUpdate): Promise<User> {
     try {
-      const response = await axios.put(`/user/${id}`, payload);
+      const response = await apiClient.put(`/user/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -79,7 +79,7 @@ export const userService = {
 
   async updateRole(id: string, payload: UserUpdateRole): Promise<User> {
     try {
-      const response = await axios.put(`/user/${id}/role`, payload);
+      const response = await apiClient.put(`/user/${id}/role`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -90,7 +90,7 @@ export const userService = {
 
   async delete(id: string): Promise<void> {
     try {
-      await axios.delete(`/user/${id}`);
+      await apiClient.delete(`/user/${id}`);
     } catch (error: unknown) {
       if (error instanceof AxiosError)
         throw error.response?.data || { message: "Không thể xóa người dùng" };
@@ -100,7 +100,7 @@ export const userService = {
 
   async resetPassword(id: string, newPassword: string): Promise<void> {
     try {
-      await axios.put(`/user/${id}/reset-password`, { password: newPassword });
+      await apiClient.put(`/user/${id}/reset-password`, { password: newPassword });
     } catch (error: unknown) {
       if (error instanceof AxiosError)
         throw error.response?.data || { message: "Không thể đặt lại mật khẩu" };

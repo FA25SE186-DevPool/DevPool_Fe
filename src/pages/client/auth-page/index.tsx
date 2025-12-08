@@ -1,5 +1,5 @@
 import LoginForm from "../../../components/auth/LoginForm"
-import logoDevPool from "../../../assets/logo-DevPool.jpg"
+import logoDevPool from "../../../assets/images/logo-DevPool.jpg"
 
 export default function Auth() {
   return (

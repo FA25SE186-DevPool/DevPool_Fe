@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { PartnerDocument, PartnerDocumentCreate, PartnerDocumentFilter } from "../types/partnerdocument.types";
 
@@ -26,7 +26,7 @@ export const partnerDocumentService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/partnerdocument${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -38,7 +38,7 @@ export const partnerDocumentService = {
   // Lấy PartnerDocument theo id
   async getById(id: number) {
     try {
-      const response = await axios.get(`/partnerdocument/${id}`);
+      const response = await apiClient.get(`/partnerdocument/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -50,7 +50,7 @@ export const partnerDocumentService = {
   // Tạo mới PartnerDocument
   async create(payload: PartnerDocumentCreate) {
     try {
-      const response = await axios.post("/partnerdocument", payload);
+      const response = await apiClient.post("/partnerdocument", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -62,7 +62,7 @@ export const partnerDocumentService = {
   // Xóa PartnerDocument
   async delete(id: number) {
     try {
-      const response = await axios.delete(`/partnerdocument/${id}`);
+      const response = await apiClient.delete(`/partnerdocument/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

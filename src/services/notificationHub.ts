@@ -1,8 +1,8 @@
 import { HubConnection, HubConnectionBuilder, LogLevel, HttpTransportType } from '@microsoft/signalr';
 import { getAccessToken as getTokenFromStorage } from '../utils/storage';
-import { API_URL } from '../configs/api';
+import { API_BASE_URL } from '../config/env.config';
 
-// Suy ra HUB_URL từ API_URL
+// Suy ra HUB_URL từ API_BASE_URL
 // SignalR hub có thể nằm ở:
 // 1. Root level: https://host:port/notificationHub (không có /api) - phổ biến hơn
 // 2. API path: https://host:port/api/notificationHub
@@ -17,7 +17,7 @@ const getHubUrl = (): string => {
 	
 	// Mặc định: thử root level trước (loại bỏ /api)
 	// Vì SignalR hub thường được map ở root level, không trong /api
-	const apiUrl = String(API_URL).trim();
+	const apiUrl = String(API_BASE_URL).trim();
 	const hubBase = apiUrl.replace(/\/api\/?$/, '');
 	const hubUrl = `${hubBase}/notificationHub`;
 	
@@ -47,7 +47,7 @@ const refreshToken = async (): Promise<string | null> => {
 			return null;
 		}
 
-		const response = await fetch(`${API_URL}/auth/refresh-token`, {
+		const response = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -288,7 +288,7 @@ export const startNotificationConnection = async (forceRestart: boolean = false)
 			isStarting = false;
 			console.error('❌ Max reconnection attempts reached. Please check:', {
 				hubUrl: HUB_URL,
-				apiUrl: API_URL,
+				apiUrl: API_BASE_URL,
 				note: 'Ensure the backend SignalR hub is properly configured and accessible.',
 			});
 		}

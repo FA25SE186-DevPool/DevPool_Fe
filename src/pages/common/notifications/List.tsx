@@ -8,9 +8,9 @@ import {
   NotificationPriority,
   NotificationType,
 } from '../../../services/Notification';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
 import { decodeJWT } from '../../../services/Auth';
-import { useNotification } from '../../../contexts/NotificationContext';
+import { useNotification } from '../../../context/NotificationContext';
 import { talentCVService } from '../../../services/TalentCV';
 import { talentService } from '../../../services/Talent';
 import { jobRoleLevelService } from '../../../services/JobRoleLevel';

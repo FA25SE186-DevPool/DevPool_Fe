@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Facebook, Linkedin, Mail, Phone, MapPin } from 'lucide-react';
-import logoDevPool from '../../assets/logo-DevPool.jpg';
+import logoDevPool from '../../assets/images/logo-DevPool.jpg';
 
 export default function Footer() {
   return (

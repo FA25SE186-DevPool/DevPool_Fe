@@ -37,8 +37,8 @@ import { talentService } from "../../../../services/Talent";
 import { partnerDocumentService, type PartnerDocument, type PartnerDocumentCreate } from "../../../../services/PartnerDocument";
 import { documentTypeService, type DocumentType } from "../../../../services/DocumentType";
 import { uploadFile } from "../../../../utils/firebaseStorage";
-import { formatNumberInput, parseNumberInput } from "../../../../utils/helpers";
-import { useAuth } from "../../../../contexts/AuthContext";
+import { formatNumberInput, parseNumberInput } from "../../../../utils/formatters";
+import { useAuth } from "../../../../context/AuthContext";
 import { decodeJWT } from "../../../../services/Auth";
 import { getAccessToken } from "../../../../utils/storage";
 

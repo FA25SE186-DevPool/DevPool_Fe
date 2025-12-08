@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { Skill, SkillCreate, SkillFilter } from "../types/skill.types";
 
@@ -17,7 +17,7 @@ export const skillService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/skill${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
 
       return response.data;
     } catch (error: unknown) {
@@ -29,7 +29,7 @@ export const skillService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/skill/${id}`);
+      const response = await apiClient.get(`/skill/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -40,7 +40,7 @@ export const skillService = {
 
   async create(payload: SkillCreate) {
     try {
-      const response = await axios.post("/skill", payload);
+      const response = await apiClient.post("/skill", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -51,7 +51,7 @@ export const skillService = {
 
   async update(id: number, payload: Partial<SkillCreate>) {
     try {
-      const response = await axios.put(`/skill/${id}`, payload);
+      const response = await apiClient.put(`/skill/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -62,7 +62,7 @@ export const skillService = {
 
   async delete(id: number) {
     try {
-      const response = await axios.delete(`/skill/${id}`);
+      const response = await apiClient.delete(`/skill/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { TalentSkillGroupAssessment, TalentSkillGroupAssessmentFilter, VerifiedSkillUpdate, TalentSkillGroupAssessmentCreate, SkillGroupVerificationStatus } from "../types/talentskillgroupassessment.types";
 
@@ -20,7 +20,7 @@ export const talentSkillGroupAssessmentService = {
         params.append("ExcludeDeleted", filter.excludeDeleted.toString());
 
       const url = `/TalentSkillGroupAssessment${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data as TalentSkillGroupAssessment[];
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -32,7 +32,7 @@ export const talentSkillGroupAssessmentService = {
   // GET api/TalentSkillGroupAssessment/{id}
   async getById(id: number) {
     try {
-      const response = await axios.get(`/TalentSkillGroupAssessment/${id}`);
+      const response = await apiClient.get(`/TalentSkillGroupAssessment/${id}`);
       return response.data as TalentSkillGroupAssessment;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -44,7 +44,7 @@ export const talentSkillGroupAssessmentService = {
   // GET api/TalentSkillGroupAssessment/latest?talentId=&skillGroupId=
   async getLatest(talentId: number, skillGroupId: number) {
     try {
-      const response = await axios.get(
+      const response = await apiClient.get(
         `/TalentSkillGroupAssessment/latest?talentId=${talentId}&skillGroupId=${skillGroupId}`
       );
       return response.data as TalentSkillGroupAssessment;
@@ -58,7 +58,7 @@ export const talentSkillGroupAssessmentService = {
   // POST api/TalentSkillGroupAssessment/verify
   async verifySkillGroup(payload: TalentSkillGroupAssessmentCreate) {
     try {
-      const response = await axios.post("/TalentSkillGroupAssessment/verify", payload);
+      const response = await apiClient.post("/TalentSkillGroupAssessment/verify", payload);
       return response.data as TalentSkillGroupAssessment;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -70,7 +70,7 @@ export const talentSkillGroupAssessmentService = {
   // GET api/TalentSkillGroupAssessment/status?talentId=&skillGroupId=
   async getVerificationStatus(talentId: number, skillGroupId: number) {
     try {
-      const response = await axios.get(
+      const response = await apiClient.get(
         `/TalentSkillGroupAssessment/status?talentId=${talentId}&skillGroupId=${skillGroupId}`
       );
       return response.data as SkillGroupVerificationStatus;
@@ -84,7 +84,7 @@ export const talentSkillGroupAssessmentService = {
   // POST api/TalentSkillGroupAssessment/statuses?talentId=
   async getVerificationStatuses(talentId: number, skillGroupIds: number[]) {
     try {
-      const response = await axios.post(
+      const response = await apiClient.post(
         `/TalentSkillGroupAssessment/statuses?talentId=${talentId}`,
         skillGroupIds
       );
@@ -104,7 +104,7 @@ export const talentSkillGroupAssessmentService = {
       params.append("skillGroupId", skillGroupId.toString());
       if (reason) params.append("reason", reason);
 
-      const response = await axios.post(
+      const response = await apiClient.post(
         `/TalentSkillGroupAssessment/invalidate?${params.toString()}`
       );
       return response.data as { message: string; success: boolean };
@@ -118,7 +118,7 @@ export const talentSkillGroupAssessmentService = {
   // GET api/TalentSkillGroupAssessment/history?talentId=&skillGroupId=
   async getAssessmentHistory(talentId: number, skillGroupId: number) {
     try {
-      const response = await axios.get(
+      const response = await apiClient.get(
         `/TalentSkillGroupAssessment/history?talentId=${talentId}&skillGroupId=${skillGroupId}`
       );
       return response.data as TalentSkillGroupAssessment[];

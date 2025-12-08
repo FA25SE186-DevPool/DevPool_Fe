@@ -29,11 +29,11 @@ import {
   Layers,
   ChevronDown,
 } from "lucide-react";
-import { WorkingMode } from "../../../types/WorkingMode";
+import { WorkingMode } from "../../../constants/WORKING_MODE";
 import { notificationService, NotificationPriority, NotificationType } from "../../../services/Notification";
 import { userService } from "../../../services/User";
 import { decodeJWT } from "../../../services/Auth";
-import { useAuth } from "../../../contexts/AuthContext";
+import { useAuth } from "../../../context/AuthContext";
 import RichTextEditor from "../../../components/common/RichTextEditor";
 import { clientCompanyService, type ClientCompany } from "../../../services/ClientCompany";
 

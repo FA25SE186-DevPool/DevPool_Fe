@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { JobStyle, JobStyleFilter, JobStyleCreate } from "../types/jobstyle.types";
 
@@ -12,7 +12,7 @@ export const jobStyleService = {
       if (filter?.jobRequestId) params.append("JobRequestId", filter.jobRequestId.toString());
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
       const url = `/jobstyle${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -23,7 +23,7 @@ export const jobStyleService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/jobstyle/${id}`);
+      const response = await apiClient.get(`/jobstyle/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -34,7 +34,7 @@ export const jobStyleService = {
 
   async create(payload: JobStyleCreate) {
     try {
-      const response = await axios.post("/jobstyle", payload);
+      const response = await apiClient.post("/jobstyle", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -45,7 +45,7 @@ export const jobStyleService = {
 
   async update(id: number, payload: Partial<JobStyleCreate>) {
     try {
-      const response = await axios.put(`/jobstyle/${id}`, payload);
+      const response = await apiClient.put(`/jobstyle/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -56,7 +56,7 @@ export const jobStyleService = {
 
   async deleteById(id: number) {
     try {
-      const response = await axios.delete(`/jobstyle/${id}`);
+      const response = await apiClient.delete(`/jobstyle/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

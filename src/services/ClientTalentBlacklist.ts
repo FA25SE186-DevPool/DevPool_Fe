@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { ClientTalentBlacklist, ClientTalentBlacklistFilter, ClientTalentBlacklistCreate, ClientTalentBlacklistRemove, CheckBlacklistedResult } from "../types/clienttalentblacklist.types";
 
@@ -25,7 +25,7 @@ export const clientTalentBlacklistService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/clienttalentblacklist${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -41,7 +41,7 @@ export const clientTalentBlacklistService = {
    */
   async getById(id: number) {
     try {
-      const response = await axios.get(`/clienttalentblacklist/${id}`);
+      const response = await apiClient.get(`/clienttalentblacklist/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -64,7 +64,7 @@ export const clientTalentBlacklistService = {
       const url = `/clienttalentblacklist/by-client/${clientCompanyId}${
         params.toString() ? `?${params}` : ""
       }`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -87,7 +87,7 @@ export const clientTalentBlacklistService = {
       const url = `/clienttalentblacklist/by-talent/${talentId}${
         params.toString() ? `?${params}` : ""
       }`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -111,7 +111,7 @@ export const clientTalentBlacklistService = {
       params.append("talentId", talentId.toString());
 
       const url = `/clienttalentblacklist/check?${params}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -128,7 +128,7 @@ export const clientTalentBlacklistService = {
    */
   async add(payload: ClientTalentBlacklistCreate) {
     try {
-      const response = await axios.post("/clienttalentblacklist", payload);
+      const response = await apiClient.post("/clienttalentblacklist", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -145,7 +145,7 @@ export const clientTalentBlacklistService = {
    */
   async removeBlacklist(id: number, payload: ClientTalentBlacklistRemove) {
     try {
-      const response = await axios.post(`/clienttalentblacklist/${id}/remove`, payload);
+      const response = await apiClient.post(`/clienttalentblacklist/${id}/remove`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -162,7 +162,7 @@ export const clientTalentBlacklistService = {
    */
   async delete(id: number) {
     try {
-      const response = await axios.delete(`/clienttalentblacklist/${id}`);
+      const response = await apiClient.delete(`/clienttalentblacklist/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

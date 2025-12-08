@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { AuditLogModel, AuditLogFilterModel, PaginatedAuditLogResponse, AuditLogHistoryResponse } from "../types/auditlog.types";
 
@@ -23,7 +23,7 @@ export const auditLogService = {
       if (filter?.pageSize !== undefined) params.append("PageSize", filter.pageSize.toString());
 
       const url = `/auditlog${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
 
       return response.data;
     } catch (error: unknown) {
@@ -43,7 +43,7 @@ export const auditLogService = {
     entityId: number
   ): Promise<AuditLogHistoryResponse> {
     try {
-      const response = await axios.get(`/auditlog/${entityName}/${entityId}`);
+      const response = await apiClient.get(`/auditlog/${entityName}/${entityId}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -58,7 +58,7 @@ export const auditLogService = {
    */
   async getTalentApplicationHistory(applicationId: number): Promise<AuditLogHistoryResponse> {
     try {
-      const response = await axios.get(`/auditlog/TalentApplication/${applicationId}`);
+      const response = await apiClient.get(`/auditlog/TalentApplication/${applicationId}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -73,7 +73,7 @@ export const auditLogService = {
    */
   async getJobRequestHistory(jobRequestId: number): Promise<AuditLogHistoryResponse> {
     try {
-      const response = await axios.get(`/auditlog/JobRequest/${jobRequestId}`);
+      const response = await apiClient.get(`/auditlog/JobRequest/${jobRequestId}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import { NotificationType, NotificationPriority, type Notification, type NotificationCreate, type NotificationFilter, type NotificationListResult } from "../types/notification.types";
 
@@ -22,7 +22,7 @@ export const notificationService = {
       if (filter?.title) params.append("Title", filter.title);
 
       const url = `/notification${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -35,7 +35,7 @@ export const notificationService = {
 
   async getById(id: number): Promise<Notification> {
     try {
-      const response = await axios.get(`/notification/${id}`);
+      const response = await apiClient.get(`/notification/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -48,7 +48,7 @@ export const notificationService = {
 
   async create(payload: NotificationCreate): Promise<Notification | Notification[]> {
     try {
-      const response = await axios.post("/notification", payload);
+      const response = await apiClient.post("/notification", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -61,7 +61,7 @@ export const notificationService = {
 
   async update(id: number, payload: Partial<NotificationCreate>): Promise<Notification> {
     try {
-      const response = await axios.put(`/notification/${id}`, payload);
+      const response = await apiClient.put(`/notification/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -74,7 +74,7 @@ export const notificationService = {
 
   async delete(id: number): Promise<void> {
     try {
-      await axios.delete(`/notification/${id}`);
+      await apiClient.delete(`/notification/${id}`);
     } catch (error: unknown) {
       if (error instanceof AxiosError)
         throw error.response?.data || {
@@ -86,7 +86,7 @@ export const notificationService = {
 
   async markAsRead(id: number): Promise<Notification> {
     try {
-      const response = await axios.put(`/notification/${id}/mark-read`, {});
+      const response = await apiClient.put(`/notification/${id}/mark-read`, {});
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -100,7 +100,7 @@ export const notificationService = {
   async markAllAsRead(): Promise<void> {
     try {
       // Không gửi userId; BE lấy từ claims
-      await axios.put(`/notification/mark-all-read`, {});
+      await apiClient.put(`/notification/mark-all-read`, {});
     } catch (error: unknown) {
       if (error instanceof AxiosError)
         throw error.response?.data || {
@@ -113,7 +113,7 @@ export const notificationService = {
   async getUnreadCount(): Promise<number> {
     try {
       // Không gửi userId; BE trả { unreadCount: number }
-      const response = await axios.get(`/notification/unread-count`);
+      const response = await apiClient.get(`/notification/unread-count`);
       return typeof response.data === 'number'
         ? response.data
         : (response.data?.unreadCount ?? 0);

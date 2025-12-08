@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import UnauthorizedRedirectListener from '../components/common/UnauthorizedRedirectListener';
 import PageLoader from '../components/common/PageLoader';
 

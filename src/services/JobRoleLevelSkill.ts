@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { JobRoleLevelSkill, JobRoleLevelSkillFilter, JobRoleLevelSkillCreate } from "../types/jobrolelevelskill.types";
 
@@ -12,7 +12,7 @@ export const jobRoleLevelSkillService = {
       if (filter?.skillId) params.append("SkillId", filter.skillId.toString());
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
       const url = `/jobrolelevelskill${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -23,7 +23,7 @@ export const jobRoleLevelSkillService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/jobrolelevelskill/${id}`);
+      const response = await apiClient.get(`/jobrolelevelskill/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -34,7 +34,7 @@ export const jobRoleLevelSkillService = {
 
   async create(payload: JobRoleLevelSkillCreate) {
     try {
-      const response = await axios.post("/jobrolelevelskill", payload);
+      const response = await apiClient.post("/jobrolelevelskill", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -45,7 +45,7 @@ export const jobRoleLevelSkillService = {
 
   async update(id: number, payload: Partial<JobRoleLevelSkillCreate>) {
     try {
-      const response = await axios.put(`/jobrolelevelskill/${id}`, payload);
+      const response = await apiClient.put(`/jobrolelevelskill/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -56,7 +56,7 @@ export const jobRoleLevelSkillService = {
 
   async deleteById(id: number) {
     try {
-      const response = await axios.delete(`/jobrolelevelskill/${id}`);
+      const response = await apiClient.delete(`/jobrolelevelskill/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

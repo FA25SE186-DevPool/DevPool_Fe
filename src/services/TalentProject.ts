@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { TalentProject, TalentProjectFilter, TalentProjectCreate } from "../types/talentproject.types";
 
@@ -14,7 +14,7 @@ export const talentProjectService = {
       if (filter?.position) params.append("Position", filter.position);
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
       const url = `/talentproject${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -25,7 +25,7 @@ export const talentProjectService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/talentproject/${id}`);
+      const response = await apiClient.get(`/talentproject/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -36,7 +36,7 @@ export const talentProjectService = {
 
   async create(payload: TalentProjectCreate) {
     try {
-      const response = await axios.post("/talentproject", payload);
+      const response = await apiClient.post("/talentproject", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -47,7 +47,7 @@ export const talentProjectService = {
 
   async update(id: number, payload: Partial<TalentProjectCreate>) {
     try {
-      const response = await axios.put(`/talentproject/${id}`, payload);
+      const response = await apiClient.put(`/talentproject/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -58,7 +58,7 @@ export const talentProjectService = {
 
   async deleteById(id: number) {
     try {
-      const response = await axios.delete(`/talentproject/${id}`);
+      const response = await apiClient.delete(`/talentproject/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

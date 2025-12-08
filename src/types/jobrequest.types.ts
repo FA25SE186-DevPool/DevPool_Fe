@@ -1,4 +1,4 @@
-import { WorkingMode } from "./WorkingMode";
+import { WorkingMode } from "../constants/WORKING_MODE";
 
 export const JobRequestStatus = {
   Pending: 0,

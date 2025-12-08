@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { ClientDocument, ClientDocumentCreate, ClientDocumentFilter } from "../types/clientdocument.types";
 
@@ -26,7 +26,7 @@ export const clientDocumentService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/clientdocument${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -38,7 +38,7 @@ export const clientDocumentService = {
   // Lấy ClientDocument theo id
   async getById(id: number) {
     try {
-      const response = await axios.get(`/clientdocument/${id}`);
+      const response = await apiClient.get(`/clientdocument/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -50,7 +50,7 @@ export const clientDocumentService = {
   // Tạo mới ClientDocument
   async create(payload: ClientDocumentCreate) {
     try {
-      const response = await axios.post("/clientdocument", payload);
+      const response = await apiClient.post("/clientdocument", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -62,7 +62,7 @@ export const clientDocumentService = {
   // Xóa ClientDocument
   async delete(id: number) {
     try {
-      const response = await axios.delete(`/clientdocument/${id}`);
+      const response = await apiClient.delete(`/clientdocument/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

@@ -6,7 +6,7 @@ import { sidebarItems } from "../../../components/hr_staff/SidebarItems";
 import { talentService, type TalentCreate, type TalentStatusUpdateModel } from "../../../services/Talent";
 import { locationService, type Location } from "../../../services/location";
 import { partnerService, type Partner } from "../../../services/Partner";
-import { WorkingMode } from "../../../types/WorkingMode";
+import { WorkingMode } from "../../../constants/WORKING_MODE";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { 

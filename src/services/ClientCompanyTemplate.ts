@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { ClientCompanyTemplate, ClientCompanyTemplateFilter } from "../types/clientcompanytemplate.types";
 
@@ -8,7 +8,7 @@ export const clientCompanyCVTemplateService = {
   // Lấy danh sách template được gán cho client
   async listAssignedTemplates(clientCompanyId: number): Promise<ClientCompanyTemplate[]> {
     try {
-      const response = await axios.get(`/client-companies/${clientCompanyId}/templates/assigned`);
+      const response = await apiClient.get(`/client-companies/${clientCompanyId}/templates/assigned`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -21,7 +21,7 @@ export const clientCompanyCVTemplateService = {
   // Lấy template hiệu lực (assigned hoặc default fallback)
   async listEffectiveTemplates(clientCompanyId: number): Promise<ClientCompanyTemplate[]> {
     try {
-      const response = await axios.get(`/client-companies/${clientCompanyId}/templates/effective`);
+      const response = await apiClient.get(`/client-companies/${clientCompanyId}/templates/effective`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -34,7 +34,7 @@ export const clientCompanyCVTemplateService = {
   // Gán template cho client
   async assignTemplate(clientCompanyId: number, templateId: number): Promise<boolean> {
     try {
-      const response = await axios.post(`/client-companies/${clientCompanyId}/templates/${templateId}`);
+      const response = await apiClient.post(`/client-companies/${clientCompanyId}/templates/${templateId}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -47,7 +47,7 @@ export const clientCompanyCVTemplateService = {
   // Xóa template khỏi client (soft delete)
   async removeTemplate(clientCompanyId: number, templateId: number): Promise<boolean> {
     try {
-      const response = await axios.delete(`/client-companies/${clientCompanyId}/templates/${templateId}`);
+      const response = await apiClient.delete(`/client-companies/${clientCompanyId}/templates/${templateId}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {

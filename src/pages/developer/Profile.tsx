@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '../../components/common/Sidebar';
 import { sidebarItems } from '../../components/developer/SidebarItems';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { userService, type User as UserType } from '../../services/User';
 import { decodeJWT } from '../../services/Auth';
 import { talentService, type TalentDetailedModel } from '../../services/Talent';
@@ -17,7 +17,7 @@ import { skillService } from '../../services/Skill';
 import { jobRoleLevelService } from '../../services/JobRoleLevel';
 import { jobRoleService } from '../../services/JobRole';
 import { certificateTypeService } from '../../services/CertificateType';
-import { WorkingMode } from '../../types/WorkingMode';
+import { WorkingMode } from '../../constants/WORKING_MODE';
 
 // Mapping WorkingMode values to Vietnamese names
 const workingModeLabels: Record<number, string> = {

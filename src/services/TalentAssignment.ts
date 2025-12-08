@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import { TalentAssignmentStatusConstants, type TalentAssignmentModel, type TalentAssignmentCreateModel, type TalentAssignmentExtendModel, type TalentAssignmentTerminateModel, type TalentAssignmentUpdateModel, type TalentAssignmentFilter } from "../types/talentassignment.types";
 
@@ -32,7 +32,7 @@ export const talentAssignmentService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/talentassignment${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       
       // Ensure response.data is an array
       const data = response.data;
@@ -60,7 +60,7 @@ export const talentAssignmentService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/talentassignment/${id}`);
+      const response = await apiClient.get(`/talentassignment/${id}`);
       return response.data as TalentAssignmentModel;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -72,7 +72,7 @@ export const talentAssignmentService = {
 
   async create(payload: TalentAssignmentCreateModel) {
     try {
-      const response = await axios.post("/talentassignment", payload);
+      const response = await apiClient.post("/talentassignment", payload);
       return response.data as TalentAssignmentModel;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -84,7 +84,7 @@ export const talentAssignmentService = {
 
   async update(id: number, payload: TalentAssignmentUpdateModel) {
     try {
-      const response = await axios.put(`/talentassignment/${id}/update-estimates`, payload);
+      const response = await apiClient.put(`/talentassignment/${id}/update-estimates`, payload);
       return response.data as TalentAssignmentModel;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -96,7 +96,7 @@ export const talentAssignmentService = {
 
   async extend(id: number, payload: TalentAssignmentExtendModel) {
     try {
-      const response = await axios.post(`/talentassignment/${id}/extend`, payload);
+      const response = await apiClient.post(`/talentassignment/${id}/extend`, payload);
       return response.data as TalentAssignmentModel;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -108,7 +108,7 @@ export const talentAssignmentService = {
 
   async terminate(id: number, payload: TalentAssignmentTerminateModel) {
     try {
-      const response = await axios.post(`/talentassignment/${id}/terminate`, payload);
+      const response = await apiClient.post(`/talentassignment/${id}/terminate`, payload);
       return response.data as TalentAssignmentModel;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -120,7 +120,7 @@ export const talentAssignmentService = {
 
   async getActiveByProject(projectId: number) {
     try {
-      const response = await axios.get(`/talentassignment/project/${projectId}/active`);
+      const response = await apiClient.get(`/talentassignment/project/${projectId}/active`);
       const data = response.data;
       if (Array.isArray(data)) {
         return data as TalentAssignmentModel[];

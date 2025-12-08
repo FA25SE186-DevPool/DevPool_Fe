@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { TalentAvailableTime, TalentAvailableTimeFilter, TalentAvailableTimeCreate } from "../types/talentavailabletime.types";
 
@@ -13,7 +13,7 @@ export const talentAvailableTimeService = {
       if (filter?.startTimeTo) params.append("StartTimeTo", filter.startTimeTo);
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
       const url = `/talentavailabletime${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -24,7 +24,7 @@ export const talentAvailableTimeService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/talentavailabletime/${id}`);
+      const response = await apiClient.get(`/talentavailabletime/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -35,7 +35,7 @@ export const talentAvailableTimeService = {
 
   async create(payload: TalentAvailableTimeCreate) {
     try {
-      const response = await axios.post("/talentavailabletime", payload);
+      const response = await apiClient.post("/talentavailabletime", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -46,7 +46,7 @@ export const talentAvailableTimeService = {
 
   async update(id: number, payload: Partial<TalentAvailableTimeCreate>) {
     try {
-      const response = await axios.put(`/talentavailabletime/${id}`, payload);
+      const response = await apiClient.put(`/talentavailabletime/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -57,7 +57,7 @@ export const talentAvailableTimeService = {
 
   async deleteById(id: number) {
     try {
-      const response = await axios.delete(`/talentavailabletime/${id}`);
+      const response = await apiClient.delete(`/talentavailabletime/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

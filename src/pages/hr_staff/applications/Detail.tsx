@@ -16,7 +16,7 @@ import { applyActivityService, type ApplyActivity, type ApplyActivityCreate, App
 import { applyProcessStepService, type ApplyProcessStep } from "../../../services/ApplyProcessStep";
 import { applyProcessTemplateService } from "../../../services/ApplyProcessTemplate";
 import { locationService } from "../../../services/location";
-import { WorkingMode as WorkingModeEnum } from "../../../types/WorkingMode";
+import { WorkingMode as WorkingModeEnum } from "../../../constants/WORKING_MODE";
 import { Button } from "../../../components/ui/button";
 import {
   XCircle,

@@ -20,7 +20,7 @@ import Breadcrumb from "../../../components/common/Breadcrumb";
 import { sidebarItems } from "../../../components/hr_staff/SidebarItems";
 import { Button } from "../../../components/ui/button";
 import { talentService, type Talent, type CreateDeveloperAccountModel } from "../../../services/Talent";
-import { WorkingMode } from "../../../types/WorkingMode";
+import { WorkingMode } from "../../../constants/WORKING_MODE";
 
 const statusLabels: Record<string, { label: string; badgeClass: string }> = {
   Available: {

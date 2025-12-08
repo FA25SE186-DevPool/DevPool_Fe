@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../router/routes';
 import { UNAUTHORIZED_EVENT } from '../../constants/events';
 

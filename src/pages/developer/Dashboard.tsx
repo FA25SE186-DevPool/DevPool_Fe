@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { sidebarItems } from '../../components/developer/SidebarItems';
 import Sidebar from '../../components/common/Sidebar';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { decodeJWT } from '../../services/Auth';
 import { talentService, type Talent } from '../../services/Talent';
 import { partnerContractPaymentService, type PartnerContractPaymentModel } from '../../services/PartnerContractPayment';

@@ -44,10 +44,10 @@ import { talentService } from "../../../../services/Talent";
 import { clientDocumentService, type ClientDocument, type ClientDocumentCreate } from "../../../../services/ClientDocument";
 import { documentTypeService, type DocumentType } from "../../../../services/DocumentType";
 import { uploadFile } from "../../../../utils/firebaseStorage";
-import { useAuth } from "../../../../contexts/AuthContext";
+import { useAuth } from "../../../../context/AuthContext";
 import { decodeJWT } from "../../../../services/Auth";
 import { getAccessToken } from "../../../../utils/storage";
-import { formatNumberInput, parseNumberInput } from "../../../../utils/helpers";
+import { formatNumberInput, parseNumberInput } from "../../../../utils/formatters";
 
 const formatDate = (value?: string | null): string => {
   if (!value) return "—";

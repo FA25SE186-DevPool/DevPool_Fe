@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type {
   TalentCV,
@@ -110,7 +110,7 @@ export const talentCVService = {
       if (filter?.isGeneratedFromTemplate !== undefined) params.append("IsGeneratedFromTemplate", filter.isGeneratedFromTemplate.toString());
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
       const url = `/talentcv${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -121,7 +121,7 @@ export const talentCVService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/talentcv/${id}`);
+      const response = await apiClient.get(`/talentcv/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -132,7 +132,7 @@ export const talentCVService = {
 
   async create(payload: TalentCVCreate) {
     try {
-      const response = await axios.post("/talentcv", payload);
+      const response = await apiClient.post("/talentcv", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -143,7 +143,7 @@ export const talentCVService = {
 
   async update(id: number, payload: Partial<TalentCVCreate>) {
     try {
-      const response = await axios.put(`/talentcv/${id}`, payload);
+      const response = await apiClient.put(`/talentcv/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -154,7 +154,7 @@ export const talentCVService = {
 
   async deleteById(id: number) {
     try {
-      const response = await axios.delete(`/talentcv/${id}`);
+      const response = await apiClient.delete(`/talentcv/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -165,7 +165,7 @@ export const talentCVService = {
 
   async activate(id: number) {
     try {
-      const response = await axios.patch(`/talentcv/${id}/activate`);
+      const response = await apiClient.patch(`/talentcv/${id}/activate`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -176,7 +176,7 @@ export const talentCVService = {
 
   async deactivate(id: number) {
     try {
-      const response = await axios.patch(`/talentcv/${id}/deactivate`);
+      const response = await apiClient.patch(`/talentcv/${id}/deactivate`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -187,7 +187,7 @@ export const talentCVService = {
 
   async updateFields(id: number, payload: TalentCVFieldsUpdateModel) {
     try {
-      const response = await axios.patch(`/talentcv/${id}/update-fields`, payload);
+      const response = await apiClient.patch(`/talentcv/${id}/update-fields`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -203,7 +203,7 @@ export const talentCVService = {
       if (filter.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
       if (filter.maxResults !== undefined) params.append("MaxResults", filter.maxResults.toString());
       const url = `/talentcv/filter-by-job-request${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -216,7 +216,7 @@ export const talentCVService = {
     try {
       const formData = new FormData();
       formData.append("filePDF", file);
-      const response = await axios.post("/talentcv/extract-pdf", formData, {
+      const response = await apiClient.post("/talentcv/extract-pdf", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -233,7 +233,7 @@ export const talentCVService = {
     try {
       const formData = new FormData();
       formData.append("filePDF", file);
-      const response = await axios.post("/talentcv/extract-pdf-ollama", formData, {
+      const response = await apiClient.post("/talentcv/extract-pdf-ollama", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -250,7 +250,7 @@ export const talentCVService = {
     try {
       const formData = new FormData();
       formData.append("CVFile", file);
-      const response = await axios.post(`/talentcv/talents/${talentId}/analyze-cv`, formData, {
+      const response = await apiClient.post(`/talentcv/talents/${talentId}/analyze-cv`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -265,7 +265,7 @@ export const talentCVService = {
 
   async applyCVUpdates(talentId: number, payload: ApplyCVUpdatesRequest) {
     try {
-      const response = await axios.put(`/talentcv/talents/${talentId}/apply-cv-updates`, payload);
+      const response = await apiClient.put(`/talentcv/talents/${talentId}/apply-cv-updates`, payload);
       return response.data as ApplyCVUpdatesResponse;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { Industry, IndustryPayload, IndustryFilter } from "../types/industry.types";
 
@@ -14,7 +14,7 @@ export const industryService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/industry${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -26,7 +26,7 @@ export const industryService = {
   // Lấy Industry theo id
   async getById(id: number) {
     try {
-      const response = await axios.get(`/industry/${id}`);
+      const response = await apiClient.get(`/industry/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -38,7 +38,7 @@ export const industryService = {
   // Tạo mới Industry
   async create(payload: IndustryPayload) {
     try {
-      const response = await axios.post("/industry", payload);
+      const response = await apiClient.post("/industry", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -50,7 +50,7 @@ export const industryService = {
   // Cập nhật Industry
   async update(id: number, payload: Partial<IndustryPayload>) {
     try {
-      const response = await axios.put(`/industry/${id}`, payload);
+      const response = await apiClient.put(`/industry/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -62,7 +62,7 @@ export const industryService = {
   // Xóa Industry
   async delete(id: number) {
     try {
-      const response = await axios.delete(`/industry/${id}`);
+      const response = await apiClient.delete(`/industry/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

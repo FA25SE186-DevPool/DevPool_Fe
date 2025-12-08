@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { ApplyProcessStep, ApplyProcessStepFilter, ApplyProcessStepCreate } from "../types/applyprocessstep.types";
 
@@ -12,7 +12,7 @@ export const applyProcessStepService = {
       if (filter?.stepName) params.append("StepName", filter.stepName);
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
       const url = `/applyprocessstep${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -23,7 +23,7 @@ export const applyProcessStepService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/applyprocessstep/${id}`);
+      const response = await apiClient.get(`/applyprocessstep/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -34,7 +34,7 @@ export const applyProcessStepService = {
 
   async create(payload: ApplyProcessStepCreate) {
     try {
-      const response = await axios.post("/applyprocessstep", payload);
+      const response = await apiClient.post("/applyprocessstep", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -45,7 +45,7 @@ export const applyProcessStepService = {
 
   async update(id: number, payload: Partial<ApplyProcessStepCreate>) {
     try {
-      const response = await axios.put(`/applyprocessstep/${id}`, payload);
+      const response = await apiClient.put(`/applyprocessstep/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -56,7 +56,7 @@ export const applyProcessStepService = {
 
   async deleteById(id: number) {
     try {
-      const response = await axios.delete(`/applyprocessstep/${id}`);
+      const response = await apiClient.delete(`/applyprocessstep/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

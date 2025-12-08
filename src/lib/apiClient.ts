@@ -1,16 +1,17 @@
 import axios, { AxiosError, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios';
 import { UNAUTHORIZED_EVENT } from '../constants/events';
-import { API_URL } from './api';
-const axiosInstance = axios.create({
-    baseURL: API_URL,
-    withCredentials: true,
-    timeout: 30000,
+import { API_BASE_URL } from '../config/env.config';
+
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+  timeout: 30000,
 });
 
 const refreshClient = axios.create({
-    baseURL: API_URL,
-    withCredentials: true,
-    timeout: 30000,
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+  timeout: 30000,
 });
 
 let isRefreshing = false;
@@ -102,7 +103,7 @@ const handleRefreshToken = async (): Promise<string | null> => {
 };
 
 // 🧩 Request interceptor: tự động thêm token vào header
-axiosInstance.interceptors.request.use(
+apiClient.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
         // Lấy token từ localStorage
         const token = localStorage.getItem('accessToken');
@@ -115,7 +116,7 @@ axiosInstance.interceptors.request.use(
 );
 
 // ⚡ Response interceptor: xử lý lỗi & token hết hạn
-axiosInstance.interceptors.response.use(
+apiClient.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
         const status = error.response?.status;
@@ -156,7 +157,7 @@ axiosInstance.interceptors.response.use(
                         originalRequest.headers = { Authorization: `Bearer ${token}` };
                     }
 
-                    resolve(axiosInstance(originalRequest));
+                    resolve(apiClient(originalRequest));
                 });
             });
         }
@@ -197,4 +198,5 @@ axiosInstance.interceptors.response.use(
     }
 );
 
-export default axiosInstance;
+export default apiClient;
+

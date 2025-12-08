@@ -1,8 +1,8 @@
 import { StrictMode, useEffect, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
+import './assets/styles/global.css'
 import App from './App.tsx'
-import { NotificationProvider, useNotification } from './contexts/NotificationContext'
+import { NotificationProvider, useNotification } from './context/NotificationContext'
 import { startNotificationConnection, onReceiveNotification, onUnreadCountUpdated, getUnreadCount, offReceiveNotification, offUnreadCountUpdated } from './services/notificationHub'
 
 function RealtimeBootstrap() {

@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import { ApplyActivityType, ApplyActivityStatus, type ApplyActivity, type ApplyActivityCreate, type ApplyActivityStatusUpdate, type ApplyActivityFilter } from "../types/applyactivity.types";
 
@@ -21,7 +21,7 @@ export const applyActivityService = {
                 params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
             const url = `/applyactivity${params.toString() ? `?${params}` : ""}`;
-            const response = await axios.get(url);
+            const response = await apiClient.get(url);
 
             return response.data as ApplyActivity[];
         } catch (error: unknown) {
@@ -33,7 +33,7 @@ export const applyActivityService = {
 
     async getById(id: number) {
         try {
-            const response = await axios.get(`/applyactivity/${id}`);
+            const response = await apiClient.get(`/applyactivity/${id}`);
             return response.data as ApplyActivity;
         } catch (error: unknown) {
             if (error instanceof AxiosError)
@@ -44,7 +44,7 @@ export const applyActivityService = {
 
     async create(payload: ApplyActivityCreate) {
         try {
-            const response = await axios.post("/applyactivity", payload);
+            const response = await apiClient.post("/applyactivity", payload);
             return response.data as ApplyActivity;
         } catch (error: unknown) {
             if (error instanceof AxiosError)
@@ -55,7 +55,7 @@ export const applyActivityService = {
 
     async update(id: number, payload: Partial<ApplyActivityCreate> & { status?: ApplyActivityStatus }) {
         try {
-            const response = await axios.put(`/applyactivity/${id}`, payload);
+            const response = await apiClient.put(`/applyactivity/${id}`, payload);
             return response.data as ApplyActivity;
         } catch (error: unknown) {
             if (error instanceof AxiosError)
@@ -66,7 +66,7 @@ export const applyActivityService = {
 
     async updateStatus(id: number, payload: ApplyActivityStatusUpdate) {
         try {
-            const response = await axios.patch(`/applyactivity/${id}/status`, payload);
+            const response = await apiClient.patch(`/applyactivity/${id}/status`, payload);
             return response.data as ApplyActivity;
         } catch (error: unknown) {
             if (error instanceof AxiosError)
@@ -77,7 +77,7 @@ export const applyActivityService = {
 
     async delete(id: number) {
         try {
-            const response = await axios.delete(`/applyactivity/${id}`);
+            const response = await apiClient.delete(`/applyactivity/${id}`);
             return response.data;
         } catch (error: unknown) {
             if (error instanceof AxiosError)

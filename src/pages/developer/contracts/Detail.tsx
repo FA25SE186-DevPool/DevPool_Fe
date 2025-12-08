@@ -7,7 +7,7 @@ import { partnerContractPaymentService, type PartnerContractPaymentModel } from 
 import { partnerService, type Partner } from '../../../services/Partner';
 import { talentService, type Talent } from '../../../services/Talent';
 import { talentAssignmentService } from '../../../services/TalentAssignment';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
 import { decodeJWT } from '../../../services/Auth';
 
 export default function DeveloperContractDetailPage() {

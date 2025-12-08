@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { ClientPaymentPeriod, ClientPaymentPeriodCreate, ClientPaymentPeriodFilter } from "../types/clientpaymentperiod.types";
 
@@ -22,7 +22,7 @@ export const clientPaymentPeriodService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/clientpaymentperiod${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -34,7 +34,7 @@ export const clientPaymentPeriodService = {
   // Lấy ClientPaymentPeriod theo id
   async getById(id: number) {
     try {
-      const response = await axios.get(`/clientpaymentperiod/${id}`);
+      const response = await apiClient.get(`/clientpaymentperiod/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -46,7 +46,7 @@ export const clientPaymentPeriodService = {
   // Tạo mới ClientPaymentPeriod
   async create(payload: ClientPaymentPeriodCreate) {
     try {
-      const response = await axios.post("/clientpaymentperiod", payload);
+      const response = await apiClient.post("/clientpaymentperiod", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -58,7 +58,7 @@ export const clientPaymentPeriodService = {
   // Cập nhật ClientPaymentPeriod
   async update(id: number, payload: Partial<ClientPaymentPeriodCreate>) {
     try {
-      const response = await axios.put(`/clientpaymentperiod/${id}`, payload);
+      const response = await apiClient.put(`/clientpaymentperiod/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

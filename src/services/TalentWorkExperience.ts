@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { TalentWorkExperience, TalentWorkExperienceFilter, TalentWorkExperienceCreate } from "../types/talentworkexperience.types";
 
@@ -14,7 +14,7 @@ export const talentWorkExperienceService = {
       if (filter?.position) params.append("Position", filter.position);
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
       const url = `/talentworkexperience${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -25,7 +25,7 @@ export const talentWorkExperienceService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/talentworkexperience/${id}`);
+      const response = await apiClient.get(`/talentworkexperience/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -36,7 +36,7 @@ export const talentWorkExperienceService = {
 
   async create(payload: TalentWorkExperienceCreate) {
     try {
-      const response = await axios.post("/talentworkexperience", payload);
+      const response = await apiClient.post("/talentworkexperience", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -47,7 +47,7 @@ export const talentWorkExperienceService = {
 
   async update(id: number, payload: Partial<TalentWorkExperienceCreate>) {
     try {
-      const response = await axios.put(`/talentworkexperience/${id}`, payload);
+      const response = await apiClient.put(`/talentworkexperience/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -58,7 +58,7 @@ export const talentWorkExperienceService = {
 
   async deleteById(id: number) {
     try {
-      const response = await axios.delete(`/talentworkexperience/${id}`);
+      const response = await apiClient.delete(`/talentworkexperience/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

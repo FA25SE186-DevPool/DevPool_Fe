@@ -28,7 +28,7 @@ import {
   Layers,
   ChevronDown,
 } from "lucide-react";
-import { WorkingMode } from "../../../types/WorkingMode";
+import { WorkingMode } from "../../../constants/WORKING_MODE";
 import RichTextEditor from "../../../components/common/RichTextEditor";
 import { clientCompanyService, type ClientCompany } from "../../../services/ClientCompany";
 import { clientJobRoleLevelService, type ClientJobRoleLevel } from "../../../services/ClientJobRoleLevel";

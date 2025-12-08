@@ -11,7 +11,7 @@ import { cvTemplateService, type CVTemplate } from "../../../services/CVTemplate
 import { clientJobRoleLevelService, type ClientJobRoleLevelCreate, type ClientJobRoleLevel } from "../../../services/ClientJobRoleLevel";
 import { jobRoleLevelService, type JobRoleLevel } from "../../../services/JobRoleLevel";
 import { jobRoleService, type JobRole } from "../../../services/JobRole";
-import { useAuth } from "../../../contexts/AuthContext";
+import { useAuth } from "../../../context/AuthContext";
 import { Button } from "../../../components/ui/button";
 import {
   ArrowLeft,

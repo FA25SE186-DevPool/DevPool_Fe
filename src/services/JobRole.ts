@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { JobRole, JobRoleFilter, JobRoleCreatePayload } from "../types/jobrole.types";
 
@@ -14,7 +14,7 @@ export const jobRoleService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/jobrole${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -25,7 +25,7 @@ export const jobRoleService = {
 
   async getById(id: number): Promise<JobRole> {
     try {
-      const response = await axios.get(`/jobrole/${id}`);
+      const response = await apiClient.get(`/jobrole/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -36,7 +36,7 @@ export const jobRoleService = {
 
   async create(payload: JobRoleCreatePayload): Promise<JobRole> {
     try {
-      const response = await axios.post("/jobrole", payload);
+      const response = await apiClient.post("/jobrole", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -47,7 +47,7 @@ export const jobRoleService = {
 
   async update(id: number, payload: Partial<JobRoleCreatePayload>): Promise<JobRole> {
     try {
-      const response = await axios.put(`/jobrole/${id}`, payload);
+      const response = await apiClient.put(`/jobrole/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -58,7 +58,7 @@ export const jobRoleService = {
 
   async delete(id: number): Promise<void> {
     try {
-      await axios.delete(`/jobrole/${id}`);
+      await apiClient.delete(`/jobrole/${id}`);
     } catch (error: unknown) {
       if (error instanceof AxiosError)
         throw error.response?.data || { message: "Không thể xóa loại vị trí" };

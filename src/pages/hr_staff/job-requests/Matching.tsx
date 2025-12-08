@@ -16,7 +16,7 @@ import { talentApplicationService, TalentApplicationStatusConstants, type Talent
 import { clientTalentBlacklistService } from "../../../services/ClientTalentBlacklist";
 import { projectService } from "../../../services/Project";
 import { decodeJWT } from "../../../services/Auth";
-import { useAuth } from "../../../contexts/AuthContext";
+import { useAuth } from "../../../context/AuthContext";
 import {
     ArrowLeft,
     Sparkles,
@@ -41,7 +41,7 @@ import {
     ChevronRight,
 } from "lucide-react";
 import { Button } from "../../../components/ui/button";
-import { WorkingMode } from "../../../types/WorkingMode";
+import { WorkingMode } from "../../../constants/WORKING_MODE";
 
 interface EnrichedMatchResult extends TalentCVMatchResult {
     talentInfo?: Talent;

@@ -17,9 +17,9 @@ import { partnerService, type Partner } from "../../../services/Partner";
 import { jobRoleLevelService, type JobRoleLevel } from "../../../services/JobRoleLevel";
 import { locationService, type Location } from "../../../services/location";
 import { type JobRequest } from "../../../services/JobRequest";
-import { WorkingMode } from "../../../types/WorkingMode";
+import { WorkingMode } from "../../../constants/WORKING_MODE";
 import { uploadFile } from "../../../utils/firebaseStorage";
-import { formatNumberInput, parseNumberInput } from "../../../utils/helpers";
+import { formatNumberInput, parseNumberInput } from "../../../utils/formatters";
 import { 
   Briefcase, 
   Edit, 

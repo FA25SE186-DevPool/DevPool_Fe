@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { DocumentType, DocumentTypeCreate, DocumentTypeFilter } from "../types/documenttype.types";
 
@@ -15,7 +15,7 @@ export const documentTypeService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/documenttype${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -27,7 +27,7 @@ export const documentTypeService = {
   // Lấy DocumentType theo id
   async getById(id: number) {
     try {
-      const response = await axios.get(`/documenttype/${id}`);
+      const response = await apiClient.get(`/documenttype/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -39,7 +39,7 @@ export const documentTypeService = {
   // Tạo mới DocumentType
   async create(payload: DocumentTypeCreate) {
     try {
-      const response = await axios.post("/documenttype", payload);
+      const response = await apiClient.post("/documenttype", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -51,7 +51,7 @@ export const documentTypeService = {
   // Cập nhật DocumentType
   async update(id: number, payload: DocumentTypeCreate) {
     try {
-      const response = await axios.put(`/documenttype/${id}`, payload);
+      const response = await apiClient.put(`/documenttype/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -63,7 +63,7 @@ export const documentTypeService = {
   // Xóa DocumentType
   async deleteById(id: number) {
     try {
-      const response = await axios.delete(`/documenttype/${id}`);
+      const response = await apiClient.delete(`/documenttype/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { TalentSkill, TalentSkillFilter, TalentSkillCreate } from "../types/talentskill.types";
 
@@ -14,7 +14,7 @@ export const talentSkillService = {
       if (filter?.minYearsExp) params.append("MinYearsExp", filter.minYearsExp.toString());
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
       const url = `/talentskill${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -25,7 +25,7 @@ export const talentSkillService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/talentskill/${id}`);
+      const response = await apiClient.get(`/talentskill/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -36,7 +36,7 @@ export const talentSkillService = {
 
   async create(payload: TalentSkillCreate) {
     try {
-      const response = await axios.post("/talentskill", payload);
+      const response = await apiClient.post("/talentskill", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -47,7 +47,7 @@ export const talentSkillService = {
 
   async update(id: number, payload: Partial<TalentSkillCreate>) {
     try {
-      const response = await axios.put(`/talentskill/${id}`, payload);
+      const response = await apiClient.put(`/talentskill/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -58,7 +58,7 @@ export const talentSkillService = {
 
   async deleteById(id: number) {
     try {
-      const response = await axios.delete(`/talentskill/${id}`);
+      const response = await apiClient.delete(`/talentskill/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

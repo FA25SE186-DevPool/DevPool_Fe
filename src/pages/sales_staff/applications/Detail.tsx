@@ -16,7 +16,7 @@ import {
 } from "../../../services/ApplyActivity";
 import { applyProcessStepService, type ApplyProcessStep } from "../../../services/ApplyProcessStep";
 import { locationService } from "../../../services/location";
-import { WorkingMode as WorkingModeEnum } from "../../../types/WorkingMode";
+import { WorkingMode as WorkingModeEnum } from "../../../constants/WORKING_MODE";
 import {
   ArrowLeft,
   FileText,

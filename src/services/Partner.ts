@@ -1,5 +1,5 @@
 // src/services/partnerService.ts
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import { PartnerType, type Partner, type PartnerPayload, type PartnerContractModel, type PartnerTalentModel, type PartnerPaymentPeriodModel, type PartnerDetailedModel, type SuggestCodeResponse, type CheckCodeUniqueResponse } from "../types/partner.types";
 
@@ -14,7 +14,7 @@ export const partnerService = {
       if (filter?.taxCode) params.append("TaxCode", filter.taxCode);
       if (filter?.contactPerson) params.append("ContactPerson", filter.contactPerson);
       const url = `/partner${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -25,7 +25,7 @@ export const partnerService = {
 
   async create(payload: PartnerPayload) {
     try {
-      const response = await axios.post(`/partner`, payload);
+      const response = await apiClient.post(`/partner`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -36,7 +36,7 @@ export const partnerService = {
 
   async update(id: number, payload: PartnerPayload) {
     try {
-      const response = await axios.put(`/partner/${id}`, payload);
+      const response = await apiClient.put(`/partner/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -47,7 +47,7 @@ export const partnerService = {
 
   async deleteById(id: number) {
     try {
-      const response = await axios.delete(`/partner/${id}`);
+      const response = await apiClient.delete(`/partner/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -58,7 +58,7 @@ export const partnerService = {
 
   async getDetailedById(id: number) {
     try {
-      const response = await axios.get(`/partner/${id}/detailed`);
+      const response = await apiClient.get(`/partner/${id}/detailed`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -79,7 +79,7 @@ export const partnerService = {
       }
       const params = new URLSearchParams();
       params.append("name", name.trim());
-      const response = await axios.get(`/partner/suggest-code?${params.toString()}`);
+      const response = await apiClient.get(`/partner/suggest-code?${params.toString()}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -109,7 +109,7 @@ export const partnerService = {
       if (excludeId !== undefined) {
         params.append("excludeId", excludeId.toString());
       }
-      const response = await axios.get(`/partner/check-code-unique?${params.toString()}`);
+      const response = await apiClient.get(`/partner/check-code-unique?${params.toString()}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {

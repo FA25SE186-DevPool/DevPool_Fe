@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { 
   Talent, 
@@ -54,7 +54,7 @@ export const talentService = {
       if (filter?.status) params.append("Status", filter.status);
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
       const url = `/talent${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -65,7 +65,7 @@ export const talentService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/talent/${id}`);
+      const response = await apiClient.get(`/talent/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -76,7 +76,7 @@ export const talentService = {
 
   async create(payload: TalentCreate) {
     try {
-      const response = await axios.post("/talent", payload);
+      const response = await apiClient.post("/talent", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -87,7 +87,7 @@ export const talentService = {
 
   async createWithRelatedData(payload: TalentWithRelatedDataCreateModel) {
     try {
-      const response = await axios.post("/talent/with-related-data", payload);
+      const response = await apiClient.post("/talent/with-related-data", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -98,7 +98,7 @@ export const talentService = {
 
   async update(id: number, payload: Partial<TalentCreate>) {
     try {
-      const response = await axios.put(`/talent/${id}`, payload);
+      const response = await apiClient.put(`/talent/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -109,7 +109,7 @@ export const talentService = {
 
   async updateProfile(id: number, payload: TalentUpdateModel) {
     try {
-      const response = await axios.patch(`/talent/${id}/profile`, payload);
+      const response = await apiClient.patch(`/talent/${id}/profile`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -120,7 +120,7 @@ export const talentService = {
 
   async deleteById(id: number) {
     try {
-      const response = await axios.delete(`/talent/${id}`);
+      const response = await apiClient.delete(`/talent/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -131,7 +131,7 @@ export const talentService = {
 
   async changeStatus(id: number, payload: TalentStatusUpdateModel) {
     try {
-      const response = await axios.patch(`/talent/${id}/change-status`, payload);
+      const response = await apiClient.patch(`/talent/${id}/change-status`, payload);
       return response.data as TalentStatusTransitionResult;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -151,7 +151,7 @@ export const talentService = {
       if (projectId) params.append("projectId", projectId.toString());
 
       const url = `/talent/by-client-or-project${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       
       // Backend trả về format { success, message, data }
       if (response.data?.success && response.data?.data) {
@@ -179,7 +179,7 @@ export const talentService = {
    */
   async createDeveloperAccount(id: number, payload: CreateDeveloperAccountModel): Promise<CreateDeveloperAccountResult> {
     try {
-      const response = await axios.post(`/talent/${id}/create-account`, payload);
+      const response = await apiClient.post(`/talent/${id}/create-account`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -209,7 +209,7 @@ export const talentService = {
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
       
       const url = `/talent/detailed${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       
       // Backend trả về format { success, message, data }
       if (response.data?.success && response.data?.data) {
@@ -240,7 +240,7 @@ export const talentService = {
    */
   async handoverAssignment(id: number, payload: HandoverTalentRequest): Promise<HandoverTalentResponse> {
     try {
-      const response = await axios.post<HandoverTalentResponse>(`/talent/${id}/handover-assignment`, payload);
+      const response = await apiClient.post<HandoverTalentResponse>(`/talent/${id}/handover-assignment`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -262,7 +262,7 @@ export const talentService = {
    */
   async getMyManagedTalents(): Promise<Talent[]> {
     try {
-      const response = await axios.get(`/talent/my-managed-talents`);
+      const response = await apiClient.get(`/talent/my-managed-talents`);
       
       // Backend trả về format { success, message, data }
       if (response.data?.success && response.data?.data) {

@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { Expert, ExpertFilter, ExpertCreate, ExpertUpdate, ExpertSkillGroup, ExpertSkillGroupCreate } from "../types/expert.types";
 
@@ -21,7 +21,7 @@ export const expertService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/expert${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -32,7 +32,7 @@ export const expertService = {
 
   async getById(id: number): Promise<Expert> {
     try {
-      const response = await axios.get(`/expert/${id}`);
+      const response = await apiClient.get(`/expert/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -43,7 +43,7 @@ export const expertService = {
 
   async create(payload: ExpertCreate): Promise<Expert> {
     try {
-      const response = await axios.post("/expert", payload);
+      const response = await apiClient.post("/expert", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -54,7 +54,7 @@ export const expertService = {
 
   async update(id: number, payload: ExpertUpdate): Promise<void> {
     try {
-      await axios.put(`/expert/${id}`, payload);
+      await apiClient.put(`/expert/${id}`, payload);
     } catch (error: unknown) {
       if (error instanceof AxiosError)
         throw error.response?.data || { message: "Không thể cập nhật expert" };
@@ -64,7 +64,7 @@ export const expertService = {
 
   async delete(id: number): Promise<void> {
     try {
-      await axios.delete(`/expert/${id}`);
+      await apiClient.delete(`/expert/${id}`);
     } catch (error: unknown) {
       if (error instanceof AxiosError)
         throw error.response?.data || { message: "Không thể xóa expert" };
@@ -75,7 +75,7 @@ export const expertService = {
   // Skill groups of expert
   async getSkillGroups(expertId: number): Promise<ExpertSkillGroup[]> {
     try {
-      const response = await axios.get(`/expert/${expertId}/skill-groups`);
+      const response = await apiClient.get(`/expert/${expertId}/skill-groups`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -91,7 +91,7 @@ export const expertService = {
     payload: ExpertSkillGroupCreate
   ): Promise<ExpertSkillGroup> {
     try {
-      const response = await axios.post(`/expert/${expertId}/skill-groups`, payload);
+      const response = await apiClient.post(`/expert/${expertId}/skill-groups`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -104,7 +104,7 @@ export const expertService = {
 
   async unassignSkillGroup(expertId: number, skillGroupId: number): Promise<void> {
     try {
-      await axios.delete(`/expert/${expertId}/skill-groups/${skillGroupId}`);
+      await apiClient.delete(`/expert/${expertId}/skill-groups/${skillGroupId}`);
     } catch (error: unknown) {
       if (error instanceof AxiosError)
         throw (

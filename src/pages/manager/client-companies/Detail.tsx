@@ -5,7 +5,7 @@ import { sidebarItems } from "../../../components/manager/SidebarItems";
 import { clientCompanyService, type ClientCompanyDetailedModel } from "../../../services/ClientCompany";
 import { clientTalentBlacklistService, type ClientTalentBlacklist, type ClientTalentBlacklistCreate, type ClientTalentBlacklistRemove } from "../../../services/ClientTalentBlacklist";
 import { talentService, type Talent } from "../../../services/Talent";
-import { useAuth } from "../../../contexts/AuthContext";
+import { useAuth } from "../../../context/AuthContext";
 import { Button } from "../../../components/ui/button";
 import {
   ArrowLeft,

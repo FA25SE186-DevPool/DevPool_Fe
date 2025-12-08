@@ -25,7 +25,7 @@ import {
   type ContactInquiryStatusType,
   type ContactInquiryStatusUpdateModel
 } from '../../../services/ContactInquiry';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
 
 export default function ContactInquiryDetailPage() {
   const { id } = useParams<{ id: string }>();

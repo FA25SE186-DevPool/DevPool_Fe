@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { authService } from '../services/Auth';
-import { auth, onAuthStateChanged } from '../configs/firebase';
+import { auth, onAuthStateChanged } from '../config/firebase';
 import { getUser, getAccessToken, clearAuthData } from '../utils/storage';
 
 type Role =
@@ -205,3 +205,4 @@ export function useAuth() {
   }
   return context;
 }
+

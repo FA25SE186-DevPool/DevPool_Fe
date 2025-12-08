@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import { JobRequestStatus, type JobSkill, type JobRequest, type JobRequestPayload, type JobRequestStatusUpdateModel, type JobRequestFilter } from "../types/jobrequest.types";
 
@@ -24,7 +24,7 @@ export const jobRequestService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/jobrequest${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
 
       return response.data;
     } catch (error: unknown) {
@@ -36,7 +36,7 @@ export const jobRequestService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/jobrequest/${id}`);
+      const response = await apiClient.get(`/jobrequest/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -47,7 +47,7 @@ export const jobRequestService = {
 
   async create(payload: JobRequestPayload) {
     try {
-      const response = await axios.post("/jobrequest", payload);
+      const response = await apiClient.post("/jobrequest", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -58,7 +58,7 @@ export const jobRequestService = {
 
   async update(id: number, payload: Partial<JobRequestPayload>) {
     try {
-      const response = await axios.put(`/jobrequest/${id}`, payload);
+      const response = await apiClient.put(`/jobrequest/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -69,7 +69,7 @@ export const jobRequestService = {
 
   async delete(id: number) {
     try {
-      const response = await axios.delete(`/jobrequest/${id}`);
+      const response = await apiClient.delete(`/jobrequest/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -80,7 +80,7 @@ export const jobRequestService = {
 
   async changeStatus(id: number, payload: JobRequestStatusUpdateModel) {
     try {
-      const response = await axios.patch(`/jobrequest/${id}/change-status`, payload);
+      const response = await apiClient.patch(`/jobrequest/${id}/change-status`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

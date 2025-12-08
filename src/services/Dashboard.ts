@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type {
   ExecutiveDashboardModel,
@@ -26,7 +26,7 @@ export const dashboardService = {
    */
   async getExecutiveDashboard(): Promise<ExecutiveDashboardModel> {
     try {
-      const response = await axios.get("/dashboard/executive");
+      const response = await apiClient.get("/dashboard/executive");
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -42,7 +42,7 @@ export const dashboardService = {
    */
   async getFinancialDashboard(): Promise<FinancialDashboardModel> {
     try {
-      const response = await axios.get("/dashboard/financial");
+      const response = await apiClient.get("/dashboard/financial");
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -66,7 +66,7 @@ export const dashboardService = {
    */
   async getTalentManagementDashboard(): Promise<TalentManagementDashboardModel> {
     try {
-      const response = await axios.get("/dashboard/talent-management");
+      const response = await apiClient.get("/dashboard/talent-management");
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -90,7 +90,7 @@ export const dashboardService = {
    */
   async getProjectAssignmentDashboard(): Promise<ProjectAssignmentDashboardModel> {
     try {
-      const response = await axios.get("/dashboard/project-assignment");
+      const response = await apiClient.get("/dashboard/project-assignment");
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -114,7 +114,7 @@ export const dashboardService = {
    */
   async getOperationsDashboard(): Promise<OperationsDashboardModel> {
     try {
-      const response = await axios.get("/dashboard/operations");
+      const response = await apiClient.get("/dashboard/operations");
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -138,7 +138,7 @@ export const dashboardService = {
    */
   async getAnalyticsReports(): Promise<AnalyticsReportsModel> {
     try {
-      const response = await axios.get("/dashboard/analytics-reports");
+      const response = await apiClient.get("/dashboard/analytics-reports");
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {

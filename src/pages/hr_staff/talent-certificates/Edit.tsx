@@ -7,7 +7,7 @@ import { talentCertificateService, type TalentCertificateCreate } from "../../..
 import { certificateTypeService, type CertificateType } from "../../../services/CertificateType";
 import { uploadFile } from "../../../utils/firebaseStorage";
 import { ref, deleteObject } from "firebase/storage";
-import { storage } from "../../../configs/firebase";
+import { storage } from "../../../config/firebase";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { 

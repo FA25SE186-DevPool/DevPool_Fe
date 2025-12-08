@@ -9,7 +9,7 @@ import { partnerService, type Partner } from '../../../services/Partner';
 import { talentService, type Talent } from '../../../services/Talent';
 import { projectPeriodService, type ProjectPeriodModel } from '../../../services/ProjectPeriod';
 import { talentAssignmentService, type TalentAssignmentModel } from '../../../services/TalentAssignment';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
 import { decodeJWT } from '../../../services/Auth';
 
 export default function DeveloperPaymentsList() {

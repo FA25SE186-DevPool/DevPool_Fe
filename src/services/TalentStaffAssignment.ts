@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import { AssignmentType, AssignmentResponsibility, type TalentStaffAssignment, type TalentStaffAssignmentFilter, type TalentStaffAssignmentCreate } from "../types/talentstaffassignment.types";
 
@@ -17,7 +17,7 @@ export const talentStaffAssignmentService = {
       if (filter?.isActive !== undefined) params.append("IsActive", filter.isActive.toString());
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
       const url = `/talentstaffassignment${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -28,7 +28,7 @@ export const talentStaffAssignmentService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/talentstaffassignment/${id}`);
+      const response = await apiClient.get(`/talentstaffassignment/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -39,7 +39,7 @@ export const talentStaffAssignmentService = {
 
   async create(payload: TalentStaffAssignmentCreate) {
     try {
-      const response = await axios.post("/talentstaffassignment", payload);
+      const response = await apiClient.post("/talentstaffassignment", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -50,7 +50,7 @@ export const talentStaffAssignmentService = {
 
   async update(id: number, payload: Partial<TalentStaffAssignmentCreate>) {
     try {
-      const response = await axios.put(`/talentstaffassignment/${id}`, payload);
+      const response = await apiClient.put(`/talentstaffassignment/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -61,7 +61,7 @@ export const talentStaffAssignmentService = {
 
   async deleteById(id: number) {
     try {
-      const response = await axios.delete(`/talentstaffassignment/${id}`);
+      const response = await apiClient.delete(`/talentstaffassignment/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

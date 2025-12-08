@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import { ContactInquiryStatus, ContactInquiryStatusConstants, type ContactInquiryStatusType, type ContactInquiryModel, type ContactInquiryCreateModel, type ContactInquiryFilterModel, type ContactInquiryStatusUpdateModel, type ContactInquiryClaimResult, type ContactInquiryStatusTransitionResult, type PagedResult } from "../types/contactinquiry.types";
 
@@ -11,7 +11,7 @@ export const contactInquiryService = {
    */
   async submitInquiry(payload: ContactInquiryCreateModel): Promise<ContactInquiryModel> {
     try {
-      const response = await axios.post<ContactInquiryModel>("/contactinquiry", payload);
+      const response = await apiClient.post<ContactInquiryModel>("/contactinquiry", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -43,7 +43,7 @@ export const contactInquiryService = {
         params.append("PageSize", filter.pageSize.toString());
 
       const url = `/contactinquiry${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get<PagedResult<ContactInquiryModel>>(url);
+      const response = await apiClient.get<PagedResult<ContactInquiryModel>>(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -57,7 +57,7 @@ export const contactInquiryService = {
    */
   async getById(id: number): Promise<ContactInquiryModel> {
     try {
-      const response = await axios.get<ContactInquiryModel>(`/contactinquiry/${id}`);
+      const response = await apiClient.get<ContactInquiryModel>(`/contactinquiry/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -74,7 +74,7 @@ export const contactInquiryService = {
    */
   async claimInquiry(id: number): Promise<ContactInquiryClaimResult> {
     try {
-      const response = await axios.post<ContactInquiryClaimResult>(`/contactinquiry/${id}/claim`);
+      const response = await apiClient.post<ContactInquiryClaimResult>(`/contactinquiry/${id}/claim`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -94,7 +94,7 @@ export const contactInquiryService = {
     payload: ContactInquiryStatusUpdateModel
   ): Promise<ContactInquiryStatusTransitionResult> {
     try {
-      const response = await axios.put<ContactInquiryStatusTransitionResult>(
+      const response = await apiClient.put<ContactInquiryStatusTransitionResult>(
         `/contactinquiry/${id}/change-status`,
         payload
       );
@@ -114,7 +114,7 @@ export const contactInquiryService = {
    */
   async getAvailableStatusTransitions(id: number): Promise<string[]> {
     try {
-      const response = await axios.get<string[]>(`/contactinquiry/${id}/available-status-transitions`);
+      const response = await apiClient.get<string[]>(`/contactinquiry/${id}/available-status-transitions`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {

@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { ClientCompany, ClientCompanyDetailedModel, ClientCompanyPayload, ClientCompanyFilter } from "../types/clientcompany.types";
 
@@ -16,7 +16,7 @@ export const clientCompanyService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/clientcompany${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -29,7 +29,7 @@ export const clientCompanyService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/clientcompany/${id}`);
+      const response = await apiClient.get(`/clientcompany/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -42,7 +42,7 @@ export const clientCompanyService = {
 
   async create(payload: ClientCompanyPayload) {
     try {
-      const response = await axios.post("/clientcompany", payload);
+      const response = await apiClient.post("/clientcompany", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -55,7 +55,7 @@ export const clientCompanyService = {
 
   async update(id: number, payload: Partial<ClientCompanyPayload>) {
     try {
-      const response = await axios.put(`/clientcompany/${id}`, payload);
+      const response = await apiClient.put(`/clientcompany/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -68,7 +68,7 @@ export const clientCompanyService = {
 
   async delete(id: number) {
     try {
-      const response = await axios.delete(`/clientcompany/${id}`);
+      const response = await apiClient.delete(`/clientcompany/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -81,7 +81,7 @@ export const clientCompanyService = {
 
   async getDetailedById(id: number): Promise<ClientCompanyDetailedModel> {
     try {
-      const response = await axios.get(`/clientcompany/${id}/detailed`);
+      const response = await apiClient.get(`/clientcompany/${id}/detailed`);
       // API trả về { success, message, data }
       return response.data?.data || response.data;
     } catch (error: unknown) {
@@ -97,7 +97,7 @@ export const clientCompanyService = {
     try {
       const params = new URLSearchParams();
       params.append("name", name);
-      const response = await axios.get(`/clientcompany/suggest-code?${params.toString()}`);
+      const response = await apiClient.get(`/clientcompany/suggest-code?${params.toString()}`);
       // API trả về { success, suggestedCode }
       return response.data;
     } catch (error: unknown) {
@@ -116,7 +116,7 @@ export const clientCompanyService = {
       if (excludeId !== undefined) {
         params.append("excludeId", excludeId.toString());
       }
-      const response = await axios.get(`/clientcompany/check-code-unique?${params.toString()}`);
+      const response = await apiClient.get(`/clientcompany/check-code-unique?${params.toString()}`);
       // API trả về { success, isUnique }
       return response.data;
     } catch (error: unknown) {

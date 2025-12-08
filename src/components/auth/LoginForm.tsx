@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { authService, getRoleFromToken, authenticateWithFirebase } from '../../services/Auth';
 import { startNotificationConnection, onReceiveNotification, onUnreadCountUpdated, getUnreadCount } from '../../services/notificationHub';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 import { setTokens, setUser, getUser, getAccessToken } from '../../utils/storage';
-import logoDevPool from '../../assets/logo-DevPool.jpg';
+import logoDevPool from '../../assets/images/logo-DevPool.jpg';
 
 
 export default function LoginForm() {

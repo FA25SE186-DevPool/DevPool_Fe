@@ -1,5 +1,5 @@
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject, getBlob } from 'firebase/storage';
-import { storage, auth } from '../configs/firebase';
+import { storage, auth } from '../config/firebase';
 import { ensureFirebaseAuth } from '../services/Auth';
 
 /**

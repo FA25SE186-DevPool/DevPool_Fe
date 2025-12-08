@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import { TalentApplicationStatusConstants, type TalentApplication, type TalentApplicationCreate, type TalentApplicationFilter, type TalentApplicationStatusUpdate, type TalentApplicationStatusTransitionResult, type TalentApplicationUpdate, type TalentApplicationDetailed, type TalentApplicationsByJobRequestResponse } from "../types/talentapplication.types";
 
@@ -18,7 +18,7 @@ export const talentApplicationService = {
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/talentapplication${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       
       // Ensure response.data is an array
       const data = response.data;
@@ -47,7 +47,7 @@ export const talentApplicationService = {
 
   async getById(id: number) {
     try {
-      const response = await axios.get(`/talentapplication/${id}`);
+      const response = await apiClient.get(`/talentapplication/${id}`);
       return response.data as TalentApplication;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -58,7 +58,7 @@ export const talentApplicationService = {
 
   async getDetailedById(id: number) {
     try {
-      const response = await axios.get(`/talentapplication/${id}/detailed`);
+      const response = await apiClient.get(`/talentapplication/${id}/detailed`);
       
       // API trả về format: { success: true, message: "...", data: {...} }
       const responseData = response.data;
@@ -86,7 +86,7 @@ export const talentApplicationService = {
 
   async create(payload: TalentApplicationCreate) {
     try {
-      const response = await axios.post("/talentapplication", payload);
+      const response = await apiClient.post("/talentapplication", payload);
       return response.data as TalentApplication;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -97,7 +97,7 @@ export const talentApplicationService = {
 
   async update(id: number, payload: TalentApplicationUpdate) {
     try {
-      const response = await axios.put(`/talentapplication/${id}`, payload);
+      const response = await apiClient.put(`/talentapplication/${id}`, payload);
       return response.data as TalentApplication;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -108,7 +108,7 @@ export const talentApplicationService = {
 
   async updateStatus(id: number, payload: TalentApplicationStatusUpdate) {
     try {
-      const response = await axios.patch(`/talentapplication/${id}/change-status`, payload);
+      const response = await apiClient.patch(`/talentapplication/${id}/change-status`, payload);
       return response.data as TalentApplicationStatusTransitionResult;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -123,7 +123,7 @@ export const talentApplicationService = {
       if (status) params.append("status", status);
 
       const url = `/talentapplication/by-jobrequest/${jobRequestId}${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
 
       const data = response.data as TalentApplicationsByJobRequestResponse;
       if (!data || !data.success) {

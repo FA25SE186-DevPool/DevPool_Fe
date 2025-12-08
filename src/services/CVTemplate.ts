@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { CVTemplate, CVTemplatePayload, CVTemplateFilter } from "../types/cvtemplate.types";
 
@@ -13,7 +13,7 @@ export const cvTemplateService = {
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/cvtemplate${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -25,7 +25,7 @@ export const cvTemplateService = {
 
   async getById(id: number): Promise<CVTemplate> {
     try {
-      const response = await axios.get(`/cvtemplate/${id}`);
+      const response = await apiClient.get(`/cvtemplate/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -37,7 +37,7 @@ export const cvTemplateService = {
 
   async create(payload: CVTemplatePayload): Promise<CVTemplate> {
     try {
-      const response = await axios.post("/cvtemplate", payload);
+      const response = await apiClient.post("/cvtemplate", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -49,7 +49,7 @@ export const cvTemplateService = {
 
   async update(id: number, payload: Partial<CVTemplatePayload>): Promise<CVTemplate> {
     try {
-      const response = await axios.put(`/cvtemplate/${id}`, payload);
+      const response = await apiClient.put(`/cvtemplate/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -61,7 +61,7 @@ export const cvTemplateService = {
 
   async delete(id: number): Promise<void> {
     try {
-      await axios.delete(`/cvtemplate/${id}`);
+      await apiClient.delete(`/cvtemplate/${id}`);
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         throw error.response?.data || { message: "Không thể xóa CV Template" };

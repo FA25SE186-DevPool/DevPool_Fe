@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { ClientJobRoleLevel, ClientJobRoleLevelCreate, ClientJobRoleLevelFilter } from "../types/clientjobrolelevel.types";
 
@@ -20,7 +20,7 @@ export const clientJobRoleLevelService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/clientjobrolelevel${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -32,7 +32,7 @@ export const clientJobRoleLevelService = {
   // Lấy ClientJobRoleLevel theo id
   async getById(id: number) {
     try {
-      const response = await axios.get(`/clientjobrolelevel/${id}`);
+      const response = await apiClient.get(`/clientjobrolelevel/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -44,7 +44,7 @@ export const clientJobRoleLevelService = {
   // Tạo mới ClientJobRoleLevel
   async create(payload: ClientJobRoleLevelCreate) {
     try {
-      const response = await axios.post("/clientjobrolelevel", payload);
+      const response = await apiClient.post("/clientjobrolelevel", payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -56,7 +56,7 @@ export const clientJobRoleLevelService = {
   // Cập nhật ClientJobRoleLevel
   async update(id: number, payload: ClientJobRoleLevelCreate) {
     try {
-      const response = await axios.put(`/clientjobrolelevel/${id}`, payload);
+      const response = await apiClient.put(`/clientjobrolelevel/${id}`, payload);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -72,7 +72,7 @@ export const clientJobRoleLevelService = {
   // Xóa ClientJobRoleLevel
   async delete(id: number) {
     try {
-      const response = await axios.delete(`/clientjobrolelevel/${id}`);
+      const response = await apiClient.delete(`/clientjobrolelevel/${id}`);
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {

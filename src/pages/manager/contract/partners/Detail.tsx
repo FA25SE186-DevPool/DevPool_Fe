@@ -38,7 +38,7 @@ import { partnerService } from "../../../../services/Partner";
 import { talentService } from "../../../../services/Talent";
 import { partnerDocumentService, type PartnerDocument } from "../../../../services/PartnerDocument";
 import { documentTypeService, type DocumentType } from "../../../../services/DocumentType";
-import { useAuth } from "../../../../contexts/AuthContext";
+import { useAuth } from "../../../../context/AuthContext";
 import { getErrorMessage } from "../../../../utils/helpers";
 
 const formatDate = (value?: string | null): string => {

@@ -1,4 +1,4 @@
-import axios from "../configs/axios";
+import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type {
   ClientContractPaymentModel,
@@ -62,7 +62,7 @@ export const clientContractPaymentService = {
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
 
       const url = `/clientcontractpayment${params.toString() ? `?${params}` : ""}`;
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       return response.data as ClientContractPaymentModel[];
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -74,7 +74,7 @@ export const clientContractPaymentService = {
   // Lấy ClientContractPayment theo id
   async getById(id: number) {
     try {
-      const response = await axios.get(`/clientcontractpayment/${id}`);
+      const response = await apiClient.get(`/clientcontractpayment/${id}`);
       return response.data as ClientContractPaymentModel;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -86,7 +86,7 @@ export const clientContractPaymentService = {
   // Tạo mới ClientContractPayment
   async create(payload: ClientContractPaymentCreateModel) {
     try {
-      const response = await axios.post("/clientcontractpayment", payload);
+      const response = await apiClient.post("/clientcontractpayment", payload);
       return response.data as ClientContractPaymentModel;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -98,7 +98,7 @@ export const clientContractPaymentService = {
   // Cập nhật ClientContractPayment
   async update(id: number, payload: Partial<ClientContractPaymentCreateModel>) {
     try {
-      const response = await axios.put(`/clientcontractpayment/${id}`, payload);
+      const response = await apiClient.put(`/clientcontractpayment/${id}`, payload);
       return response.data as ClientContractPaymentModel;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -110,7 +110,7 @@ export const clientContractPaymentService = {
   // Request more information - Yêu cầu thêm thông tin
   async requestMoreInformation(id: number, payload?: RequestMoreInformationModel) {
     try {
-      const response = await axios.post(`/clientcontractpayment/${id}/request-more-information`, payload);
+      const response = await apiClient.post(`/clientcontractpayment/${id}/request-more-information`, payload);
       return response.data as ClientContractPaymentModel;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -122,7 +122,7 @@ export const clientContractPaymentService = {
   // Submit contract - Sales gửi hợp đồng kèm SOW
   async submitContract(id: number, payload: SubmitContractModel) {
     try {
-      const response = await axios.post(`/clientcontractpayment/${id}/submit-contract`, payload);
+      const response = await apiClient.post(`/clientcontractpayment/${id}/submit-contract`, payload);
       return response.data as ClientContractPaymentModel;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -134,7 +134,7 @@ export const clientContractPaymentService = {
   // Verify contract - Accountant xác minh hợp đồng
   async verifyContract(id: number, payload: VerifyContractModel) {
     try {
-      const response = await axios.post(`/clientcontractpayment/${id}/verify-contract`, payload);
+      const response = await apiClient.post(`/clientcontractpayment/${id}/verify-contract`, payload);
       return response.data as ClientContractPaymentModel;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -146,7 +146,7 @@ export const clientContractPaymentService = {
   // Approve contract - Manager duyệt hợp đồng
   async approveContract(id: number, payload?: ApproveContractModel) {
     try {
-      const response = await axios.post(`/clientcontractpayment/${id}/approve-contract`, payload || {});
+      const response = await apiClient.post(`/clientcontractpayment/${id}/approve-contract`, payload || {});
       return response.data as ClientContractPaymentModel;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -158,7 +158,7 @@ export const clientContractPaymentService = {
   // Reject contract - Từ chối hợp đồng
   async rejectContract(id: number, payload: RejectContractModel) {
     try {
-      const response = await axios.post(`/clientcontractpayment/${id}/reject-contract`, payload);
+      const response = await apiClient.post(`/clientcontractpayment/${id}/reject-contract`, payload);
       return response.data as ClientContractPaymentModel;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -170,7 +170,7 @@ export const clientContractPaymentService = {
   // Start billing - Bắt đầu tính toán
   async startBilling(id: number, payload: ClientContractPaymentCalculateModel) {
     try {
-      const response = await axios.post(`/clientcontractpayment/${id}/start-billing`, payload);
+      const response = await apiClient.post(`/clientcontractpayment/${id}/start-billing`, payload);
       return response.data as ClientContractPaymentModel;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -182,7 +182,7 @@ export const clientContractPaymentService = {
   // Create invoice - Tạo hóa đơn
   async createInvoice(id: number, payload: CreateInvoiceModel) {
     try {
-      const response = await axios.post(`/clientcontractpayment/${id}/create-invoice`, payload);
+      const response = await apiClient.post(`/clientcontractpayment/${id}/create-invoice`, payload);
       return response.data as ClientContractPaymentModel;
     } catch (error: unknown) {
       if (error instanceof AxiosError)
@@ -194,7 +194,7 @@ export const clientContractPaymentService = {
   // Record payment - Ghi nhận thanh toán
   async recordPayment(id: number, payload: RecordPaymentModel) {
     try {
-      const response = await axios.post(`/clientcontractpayment/${id}/record-payment`, payload);
+      const response = await apiClient.post(`/clientcontractpayment/${id}/record-payment`, payload);
       return response.data as ClientContractPaymentModel;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

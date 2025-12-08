@@ -10,7 +10,7 @@ import { talentApplicationService, type TalentApplicationDetailed } from "../../
 import { jobRequestService } from "../../../services/JobRequest";
 import { clientTalentBlacklistService, type ClientTalentBlacklistCreate } from "../../../services/ClientTalentBlacklist";
 import { projectService } from "../../../services/Project";
-import { useAuth } from "../../../contexts/AuthContext";
+import { useAuth } from "../../../context/AuthContext";
 import { Button } from "../../../components/ui/button";
 import {
   Edit,
