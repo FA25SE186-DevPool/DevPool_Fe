@@ -21,3 +21,9 @@ export * from './firebaseStorage';
 // IndexedDB storage
 export * from './indexedDBStorage';
 
+// Talent helpers
+export * from './talentHelpers';
+
+// Talent status
+export * from './talentStatus.tsx';
+

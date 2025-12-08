@@ -577,7 +577,7 @@ export default function ClientContractDetailPage() {
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
                 >
                   <Send className="w-4 h-4" />
-                  Gửi hợp đồng
+                  Ghi nhận hợp đồng
                 </button>
               )}
             </div>

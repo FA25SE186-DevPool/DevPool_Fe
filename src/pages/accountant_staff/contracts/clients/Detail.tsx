@@ -970,7 +970,7 @@ export default function ClientContractDetailPage() {
                       className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
                     >
                       <Calculator className="w-4 h-4" />
-                      Bắt đầu tính toán
+                      Ghi nhận giờ làm việc
                     </button>
                   )}
 
@@ -981,7 +981,7 @@ export default function ClientContractDetailPage() {
                       className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
                     >
                       <Receipt className="w-4 h-4" />
-                      Tạo hóa đơn
+                      Ghi nhận hóa đơn
                     </button>
                   )}
 
