@@ -193,13 +193,6 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
           Đăng Nhập Bằng FaceID
         </h2>
         <p className="text-neutral-600 mt-2">Đặt khuôn mặt của bạn vào khung hình</p>
-        <button
-          type="button"
-          onClick={handleSwitchToPassword}
-          className="mt-4 text-primary-600 hover:text-primary-800 font-medium text-sm underline transition-colors duration-300"
-        >
-          ← Quay lại đăng nhập bằng Email/Password
-        </button>
       </div>
 
       {error && (
