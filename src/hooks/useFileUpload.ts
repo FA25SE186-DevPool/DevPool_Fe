@@ -272,7 +272,9 @@ export function useFileUpload() {
     uploadProgress,
     uploadingCVIndex,
     isUploadedFromFirebase,
+    setIsUploadedFromFirebase,
     uploadedCVUrl,
+    setUploadedCVUrl,
     uploadCV,
     deleteCVFile,
 

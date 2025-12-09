@@ -31,12 +31,22 @@ export const getTalentLevelName = (levelValue: number | undefined): string => {
 };
 
 /**
- * Normalize job role key để so sánh
+ * Normalize job role key để so sánh (bao gồm cả position và level)
  */
 export const normalizeJobRoleKey = (position?: string | null, level?: string | null): string => {
   const normalizedPosition = (position ?? '').trim().toLowerCase();
   const normalizedLevel = (level ?? '').trim().toLowerCase();
   return `${normalizedPosition}|${normalizedLevel}`;
+};
+
+/**
+ * Normalize job role position để so sánh (chỉ position, không có level)
+ * Loại bỏ các ký tự đặc biệt và chuẩn hóa để so sánh chính xác
+ */
+export const normalizeJobRolePosition = (position?: string | null): string => {
+  if (!position) return '';
+  // Loại bỏ khoảng trắng thừa, chuyển về lowercase, và loại bỏ các ký tự đặc biệt không cần thiết
+  return position.trim().toLowerCase().replace(/\s+/g, ' ');
 };
 
 /**

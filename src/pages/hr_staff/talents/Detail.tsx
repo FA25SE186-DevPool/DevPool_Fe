@@ -94,7 +94,8 @@ export default function TalentDetailPage() {
     lookupJobRoleLevelsForTalent,
     jobRoleLevels,
     lookupCertificateTypes,
-    certificates
+    certificates,
+    talentCVs
   );
 
   // Skill Group Verification
@@ -454,6 +455,21 @@ export default function TalentDetailPage() {
   useEffect(() => {
     pagination.setPageAvailableTimes(1);
   }, [availableTimes.length, pagination]);
+
+  // Reset job role level form states when form is closed
+  useEffect(() => {
+    if (operations.showInlineForm !== 'jobRoleLevel') {
+      // Reset all job role level form related states
+      setSelectedJobRoleLevelName('');
+      setJobRoleLevelNameSearch('');
+      setSelectedLevel(undefined);
+      setIsJobRoleLevelNameDropdownOpen(false);
+      setIsLevelDropdownOpen(false);
+      setSelectedJobRoleFilterId(undefined);
+      setJobRoleFilterSearch('');
+      setIsJobRoleFilterDropdownOpen(false);
+    }
+  }, [operations.showInlineForm]);
 
   // ========== RENDER ==========
   if (loading) {

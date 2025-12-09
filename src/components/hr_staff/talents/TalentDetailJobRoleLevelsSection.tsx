@@ -82,7 +82,7 @@ export function TalentDetailJobRoleLevelsSection({
   jobRoles,
   lookupJobRoleLevelsForTalent,
   showInlineForm,
-  inlineJobRoleLevelForm,
+  inlineJobRoleLevelForm: _inlineJobRoleLevelForm,
   setInlineJobRoleLevelForm,
   isSubmitting,
   onOpenForm,
@@ -410,33 +410,6 @@ export function TalentDetailJobRoleLevelsSection({
               </div>
             </div>
 
-            {/* Years of Exp and Rate */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-neutral-700 mb-2">Số năm kinh nghiệm</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={inlineJobRoleLevelForm.yearsOfExp || 1}
-                  onChange={(e) => setInlineJobRoleLevelForm({ ...inlineJobRoleLevelForm, yearsOfExp: Number(e.target.value) })}
-                  className="w-full px-4 py-2 border rounded-lg bg-white border-neutral-300 focus:ring-2 focus:ring-warning-500/20 focus:border-warning-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-neutral-700 mb-2">Mức lương/tháng (VND)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={inlineJobRoleLevelForm.ratePerMonth || ''}
-                  onChange={(e) =>
-                    setInlineJobRoleLevelForm({ ...inlineJobRoleLevelForm, ratePerMonth: e.target.value ? Number(e.target.value) : undefined })
-                  }
-                  className="w-full px-4 py-2 border rounded-lg bg-white border-neutral-300 focus:ring-2 focus:ring-warning-500/20 focus:border-warning-500"
-                  placeholder="Nhập mức lương"
-                />
-              </div>
-            </div>
-
             {/* Submit buttons */}
             <div className="flex justify-end gap-2">
               <Button
@@ -473,7 +446,7 @@ export function TalentDetailJobRoleLevelsSection({
       {(matchedJobRoleLevelsNotInProfile.length > 0 || jobRoleLevelsUnmatched.length > 0) && (
         <div className="mb-4 rounded-xl border border-green-200 bg-green-50/80 p-4 space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-green-900 uppercase tracking-wide">Đề xuất vị trí</h3>
+            <h3 className="text-sm font-semibold text-green-900 uppercase tracking-wide">Đề xuất vị trí (CV có)</h3>
             <span className="text-xs text-green-700">
               {matchedJobRoleLevelsNotInProfile.length} cần tạo mới · {jobRoleLevelsUnmatched.length} chưa có trong hệ thống
             </span>
@@ -482,9 +455,6 @@ export function TalentDetailJobRoleLevelsSection({
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 space-y-3">
               {matchedJobRoleLevelsNotInProfile.length > 0 && (
                 <div className="space-y-2">
-                  <p className="font-semibold text-amber-900">
-                    Cần tạo mới (có trong hệ thống, chưa có trong hồ sơ) ({matchedJobRoleLevelsNotInProfile.length}):
-                  </p>
                   <ul className="space-y-2">
                     {matchedJobRoleLevelsNotInProfile.map((jobRole, index) => (
                       <li
@@ -493,7 +463,6 @@ export function TalentDetailJobRoleLevelsSection({
                       >
                         <span className="font-semibold text-sm">
                           {jobRole.position}
-                          {jobRole.level && <span className="ml-1.5 text-amber-600">· Level {jobRole.level}</span>}
                         </span>
                       </li>
                     ))}
@@ -502,12 +471,9 @@ export function TalentDetailJobRoleLevelsSection({
               )}
               {jobRoleLevelsUnmatched.length > 0 && (
                 <div className="rounded-xl border border-dashed border-amber-300 bg-white p-3 text-xs text-amber-700">
-                  <p className="font-semibold text-amber-900">
-                    Chưa có trong hệ thống (cần đề xuất admin tạo mới) ({jobRoleLevelsUnmatched.length}):
-                  </p>
-                  <ul className="mt-2 space-y-1">
+                  <ul className="space-y-1">
                     {jobRoleLevelsUnmatched.map((suggestion, index) => (
-                      <li key={`jobrole-unmatched-${index}`}>- {suggestion.position ?? 'Vị trí chưa rõ'}</li>
+                      <li key={`jobrole-unmatched-${index}`}>- {suggestion.position ?? 'Vị trí chưa rõ'} <span className="text-amber-600">(CV có)</span></li>
                     ))}
                   </ul>
                 </div>

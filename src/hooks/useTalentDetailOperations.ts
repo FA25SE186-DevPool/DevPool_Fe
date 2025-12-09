@@ -274,6 +274,10 @@ export function useTalentDetailOperations() {
     setAvailableTimeFormErrors({});
     setCvFormErrors({});
     setCvVersionError('');
+    // Reset job role level form states
+    setInlineJobRoleLevelForm({ jobRoleLevelId: 0, yearsOfExp: 1, ratePerMonth: undefined });
+    setSelectedJobRoleLevelName('');
+    setSelectedLevel(undefined);
   }, []);
 
   // Submit inline project
@@ -496,12 +500,12 @@ export function useTalentDetailOperations() {
       onSuccess: (jobRoleLevels: (TalentJobRoleLevel & { jobRoleLevelName: string; jobRoleLevelLevel: string })[]) => void
     ) => {
       if (!id || isSubmitting) return;
-      if (!selectedJobRoleLevelName || selectedLevel === undefined) {
+      if (!inlineJobRoleLevelForm.jobRoleLevelId || inlineJobRoleLevelForm.jobRoleLevelId === 0) {
         alert('⚠️ Vui lòng chọn đầy đủ vị trí và cấp độ!');
         return;
       }
       const matchingJobRoleLevel = lookupJobRoleLevelsForTalent.find(
-        (j) => j.name === selectedJobRoleLevelName && j.level === selectedLevel
+        (j) => j.id === inlineJobRoleLevelForm.jobRoleLevelId
       );
       if (!matchingJobRoleLevel || !matchingJobRoleLevel.id || matchingJobRoleLevel.id === 0) {
         alert('⚠️ Không tìm thấy vị trí phù hợp!');
@@ -538,7 +542,7 @@ export function useTalentDetailOperations() {
         setIsSubmitting(false);
       }
     },
-    [id, isSubmitting, selectedJobRoleLevelName, selectedLevel, inlineJobRoleLevelForm, handleCloseInlineForm, getLevelText]
+    [id, isSubmitting, inlineJobRoleLevelForm, handleCloseInlineForm, getLevelText]
   );
 
   // Delete operations

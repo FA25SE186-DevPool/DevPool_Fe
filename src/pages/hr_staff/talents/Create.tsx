@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { X, User, Star, Briefcase, FolderOpen, Award } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
@@ -74,7 +74,9 @@ export default function CreateTalent() {
     uploadProgress,
     uploadingCVIndex,
     isUploadedFromFirebase,
+    setIsUploadedFromFirebase,
     uploadedCVUrl,
+    setUploadedCVUrl,
     uploadCV,
     deleteCVFile,
     certificateImageFiles,
@@ -327,6 +329,8 @@ export default function CreateTalent() {
     updateBasicField,
     cvExtraction,
     isUploadedFromFirebase,
+    setIsUploadedFromFirebase,
+    setUploadedCVUrl,
     initialCVs,
     deleteCVFile,
   });
@@ -397,6 +401,54 @@ export default function CreateTalent() {
       return updated;
     });
   };
+
+  // Tự động cập nhật vị trí ở form hiện tại khi chọn vị trí ở CV Ban Đầu
+  // Không tạo form mới, chỉ cập nhật form đầu tiên (hoặc form có jobRoleLevelId = 0)
+  // Chỉ chạy khi không phải từ trích xuất CV (vì trích xuất đã tự động thêm vị trí rồi)
+  useEffect(() => {
+    if (!initialCVs || initialCVs.length === 0) return;
+    if (!jobRoleLevels || jobRoleLevels.length === 0) return;
+
+    // Lấy jobRoleLevelId đầu tiên từ CV (nếu có)
+    const firstCVJobRoleLevelId = initialCVs
+      .find((cv) => cv.jobRoleLevelId && cv.jobRoleLevelId > 0)?.jobRoleLevelId;
+
+    if (!firstCVJobRoleLevelId) return;
+
+    // Kiểm tra xem vị trí này đã có trong talentJobRoleLevels chưa
+    const existingJobRoleLevel = talentJobRoleLevels.find(
+      (jrl) => jrl.jobRoleLevelId === firstCVJobRoleLevelId && jrl.jobRoleLevelId > 0
+    );
+
+    // Nếu vị trí đã có rồi (từ trích xuất), không cần cập nhật nữa
+    if (existingJobRoleLevel) return;
+
+    // Tìm form đầu tiên có jobRoleLevelId = 0 hoặc chưa có vị trí
+    const firstEmptyFormIndex = talentJobRoleLevels.findIndex((jrl) => !jrl.jobRoleLevelId || jrl.jobRoleLevelId === 0);
+
+    if (firstEmptyFormIndex >= 0) {
+      // Cập nhật form đầu tiên với vị trí từ CV
+      setTalentJobRoleLevels((prev) => {
+        const updated = [...prev];
+        updated[firstEmptyFormIndex] = {
+          ...updated[firstEmptyFormIndex],
+          jobRoleLevelId: firstCVJobRoleLevelId,
+        };
+        return updated;
+      });
+    } else if (talentJobRoleLevels.length > 0) {
+      // Nếu không có form trống, cập nhật form đầu tiên
+      setTalentJobRoleLevels((prev) => {
+        const updated = [...prev];
+        updated[0] = {
+          ...updated[0],
+          jobRoleLevelId: firstCVJobRoleLevelId,
+        };
+        return updated;
+      });
+    }
+    // Note: selectedJobRoleLevelName sẽ được tự động set bởi useEffect trong TalentJobRoleLevelsSection
+  }, [initialCVs, jobRoleLevels, talentJobRoleLevels, setTalentJobRoleLevels]);
 
   return (
     <div className="flex bg-gray-50 min-h-screen">
@@ -656,12 +708,19 @@ export default function CreateTalent() {
                 <TalentCVSection
                   initialCVs={initialCVs}
                   jobRoleLevelsForCV={jobRoleLevelsForCV}
+                  jobRoles={jobRoles}
                   cvFile={cvModal.cvFile}
                   cvPreviewUrl={cvModal.cvPreviewUrl}
                   jobRoleLevelSearch={filters.jobRoleLevelSearch}
                   setJobRoleLevelSearch={filters.setJobRoleLevelSearch}
                   isJobRoleLevelDropdownOpen={filters.isJobRoleLevelDropdownOpen}
                   setIsJobRoleLevelDropdownOpen={filters.setIsJobRoleLevelDropdownOpen}
+                  selectedJobRoleFilterId={filters.selectedJobRoleFilterId}
+                  setSelectedJobRoleFilterId={filters.setSelectedJobRoleFilterId}
+                  jobRoleFilterSearch={filters.jobRoleFilterSearch}
+                  setJobRoleFilterSearch={filters.setJobRoleFilterSearch}
+                  isJobRoleFilterDropdownOpen={filters.isJobRoleFilterDropdownOpen}
+                  setIsJobRoleFilterDropdownOpen={filters.setIsJobRoleFilterDropdownOpen}
                   showCVSummary={filters.showCVSummary}
                   setShowCVSummary={filters.setShowCVSummary}
                   uploadingCV={uploadingCV}
@@ -705,14 +764,9 @@ export default function CreateTalent() {
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-soft border border-neutral-200/50">
                 <TalentJobRoleLevelsSection
                   talentJobRoleLevels={talentJobRoleLevels}
-                  jobRoles={jobRoles}
                   jobRoleLevels={jobRoleLevels}
                   selectedJobRoleFilterId={filters.selectedJobRoleFilterId}
                   setSelectedJobRoleFilterId={filters.setSelectedJobRoleFilterId}
-                  jobRoleFilterSearch={filters.jobRoleFilterSearch}
-                  setJobRoleFilterSearch={filters.setJobRoleFilterSearch}
-                  isJobRoleFilterDropdownOpen={filters.isJobRoleFilterDropdownOpen}
-                  setIsJobRoleFilterDropdownOpen={filters.setIsJobRoleFilterDropdownOpen}
                   selectedJobRoleLevelName={filters.selectedJobRoleLevelName}
                   setSelectedJobRoleLevelName={filters.setSelectedJobRoleLevelName}
                   jobRoleLevelNameSearch={filters.jobRoleLevelNameSearch}
@@ -730,11 +784,11 @@ export default function CreateTalent() {
                     };
                     return levelMap[level] || `Level ${level}`;
                   }}
-                  onAdd={handlers.addJobRoleLevel}
                   onRemove={handlers.removeJobRoleLevel}
                   onUpdate={handlers.updateJobRoleLevel}
                   onSetErrors={_setErrors}
                   errors={errors}
+                  initialCVs={initialCVs}
                 />
               </div>
 
@@ -1002,6 +1056,7 @@ export default function CreateTalent() {
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               cvModal.setShowExtractCVModal(false);
+              cvModal.setUseExtractCV(false);
               cvModal.setModalCVFile(null);
               if (cvModal.modalCVPreviewUrl) {
                 URL.revokeObjectURL(cvModal.modalCVPreviewUrl);
@@ -1017,6 +1072,7 @@ export default function CreateTalent() {
                 type="button"
                 onClick={() => {
                   cvModal.setShowExtractCVModal(false);
+                  cvModal.setUseExtractCV(false);
                   cvModal.setModalCVFile(null);
                   if (cvModal.modalCVPreviewUrl) {
                     URL.revokeObjectURL(cvModal.modalCVPreviewUrl);
@@ -1063,15 +1119,16 @@ export default function CreateTalent() {
                 <button
                   type="button"
                   onClick={cvModal.handleExtractCVFromModal}
-                  disabled={!cvModal.modalCVFile || cvExtraction.extractingCV}
+                  disabled={!cvModal.modalCVFile || cvExtraction.extractingCV || cvModal.isExtracting}
                   className="flex-1 bg-primary-600 text-white py-2.5 px-4 rounded-lg hover:bg-primary-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {cvExtraction.extractingCV ? 'Đang trích xuất...' : 'Trích xuất thông tin'}
+                  {cvExtraction.extractingCV || cvModal.isExtracting ? 'Đang trích xuất...' : 'Trích xuất thông tin'}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     cvModal.setShowExtractCVModal(false);
+                    cvModal.setUseExtractCV(false);
                     cvModal.setModalCVFile(null);
                     if (cvModal.modalCVPreviewUrl) {
                       URL.revokeObjectURL(cvModal.modalCVPreviewUrl);

@@ -23,6 +23,8 @@ interface UseTalentCreateCVModalProps {
   updateBasicField: (field: keyof TalentCreate, value: any) => void;
   cvExtraction: ReturnType<typeof useCVExtraction>;
   isUploadedFromFirebase: boolean;
+  setIsUploadedFromFirebase: (value: boolean | ((prev: boolean) => boolean)) => void;
+  setUploadedCVUrl: (value: string | null | ((prev: string | null) => string | null)) => void;
   initialCVs: Partial<TalentCVCreate>[];
   deleteCVFile: (index: number, url: string, isFirebase?: boolean) => Promise<boolean>;
 }
@@ -41,6 +43,8 @@ export function useTalentCreateCVModal({
   updateBasicField,
   cvExtraction,
   isUploadedFromFirebase,
+  setIsUploadedFromFirebase,
+  setUploadedCVUrl,
   initialCVs,
   deleteCVFile,
 }: UseTalentCreateCVModalProps) {
@@ -53,6 +57,7 @@ export function useTalentCreateCVModal({
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [cvPreviewUrl, setCvPreviewUrl] = useState<string | null>(null);
   const [showCVViewerModal, setShowCVViewerModal] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
 
   // Handle modal file change
   const handleModalFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,15 +79,23 @@ export function useTalentCreateCVModal({
       return;
     }
 
-    // Get existing skill IDs to avoid duplicates
-    const existingSkillIds = talentSkills.map((s) => s.skillId).filter((id) => id > 0);
-
-    // Extract and process CV
-    const result = await cvExtraction.extractAndFillDataFromCV(modalCVFile, existingSkillIds);
-
-    if (!result) {
-      return;
+    if (isExtracting || cvExtraction.extractingCV) {
+      return; // Prevent multiple clicks
     }
+
+    setIsExtracting(true);
+
+    try {
+      // Get existing skill IDs to avoid duplicates
+      const existingSkillIds = talentSkills.map((s) => s.skillId).filter((id) => id > 0);
+
+      // Extract and process CV
+      const result = await cvExtraction.extractAndFillDataFromCV(modalCVFile, existingSkillIds);
+
+      if (!result) {
+        setIsExtracting(false);
+        return;
+      }
 
     // Fill basic info
     updateBasicField('fullName', result.basicInfo.fullName);
@@ -121,6 +134,10 @@ export function useTalentCreateCVModal({
         const filePath = `temp-talents/${fileName}`;
 
         const downloadURL = await uploadFile(modalCVFile, filePath, () => {});
+
+        // Set uploaded state
+        setIsUploadedFromFirebase(true);
+        setUploadedCVUrl(downloadURL);
 
         // Update initial CVs
         setInitialCVs((prev) =>
@@ -187,12 +204,17 @@ export function useTalentCreateCVModal({
       setCvPreviewUrl(newPreviewUrl);
     }
 
-    // Close modal and reset
-    setShowExtractCVModal(false);
-    setModalCVFile(null);
-    if (modalCVPreviewUrl) {
-      URL.revokeObjectURL(modalCVPreviewUrl);
-      setModalCVPreviewUrl(null);
+      // Close modal and reset
+      setShowExtractCVModal(false);
+      setModalCVFile(null);
+      if (modalCVPreviewUrl) {
+        URL.revokeObjectURL(modalCVPreviewUrl);
+        setModalCVPreviewUrl(null);
+      }
+    } catch (error) {
+      console.error('Error in handleExtractCVFromModal:', error);
+    } finally {
+      setIsExtracting(false);
     }
   }, [
     modalCVFile,
@@ -207,6 +229,7 @@ export function useTalentCreateCVModal({
     createCVFromExtract,
     setInitialCVs,
     modalCVPreviewUrl,
+    isExtracting,
   ]);
 
   // Handle checkbox change for useExtractCV
@@ -284,6 +307,7 @@ export function useTalentCreateCVModal({
     setCvPreviewUrl,
     showCVViewerModal,
     setShowCVViewerModal,
+    isExtracting,
     
     // Handlers
     handleModalFileChange,
