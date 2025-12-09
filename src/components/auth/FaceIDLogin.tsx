@@ -41,7 +41,7 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
   useEffect(() => {
     // Kiểm tra camera khi component mount
     checkCamera();
-    
+
     return () => {
       // Cleanup khi unmount
       stopCamera();
@@ -111,7 +111,7 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
         try {
           const count = await getUnreadCount();
           if (typeof count === 'number') setUnread(count);
-        } catch {}
+        } catch { }
         onReceiveNotification((n: any) => {
           pushItem(n);
           console.log('ReceiveNotification', n);
@@ -171,6 +171,18 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
     onCancel?.();
   };
 
+  const handleSwitchToPassword = (e?: React.MouseEvent<HTMLButtonElement>) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    console.log('Switching to password login...');
+    stopCamera();
+    if (onSwitchToPassword) {
+      onSwitchToPassword();
+    } else {
+      console.warn('onSwitchToPassword callback not provided');
+    }
+  };
+
   return (
     <div className="w-full max-w-md mx-auto p-8 animate-fade-in-up">
       <div className="text-center mb-8">
@@ -181,6 +193,13 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
           Đăng Nhập Bằng FaceID
         </h2>
         <p className="text-neutral-600 mt-2">Đặt khuôn mặt của bạn vào khung hình</p>
+        <button
+          type="button"
+          onClick={handleSwitchToPassword}
+          className="mt-4 text-primary-600 hover:text-primary-800 font-medium text-sm underline transition-colors duration-300"
+        >
+          ← Quay lại đăng nhập bằng Email/Password
+        </button>
       </div>
 
       {error && (
@@ -275,15 +294,15 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
             </button>
           )}
 
-          {onSwitchToPassword && (
-            <button
-              onClick={onSwitchToPassword}
-              disabled={isProcessing}
-              className="w-full text-primary-600 hover:text-primary-800 font-medium transition-colors duration-300 text-sm"
-            >
-              Đăng nhập bằng Email/Password
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={(e) => handleSwitchToPassword(e)}
+            disabled={isProcessing}
+            className="w-full bg-white border-2 border-primary-500 text-primary-600 hover:bg-primary-50 hover:border-primary-600 active:bg-primary-100 font-semibold transition-all duration-300 text-base py-3.5 px-6 rounded-xl shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-primary-500 relative z-10 cursor-pointer"
+            style={{ pointerEvents: isProcessing ? 'none' : 'auto' }}
+          >
+            Đăng nhập bằng Email/Password
+          </button>
         </div>
       </div>
     </div>
