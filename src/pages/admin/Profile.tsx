@@ -5,6 +5,7 @@ import { sidebarItems } from '../../components/admin/SidebarItems';
 import { useAuth } from '../../context/AuthContext';
 import { userService, type User as UserType } from '../../services/User';
 import { decodeJWT } from '../../services/Auth';
+import FaceIDSection from '../../components/profile/FaceIDSection';
 
 export default function AdminProfilePage() {
     const { user: authUser } = useAuth();
@@ -243,6 +244,16 @@ export default function AdminProfilePage() {
                             </div>
                         </form>
                     </div>
+
+                    {/* FaceID Enrollment Section */}
+                    <FaceIDSection 
+                        user={user} 
+                        onUserUpdate={(updatedUser) => {
+                            setUser(updatedUser);
+                            setSuccess(true);
+                            setTimeout(() => setSuccess(false), 3000);
+                        }}
+                    />
                 </div>
             </div>
         </div>
