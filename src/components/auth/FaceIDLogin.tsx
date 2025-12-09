@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Camera, AlertCircle, CheckCircle, X, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Camera, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useFaceDetection } from '../../hooks/useFaceDetection';
 import { authService, getRoleFromToken, authenticateWithFirebase } from '../../services/Auth';
 import { setTokens, setUser } from '../../utils/storage';
@@ -26,7 +26,6 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
   const {
     videoRef,
     isDetecting,
-    error: detectionError,
     hasCamera,
     checkCamera,
     startCamera,
