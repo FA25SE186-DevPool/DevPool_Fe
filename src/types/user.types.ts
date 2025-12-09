@@ -10,7 +10,6 @@ export interface User {
   createdBy?: string;
   updatedBy?: string;
   roles: string[];
-  hasFaceId?: boolean; // FaceID enrollment status
 }
 
 export interface UserCreate {

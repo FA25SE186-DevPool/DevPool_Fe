@@ -1,8 +1,8 @@
 import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
-import {
+import { 
   auth,
-  signInWithCustomToken,
+  signInWithCustomToken, 
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut
@@ -205,7 +205,7 @@ export async function ensureFirebaseAuth(): Promise<boolean> {
   // Nếu chưa có user, kiểm tra localStorage để re-authenticate
   const storedUser = localStorage.getItem('devpool_user');
   const accessToken = localStorage.getItem('accessToken');
-
+  
   if (storedUser && accessToken) {
     try {
       // Kiểm tra xem có user data trong localStorage
@@ -287,44 +287,6 @@ export const authService = {
       console.log('Firebase logout successful');
     } catch (error) {
       console.error('Firebase logout error:', error);
-    }
-  },
-
-  /**
-   * Login với FaceID
-   * @param faceVector - Face vector từ face detection
-   * @returns LoginResponse với JWT tokens
-   */
-  async loginWithFaceID(faceVector: number[]): Promise<LoginResponse> {
-    try {
-      const response = await apiClient.post<LoginResponse>("/auth/faceid/login", {
-        faceVector,
-      });
-      return response.data;
-    } catch (error: unknown) {
-      if (error instanceof AxiosError)
-        throw error.response?.data || { message: "Không thể đăng nhập bằng FaceID" };
-      throw { message: "Lỗi không xác định khi đăng nhập bằng FaceID" };
-    }
-  },
-
-  /**
-   * Đăng ký FaceID cho user
-   * @param email - Email của user
-   * @param faceVector - Face vector từ face detection
-   * @returns Promise<void>
-   */
-  async enrollFaceID(email: string, faceVector: number[]): Promise<void> {
-    try {
-      const response = await apiClient.post("/auth/faceid/enroll", {
-        email,
-        faceVector,
-      });
-      return response.data;
-    } catch (error: unknown) {
-      if (error instanceof AxiosError)
-        throw error.response?.data || { message: "Không thể đăng ký FaceID" };
-      throw { message: "Lỗi không xác định khi đăng ký FaceID" };
     }
   },
 };
