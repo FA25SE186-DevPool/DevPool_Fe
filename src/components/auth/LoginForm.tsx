@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle, Camera } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { authService, getRoleFromToken, authenticateWithFirebase } from '../../services/Auth';
 import { startNotificationConnection, onReceiveNotification, onUnreadCountUpdated, getUnreadCount } from '../../services/notificationHub';
 import { useNotification } from '../../context/NotificationContext';
 import { setTokens, setUser, getUser, getAccessToken } from '../../utils/storage';
 import logoDevPool from '../../assets/images/logo-DevPool.jpg';
+import FaceIDLogin from './FaceIDLogin';
 
 
 export default function LoginForm() {
+  const [loginMode, setLoginMode] = useState<'password' | 'faceid'>('password');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -51,36 +53,36 @@ export default function LoginForm() {
       // Kiểm tra nếu đã có tài khoản khác đang đăng nhập
       const existingUser = getUser();
       const existingToken = getAccessToken();
-      
+
       if (existingUser && existingToken && existingUser.email !== email) {
         // Có tài khoản khác đang đăng nhập, cảnh báo nhưng vẫn cho phép đăng nhập
         // Token cũ sẽ bị ghi đè, tài khoản cũ sẽ bị logout
         console.warn(`Đang đăng nhập tài khoản mới (${email}). Tài khoản cũ (${existingUser.email}) sẽ bị đăng xuất.`);
       }
-      
+
       // Gọi API login
       const response = await authService.login({ email, password });
-      
+
       // Lấy role từ JWT token
       const frontendRole = getRoleFromToken(response.accessToken);
-      
+
       if (!frontendRole) {
         setError('Không thể xác định quyền người dùng');
         setIsLoggingIn(false);
         return;
       }
-      
+
       // Lưu tokens vào storage dựa trên rememberMe
       // Lưu ý: Token cũ sẽ bị ghi đè, tài khoản cũ sẽ bị logout
       setTokens(response.accessToken, response.refreshToken, rememberMe);
-      
+
       // Phát sự kiện để các tab khác biết token đã thay đổi
       window.dispatchEvent(new Event('storage'));
-      
+
       // Authenticate với Firebase để có quyền truy cập Firestore/Storage
       // Cần role để sync vào Firestore
       await authenticateWithFirebase(response, email, password, frontendRole);
-      
+
       // Lưu thông tin user vào storage dựa trên rememberMe
       const userData = {
         id: response.userID,
@@ -90,7 +92,7 @@ export default function LoginForm() {
         avatar: undefined
       };
       setUser(userData, rememberMe);
-      
+
       // Khởi tạo kết nối SignalR sau khi đã có token
       try {
         await startNotificationConnection();
@@ -98,7 +100,7 @@ export default function LoginForm() {
         try {
           const count = await getUnreadCount();
           if (typeof count === 'number') setUnread(count);
-        } catch {}
+        } catch { }
         // Lắng nghe realtime
         onReceiveNotification((n: any) => {
           pushItem(n);
@@ -113,7 +115,7 @@ export default function LoginForm() {
         // Không chặn flow đăng nhập nếu WS lỗi
         console.warn('Không thể khởi tạo kết nối thông báo realtime:', e);
       }
-      
+
       // Gọi login từ AuthContext để lưu thông tin user
       await login(
         response.email,
@@ -155,7 +157,7 @@ export default function LoginForm() {
       setIsLoggingIn(false);
       // Xử lý lỗi từ API
       let errorMessage = 'Email hoặc mật khẩu không chính xác';
-      
+
       if (error?.message) {
         errorMessage = error.message;
       } else if (error?.response?.data?.message) {
@@ -163,18 +165,31 @@ export default function LoginForm() {
       } else if (typeof error === 'string') {
         errorMessage = error;
       }
-      
+
       setError(errorMessage);
     }
   };
+
+  // Render FaceID login if mode is faceid
+  if (loginMode === 'faceid') {
+    return (
+      <FaceIDLogin
+        onSuccess={() => {
+          // Success handled in FaceIDLogin component
+        }}
+        onCancel={() => setLoginMode('password')}
+        onSwitchToPassword={() => setLoginMode('password')}
+      />
+    );
+  }
 
   return (
     <div className="w-full max-w-md mx-auto p-8 animate-fade-in-up">
       <div className="text-center mb-8">
         <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl mb-4 shadow-glow animate-float border border-white/20 p-2">
-          <img 
-            src={logoDevPool} 
-            alt="DevPool Logo" 
+          <img
+            src={logoDevPool}
+            alt="DevPool Logo"
             className="w-full h-full object-contain"
           />
         </div>
@@ -281,6 +296,26 @@ export default function LoginForm() {
           ) : (
             'Đăng Nhập'
           )}
+        </button>
+
+        {/* Divider */}
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-neutral-300" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-4 bg-white text-neutral-500 font-medium">hoặc</span>
+          </div>
+        </div>
+
+        {/* FaceID Login Button */}
+        <button
+          type="button"
+          onClick={() => setLoginMode('faceid')}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3.5 border border-neutral-300 rounded-xl hover:bg-neutral-50 transition-all duration-300 hover:border-neutral-400 hover:shadow-soft transform hover:scale-102 active:scale-98"
+        >
+          <Camera className="w-5 h-5 text-primary-600" />
+          <span className="text-neutral-700 font-semibold">Đăng nhập bằng FaceID</span>
         </button>
 
         {/* Divider */}
