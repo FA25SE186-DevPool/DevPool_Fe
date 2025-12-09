@@ -7,21 +7,30 @@ import {
   ChevronUp,
   Target,
   Search,
+  Filter,
 } from 'lucide-react';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { type TalentCVCreate } from '../../../services/TalentCV';
 import { type JobRoleLevel } from '../../../services/JobRoleLevel';
+import { type JobRole } from '../../../services/JobRole';
 
 interface TalentCVSectionProps {
   initialCVs: Partial<TalentCVCreate>[];
   cvFile: File | null;
   cvPreviewUrl?: string | null;
   jobRoleLevelsForCV: JobRoleLevel[];
+  jobRoles: JobRole[];
   jobRoleLevelSearch: Record<number, string>;
   setJobRoleLevelSearch: (search: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => void;
   isJobRoleLevelDropdownOpen: Record<number, boolean>;
   setIsJobRoleLevelDropdownOpen: (open: Record<number, boolean> | ((prev: Record<number, boolean>) => Record<number, boolean>)) => void;
+  selectedJobRoleFilterId: Record<number, number | undefined>;
+  setSelectedJobRoleFilterId: (filters: Record<number, number | undefined> | ((prev: Record<number, number | undefined>) => Record<number, number | undefined>)) => void;
+  jobRoleFilterSearch: Record<number, string>;
+  setJobRoleFilterSearch: (search: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => void;
+  isJobRoleFilterDropdownOpen: Record<number, boolean>;
+  setIsJobRoleFilterDropdownOpen: (open: Record<number, boolean> | ((prev: Record<number, boolean>) => Record<number, boolean>)) => void;
   showCVSummary: Record<number, boolean>;
   setShowCVSummary: (show: Record<number, boolean> | ((prev: Record<number, boolean>) => Record<number, boolean>)) => void;
   uploadingCV: boolean;
@@ -55,10 +64,17 @@ export function TalentCVSection({
   cvFile,
   cvPreviewUrl: _cvPreviewUrl,
   jobRoleLevelsForCV,
+  jobRoles,
   jobRoleLevelSearch,
   setJobRoleLevelSearch,
   isJobRoleLevelDropdownOpen,
   setIsJobRoleLevelDropdownOpen,
+  selectedJobRoleFilterId,
+  setSelectedJobRoleFilterId,
+  jobRoleFilterSearch,
+  setJobRoleFilterSearch,
+  isJobRoleFilterDropdownOpen,
+  setIsJobRoleFilterDropdownOpen,
   showCVSummary,
   setShowCVSummary,
   uploadingCV,
@@ -167,20 +183,20 @@ export function TalentCVSection({
                           !cv.jobRoleLevelId ||
                           isUploadedFromFirebase
                         }
-                        className="w-full"
+                        className="w-full flex items-center justify-center gap-2"
                         variant="primary"
                       >
                         {uploadingCV && uploadingCVIndex === index ? (
                           <>Đang upload...</>
                         ) : isUploadedFromFirebase ? (
                           <>
-                            <Upload className="w-4 h-4 mr-2" />
-                            Đã upload lên Firebase
+                            <Upload className="w-4 h-4" />
+                            <span>Đã upload lên Firebase</span>
                           </>
                         ) : (
                           <>
-                            <Upload className="w-4 h-4 mr-2" />
-                            Upload CV lên Firebase
+                            <Upload className="w-4 h-4" />
+                            <span>Upload CV lên Firebase</span>
                           </>
                         )}
                       </Button>
@@ -206,6 +222,131 @@ export function TalentCVSection({
                   <label className="block text-sm font-semibold text-neutral-700 mb-2">
                     Vị trí công việc <span className="text-red-500">*</span>
                   </label>
+
+                  {/* Filter theo loại vị trí */}
+                  <div className="relative mb-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setIsJobRoleFilterDropdownOpen((prev) => ({
+                          ...prev,
+                          [index]: !prev[index],
+                        }))
+                      }
+                      disabled={isUploadedFromFirebase}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-xs border rounded-md transition-colors ${
+                        isUploadedFromFirebase
+                          ? 'border-green-300 bg-green-50 cursor-not-allowed opacity-75'
+                          : 'border-neutral-300 bg-neutral-50 hover:bg-neutral-100 text-neutral-600'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Filter className="w-3.5 h-3.5 text-neutral-500" />
+                        <span className="truncate">
+                          {selectedJobRoleFilterId[index]
+                            ? jobRoles.find((r) => r.id === selectedJobRoleFilterId[index])?.name ||
+                              'Loại vị trí'
+                            : 'Tất cả loại vị trí'}
+                        </span>
+                      </div>
+                    </button>
+                    {isJobRoleFilterDropdownOpen[index] && !isUploadedFromFirebase && (
+                      <div
+                        className="absolute z-[60] mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
+                        onMouseLeave={() => {
+                          setIsJobRoleFilterDropdownOpen((prev) => ({
+                            ...prev,
+                            [index]: false,
+                          }));
+                          setJobRoleFilterSearch((prev) => ({
+                            ...prev,
+                            [index]: '',
+                          }));
+                        }}
+                      >
+                        <div className="p-3 border-b border-neutral-100">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
+                            <input
+                              type="text"
+                              value={jobRoleFilterSearch[index] || ''}
+                              onChange={(e) =>
+                                setJobRoleFilterSearch((prev) => ({
+                                  ...prev,
+                                  [index]: e.target.value,
+                                }))
+                              }
+                              placeholder="Tìm loại vị trí..."
+                              className="w-full pl-9 pr-3 py-2.5 text-sm border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-56 overflow-y-auto">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedJobRoleFilterId((prev) => ({
+                                ...prev,
+                                [index]: undefined,
+                              }));
+                              setJobRoleFilterSearch((prev) => ({
+                                ...prev,
+                                [index]: '',
+                              }));
+                              setIsJobRoleFilterDropdownOpen((prev) => ({
+                                ...prev,
+                                [index]: false,
+                              }));
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              !selectedJobRoleFilterId[index]
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'hover:bg-neutral-50 text-neutral-700'
+                            }`}
+                          >
+                            Tất cả loại vị trí
+                          </button>
+                          {jobRoles
+                            .filter(
+                              (role) =>
+                                !jobRoleFilterSearch[index] ||
+                                role.name
+                                  .toLowerCase()
+                                  .includes((jobRoleFilterSearch[index] || '').toLowerCase())
+                            )
+                            .map((role) => (
+                              <button
+                                type="button"
+                                key={role.id}
+                                onClick={() => {
+                                  setSelectedJobRoleFilterId((prev) => ({
+                                    ...prev,
+                                    [index]: role.id,
+                                  }));
+                                  setJobRoleFilterSearch((prev) => ({
+                                    ...prev,
+                                    [index]: '',
+                                  }));
+                                  setIsJobRoleFilterDropdownOpen((prev) => ({
+                                    ...prev,
+                                    [index]: false,
+                                  }));
+                                }}
+                                className={`w-full text-left px-4 py-2.5 text-sm ${
+                                  selectedJobRoleFilterId[index] === role.id
+                                    ? 'bg-primary-50 text-primary-700'
+                                    : 'hover:bg-neutral-50 text-neutral-700'
+                                }`}
+                              >
+                                {role.name}
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="relative">
                     <button
                       type="button"
@@ -266,11 +407,18 @@ export function TalentCVSection({
                         <div className="max-h-56 overflow-y-auto">
                           {(() => {
                             const searchTerm = jobRoleLevelSearch[index] || '';
-                            const filtered = searchTerm
+                            let filtered = searchTerm
                               ? jobRoleLevelsForCV.filter((jrl) =>
                                   jrl.name.toLowerCase().includes(searchTerm.toLowerCase())
                                 )
                               : jobRoleLevelsForCV;
+                            
+                            // Filter theo loại vị trí nếu đã chọn
+                            if (selectedJobRoleFilterId[index]) {
+                              filtered = filtered.filter(
+                                (jrl) => jrl.jobRoleId === selectedJobRoleFilterId[index]
+                              );
+                            }
                             if (filtered.length === 0) {
                               return (
                                 <p className="px-4 py-3 text-sm text-neutral-500">

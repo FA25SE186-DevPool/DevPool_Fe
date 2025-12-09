@@ -10,7 +10,7 @@ import { type JobRoleLevel } from '../services/JobRoleLevel';
 import { type TalentJobRoleLevel } from '../services/TalentJobRoleLevel';
 import { type CertificateType } from '../services/CertificateType';
 import { type TalentCertificate } from '../services/TalentCertificate';
-import { getTalentLevelName, normalizeJobRoleKey, normalizeCertificateName } from '../utils/talentHelpers';
+import { getTalentLevelName, normalizeJobRoleKey, normalizeJobRolePosition, normalizeCertificateName } from '../utils/talentHelpers';
 
 /**
  * Hook để quản lý CV Analysis logic cho Talent Detail page
@@ -21,7 +21,8 @@ export function useTalentDetailCVAnalysis(
   lookupJobRoleLevelsForTalent: JobRoleLevel[],
   jobRoleLevels: (TalentJobRoleLevel & { jobRoleLevelName: string; jobRoleLevelLevel: string })[],
   lookupCertificateTypes: CertificateType[],
-  certificates: (TalentCertificate & { certificateTypeName: string })[]
+  certificates: (TalentCertificate & { certificateTypeName: string })[],
+  talentCVs?: (TalentCV & { jobRoleLevelName?: string })[]
 ) {
   const { id } = useParams<{ id: string }>();
 
@@ -459,7 +460,7 @@ export function useTalentDetailCVAnalysis(
     [unmatchedSkillSuggestions]
   );
 
-  // Job Role Levels computed values
+  // Job Role Levels computed values - map theo key (position|level)
   const jobRoleLevelSystemMap = useMemo(() => {
     const map = new Map<string, JobRoleLevel>();
     lookupJobRoleLevelsForTalent.forEach((jobRoleLevel) => {
@@ -467,6 +468,21 @@ export function useTalentDetailCVAnalysis(
       const key = normalizeJobRoleKey(jobRoleLevel.name, levelName);
       if (key !== '|') {
         map.set(key, jobRoleLevel);
+      }
+    });
+    return map;
+  }, [lookupJobRoleLevelsForTalent]);
+
+  // Map theo position để tìm bất kỳ level nào của position đó trong hệ thống
+  const jobRolePositionSystemMap = useMemo(() => {
+    const map = new Map<string, JobRoleLevel[]>();
+    lookupJobRoleLevelsForTalent.forEach((jobRoleLevel) => {
+      const position = normalizeJobRolePosition(jobRoleLevel.name);
+      if (position) {
+        if (!map.has(position)) {
+          map.set(position, []);
+        }
+        map.get(position)!.push(jobRoleLevel);
       }
     });
     return map;
@@ -491,6 +507,73 @@ export function useTalentDetailCVAnalysis(
     return map;
   }, [jobRoleLevels, lookupJobRoleLevelsForTalent]);
 
+  // Map theo position (name) để kiểm tra xem profile đã có position này chưa (bất kỳ level nào)
+  const talentJobRolePositionSet = useMemo(() => {
+    const positionSet = new Set<string>();
+    jobRoleLevels.forEach((record) => {
+      const system = lookupJobRoleLevelsForTalent.find((jobRoleLevel) => jobRoleLevel.id === record.jobRoleLevelId);
+      const position = normalizeJobRolePosition(system?.name ?? record.jobRoleLevelName);
+      if (position) {
+        positionSet.add(position);
+      }
+    });
+    return positionSet;
+  }, [jobRoleLevels, lookupJobRoleLevelsForTalent]);
+
+  // Tự động so sánh CVs với profile (không cần analysis result)
+  const cvJobRoleLevelsComparison = useMemo(() => {
+    const result = {
+      recognized: [] as Array<{ suggestion: any; system: JobRoleLevel }>,
+      unmatched: [] as any[],
+    };
+
+    if (!talentCVs || talentCVs.length === 0) return result;
+
+    // Lấy các vị trí từ CVs (unique theo position)
+    const cvPositions = new Map<string, { cv: TalentCV & { jobRoleLevelName?: string }; system?: JobRoleLevel }>();
+    
+    talentCVs.forEach((cv) => {
+      if (!cv.jobRoleLevelId || cv.jobRoleLevelId === 0) return;
+      
+      const system = lookupJobRoleLevelsForTalent.find((jrl) => jrl.id === cv.jobRoleLevelId);
+      const position = normalizeJobRolePosition(system?.name ?? cv.jobRoleLevelName);
+      
+      if (position && !cvPositions.has(position)) {
+        cvPositions.set(position, { cv, system });
+      }
+    });
+
+    // So sánh với profile
+    cvPositions.forEach(({ cv, system }) => {
+      const cvPosition = normalizeJobRolePosition(system?.name ?? cv.jobRoleLevelName);
+      if (!cvPosition) return;
+
+      const hasPositionInProfile = talentJobRolePositionSet.has(cvPosition);
+      
+      // Chỉ báo nếu profile CHƯA có position này
+      if (!hasPositionInProfile) {
+        // Profile chưa có position này - cần báo
+        if (system) {
+          // Có trong hệ thống - chỉ lưu position, không cần level
+          result.recognized.push({
+            suggestion: {
+              position: system.name,
+            },
+            system,
+          });
+        } else {
+          // Không có trong hệ thống
+          result.unmatched.push({
+            position: cv.jobRoleLevelName ?? 'Vị trí chưa rõ',
+          });
+        }
+      }
+      // Nếu hasPositionInProfile = true, không làm gì (profile đã có position này rồi)
+    });
+
+    return result;
+  }, [talentCVs, lookupJobRoleLevelsForTalent, talentJobRolePositionSet]);
+
   const jobRoleLevelComparisons = useMemo(() => {
     const result = {
       recognized: [] as Array<{ suggestion: any; system: JobRoleLevel }>,
@@ -498,6 +581,25 @@ export function useTalentDetailCVAnalysis(
       unmatched: [] as any[],
       onlyInTalent: [] as Array<{ existing: TalentJobRoleLevel & { jobRoleLevelName: string }; system?: JobRoleLevel }>,
     };
+
+    // Merge với kết quả từ CV comparison (tự động)
+    const recognizedPositions = new Set<string>();
+    cvJobRoleLevelsComparison.recognized.forEach((item) => {
+      const position = normalizeJobRolePosition(item.suggestion.position);
+      if (position) {
+        recognizedPositions.add(position);
+        result.recognized.push(item);
+      }
+    });
+    
+    const unmatchedPositions = new Set<string>();
+    cvJobRoleLevelsComparison.unmatched.forEach((item) => {
+      const position = normalizeJobRolePosition(item.position);
+      if (position) {
+        unmatchedPositions.add(position);
+        result.unmatched.push(item);
+      }
+    });
 
     if (!analysisResult) return result;
 
@@ -510,13 +612,42 @@ export function useTalentDetailCVAnalysis(
 
       const system = jobRoleLevelSystemMap.get(key);
       const existingInfo = talentJobRoleLevelMap.get(key);
+      
+      // Kiểm tra xem profile đã có position này chưa (bất kỳ level nào)
+      const cvPosition = normalizeJobRolePosition(suggestion.position);
+      const hasPositionInProfile = cvPosition && talentJobRolePositionSet.has(cvPosition);
+      
+      // Tìm bất kỳ level nào của position này trong hệ thống
+      const systemsForPosition = cvPosition ? jobRolePositionSystemMap.get(cvPosition) : undefined;
+      const hasPositionInSystem = systemsForPosition && systemsForPosition.length > 0;
+      // Lấy system đầu tiên nếu có (để dùng cho recognized)
+      const systemForPosition = systemsForPosition && systemsForPosition.length > 0 ? systemsForPosition[0] : undefined;
 
       if (existingInfo) {
+        // Đã có chính xác position + level trong profile
         result.matched.push({ suggestion, existing: existingInfo.existing, system: existingInfo.system });
-      } else if (system) {
-        result.recognized.push({ suggestion, system });
+      } else if (hasPositionInProfile) {
+        // Profile đã có position này (bất kỳ level nào) - không báo
+        // (cùng vị trí không cần cùng level)
+      } else if (!hasPositionInProfile && hasPositionInSystem && systemForPosition) {
+        // Profile chưa có position này (bất kỳ level nào) nhưng có trong hệ thống
+        // Dùng system chính xác nếu có, nếu không thì dùng system đầu tiên của position
+        // Chỉ thêm nếu chưa có trong recognized từ CV comparison
+        if (!recognizedPositions.has(cvPosition)) {
+          result.recognized.push({ suggestion, system: system || systemForPosition });
+        }
+      } else if (!hasPositionInProfile) {
+        // Profile chưa có position này (bất kỳ level nào) và không có trong hệ thống
+        // Vẫn báo để người dùng biết CV có vị trí này
+        // Chỉ thêm nếu chưa có trong unmatched từ CV comparison
+        if (!unmatchedPositions.has(cvPosition)) {
+          result.unmatched.push(suggestion);
+        }
       } else {
-        result.unmatched.push(suggestion);
+        // Trường hợp khác (không nên xảy ra)
+        if (!unmatchedPositions.has(cvPosition)) {
+          result.unmatched.push(suggestion);
+        }
       }
     });
 
@@ -527,25 +658,25 @@ export function useTalentDetailCVAnalysis(
     });
 
     return result;
-  }, [analysisResult, jobRoleLevelSystemMap, talentJobRoleLevelMap]);
+  }, [analysisResult, jobRoleLevelSystemMap, jobRolePositionSystemMap, talentJobRoleLevelMap, talentJobRolePositionSet, cvJobRoleLevelsComparison]);
 
   const { recognized: jobRoleLevelsRecognized, matched: jobRoleLevelsMatched, unmatched: jobRoleLevelsUnmatched } = jobRoleLevelComparisons;
 
   const matchedJobRoleLevelsNotInProfile = useMemo(() => {
-    if (!analysisResult) return [];
+    // Luôn trả về kết quả từ CV comparison tự động, không phụ thuộc vào analysisResult
     return jobRoleLevelsRecognized.map(({ suggestion, system }) => {
       if (system) {
         return {
           jobRoleLevelId: system.id,
           position: suggestion.position ?? system.name ?? '',
-          level: suggestion.level ?? undefined,
+          // Không cần level - chỉ so sánh position
           yearsOfExp: suggestion.yearsOfExp ?? undefined,
           ratePerMonth: suggestion.ratePerMonth ?? undefined,
         };
       }
       return null;
     }).filter((item): item is NonNullable<typeof item> => item !== null);
-  }, [jobRoleLevelsRecognized, analysisResult]);
+  }, [jobRoleLevelsRecognized]);
 
   // Certificates computed values
   const certificateSystemMap = useMemo(() => {

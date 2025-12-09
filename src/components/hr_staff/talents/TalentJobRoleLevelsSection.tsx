@@ -1,19 +1,14 @@
-import { Plus, X, Target, Filter, Search, ChevronDown } from 'lucide-react';
+import { X, Target, Search, ChevronDown } from 'lucide-react';
+import { useEffect } from 'react';
 import { Button } from '../../ui/button';
 import { type TalentJobRoleLevelCreateModel } from '../../../services/Talent';
-import { type JobRole } from '../../../services/JobRole';
 import { type JobRoleLevel } from '../../../services/JobRoleLevel';
 
 interface TalentJobRoleLevelsSectionProps {
   talentJobRoleLevels: TalentJobRoleLevelCreateModel[];
-  jobRoles: JobRole[];
   jobRoleLevels: JobRoleLevel[];
   selectedJobRoleFilterId: Record<number, number | undefined>;
   setSelectedJobRoleFilterId: (filters: Record<number, number | undefined> | ((prev: Record<number, number | undefined>) => Record<number, number | undefined>)) => void;
-  jobRoleFilterSearch: Record<number, string>;
-  setJobRoleFilterSearch: (search: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => void;
-  isJobRoleFilterDropdownOpen: Record<number, boolean>;
-  setIsJobRoleFilterDropdownOpen: (open: Record<number, boolean> | ((prev: Record<number, boolean>) => Record<number, boolean>)) => void;
   selectedJobRoleLevelName: Record<number, string>;
   setSelectedJobRoleLevelName: (names: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => void;
   jobRoleLevelNameSearch: Record<number, string>;
@@ -24,10 +19,10 @@ interface TalentJobRoleLevelsSectionProps {
   setIsLevelDropdownOpen: (open: Record<number, boolean> | ((prev: Record<number, boolean>) => Record<number, boolean>)) => void;
   errors: Record<string, string>;
   getLevelText: (level: number) => string;
-  onAdd: () => void;
   onRemove: (index: number) => void;
   onUpdate: (index: number, field: keyof TalentJobRoleLevelCreateModel, value: string | number | undefined) => void;
   onSetErrors?: (errors: Record<string, string>) => void;
+  initialCVs?: Array<{ jobRoleLevelId?: number }>; // CV Ban Đầu để filter vị trí
 }
 
 /**
@@ -35,14 +30,9 @@ interface TalentJobRoleLevelsSectionProps {
  */
 export function TalentJobRoleLevelsSection({
   talentJobRoleLevels,
-  jobRoles,
   jobRoleLevels,
   selectedJobRoleFilterId,
   setSelectedJobRoleFilterId,
-  jobRoleFilterSearch,
-  setJobRoleFilterSearch,
-  isJobRoleFilterDropdownOpen,
-  setIsJobRoleFilterDropdownOpen,
   selectedJobRoleLevelName,
   setSelectedJobRoleLevelName,
   jobRoleLevelNameSearch,
@@ -53,36 +43,56 @@ export function TalentJobRoleLevelsSection({
   setIsLevelDropdownOpen,
   errors,
   getLevelText,
-  onAdd,
   onRemove,
   onUpdate,
   onSetErrors,
+  initialCVs,
 }: TalentJobRoleLevelsSectionProps) {
+  // Lấy các jobRoleLevelId và jobRoleId từ CV Ban Đầu (nếu có)
+  const cvJobRoleLevelIds = initialCVs
+    ?.filter((cv) => cv.jobRoleLevelId && cv.jobRoleLevelId > 0)
+    .map((cv) => cv.jobRoleLevelId!)
+    .filter((id, index, self) => self.indexOf(id) === index) || [];
+
+  // Lấy các jobRoleId từ CV (để filter theo loại vị trí)
+  const cvJobRoleIds = cvJobRoleLevelIds.length > 0
+    ? jobRoleLevels
+        .filter((jrl) => cvJobRoleLevelIds.includes(jrl.id))
+        .map((jrl) => jrl.jobRoleId)
+        .filter((id, index, self) => self.indexOf(id) === index)
+    : [];
+
+  // Nếu có CV, chỉ hiển thị các vị trí từ CV và cùng loại (jobRole)
+  const availableJobRoleLevels = cvJobRoleLevelIds.length > 0
+    ? jobRoleLevels.filter((jrl) => cvJobRoleIds.includes(jrl.jobRoleId))
+    : jobRoleLevels;
+
+
+  // Tự động set selectedJobRoleLevelName từ jobRoleLevelId khi có giá trị
+  useEffect(() => {
+    talentJobRoleLevels.forEach((jrl, index) => {
+      if (jrl.jobRoleLevelId && jrl.jobRoleLevelId > 0) {
+        const jobRoleLevel = jobRoleLevels.find((l) => l.id === jrl.jobRoleLevelId);
+        if (jobRoleLevel && (!selectedJobRoleLevelName[index] || selectedJobRoleLevelName[index] !== jobRoleLevel.name)) {
+          setSelectedJobRoleLevelName((prev) => ({
+            ...prev,
+            [index]: jobRoleLevel.name || '',
+          }));
+        }
+      }
+    });
+  }, [talentJobRoleLevels, jobRoleLevels, selectedJobRoleLevelName, setSelectedJobRoleLevelName]);
+
   return (
     <div className="bg-white rounded-2xl shadow-soft border border-neutral-100">
       <div className="p-6 border-b border-neutral-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary-100 rounded-lg">
-              <Target className="w-5 h-5 text-primary-600" />
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900">
-              Vị trí <span className="text-red-500">*</span>
-            </h2>
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-primary-100 rounded-lg">
+            <Target className="w-5 h-5 text-primary-600" />
           </div>
-          <Button 
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onAdd();
-            }} 
-            variant="outline" 
-            className="flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Thêm
-          </Button>
+          <h2 className="text-xl font-semibold text-gray-900">
+            Vị trí <span className="text-red-500">*</span>
+          </h2>
         </div>
       </div>
 
@@ -128,125 +138,6 @@ export function TalentJobRoleLevelsSection({
                   <label className="block text-sm font-medium text-neutral-700">
                     Vị trí <span className="text-red-500">*</span>
                   </label>
-
-                  {/* Filter theo loại vị trí */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setIsJobRoleFilterDropdownOpen((prev) => ({
-                          ...prev,
-                          [index]: !prev[index],
-                        }))
-                      }
-                      className="w-full flex items-center justify-between px-3 py-2 text-xs border border-neutral-300 rounded-md bg-neutral-50 hover:bg-neutral-100 text-neutral-600 transition-colors"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <Filter className="w-3.5 h-3.5 text-neutral-500" />
-                        <span className="truncate">
-                          {selectedJobRoleFilterId[index]
-                            ? jobRoles.find((r) => r.id === selectedJobRoleFilterId[index])?.name ||
-                              'Loại vị trí'
-                            : 'Tất cả loại vị trí'}
-                        </span>
-                      </div>
-                    </button>
-                    {isJobRoleFilterDropdownOpen[index] && (
-                      <div
-                        className="absolute z-[60] mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
-                        onMouseLeave={() => {
-                          setIsJobRoleFilterDropdownOpen((prev) => ({
-                            ...prev,
-                            [index]: false,
-                          }));
-                          setJobRoleFilterSearch((prev) => ({
-                            ...prev,
-                            [index]: '',
-                          }));
-                        }}
-                      >
-                        <div className="p-3 border-b border-neutral-100">
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
-                            <input
-                              type="text"
-                              value={jobRoleFilterSearch[index] || ''}
-                              onChange={(e) =>
-                                setJobRoleFilterSearch((prev) => ({
-                                  ...prev,
-                                  [index]: e.target.value,
-                                }))
-                              }
-                              placeholder="Tìm loại vị trí..."
-                              className="w-full pl-9 pr-3 py-2.5 text-sm border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </div>
-                        </div>
-                        <div className="max-h-56 overflow-y-auto">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedJobRoleFilterId((prev) => ({
-                                ...prev,
-                                [index]: undefined,
-                              }));
-                              setJobRoleFilterSearch((prev) => ({
-                                ...prev,
-                                [index]: '',
-                              }));
-                              setIsJobRoleFilterDropdownOpen((prev) => ({
-                                ...prev,
-                                [index]: false,
-                              }));
-                            }}
-                            className={`w-full text-left px-4 py-2.5 text-sm ${
-                              !selectedJobRoleFilterId[index]
-                                ? 'bg-primary-50 text-primary-700'
-                                : 'hover:bg-neutral-50 text-neutral-700'
-                            }`}
-                          >
-                            Tất cả loại vị trí
-                          </button>
-                          {jobRoles
-                            .filter(
-                              (role) =>
-                                !jobRoleFilterSearch[index] ||
-                                role.name
-                                  .toLowerCase()
-                                  .includes((jobRoleFilterSearch[index] || '').toLowerCase())
-                            )
-                            .map((role) => (
-                              <button
-                                type="button"
-                                key={role.id}
-                                onClick={() => {
-                                  setSelectedJobRoleFilterId((prev) => ({
-                                    ...prev,
-                                    [index]: role.id,
-                                  }));
-                                  setJobRoleFilterSearch((prev) => ({
-                                    ...prev,
-                                    [index]: '',
-                                  }));
-                                  setIsJobRoleFilterDropdownOpen((prev) => ({
-                                    ...prev,
-                                    [index]: false,
-                                  }));
-                                }}
-                                className={`w-full text-left px-4 py-2.5 text-sm ${
-                                  selectedJobRoleFilterId[index] === role.id
-                                    ? 'bg-primary-50 text-primary-700'
-                                    : 'hover:bg-neutral-50 text-neutral-700'
-                                }`}
-                              >
-                                {role.name}
-                              </button>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
 
                   {/* Job Role Level Name Dropdown */}
                   <div className="relative">
@@ -316,11 +207,12 @@ export function TalentJobRoleLevelsSection({
                         </div>
                         <div className="max-h-56 overflow-y-auto">
                           {(() => {
+                            // Sử dụng availableJobRoleLevels thay vì jobRoleLevels
                             let uniqueNames = Array.from(
-                              new Set(jobRoleLevels.map((jrl) => jrl.name))
+                              new Set(availableJobRoleLevels.map((jrl) => jrl.name))
                             );
                             if (selectedJobRoleFilterId[index]) {
-                              const filteredByJobRole = jobRoleLevels.filter(
+                              const filteredByJobRole = availableJobRoleLevels.filter(
                                 (l) => l.jobRoleId === selectedJobRoleFilterId[index]
                               );
                               uniqueNames = Array.from(
@@ -451,7 +343,7 @@ export function TalentJobRoleLevelsSection({
                             </p>
                           ) : (
                             availableLevels.map((level) => {
-                              const matchingJRL = jobRoleLevels.find(
+                              const matchingJRL = availableJobRoleLevels.find(
                                 (jrl) =>
                                   jrl.name === selectedJobRoleLevelName[index] &&
                                   jrl.level === level

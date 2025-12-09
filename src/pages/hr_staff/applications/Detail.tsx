@@ -182,6 +182,12 @@ export default function TalentCVApplicationDetailPage() {
       return [];
     }
 
+    // Kiểm tra scheduledDate: không cho phép thay đổi trạng thái nếu chưa có lịch trong database (đã lưu)
+    // Phải kiểm tra editingActivity.scheduledDate (từ database) chứ không phải editActivityForm.scheduledDate (chưa lưu)
+    if (!editingActivity.scheduledDate || editingActivity.scheduledDate.trim() === "") {
+      return [];
+    }
+
     // Không cho đổi trạng thái cho tới khi TẤT CẢ các bước của quy trình đã được tạo activity
     try {
       if (templateSteps.length > 0) {
@@ -1409,57 +1415,59 @@ export default function TalentCVApplicationDetailPage() {
                                   <span className="text-xs text-neutral-700 font-medium">{formattedDate}</span>
                                 </div>
                               )}
-                              <Button
-                                onClick={async (e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setEditingActivity(activity);
-                                  setScheduleTouched(false);
-                                  setDateValidationError("");
-                                  
-                                  // Convert UTC từ backend sang local datetime cho input
-                                  let localDateTime = "";
-                                  if (activity.scheduledDate) {
-                                    const d = new Date(activity.scheduledDate);
-                                    const year = d.getFullYear();
-                                    const month = String(d.getMonth() + 1).padStart(2, "0");
-                                    const day = String(d.getDate()).padStart(2, "0");
-                                    const hours = String(d.getHours()).padStart(2, "0");
-                                    const minutes = String(d.getMinutes()).padStart(2, "0");
-                                    localDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
-                                  }
-
-                                  setEditActivityForm({
-                                    activityType: activity.activityType,
-                                    processStepId: activity.processStepId || 0,
-                                    scheduledDate: localDateTime,
-                                    status: activity.status,
-                                  });
-
-                                  // Fetch existing activities để tính activitySchedules
-                                  try {
-                                    const allActivities = await applyActivityService.getAll({ applyId: activity.applyId });
-                                    const scheduleMap: Record<number, string> = {};
-                                    allActivities
-                                      .filter(a => a.processStepId && a.scheduledDate)
-                                      .forEach(a => {
-                                        scheduleMap[a.processStepId] = a.scheduledDate!;
-                                      });
-                                    // Nếu activity hiện tại đã có scheduledDate, thêm vào map
-                                    if (activity.scheduledDate && activity.processStepId) {
-                                      scheduleMap[activity.processStepId] = activity.scheduledDate;
+                              {activity.status !== ApplyActivityStatus.Failed && activity.status !== ApplyActivityStatus.Passed && (
+                                <Button
+                                  onClick={async (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setEditingActivity(activity);
+                                    setScheduleTouched(false);
+                                    setDateValidationError("");
+                                    
+                                    // Convert UTC từ backend sang local datetime cho input
+                                    let localDateTime = "";
+                                    if (activity.scheduledDate) {
+                                      const d = new Date(activity.scheduledDate);
+                                      const year = d.getFullYear();
+                                      const month = String(d.getMonth() + 1).padStart(2, "0");
+                                      const day = String(d.getDate()).padStart(2, "0");
+                                      const hours = String(d.getHours()).padStart(2, "0");
+                                      const minutes = String(d.getMinutes()).padStart(2, "0");
+                                      localDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
                                     }
-                                    setActivitySchedules(scheduleMap);
-                                  } catch (err) {
-                                    console.error("❌ Lỗi tải danh sách hoạt động:", err);
-                                    setActivitySchedules({});
-                                  }
-                                }}
-                                className="group flex items-center gap-1 px-3 py-1.5 rounded-lg border border-primary-200 text-primary-700 hover:bg-primary-50 transition-all duration-300"
-                              >
-                                <Edit className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                                Sửa
-                              </Button>
+
+                                    setEditActivityForm({
+                                      activityType: activity.activityType,
+                                      processStepId: activity.processStepId || 0,
+                                      scheduledDate: localDateTime,
+                                      status: activity.status,
+                                    });
+
+                                    // Fetch existing activities để tính activitySchedules
+                                    try {
+                                      const allActivities = await applyActivityService.getAll({ applyId: activity.applyId });
+                                      const scheduleMap: Record<number, string> = {};
+                                      allActivities
+                                        .filter(a => a.processStepId && a.scheduledDate)
+                                        .forEach(a => {
+                                          scheduleMap[a.processStepId] = a.scheduledDate!;
+                                        });
+                                      // Nếu activity hiện tại đã có scheduledDate, thêm vào map
+                                      if (activity.scheduledDate && activity.processStepId) {
+                                        scheduleMap[activity.processStepId] = activity.scheduledDate;
+                                      }
+                                      setActivitySchedules(scheduleMap);
+                                    } catch (err) {
+                                      console.error("❌ Lỗi tải danh sách hoạt động:", err);
+                                      setActivitySchedules({});
+                                    }
+                                  }}
+                                  className="group flex items-center gap-1 px-3 py-1.5 rounded-lg border border-primary-200 text-primary-700 hover:bg-primary-50 transition-all duration-300"
+                                >
+                                  <Edit className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                  Sửa
+                                </Button>
+                              )}
                               <Link
                                 to={`/ta/apply-activities/${activity.id}`}
                                 className="group flex items-center gap-1 px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-all duration-300"
@@ -1652,6 +1660,15 @@ export default function TalentCVApplicationDetailPage() {
               onSubmit={async (e) => {
                 e.preventDefault();
                 if (!editingActivity) return;
+
+                // Không cho phép submit khi activity đã hoàn thành
+                if (editingActivity.status === ApplyActivityStatus.Completed ||
+                    editingActivity.status === ApplyActivityStatus.Passed ||
+                    editingActivity.status === ApplyActivityStatus.Failed ||
+                    editingActivity.status === ApplyActivityStatus.NoShow) {
+                  alert("⚠️ Không thể chỉnh sửa hoạt động đã hoàn thành!");
+                  return;
+                }
 
                 // Validation: scheduledDate là bắt buộc
                 if (!editActivityForm.scheduledDate || editActivityForm.scheduledDate.trim() === "") {
@@ -1941,6 +1958,8 @@ export default function TalentCVApplicationDetailPage() {
                     let message = "Không thể cập nhật trạng thái từ trạng thái hiện tại";
                     if (application?.status === 'Withdrawn') {
                       message = "Không thể cập nhật trạng thái vì ứng viên đã rút khỏi quy trình tuyển dụng";
+                    } else if (!editingActivity.scheduledDate || editingActivity.scheduledDate.trim() === "") {
+                      message = "⚠️ Vui lòng thêm ngày lên lịch và lưu trước khi thay đổi trạng thái!";
                     } else if (editingActivity.status === ApplyActivityStatus.Scheduled) {
                       const currentStep = templateSteps.find(step => step.id === editingActivity.processStepId);
                       if (currentStep && currentStep.stepOrder > 1) {
@@ -2012,13 +2031,20 @@ export default function TalentCVApplicationDetailPage() {
                 >
                   Hủy
                 </button>
-                <button
-                  type="submit"
-                  disabled={updatingActivity}
-                  className="px-6 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-xl font-medium transition-all shadow-soft hover:shadow-glow transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                >
-                  {updatingActivity ? "Đang lưu..." : "Lưu thay đổi"}
-                </button>
+                {/* Chỉ hiển thị nút "Lưu thay đổi" khi activity chưa hoàn thành (chưa ở trạng thái Completed, Passed, Failed, NoShow) */}
+                {editingActivity && 
+                 editingActivity.status !== ApplyActivityStatus.Completed &&
+                 editingActivity.status !== ApplyActivityStatus.Passed &&
+                 editingActivity.status !== ApplyActivityStatus.Failed &&
+                 editingActivity.status !== ApplyActivityStatus.NoShow && (
+                  <button
+                    type="submit"
+                    disabled={updatingActivity}
+                    className="px-6 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-xl font-medium transition-all shadow-soft hover:shadow-glow transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  >
+                    {updatingActivity ? "Đang lưu..." : "Lưu thay đổi"}
+                  </button>
+                )}
               </div>
             </form>
           </div>

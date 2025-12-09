@@ -10,7 +10,7 @@ import { talentCertificateService, type TalentCertificate } from '../services/Ta
 import { talentAvailableTimeService, type TalentAvailableTime } from '../services/TalentAvailableTime';
 import { locationService } from '../services/location';
 import { partnerService, type Partner } from '../services/Partner';
-import { jobRoleLevelService, type JobRoleLevel } from '../services/JobRoleLevel';
+import { jobRoleLevelService, type JobRoleLevel, TalentLevel } from '../services/JobRoleLevel';
 import { jobRoleService, type JobRole } from '../services/JobRole';
 import { skillService, type Skill } from '../services/Skill';
 import { skillGroupService, type SkillGroup } from '../services/SkillGroup';
@@ -227,10 +227,10 @@ export function useTalentDetail() {
   // Helper function to get level text
   const getLevelText = useCallback((level: number): string => {
     const levelMap: Record<number, string> = {
-      1: 'Junior',
-      2: 'Middle',
-      3: 'Senior',
-      4: 'Lead',
+      [TalentLevel.Junior]: 'Junior',
+      [TalentLevel.Middle]: 'Middle',
+      [TalentLevel.Senior]: 'Senior',
+      [TalentLevel.Lead]: 'Lead',
     };
     return levelMap[level] || 'Unknown';
   }, []);

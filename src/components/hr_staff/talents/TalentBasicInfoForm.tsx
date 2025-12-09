@@ -37,39 +37,38 @@ export function TalentBasicInfoForm({
         </div>
       </div>
       <div className="p-6 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Công ty */}
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              Công ty đối tác <span className="text-red-500">*</span>
-            </label>
-            <SearchableSelect
-              options={partners.map((partner) => ({
-                id: partner.id,
-                name: partner.companyName,
-              }))}
-              value={formData.currentPartnerId}
-              onChange={(value) => {
-                if (onPartnerChange) {
-                  onPartnerChange(value);
-                } else {
-                  // Fallback: create synthetic event for backward compatibility
-                  const syntheticEvent = {
-                    target: {
-                      name: 'currentPartnerId',
-                      value: value,
-                    },
-                  } as unknown as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>;
-                  onChange(syntheticEvent);
-                }
-              }}
-              placeholder="-- Chọn công ty --"
-              searchPlaceholder="Tìm công ty..."
-              icon={<Building2 className="w-4 h-4" />}
-              error={errors.currentPartnerId}
-            />
-          </div>
+        {/* Công ty đối tác */}
+        <div>
+          <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
+            <Building2 className="w-4 h-4" />
+            Công ty đối tác <span className="text-red-500">*</span>
+          </label>
+          <SearchableSelect
+            options={partners.map((partner) => ({
+              id: partner.id,
+              name: partner.companyName,
+            }))}
+            value={formData.currentPartnerId}
+            onChange={(value) => {
+              if (onPartnerChange) {
+                onPartnerChange(value);
+              } else {
+                // Fallback: create synthetic event for backward compatibility
+                const syntheticEvent = {
+                  target: {
+                    name: 'currentPartnerId',
+                    value: value,
+                  },
+                } as unknown as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>;
+                onChange(syntheticEvent);
+              }
+            }}
+            placeholder="-- Chọn công ty --"
+            searchPlaceholder="Tìm công ty..."
+            icon={<Building2 className="w-4 h-4" />}
+            error={errors.currentPartnerId}
+          />
+          {errors.currentPartnerId && <p className="mt-1 text-sm text-red-500">{errors.currentPartnerId}</p>}
         </div>
 
         {/* Họ tên */}
