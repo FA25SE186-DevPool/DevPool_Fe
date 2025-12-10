@@ -26,7 +26,6 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
         checkCamera,
         startCamera,
         stopCamera,
-        captureMultiple,
     } = useFaceDetection({
         minConfidence: 0.5,
         onError: (err) => {

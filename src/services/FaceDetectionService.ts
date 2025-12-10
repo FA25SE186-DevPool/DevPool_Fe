@@ -261,16 +261,6 @@ class FaceDetectionService {
         return result;
     }
 
-    /**
-     * L2 Normalize vector về unit vector (cần cho cosine similarity)
-     */
-    private l2Normalize(vector: number[]): number[] {
-        const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
-        if (magnitude === 0) {
-            return vector;
-        }
-        return vector.map(val => val / magnitude);
-    }
 
     /**
      * Capture nhiều ảnh và tính trung bình face vector (cho enrollment)
