@@ -47,9 +47,18 @@ export const uploadTalentCV = async (
   // Create storage reference
   const storageRef = ref(storage, filePath);
 
-  // Upload file with progress tracking
+  // Upload file with progress tracking and metadata
   return new Promise((resolve, reject) => {
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    // Set metadata for the file
+    const metadata = {
+      contentType: file.type || 'application/octet-stream',
+      customMetadata: {
+        originalName: file.name,
+        uploadedAt: new Date().toISOString(),
+      },
+    };
+
+    const uploadTask = uploadBytesResumable(storageRef, file, metadata);
 
     uploadTask.on(
       'state_changed',
@@ -61,9 +70,23 @@ export const uploadTalentCV = async (
         }
       },
       (error) => {
-        // Handle upload errors
+        // Handle upload errors with more details
         console.error('Upload error:', error);
-        reject(new Error('Lỗi khi upload file: ' + error.message));
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        console.error('Error serverResponse:', error.serverResponse);
+        
+        // Provide more specific error messages
+        let errorMessage = 'Lỗi khi upload file: ' + error.message;
+        if (error.code === 'storage/unauthorized') {
+          errorMessage = 'Bạn không có quyền upload file. Vui lòng kiểm tra quyền truy cập Firebase Storage.';
+        } else if (error.code === 'storage/canceled') {
+          errorMessage = 'Upload đã bị hủy.';
+        } else if (error.code === 'storage/unknown') {
+          errorMessage = 'Lỗi không xác định khi upload. Có thể do cấu hình CORS hoặc quyền truy cập Firebase Storage.';
+        }
+        
+        reject(new Error(errorMessage));
       },
       async () => {
         // Upload completed successfully, get download URL
@@ -123,9 +146,18 @@ export const uploadFile = async (
   // Create storage reference
   const storageRef = ref(storage, path);
 
-  // Upload file with progress tracking
+  // Upload file with progress tracking and metadata
   return new Promise((resolve, reject) => {
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    // Set metadata for the file
+    const metadata = {
+      contentType: file.type || 'application/octet-stream',
+      customMetadata: {
+        originalName: file.name,
+        uploadedAt: new Date().toISOString(),
+      },
+    };
+
+    const uploadTask = uploadBytesResumable(storageRef, file, metadata);
 
     uploadTask.on(
       'state_changed',
@@ -137,9 +169,23 @@ export const uploadFile = async (
         }
       },
       (error) => {
-        // Handle upload errors
+        // Handle upload errors with more details
         console.error('Upload error:', error);
-        reject(new Error('Lỗi khi upload file: ' + error.message));
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        console.error('Error serverResponse:', error.serverResponse);
+        
+        // Provide more specific error messages
+        let errorMessage = 'Lỗi khi upload file: ' + error.message;
+        if (error.code === 'storage/unauthorized') {
+          errorMessage = 'Bạn không có quyền upload file. Vui lòng kiểm tra quyền truy cập Firebase Storage.';
+        } else if (error.code === 'storage/canceled') {
+          errorMessage = 'Upload đã bị hủy.';
+        } else if (error.code === 'storage/unknown') {
+          errorMessage = 'Lỗi không xác định khi upload. Có thể do cấu hình CORS hoặc quyền truy cập Firebase Storage.';
+        }
+        
+        reject(new Error(errorMessage));
       },
       async () => {
         // Upload completed successfully, get download URL

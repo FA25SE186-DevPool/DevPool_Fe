@@ -5,8 +5,8 @@
         "http://localhost:3000",
         "http://localhost:5173"
       ],
-      "method": ["GET", "HEAD", "OPTIONS"],
-      "responseHeader": ["Content-Type"],
+      "method": ["GET", "HEAD", "OPTIONS", "PUT", "POST"],
+      "responseHeader": ["Content-Type", "Authorization", "x-goog-resumable"],
       "maxAgeSeconds": 3600
     }
   ]
