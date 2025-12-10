@@ -268,13 +268,28 @@ export const authService = {
    */
   async logout(): Promise<void> {
     try {
+      // Kiểm tra xem có token không trước khi gọi API
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        // Không có token, không cần gọi API logout
+        console.log('No access token found, skipping backend logout');
+        return;
+      }
+
       const response = await apiClient.post("/auth/logout");
       console.log('Backend logout successful:', response.data);
       return response.data;
     } catch (error: unknown) {
       // Không throw error để đảm bảo logout vẫn tiếp tục dù API fail
+      // Lỗi 401 là bình thường khi token đã hết hạn hoặc không hợp lệ
       if (error instanceof AxiosError) {
-        console.warn('Backend logout error:', error.response?.data || error.message);
+        const status = error.response?.status;
+        if (status === 401) {
+          // 401 khi logout là bình thường (token đã hết hạn hoặc không hợp lệ)
+          console.log('Backend logout: Token already invalid (401) - continuing with local logout');
+        } else {
+          console.warn('Backend logout error:', error.response?.data || error.message);
+        }
       } else {
         console.warn('Backend logout error:', error);
       }
@@ -297,13 +312,40 @@ export const authService = {
    */
   async loginWithFaceID(faceVector: number[]): Promise<LoginResponse> {
     try {
+      // Log chi tiết để debug
+      console.log('=== FaceID Login Debug ===');
+      console.log('Vector length:', faceVector.length);
+      console.log('Vector sample (first 10):', faceVector.slice(0, 10));
+      console.log('Vector sample (last 10):', faceVector.slice(-10));
+      console.log('Vector min:', Math.min(...faceVector));
+      console.log('Vector max:', Math.max(...faceVector));
+      console.log('Vector avg:', faceVector.reduce((a, b) => a + b, 0) / faceVector.length);
+      console.log('Vector magnitude:', Math.sqrt(faceVector.reduce((sum, val) => sum + val * val, 0)));
+
+      // Log để copy vào backend test
+      console.log('=== Copy this to test in backend ===');
+      console.log('Frontend Vector:', JSON.stringify(faceVector));
+
       const response = await apiClient.post<LoginResponse>("/auth/faceid/login", {
         faceVector,
       });
       return response.data;
     } catch (error: unknown) {
-      if (error instanceof AxiosError)
-        throw error.response?.data || { message: "Không thể đăng nhập bằng FaceID" };
+      if (error instanceof AxiosError) {
+        // Lấy thông báo lỗi từ backend hoặc normalized message
+        const errorData = error.response?.data;
+        const normalizedMessage = (error as any).normalizedMessage;
+        const errorMessage = normalizedMessage || errorData?.message || errorData?.error || "Không thể đăng nhập bằng FaceID";
+
+        // Log chi tiết lỗi để debug
+        console.error('FaceID Login Error:', {
+          status: error.response?.status,
+          message: errorMessage,
+          data: errorData
+        });
+
+        throw { message: errorMessage, response: error.response };
+      }
       throw { message: "Lỗi không xác định khi đăng nhập bằng FaceID" };
     }
   },

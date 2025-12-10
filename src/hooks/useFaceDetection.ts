@@ -45,20 +45,20 @@ export function useFaceDetection(options: UseFaceDetectionOptions = {}) {
       });
 
       setStream(mediaStream);
-      
+
       // Không gán stream ở đây vì video element có thể chưa render
       // Stream sẽ được gán trong component sau khi video element render
       console.log('Stream obtained, will be assigned to video element later');
 
       return mediaStream;
     } catch (err: any) {
-      const errorMessage = 
+      const errorMessage =
         err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError'
           ? 'Vui lòng cho phép truy cập camera'
           : err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError'
-          ? 'Không tìm thấy camera'
-          : 'Không thể khởi động camera';
-      
+            ? 'Không tìm thấy camera'
+            : 'Không thể khởi động camera';
+
       setError(errorMessage);
       options.onError?.(new Error(errorMessage));
       throw new Error(errorMessage);
@@ -96,7 +96,7 @@ export function useFaceDetection(options: UseFaceDetectionOptions = {}) {
     try {
       // Capture frame từ video
       const imageData = faceDetectionService.captureFrameFromVideo(videoRef.current);
-      
+
       // Detect face
       const result = await faceDetectionService.detectFace(imageData);
 
@@ -131,12 +131,12 @@ export function useFaceDetection(options: UseFaceDetectionOptions = {}) {
 
       try {
         const images: string[] = [];
-        
+
         // Capture nhiều frame
         for (let i = 0; i < count; i++) {
           const imageData = faceDetectionService.captureFrameFromVideo(videoRef.current!);
           images.push(imageData);
-          
+
           // Đợi một chút giữa các lần capture
           if (i < count - 1) {
             await new Promise((resolve) => setTimeout(resolve, 500));
@@ -161,6 +161,50 @@ export function useFaceDetection(options: UseFaceDetectionOptions = {}) {
     [stream, options]
   );
 
+  /**
+   * Capture nhiều ảnh và trả về tất cả vectors với confidence (cho login - thử nhiều lần)
+   */
+  const captureMultipleWithResults = useCallback(
+    async (count: number = 5): Promise<Array<{ vector: number[]; confidence: number }>> => {
+      if (!videoRef.current || !stream) {
+        throw new Error('Camera chưa được khởi động');
+      }
+
+      setIsDetecting(true);
+      setError(null);
+
+      try {
+        const images: string[] = [];
+
+        // Capture nhiều frame
+        for (let i = 0; i < count; i++) {
+          const imageData = faceDetectionService.captureFrameFromVideo(videoRef.current!);
+          images.push(imageData);
+
+          // Đợi một chút giữa các lần capture để có sự khác biệt
+          if (i < count - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+        }
+
+        // Detect và trả về tất cả vectors với confidence
+        const results = await faceDetectionService.captureMultipleFacesWithResults(images, {
+          minConfidence: options.minConfidence,
+        });
+
+        return results;
+      } catch (err: any) {
+        const errorMessage = err.message || 'Lỗi khi capture nhiều ảnh';
+        setError(errorMessage);
+        options.onError?.(err);
+        throw err;
+      } finally {
+        setIsDetecting(false);
+      }
+    },
+    [stream, options]
+  );
+
   return {
     videoRef,
     isDetecting,
@@ -172,6 +216,7 @@ export function useFaceDetection(options: UseFaceDetectionOptions = {}) {
     stopCamera,
     captureAndDetect,
     captureMultiple,
+    captureMultipleWithResults,
   };
 }
 

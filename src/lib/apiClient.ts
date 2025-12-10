@@ -3,15 +3,15 @@ import { UNAUTHORIZED_EVENT } from '../constants/events';
 import { API_BASE_URL } from '../config/env.config';
 
 const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-  timeout: 30000,
+    baseURL: API_BASE_URL,
+    withCredentials: true,
+    timeout: 30000,
 });
 
 const refreshClient = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-  timeout: 30000,
+    baseURL: API_BASE_URL,
+    withCredentials: true,
+    timeout: 30000,
 });
 
 let isRefreshing = false;
@@ -19,31 +19,31 @@ let refreshSubscribers: Array<(token: string | null) => void> = [];
 
 // 🔎 Chuẩn hóa message lỗi trả về từ BE để hiển thị cho người dùng
 const extractServerMessage = (data: unknown): string => {
-	try {
-		if (!data) return '';
-		if (typeof data === 'string') return data;
-		if (typeof data === 'object') {
-			const obj = data as Record<string, unknown>;
-			const candidates: string[] = [];
-			const tryPush = (v: unknown) => {
-				if (typeof v === 'string' && v.trim()) candidates.push(v.trim());
-			};
-			// Các field phổ biến từ BE
-			tryPush(obj.error);
-			tryPush(obj.message);
-			tryPush((obj as any).objecterror);
-			tryPush((obj as any).Objecterror);
-			tryPush((obj as any).detail);
-			tryPush((obj as any).title);
-			// Thu thập thêm các string values khác (tránh đè lên candidates đã có)
-			Object.values(obj).forEach((v) => tryPush(v));
-			// Loại trùng và nối lại
-			return Array.from(new Set(candidates)).join(' ').trim();
-		}
-		return '';
-	} catch {
-		return '';
-	}
+    try {
+        if (!data) return '';
+        if (typeof data === 'string') return data;
+        if (typeof data === 'object') {
+            const obj = data as Record<string, unknown>;
+            const candidates: string[] = [];
+            const tryPush = (v: unknown) => {
+                if (typeof v === 'string' && v.trim()) candidates.push(v.trim());
+            };
+            // Các field phổ biến từ BE
+            tryPush(obj.error);
+            tryPush(obj.message);
+            tryPush((obj as any).objecterror);
+            tryPush((obj as any).Objecterror);
+            tryPush((obj as any).detail);
+            tryPush((obj as any).title);
+            // Thu thập thêm các string values khác (tránh đè lên candidates đã có)
+            Object.values(obj).forEach((v) => tryPush(v));
+            // Loại trùng và nối lại
+            return Array.from(new Set(candidates)).join(' ').trim();
+        }
+        return '';
+    } catch {
+        return '';
+    }
 };
 
 const addRefreshSubscriber = (callback: (token: string | null) => void) => {
@@ -58,9 +58,12 @@ const notifyRefreshSubscribers = (token: string | null) => {
 const handleRefreshToken = async (): Promise<string | null> => {
     // Luôn lấy refresh token từ localStorage
     const refreshToken = localStorage.getItem('refreshToken');
-    
+
     if (!refreshToken) {
-        console.warn('⚠️ No refresh token found in storage');
+        // Không log warning vì đây là tình huống hợp lệ:
+        // - User chưa login
+        // - User đã logout (token đã bị xóa)
+        // - Token đã hết hạn và bị xóa bởi interceptor khác
         return null;
     }
 
@@ -82,13 +85,13 @@ const handleRefreshToken = async (): Promise<string | null> => {
     } catch (refreshError: any) {
         const errorMessage = refreshError?.response?.data?.message || refreshError?.message || 'Unknown error';
         console.error('❌ Unable to refresh token:', errorMessage);
-        
+
         // Xử lý đặc biệt cho lỗi "Refresh token is revoked or does not match"
         // Đây thường xảy ra khi user login lại ở tab/device khác
         if (errorMessage.includes('revoked') || errorMessage.includes('does not match')) {
             console.warn('⚠️ Refresh token mismatch - user may have logged in elsewhere');
         }
-        
+
         // Xóa từ localStorage
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
@@ -120,16 +123,19 @@ apiClient.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
         const status = error.response?.status;
-		// Gắn normalizedMessage để màn FE có thể đọc thống nhất
-		const normalized = extractServerMessage(error.response?.data);
-		(error as any).normalizedMessage = normalized || error.message;
-		if (normalized && typeof error.message === 'string') {
-			// Cập nhật luôn error.message để các nơi chỉ đọc message vẫn thấy nội dung từ BE
-			error.message = normalized;
-		}
+        // Gắn normalizedMessage để màn FE có thể đọc thống nhất
+        const normalized = extractServerMessage(error.response?.data);
+        (error as any).normalizedMessage = normalized || error.message;
+        if (normalized && typeof error.message === 'string') {
+            // Cập nhật luôn error.message để các nơi chỉ đọc message vẫn thấy nội dung từ BE
+            error.message = normalized;
+        }
         const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
-        if (status === 401 && !originalRequest?._retry) {
+        // Skip refresh token logic cho logout endpoint - đây là hành động logout, không cần refresh
+        const isLogoutRequest = originalRequest?.url?.includes('/auth/logout') ?? false;
+
+        if (status === 401 && originalRequest && !originalRequest._retry && !isLogoutRequest) {
             originalRequest._retry = true;
 
             if (!isRefreshing) {
@@ -163,7 +169,10 @@ apiClient.interceptors.response.use(
         }
 
         if (status === 401) {
-            console.warn('🔒 Token expired or unauthorized.');
+            // Không log warning cho logout request vì đây là hành động hợp lệ
+            if (!isLogoutRequest) {
+                console.warn('🔒 Token expired or unauthorized.');
+            }
             // Xóa từ localStorage
             localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
@@ -172,26 +181,29 @@ apiClient.interceptors.response.use(
             sessionStorage.removeItem('accessToken');
             sessionStorage.removeItem('refreshToken');
             sessionStorage.removeItem('devpool_user');
-            window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+            // Chỉ dispatch UNAUTHORIZED_EVENT nếu không phải logout request
+            if (!isLogoutRequest) {
+                window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+            }
         } else if (status && status >= 400 && status < 500) {
-			console.error('⚠️ Client Error:', error.response?.data || error.message);
-			// Hiển thị cảnh báo thân thiện cho một số lỗi phổ biến
-			const lower = (normalized || '').toLowerCase();
-			if (lower.includes('email') && lower.includes('already exists')) {
-				alert('❌ Email đã tồn tại trong hệ thống. Vui lòng dùng email khác.');
-			}
+            console.error('⚠️ Client Error:', error.response?.data || error.message);
+            // Hiển thị cảnh báo thân thiện cho một số lỗi phổ biến
+            const lower = (normalized || '').toLowerCase();
+            if (lower.includes('email') && lower.includes('already exists')) {
+                alert('❌ Email đã tồn tại trong hệ thống. Vui lòng dùng email khác.');
+            }
         } else if (status && status >= 500) {
-			// Ưu tiên in ra thông điệp chuẩn hóa nếu có (ví dụ: "Email already exists")
-			console.error('💥 Server Error:', normalized || error.response?.data || error.message);
-			// Hiển thị cảnh báo nếu có thông điệp cụ thể
-			if (normalized) {
-				const lower = normalized.toLowerCase();
-				if (lower.includes('email') && lower.includes('already exists')) {
-					alert('❌ Email đã tồn tại trong hệ thống. Vui lòng dùng email khác.');
-				}
-			}
+            // Ưu tiên in ra thông điệp chuẩn hóa nếu có (ví dụ: "Email already exists")
+            console.error('💥 Server Error:', normalized || error.response?.data || error.message);
+            // Hiển thị cảnh báo nếu có thông điệp cụ thể
+            if (normalized) {
+                const lower = normalized.toLowerCase();
+                if (lower.includes('email') && lower.includes('already exists')) {
+                    alert('❌ Email đã tồn tại trong hệ thống. Vui lòng dùng email khác.');
+                }
+            }
         } else {
-			console.error('❗ Unexpected Error:', error.message);
+            console.error('❗ Unexpected Error:', error.message);
         }
 
         return Promise.reject(error);

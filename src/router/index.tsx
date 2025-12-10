@@ -271,15 +271,15 @@ const AppRouter: React.FC = () => {
             <Route path={ROUTES.GUEST.DEVELOPERS} element={<ProfessionalPage />} />
             <Route path={ROUTES.GUEST.ABOUT} element={<AboutPage />} />
             <Route path={ROUTES.GUEST.CONTACT} element={<ContactPage />} />
-            
+
             {/* Auth Routes */}
-            <Route 
-              path={ROUTES.GUEST.LOGIN} 
-              element={user ? <Navigate to={getDashboardRoute(user.role)} replace /> : <Auth />} 
+            <Route
+              path={ROUTES.GUEST.LOGIN}
+              element={user ? <Navigate to={getDashboardRoute(user.role)} replace /> : <Auth />}
             />
-            <Route 
-              path={ROUTES.REGISTER} 
-              element={user ? <Navigate to={getDashboardRoute(user.role)} replace /> : <Auth />} 
+            <Route
+              path={ROUTES.REGISTER}
+              element={user ? <Navigate to={getDashboardRoute(user.role)} replace /> : <Auth />}
             />
 
             {/* Thông báo chung cho tất cả vai trò */}
@@ -295,13 +295,13 @@ const AppRouter: React.FC = () => {
             <Route element={<ProtectedRoute requiredRole="Staff TA"><Outlet /></ProtectedRoute>}>
               <Route path={ROUTES.HR_STAFF.DASHBOARD} element={<HRDashboard />} />
               <Route path={ROUTES.HR_STAFF.PROFILE} element={<HRStaffProfile />} />
-              
+
               {/* Talents */}
               <Route path={ROUTES.HR_STAFF.DEVELOPERS.LIST} element={<ListDev />} />
               <Route path={ROUTES.HR_STAFF.DEVELOPERS.DETAIL} element={<TalentDetailPage />} />
               <Route path={ROUTES.HR_STAFF.DEVELOPERS.EDIT} element={<TalentEditPage />} />
               <Route path={ROUTES.HR_STAFF.DEVELOPERS.CREATE} element={<CreateTalent />} />
-              
+
               {/* Talent Sub-entities */}
               <Route path={ROUTES.HR_STAFF.TALENT_AVAILABLE_TIMES.CREATE} element={<TalentAvailableTimeCreatePage />} />
               <Route path={ROUTES.HR_STAFF.TALENT_AVAILABLE_TIMES.EDIT} element={<TalentAvailableTimeEditPage />} />
@@ -317,18 +317,18 @@ const AppRouter: React.FC = () => {
               <Route path={ROUTES.HR_STAFF.TALENT_SKILLS.EDIT} element={<TalentSkillEditPage />} />
               <Route path={ROUTES.HR_STAFF.TALENT_WORK_EXPERIENCES.CREATE} element={<TalentWorkExperienceCreatePage />} />
               <Route path={ROUTES.HR_STAFF.TALENT_WORK_EXPERIENCES.EDIT} element={<TalentWorkExperienceEditPage />} />
-  
+
               {/* Partners */}
               <Route path={ROUTES.HR_STAFF.PARTNERS.LIST} element={<ListPartner />} />
               <Route path={ROUTES.HR_STAFF.PARTNERS.DETAIL} element={<PartnerDetailPage />} />
               <Route path={ROUTES.HR_STAFF.PARTNERS.EDIT} element={<PartnerEditPage />} />
               <Route path={ROUTES.HR_STAFF.PARTNERS.CREATE} element={<CreatePartner />} />
-              
+
               {/* Job Requests */}
               <Route path={ROUTES.HR_STAFF.JOB_REQUESTS.LIST} element={<ListRequest />} />
               <Route path={ROUTES.HR_STAFF.JOB_REQUESTS.DETAIL} element={<JobRequestDetailHRPage />} />
               <Route path={ROUTES.HR_STAFF.JOB_REQUESTS.MATCHING} element={<MatchingCVPage />} />
-              
+
               {/* Applications */}
               <Route path={ROUTES.HR_STAFF.APPLICATIONS.LIST} element={<TalentCVApplicationPage />} />
               <Route path={ROUTES.HR_STAFF.APPLICATIONS.DETAIL} element={<TalentCVApplicationDetailPage />} />
@@ -337,7 +337,7 @@ const AppRouter: React.FC = () => {
               <Route path={ROUTES.HR_STAFF.APPLY_ACTIVITIES.CREATE} element={<ApplyActivityCreatePage />} />
               <Route path={ROUTES.HR_STAFF.APPLY_ACTIVITIES.DETAIL} element={<ApplyActivityDetailPage />} />
               <Route path={ROUTES.HR_STAFF.APPLY_ACTIVITIES.EDIT} element={<ApplyActivityEditPage />} />
-           
+
               {/* Assignments */}
               <Route path={ROUTES.HR_STAFF.ASSIGNMENTS} element={<Assignments />} />
             </Route>
@@ -350,7 +350,7 @@ const AppRouter: React.FC = () => {
             <Route element={<ProtectedRoute requiredRole="Staff Sales"><Outlet /></ProtectedRoute>}>
               <Route path={ROUTES.SALES_STAFF.DASHBOARD} element={<SalesStaffDashboard />} />
               <Route path={ROUTES.SALES_STAFF.PROFILE} element={<SalesStaffProfile />} />
-              
+
               {/* Job Requests */}
               <Route path={ROUTES.SALES_STAFF.JOB_REQUESTS.LIST} element={<JobRequestListPage />} />
               <Route path={ROUTES.SALES_STAFF.JOB_REQUESTS.DETAIL} element={<JobRequestDetailPage />} />
@@ -362,7 +362,7 @@ const AppRouter: React.FC = () => {
               <Route path={ROUTES.SALES_STAFF.CLIENTS.DETAIL} element={<ClientCompanyDetailPage />} />
               <Route path={ROUTES.SALES_STAFF.CLIENTS.CREATE} element={<ClientCompanyCreatePage />} />
               <Route path={ROUTES.SALES_STAFF.CLIENTS.EDIT} element={<ClientCompanyEditPage />} />
-              
+
               {/* Projects */}
               <Route path={ROUTES.SALES_STAFF.PROJECTS.LIST} element={<ProjectListPage />} />
               <Route path={ROUTES.SALES_STAFF.PROJECTS.DETAIL} element={<ProjectDetailPage />} />
@@ -432,22 +432,22 @@ const AppRouter: React.FC = () => {
             <Route element={<ProtectedRoute requiredRole="Manager"><Outlet /></ProtectedRoute>}>
               <Route path={ROUTES.MANAGER.DASHBOARD} element={<ManagerDashboard />} />
               <Route path={ROUTES.MANAGER.PROFILE} element={<ManagerProfile />} />
-              
+
               {/* Client Companies */}
               <Route path={ROUTES.MANAGER.CLIENT_COMPANY.LIST} element={<ManagerClientCompanyListPage />} />
               <Route path={ROUTES.MANAGER.CLIENT_COMPANY.DETAIL} element={<ManagerClientCompanyDetailPage />} />
-              
+
               {/* Projects */}
               <Route path="/manager/projects" element={<ManagerProjectListPage />} />
               <Route path="/manager/projects/:id" element={<ManagerProjectDetailPage />} />
-              
+
               {/* Contracts */}
               <Route path={ROUTES.MANAGER.CONTRACTS.CLIENT_DETAIL} element={<ManagerClientContractDetail />} />
               <Route path={ROUTES.MANAGER.CONTRACTS.PARTNER_DETAIL} element={<ManagerPartnerContractDetail />} />
-              
+
               {/* Handover Assignment */}
               <Route path={ROUTES.MANAGER.HANDOVER_ASSIGNMENT} element={<ManagerHandoverAssignmentPage />} />
-                            
+
             </Route>
           </Route>
 
@@ -458,17 +458,17 @@ const AppRouter: React.FC = () => {
             <Route element={<ProtectedRoute requiredRole="Admin"><Outlet /></ProtectedRoute>}>
               <Route path={ROUTES.ADMIN.DASHBOARD} element={<AdminDashboard />} />
               <Route path={ROUTES.ADMIN.PROFILE} element={<AdminProfile />} />
-              
+
               {/* Users */}
               <Route path={ROUTES.ADMIN.USERS.LIST} element={<StaffManagementPage />} />
               <Route path={ROUTES.ADMIN.USERS.CREATE_ACCOUNT} element={<CreateAccount />} />
-              
+
               {/* Categories - Certificate Types */}
               <Route path={ROUTES.ADMIN.CATEGORIES.CERTIFICATE_TYPES.LIST} element={<CertificateTypeListPage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.CERTIFICATE_TYPES.DETAIL} element={<CertificateTypeDetailPage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.CERTIFICATE_TYPES.CREATE} element={<CertificateTypeCreatePage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.CERTIFICATE_TYPES.EDIT} element={<CertificateTypeEditPage />} />
-              
+
               {/* Categories - CV Templates */}
               <Route path={ROUTES.ADMIN.CATEGORIES.CV_TEMPLATES.LIST} element={<CVTemplateListPage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.CV_TEMPLATES.DETAIL} element={<CVTemplateDetailPage />} />
@@ -480,7 +480,7 @@ const AppRouter: React.FC = () => {
               <Route path="/admin/categories/document-types/:id" element={<DocumentTypeDetailPage />} />
               <Route path="/admin/categories/document-types/create" element={<DocumentTypeCreatePage />} />
               <Route path="/admin/categories/document-types/edit/:id" element={<DocumentTypeEditPage />} />
-              
+
               {/* Categories - Industries */}
               <Route path={ROUTES.ADMIN.CATEGORIES.INDUSTRIES.LIST} element={<IndustryListPage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.INDUSTRIES.DETAIL} element={<IndustryDetailPage />} />
@@ -492,31 +492,31 @@ const AppRouter: React.FC = () => {
               <Route path={ROUTES.ADMIN.CATEGORIES.JOB_ROLE_LEVELS.DETAIL} element={<JobRoleLevelDetailPage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.JOB_ROLE_LEVELS.CREATE} element={<JobRoleLevelCreatePage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.JOB_ROLE_LEVELS.EDIT} element={<JobRoleLevelEditPage />} />
-              
+
               {/* Categories - Job Roles */}
               <Route path={ROUTES.ADMIN.CATEGORIES.JOB_ROLES.LIST} element={<JobRoleListPage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.JOB_ROLES.DETAIL} element={<JobRoleDetailPage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.JOB_ROLES.CREATE} element={<JobRoleCreatePage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.JOB_ROLES.EDIT} element={<JobRoleEditPage />} />
-              
+
               {/* Categories - Locations */}
               <Route path={ROUTES.ADMIN.CATEGORIES.LOCATIONS.LIST} element={<LocationListPage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.LOCATIONS.DETAIL} element={<LocationDetailPage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.LOCATIONS.CREATE} element={<LocationCreatePage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.LOCATIONS.EDIT} element={<LocationEditPage />} />
-              
+
               {/* Categories - Markets */}
               <Route path={ROUTES.ADMIN.CATEGORIES.MARKETS.LIST} element={<MarketListPage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.MARKETS.DETAIL} element={<MarketDetailPage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.MARKETS.CREATE} element={<MarketCreatePage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.MARKETS.EDIT} element={<MarketEditPage />} />
-              
+
               {/* Categories - Skills */}
               <Route path={ROUTES.ADMIN.CATEGORIES.SKILLS.LIST} element={<SkillListPage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.SKILLS.DETAIL} element={<SkillDetailPage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.SKILLS.CREATE} element={<SkillCreatePage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.SKILLS.EDIT} element={<SkillEditPage />} />
-              
+
               {/* Categories - Skill Groups */}
               <Route path={ROUTES.ADMIN.CATEGORIES.SKILL_GROUPS.LIST} element={<SkillGroupListPage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.SKILL_GROUPS.DETAIL} element={<SkillGroupDetailPage />} />
@@ -526,7 +526,7 @@ const AppRouter: React.FC = () => {
               {/* Categories - Experts */}
               <Route path="/admin/categories/experts" element={<ExpertListPage />} />
               <Route path="/admin/categories/experts/:id" element={<ExpertDetailPage />} />
-              
+
               {/* Audit Log */}
               <Route path={ROUTES.ADMIN.AUDIT.LIST} element={<AuditLogListPage />} />
               <Route path={ROUTES.ADMIN.AUDIT.DETAIL} element={<AuditLogDetailPage />} />

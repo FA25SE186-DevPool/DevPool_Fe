@@ -172,22 +172,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    // Clear user state TRƯỚC để UI cập nhật ngay lập tức
-    setUser(null);
-    
     try {
-      // Gọi API logout backend để xóa refresh token
-      await authService.logout();
+      // Clear user state TRƯỚC để UI cập nhật ngay lập tức
+      setUser(null);
+      userRef.current = null;
+      
+      // Gọi API logout backend để xóa refresh token (không block nếu fail)
+      authService.logout().catch((error) => {
+        // Không throw error để đảm bảo logout vẫn tiếp tục dù API fail
+        console.warn('Logout API error (continuing with local logout):', error);
+      });
+      
+      // Logout Firebase (không block nếu fail)
+      authService.logoutFirebase().catch((error) => {
+        console.warn('Firebase logout error (continuing):', error);
+      });
+      
+      // Clear storage (cả localStorage và sessionStorage) - phải clear sau khi gọi API
+      clearAuthData();
     } catch (error) {
-      // Không throw error để đảm bảo logout vẫn tiếp tục dù API fail
-      console.warn('Logout API error (continuing with local logout):', error);
+      // Đảm bảo storage vẫn được clear ngay cả khi có lỗi
+      console.error('Error during logout:', error);
+      clearAuthData();
+      setUser(null);
+      userRef.current = null;
     }
-    
-    // Logout Firebase
-    await authService.logoutFirebase();
-    
-    // Clear storage (cả localStorage và sessionStorage) - phải clear sau khi gọi API
-    clearAuthData();
   };
 
   return (
