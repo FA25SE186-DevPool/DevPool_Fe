@@ -19,6 +19,7 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [cameraStarted, setCameraStarted] = useState(false);
+  const [isStartingCamera, setIsStartingCamera] = useState(false);
   const { setUnread, pushItem } = useNotification();
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -30,7 +31,7 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
     checkCamera,
     startCamera,
     stopCamera,
-    captureAndDetect,
+    captureMultipleWithResults,
   } = useFaceDetection({
     minConfidence: 0.5,
     onError: (err) => {
@@ -98,9 +99,11 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
     }
   }, [cameraStarted]);
 
+
   const handleStartCamera = async () => {
     try {
       setError('');
+      setIsStartingCamera(true);
       console.log('Starting camera...');
       const stream = await startCamera();
       console.log('Camera stream obtained:', stream);
@@ -108,6 +111,7 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
 
       // Set camera started first so video element renders
       setCameraStarted(true);
+      setIsStartingCamera(false);
 
       // Use setTimeout to ensure video element is rendered
       setTimeout(() => {
@@ -152,6 +156,7 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
       console.error('Camera start error:', err);
       setError(err.message || 'Không thể khởi động camera');
       setCameraStarted(false);
+      setIsStartingCamera(false);
     }
   };
 
@@ -161,116 +166,168 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
       setError('');
       setSuccess(false);
 
-      // Capture và detect face
-      const result = await captureAndDetect();
+      // Capture nhiều lần ở góc thẳng (5 lần) để có nhiều cơ hội khớp
+      // Đơn giản hơn - không cần di chuyển khuôn mặt khi login
+      const results = await captureMultipleWithResults(5);
 
-      // Gọi API login với FaceID
-      const response = await authService.loginWithFaceID(result.faceVector);
+      // Thử login với từng vector riêng lẻ (từ confidence cao nhất xuống thấp nhất)
+      // Điều này giúp tăng khả năng khớp vì mỗi lần capture có thể có điều kiện khác nhau
+      let lastError: any = null;
 
-      // Lấy role từ JWT token
-      const frontendRole = getRoleFromToken(response.accessToken);
-
-      if (!frontendRole) {
-        setError('Không thể xác định quyền người dùng');
-        setIsProcessing(false);
-        return;
-      }
-
-      // Lưu tokens
-      setTokens(response.accessToken, response.refreshToken, false);
-      window.dispatchEvent(new Event('storage'));
-
-      // Authenticate với Firebase
-      // Note: Với FaceID login, chúng ta không có password
-      // Có thể cần xử lý khác hoặc bỏ qua Firebase auth
-      try {
-        // Thử authenticate với Firebase nếu có custom token
-        if (response.firebaseCustomToken) {
-          await authenticateWithFirebase(response, response.email, '', frontendRole);
-        }
-      } catch (firebaseError) {
-        console.warn('Firebase authentication skipped for FaceID login:', firebaseError);
-      }
-
-      // Lưu thông tin user
-      const userData = {
-        id: response.userID,
-        email: response.email,
-        name: response.fullName,
-        role: frontendRole,
-        avatar: undefined,
-      };
-      setUser(userData, false);
-
-      // Khởi tạo kết nối SignalR
-      try {
-        await startNotificationConnection();
+      for (const result of results) {
         try {
-          const count = await getUnreadCount();
-          if (typeof count === 'number') setUnread(count);
-        } catch { }
-        onReceiveNotification((n: any) => {
-          pushItem(n);
-          console.log('ReceiveNotification', n);
-        });
-        onUnreadCountUpdated((count: number) => {
-          if (typeof count === 'number') setUnread(count);
-        });
-      } catch (e) {
-        console.warn('Không thể khởi tạo kết nối thông báo realtime:', e);
+          const response = await authService.loginWithFaceID(result.vector);
+          // Nếu thành công, break và tiếp tục xử lý
+          await handleLoginSuccess(response);
+          return; // Thoát khỏi hàm nếu login thành công
+        } catch (err: any) {
+          lastError = err;
+          // Tiếp tục thử với vector tiếp theo
+          continue;
+        }
       }
 
-      // Gọi login từ AuthContext
-      await login(
-        response.email,
-        '',
-        frontendRole as 'Staff TA' | 'Staff Accountant' | 'Staff Sales' | 'Developer' | 'Manager' | 'Admin'
-      );
+      // Nếu thử với từng vector riêng lẻ không thành công, thử với vector trung bình
+      const averageVector = results.reduce(
+        (acc, result) => {
+          return acc.map((val, idx) => val + result.vector[idx]);
+        },
+        new Array(results[0].vector.length).fill(0)
+      ).map(val => val / results.length);
 
-      setSuccess(true);
-      setIsProcessing(false);
+      // L2 normalize vector trung bình
+      const magnitude = Math.sqrt(averageVector.reduce((sum, val) => sum + val * val, 0));
+      const normalizedAverageVector = magnitude > 0
+        ? averageVector.map(val => val / magnitude)
+        : averageVector;
 
-      // Redirect sau 1.5 giây
-      setTimeout(() => {
-        switch (frontendRole) {
-          case 'Staff TA':
-            navigate('/ta/dashboard');
-            break;
-          case 'Staff Accountant':
-            navigate('/accountant/dashboard');
-            break;
-          case 'Staff Sales':
-            navigate('/sales/dashboard');
-            break;
-          case 'Developer':
-            navigate('/developer/dashboard');
-            break;
-          case 'Manager':
-            navigate('/manager/dashboard');
-            break;
-          case 'Admin':
-            navigate('/admin/dashboard');
-            break;
-          default:
-            navigate('/');
-        }
-        onSuccess?.();
-      }, 1500);
+      try {
+        const response = await authService.loginWithFaceID(normalizedAverageVector);
+        await handleLoginSuccess(response);
+        return;
+      } catch (err: any) {
+        lastError = err;
+      }
+
+      // Nếu tất cả đều thất bại, throw lỗi cuối cùng
+      throw lastError || new Error('Không thể đăng nhập bằng FaceID');
+
     } catch (err: any) {
       setIsProcessing(false);
-      let errorMessage = err.message || err.response?.data?.message || 'Đăng nhập bằng FaceID thất bại';
+      let errorMessage = err.message || err.response?.data?.message || err.normalizedMessage || 'Đăng nhập bằng FaceID thất bại';
 
-      // Hiển thị thông báo rõ ràng hơn cho lỗi billing
+      // Hiển thị thông báo rõ ràng hơn cho các lỗi phổ biến
       if (errorMessage.includes('billing') || errorMessage.includes('Billing')) {
         errorMessage = 'Google Vision API yêu cầu bật billing. Vui lòng liên hệ admin để bật billing trong Google Cloud Console.';
+      } else if (errorMessage.includes('No matching face found') || errorMessage.includes('not found') || errorMessage.includes('not match') || errorMessage.includes('similarity')) {
+        errorMessage = 'Không tìm thấy khuôn mặt khớp với dữ liệu đã đăng ký.\n\nVui lòng:\n• Đảm bảo ánh sáng đủ sáng và đều\n• Nhìn thẳng vào camera, không nghiêng đầu\n• Giữ khoảng cách vừa phải với camera\n• Thử lại hoặc đăng nhập bằng Email/Password';
+      } else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+        errorMessage = 'Không thể xác thực khuôn mặt. Vui lòng thử lại hoặc đăng nhập bằng Email/Password.';
       }
 
       setError(errorMessage);
     }
   };
 
+  const handleLoginSuccess = async (response: any) => {
+    // Lấy role từ JWT token
+    const frontendRole = getRoleFromToken(response.accessToken);
+
+    if (!frontendRole) {
+      setError('Không thể xác định quyền người dùng');
+      setIsProcessing(false);
+      return;
+    }
+
+    // Lưu tokens
+    setTokens(response.accessToken, response.refreshToken, false);
+    window.dispatchEvent(new Event('storage'));
+
+    // Authenticate với Firebase
+    // Note: Với FaceID login, chúng ta không có password
+    // Có thể cần xử lý khác hoặc bỏ qua Firebase auth
+    try {
+      // Thử authenticate với Firebase nếu có custom token
+      if (response.firebaseCustomToken) {
+        await authenticateWithFirebase(response, response.email, '', frontendRole);
+      }
+    } catch (firebaseError) {
+      console.warn('Firebase authentication skipped for FaceID login:', firebaseError);
+    }
+
+    // Lưu thông tin user
+    const userData = {
+      id: response.userID,
+      email: response.email,
+      name: response.fullName,
+      role: frontendRole,
+      avatar: undefined,
+    };
+    setUser(userData, false);
+
+    // Khởi tạo kết nối SignalR
+    try {
+      await startNotificationConnection();
+      try {
+        const count = await getUnreadCount();
+        if (typeof count === 'number') setUnread(count);
+      } catch {
+        // Ignore error
+      }
+      onReceiveNotification((n: any) => {
+        pushItem(n);
+        console.log('ReceiveNotification', n);
+      });
+      onUnreadCountUpdated((count: number) => {
+        if (typeof count === 'number') setUnread(count);
+      });
+    } catch (e) {
+      console.warn('Không thể khởi tạo kết nối thông báo realtime:', e);
+    }
+
+    // Gọi login từ AuthContext
+    await login(
+      response.email,
+      '',
+      frontendRole as 'Staff TA' | 'Staff Accountant' | 'Staff Sales' | 'Developer' | 'Manager' | 'Admin'
+    );
+
+    setSuccess(true);
+    setIsProcessing(false);
+
+    // Redirect sau 1.5 giây
+    setTimeout(() => {
+      switch (frontendRole) {
+        case 'Staff TA':
+          navigate('/ta/dashboard');
+          break;
+        case 'Staff Accountant':
+          navigate('/accountant/dashboard');
+          break;
+        case 'Staff Sales':
+          navigate('/sales/dashboard');
+          break;
+        case 'Developer':
+          navigate('/developer/dashboard');
+          break;
+        case 'Manager':
+          navigate('/manager/dashboard');
+          break;
+        case 'Admin':
+          navigate('/admin/dashboard');
+          break;
+        default:
+          navigate('/');
+      }
+      onSuccess?.();
+    }, 1500);
+  };
+
   const handleCancel = () => {
     stopCamera();
+    setCameraStarted(false);
+    setIsStartingCamera(false);
+    setError('');
     onCancel?.();
   };
 
@@ -381,16 +438,30 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
           {!cameraStarted ? (
             <button
               onClick={handleStartCamera}
-              disabled={hasCamera === false || isProcessing}
-              className="w-full bg-gradient-to-r from-primary-600 to-indigo-600 text-white py-3.5 px-6 rounded-xl hover:from-primary-700 hover:to-indigo-700 font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-glow hover:shadow-glow-lg"
+              disabled={hasCamera === false || isStartingCamera || isProcessing}
+              className="w-full bg-gradient-to-r from-primary-600 to-indigo-600 text-white py-3.5 px-6 rounded-xl hover:from-primary-700 hover:to-indigo-700 font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-glow hover:shadow-glow-lg transform hover:scale-102 active:scale-98 disabled:transform-none flex items-center justify-center gap-2"
+              type="button"
             >
-              {hasCamera === false ? 'Camera không khả dụng' : 'Khởi Động Camera'}
+              {isStartingCamera ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Đang khởi động camera...</span>
+                </>
+              ) : hasCamera === false ? (
+                'Camera không khả dụng'
+              ) : (
+                <>
+                  <Camera className="w-5 h-5" />
+                  <span>Khởi Động Camera</span>
+                </>
+              )}
             </button>
           ) : (
             <button
               onClick={handleCapture}
               disabled={isDetecting || isProcessing}
-              className="w-full bg-gradient-to-r from-primary-600 to-indigo-600 text-white py-3.5 px-6 rounded-xl hover:from-primary-700 hover:to-indigo-700 font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-glow hover:shadow-glow-lg flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-primary-600 to-indigo-600 text-white py-3.5 px-6 rounded-xl hover:from-primary-700 hover:to-indigo-700 font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-glow hover:shadow-glow-lg transform hover:scale-102 active:scale-98 disabled:transform-none flex items-center justify-center gap-2"
+              type="button"
             >
               {(isDetecting || isProcessing) ? (
                 <>
@@ -410,7 +481,8 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
             <button
               onClick={handleCancel}
               disabled={isProcessing}
-              className="w-full bg-neutral-200 text-neutral-700 py-3.5 px-6 rounded-xl hover:bg-neutral-300 font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-neutral-200 text-neutral-700 py-3.5 px-6 rounded-xl hover:bg-neutral-300 font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-102 active:scale-98 disabled:transform-none"
+              type="button"
             >
               Hủy
             </button>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Camera, AlertCircle, CheckCircle, Loader2, User } from 'lucide-react';
+import { Camera, AlertCircle, CheckCircle, Loader2, User, ArrowLeft, ArrowRight, ArrowUp, ArrowDown } from 'lucide-react';
 import { useFaceDetection } from '../../hooks/useFaceDetection';
+import { faceDetectionService } from '../../services/FaceDetectionService';
 import { authService } from '../../services/Auth';
 
 interface FaceIDEnrollProps {
@@ -14,7 +15,8 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
     const [cameraStarted, setCameraStarted] = useState(false);
-    const [totalCaptures] = useState(3);
+    const [captureStep, setCaptureStep] = useState<'idle' | 'center' | 'left' | 'right' | 'up' | 'down' | 'complete'>('idle');
+    const [isCapturing, setIsCapturing] = useState(false);
 
     const {
         videoRef,
@@ -83,14 +85,68 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
         }
     };
 
+    // Hàm capture với hướng dẫn di chuyển khuôn mặt (như iPhone FaceID setup)
+    const captureWithFaceMovement = async (): Promise<number[]> => {
+        if (!videoRef.current) {
+            throw new Error('Camera chưa được khởi động');
+        }
+
+        setIsCapturing(true);
+        const vectors: number[][] = [];
+        const steps: Array<'center' | 'left' | 'right' | 'up' | 'down'> = ['center', 'left', 'right', 'up', 'down'];
+        
+        for (const step of steps) {
+            setCaptureStep(step);
+            
+            // Đợi người dùng di chuyển khuôn mặt (1.5 giây cho mỗi bước)
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+            
+            // Capture 2 lần ở mỗi góc độ để có nhiều dữ liệu
+            for (let i = 0; i < 2; i++) {
+                try {
+                    const imageData = faceDetectionService.captureFrameFromVideo(videoRef.current);
+                    const result = await faceDetectionService.detectFace(imageData);
+                    
+                    if (result.confidence >= 0.5) {
+                        vectors.push(result.faceVector);
+                    }
+                    
+                    // Đợi một chút giữa các lần capture
+                    if (i < 1) {
+                        await new Promise((resolve) => setTimeout(resolve, 300));
+                    }
+                } catch (error) {
+                    console.warn(`Failed to capture at ${step} step:`, error);
+                }
+            }
+        }
+        
+        setCaptureStep('complete');
+        setIsCapturing(false);
+        
+        if (vectors.length === 0) {
+            throw new Error('Không thể phát hiện khuôn mặt trong bất kỳ góc độ nào');
+        }
+        
+        // Tính trung bình các vectors và normalize
+        const averageVector = vectors.reduce(
+            (acc, vector) => acc.map((val, idx) => val + vector[idx]),
+            new Array(vectors[0].length).fill(0)
+        ).map(val => val / vectors.length);
+        
+        // L2 normalize
+        const magnitude = Math.sqrt(averageVector.reduce((sum, val) => sum + val * val, 0));
+        return magnitude > 0 ? averageVector.map(val => val / magnitude) : averageVector;
+    };
+
     const handleEnroll = async () => {
         try {
             setIsProcessing(true);
             setError('');
             setSuccess(false);
 
-            // Capture nhiều ảnh và tính trung bình
-            const faceVector = await captureMultiple(totalCaptures);
+            // Capture với hướng dẫn di chuyển khuôn mặt để lấy nhiều góc độ
+            const faceVector = await captureWithFaceMovement();
 
             // Gọi API enroll
             await authService.enrollFaceID(email, faceVector);
@@ -104,6 +160,8 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
             }, 2000);
     } catch (err: any) {
       setIsProcessing(false);
+      setIsCapturing(false);
+      setCaptureStep('idle');
       let errorMessage = err.message || err.response?.data?.message || 'Đăng ký FaceID thất bại';
       
       // Hiển thị thông báo rõ ràng hơn cho lỗi billing
@@ -164,13 +222,67 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
                                 className="w-full h-full object-cover"
                             />
                             {/* Face detection overlay */}
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                                 <div className="w-64 h-64 border-2 border-primary-500 rounded-full opacity-75"></div>
                             </div>
+                            
+                            {/* Face movement guide overlay */}
+                            {isCapturing && captureStep !== 'idle' && captureStep !== 'complete' && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-20 pointer-events-none">
+                                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-center max-w-sm">
+                                        {captureStep === 'center' && (
+                                            <>
+                                                <div className="w-20 h-20 mx-auto mb-4 rounded-full border-4 border-primary-500 flex items-center justify-center animate-pulse">
+                                                    <Camera className="w-10 h-10 text-primary-500" />
+                                                </div>
+                                                <p className="text-white text-lg font-semibold mb-2">Nhìn thẳng vào camera</p>
+                                                <p className="text-white/80 text-sm">Giữ nguyên vị trí...</p>
+                                            </>
+                                        )}
+                                        {captureStep === 'left' && (
+                                            <>
+                                                <div className="w-20 h-20 mx-auto mb-4 rounded-full border-4 border-primary-500 flex items-center justify-center animate-pulse">
+                                                    <ArrowLeft className="w-10 h-10 text-primary-500" />
+                                                </div>
+                                                <p className="text-white text-lg font-semibold mb-2">Quay đầu sang trái</p>
+                                                <p className="text-white/80 text-sm">Từ từ quay đầu...</p>
+                                            </>
+                                        )}
+                                        {captureStep === 'right' && (
+                                            <>
+                                                <div className="w-20 h-20 mx-auto mb-4 rounded-full border-4 border-primary-500 flex items-center justify-center animate-pulse">
+                                                    <ArrowRight className="w-10 h-10 text-primary-500" />
+                                                </div>
+                                                <p className="text-white text-lg font-semibold mb-2">Quay đầu sang phải</p>
+                                                <p className="text-white/80 text-sm">Từ từ quay đầu...</p>
+                                            </>
+                                        )}
+                                        {captureStep === 'up' && (
+                                            <>
+                                                <div className="w-20 h-20 mx-auto mb-4 rounded-full border-4 border-primary-500 flex items-center justify-center animate-pulse">
+                                                    <ArrowUp className="w-10 h-10 text-primary-500" />
+                                                </div>
+                                                <p className="text-white text-lg font-semibold mb-2">Nhìn lên trên</p>
+                                                <p className="text-white/80 text-sm">Từ từ ngẩng đầu...</p>
+                                            </>
+                                        )}
+                                        {captureStep === 'down' && (
+                                            <>
+                                                <div className="w-20 h-20 mx-auto mb-4 rounded-full border-4 border-primary-500 flex items-center justify-center animate-pulse">
+                                                    <ArrowDown className="w-10 h-10 text-primary-500" />
+                                                </div>
+                                                <p className="text-white text-lg font-semibold mb-2">Nhìn xuống dưới</p>
+                                                <p className="text-white/80 text-sm">Từ từ cúi đầu...</p>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                            
                             {/* Capture progress */}
-                            {isProcessing && (
-                                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-lg">
-                                    <p className="text-sm">Đang xử lý {totalCaptures} ảnh...</p>
+                            {isCapturing && captureStep === 'complete' && (
+                                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-lg z-20">
+                                    <p className="text-sm">Đang xử lý và lưu dữ liệu...</p>
                                 </div>
                             )}
                         </>
@@ -178,16 +290,28 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
                 </div>
 
                 {/* Instructions */}
-                <div className="bg-neutral-50 rounded-xl p-4 border border-neutral-200">
-                    <h3 className="text-sm font-semibold text-neutral-900 mb-2">Hướng dẫn đăng ký:</h3>
-                    <ul className="text-xs text-neutral-600 space-y-1">
-                        <li>• Hệ thống sẽ chụp {totalCaptures} ảnh từ các góc độ khác nhau</li>
-                        <li>• Đảm bảo ánh sáng đủ sáng và đồng đều</li>
-                        <li>• Nhìn thẳng vào camera, sau đó quay nhẹ sang trái, phải</li>
-                        <li>• Không đeo khẩu trang hoặc che mặt</li>
-                        <li>• Giữ khuôn mặt trong khung hình suốt quá trình</li>
-                    </ul>
-                </div>
+                {!isCapturing && (
+                    <div className="bg-neutral-50 rounded-xl p-4 border border-neutral-200">
+                        <h3 className="text-sm font-semibold text-neutral-900 mb-2">Hướng dẫn đăng ký:</h3>
+                        <ul className="text-xs text-neutral-600 space-y-1">
+                            <li>• Khi nhấn "Đăng Ký FaceID", bạn sẽ được hướng dẫn di chuyển khuôn mặt</li>
+                            <li>• Làm theo hướng dẫn: nhìn thẳng, quay trái, quay phải, nhìn lên, nhìn xuống</li>
+                            <li>• Mỗi góc độ sẽ chụp 2 lần để có dữ liệu tốt nhất</li>
+                            <li>• Đảm bảo ánh sáng đủ sáng và đồng đều</li>
+                            <li>• Không đeo khẩu trang hoặc che mặt</li>
+                            <li>• Giữ khuôn mặt trong khung hình suốt quá trình</li>
+                        </ul>
+                    </div>
+                )}
+                
+                {isCapturing && captureStep === 'complete' && (
+                    <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                        <div className="flex items-center gap-2">
+                            <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                            <p className="text-sm font-semibold text-blue-900">Đang xử lý và lưu dữ liệu FaceID...</p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Actions */}
                 <div className="space-y-3">
@@ -202,10 +326,15 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
                     ) : (
                         <button
                             onClick={handleEnroll}
-                            disabled={isDetecting || isProcessing}
+                            disabled={isDetecting || isProcessing || isCapturing}
                             className="w-full bg-gradient-to-r from-primary-600 to-indigo-600 text-white py-3.5 px-6 rounded-xl hover:from-primary-700 hover:to-indigo-700 font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
-                            {(isDetecting || isProcessing) ? (
+                            {isCapturing ? (
+                                <>
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    <span>Đang quét khuôn mặt...</span>
+                                </>
+                            ) : (isDetecting || isProcessing) ? (
                                 <>
                                     <Loader2 className="w-5 h-5 animate-spin" />
                                     <span>Đang xử lý...</span>
