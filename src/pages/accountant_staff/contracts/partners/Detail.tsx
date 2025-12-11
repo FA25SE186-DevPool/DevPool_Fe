@@ -863,7 +863,7 @@ export default function PartnerContractDetailPage() {
                   className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
                 >
                   <CheckCircle className="w-4 h-4" />
-                  Xác minh hợp đồng
+                  Ghi nhận và Xác minh hợp đồng
                 </button>
               )}
 
