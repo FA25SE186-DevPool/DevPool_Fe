@@ -603,9 +603,20 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
       <header className="bg-white/95 backdrop-blur-md shadow-soft sticky top-0 z-50 border-b border-neutral-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
+          {/* Logo - Always show */}
           <div className="flex items-center min-h-[40px]">
-            {showPublicBranding ? (
+            {user ? (
+              <Link to={getDashboardRoute(user.role)} className="group flex items-center space-x-2 transition-all duration-300 hover:scale-105">
+                <img 
+                  src={logoDevPool} 
+                  alt="DevPool Logo" 
+                  className="h-10 w-auto object-contain"
+                />
+                <span className="font-bold text-xl bg-gradient-to-r from-gray-900 to-primary-700 bg-clip-text text-transparent">
+                  DevPool
+                </span>
+              </Link>
+            ) : (
               <Link to="/" className="group flex items-center space-x-2 transition-all duration-300 hover:scale-105">
                 <img 
                   src={logoDevPool} 
@@ -616,7 +627,7 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
                   DevPool
                 </span>
               </Link>
-            ) : null}
+            )}
           </div>
 
           {/* Desktop Navigation */}

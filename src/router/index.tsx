@@ -18,6 +18,7 @@ const Auth = React.lazy(() => import('../pages/client/auth-page'));
 const ContactPage = React.lazy(() => import('../pages/client/contact-page'));
 const HomePage = React.lazy(() => import('../pages/client/home-page'));
 const ProfessionalPage = React.lazy(() => import('../pages/client/professional-page'));
+const ForgotPasswordPage = React.lazy(() => import('../pages/client/forgot-password-page'));
 
 // ========================================
 // COMMON PAGES - Lazy Loading
@@ -275,6 +276,10 @@ const AppRouter: React.FC = () => {
             <Route
               path={ROUTES.REGISTER}
               element={user ? <Navigate to={getDashboardRoute(user.role)} replace /> : <Auth />}
+            />
+            <Route
+              path={ROUTES.GUEST.FORGOT_PASSWORD}
+              element={user ? <Navigate to={getDashboardRoute(user.role)} replace /> : <ForgotPasswordPage />}
             />
 
             {/* Thông báo chung cho tất cả vai trò */}

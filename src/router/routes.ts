@@ -11,6 +11,7 @@ export const ROUTES = {
     CONTACT: '/contact',                             // Liên hệ
     DEVELOPERS: '/developers',                       // Xem danh sách dev (public)
     LOGIN: '/login',                                 // Đăng nhập
+    FORGOT_PASSWORD: '/forgot-password',             // Quên mật khẩu
   },
 
   // =======================================
