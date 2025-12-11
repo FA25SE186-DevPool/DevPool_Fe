@@ -9,11 +9,11 @@ import {
   Search,
   Filter,
 } from 'lucide-react';
-import { Button } from '../../ui/button';
-import { Input } from '../../ui/input';
+import { useState } from 'react';
 import { type TalentCVCreate } from '../../../services/TalentCV';
 import { type JobRoleLevel } from '../../../services/JobRoleLevel';
 import { type JobRole } from '../../../services/JobRole';
+import { type TalentJobRoleLevelCreateModel } from '../../../services/Talent';
 
 interface TalentCVSectionProps {
   initialCVs: Partial<TalentCVCreate>[];
@@ -37,23 +37,23 @@ interface TalentCVSectionProps {
   uploadingCVIndex: number | null;
   uploadProgress: number;
   isUploadedFromFirebase: boolean;
-  uploadedCVUrl: string | null;
   errors: Record<string, string>;
-  validateCVVersion?: (
-    version: number,
-    jobRoleLevelId: number,
-    index: number,
-    cvs: Partial<TalentCVCreate>[]
-  ) => string;
   onFileChange: (file: File | null) => void;
-  onUploadCV: (cvIndex: number) => void;
-  onDeleteCVFile: (cvIndex: number) => void;
   onUpdateCV: (
     index: number,
     field: keyof TalentCVCreate,
     value: string | number | boolean | undefined
   ) => void;
-  onCVUrlChange: (index: number, url: string) => void;
+  // Level selection props
+  selectedLevel: Record<number, number | undefined>;
+  setSelectedLevel: (level: Record<number, number | undefined> | ((prev: Record<number, number | undefined>) => Record<number, number | undefined>)) => void;
+  isLevelDropdownOpen: Record<number, boolean>;
+  setIsLevelDropdownOpen: (open: Record<number, boolean> | ((prev: Record<number, boolean>) => Record<number, boolean>)) => void;
+  getLevelText: (level: number) => string;
+  // Talent Job Role Levels for level dropdown
+  talentJobRoleLevels: TalentJobRoleLevelCreateModel[];
+  jobRoleLevels: JobRoleLevel[];
+  onUpdateTalentJobRoleLevel: (index: number, field: keyof TalentJobRoleLevelCreateModel, value: number | undefined) => void;
 }
 
 /**
@@ -62,7 +62,7 @@ interface TalentCVSectionProps {
 export function TalentCVSection({
   initialCVs,
   cvFile,
-  cvPreviewUrl: _cvPreviewUrl,
+  cvPreviewUrl,
   jobRoleLevelsForCV,
   jobRoles,
   jobRoleLevelSearch,
@@ -81,15 +81,20 @@ export function TalentCVSection({
   uploadingCVIndex,
   uploadProgress,
   isUploadedFromFirebase,
-  uploadedCVUrl,
-  errors: _errors,
-  validateCVVersion,
+  errors,
   onFileChange,
-  onUploadCV,
-  onDeleteCVFile,
   onUpdateCV,
-  onCVUrlChange,
+  selectedLevel,
+  setSelectedLevel,
+  isLevelDropdownOpen,
+  setIsLevelDropdownOpen,
+  getLevelText,
+  talentJobRoleLevels,
+  jobRoleLevels,
+  onUpdateTalentJobRoleLevel,
 }: TalentCVSectionProps) {
+  const [showCVPreview, setShowCVPreview] = useState<Record<number, boolean>>({});
+
   return (
     <div className="bg-white rounded-2xl shadow-soft border border-neutral-100">
       <div className="p-6 border-b border-neutral-200">
@@ -105,19 +110,6 @@ export function TalentCVSection({
 
       <div className="p-6 space-y-6">
         {initialCVs.map((cv, index) => {
-          const cvsSameJobRoleLevel = initialCVs.filter(
-            (c, i) => i !== index && c.jobRoleLevelId === cv.jobRoleLevelId
-          );
-          const isFirstCVForJobRoleLevel = Boolean(
-            cv.jobRoleLevelId &&
-              cv.jobRoleLevelId > 0 &&
-              cvsSameJobRoleLevel.length === 0
-          );
-          const versionError =
-            cv.jobRoleLevelId && cv.version && validateCVVersion
-              ? validateCVVersion(cv.version, cv.jobRoleLevelId, index, initialCVs)
-              : '';
-
           return (
             <div key={index} className="p-4 bg-neutral-50 rounded-lg border border-neutral-200">
               <div className="flex justify-between items-center mb-4">
@@ -138,6 +130,7 @@ export function TalentCVSection({
                     <input
                       type="file"
                       accept=".pdf"
+                      id={`cv-file-input-${index}`}
                       onChange={(e) => {
                         const file = e.target.files?.[0] || null;
                         onFileChange(file);
@@ -147,16 +140,40 @@ export function TalentCVSection({
                   ) : (
                     <>
                       {/* File Info */}
-                      <div className="flex items-center gap-2 text-sm text-neutral-600">
-                        <FileText className="w-4 h-4" />
-                        <span>
-                          File đã chọn:{' '}
-                          <span className="font-medium">{cvFile.name}</span> (
-                          {(cvFile.size / 1024).toFixed(2)} KB)
-                        </span>
+                      <div className="flex items-center justify-between gap-3 p-3 bg-white rounded-lg border border-neutral-200">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className="p-1.5 bg-primary-50 rounded-lg">
+                            <FileText className="w-4 h-4 text-primary-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-neutral-700 truncate">
+                              {cvFile.name}
+                            </p>
+                            <p className="text-xs text-neutral-500">
+                              {(cvFile.size / 1024).toFixed(2)} KB
+                            </p>
+                          </div>
+                        </div>
+                        {!isUploadedFromFirebase && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onFileChange(null);
+                              // Reset input file để có thể chọn lại file giống nhau
+                              const fileInput = document.getElementById(`cv-file-input-${index}`) as HTMLInputElement;
+                              if (fileInput) {
+                                fileInput.value = '';
+                              }
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-lg transition-all duration-200 hover:shadow-sm active:scale-95"
+                          >
+                            <X className="w-4 h-4" />
+                            <span>Chọn lại</span>
+                          </button>
+                        )}
                       </div>
 
-                      {/* Upload Progress */}
+                      {/* Upload Progress - Chỉ hiển thị khi đang upload */}
                       {uploadingCV && uploadingCVIndex === index && (
                         <div className="space-y-2">
                           <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
@@ -170,45 +187,70 @@ export function TalentCVSection({
                           </p>
                         </div>
                       )}
-
-                      {/* Upload Button */}
-                      <Button
-                        type="button"
-                        onClick={() => onUploadCV(index)}
-                        disabled={
-                          !cvFile ||
-                          uploadingCV ||
-                          !cv.version ||
-                          cv.version <= 0 ||
-                          !cv.jobRoleLevelId ||
-                          isUploadedFromFirebase
-                        }
-                        className="w-full flex items-center justify-center gap-2"
-                        variant="primary"
-                      >
-                        {uploadingCV && uploadingCVIndex === index ? (
-                          <>Đang upload...</>
-                        ) : isUploadedFromFirebase ? (
-                          <>
-                            <Upload className="w-4 h-4" />
-                            <span>Đã upload lên Firebase</span>
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="w-4 h-4" />
-                            <span>Upload CV lên Firebase</span>
-                          </>
-                        )}
-                      </Button>
+                      
                       {isUploadedFromFirebase && (
-                        <p className="text-xs text-green-600 italic">
-                          ✓ File đã được upload lên Firebase, không thể upload lại
+                        <p className="text-xs text-green-600 italic text-center">
+                          ✓ File đã được upload lên Firebase
                         </p>
                       )}
-                      {(!cv.version || cv.version <= 0) && !isUploadedFromFirebase && (
-                        <p className="text-xs text-red-600 italic">
-                          ⚠️ Vui lòng nhập version CV trước khi upload
-                        </p>
+
+                      {/* CV Preview */}
+                      {(cvFile || cvPreviewUrl) && (
+                        <div className="mt-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowCVPreview((prev) => ({
+                                  ...prev,
+                                  [index]: !prev[index],
+                                }));
+                              }}
+                              className="flex items-center gap-2 text-sm font-semibold text-neutral-700 hover:text-primary-600 transition-colors"
+                            >
+                              {showCVPreview[index] ? (
+                                <>
+                                  <ChevronUp className="w-4 h-4" />
+                                  Ẩn xem trước CV
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="w-4 h-4" />
+                                  Xem trước CV
+                                </>
+                              )}
+                            </button>
+                            {cvPreviewUrl && (
+                              <a
+                                href={cvPreviewUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                Mở trong tab mới
+                              </a>
+                            )}
+                          </div>
+                          {showCVPreview[index] && (
+                            <div className="border border-neutral-200 rounded-lg overflow-hidden bg-neutral-50">
+                              {cvPreviewUrl ? (
+                                <iframe
+                                  src={cvPreviewUrl}
+                                  className="w-full h-96"
+                                  title="CV Preview"
+                                />
+                              ) : cvFile ? (
+                                <iframe
+                                  src={URL.createObjectURL(cvFile)}
+                                  className="w-full h-96"
+                                  title="CV Preview"
+                                />
+                              ) : null}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </>
                   )}
@@ -216,15 +258,17 @@ export function TalentCVSection({
               </div>
 
               {/* CV Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 {/* Job Role Level */}
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-neutral-700">
                     Vị trí công việc <span className="text-red-500">*</span>
                   </label>
 
-                  {/* Filter theo loại vị trí */}
-                  <div className="relative mb-2">
+                  {/* Filter theo loại vị trí và Cấp độ */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Filter theo loại vị trí */}
+                    <div className="relative">
                     <button
                       type="button"
                       onClick={() =>
@@ -234,14 +278,14 @@ export function TalentCVSection({
                         }))
                       }
                       disabled={isUploadedFromFirebase}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-xs border rounded-md transition-colors ${
+                      className={`w-full flex items-center justify-between px-3 py-2 text-sm border rounded-lg transition-colors ${
                         isUploadedFromFirebase
                           ? 'border-green-300 bg-green-50 cursor-not-allowed opacity-75'
-                          : 'border-neutral-300 bg-neutral-50 hover:bg-neutral-100 text-neutral-600'
+                          : 'border-neutral-300 bg-neutral-50 hover:bg-neutral-100 text-neutral-700 hover:border-neutral-400'
                       }`}
                     >
-                      <div className="flex items-center gap-1.5">
-                        <Filter className="w-3.5 h-3.5 text-neutral-500" />
+                      <div className="flex items-center gap-2">
+                        <Filter className="w-4 h-4 text-neutral-500" />
                         <span className="truncate">
                           {selectedJobRoleFilterId[index]
                             ? jobRoles.find((r) => r.id === selectedJobRoleFilterId[index])?.name ||
@@ -249,6 +293,11 @@ export function TalentCVSection({
                             : 'Tất cả loại vị trí'}
                         </span>
                       </div>
+                      <ChevronDown
+                        className={`w-4 h-4 text-neutral-400 transition-transform ${
+                          isJobRoleFilterDropdownOpen[index] ? 'rotate-180' : ''
+                        }`}
+                      />
                     </button>
                     {isJobRoleFilterDropdownOpen[index] && !isUploadedFromFirebase && (
                       <div
@@ -345,8 +394,135 @@ export function TalentCVSection({
                         </div>
                       </div>
                     )}
+                    </div>
+
+                    {/* Cấp độ */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const selectedJRL = jobRoleLevelsForCV.find((jrl) => jrl.id === cv.jobRoleLevelId);
+                          if (selectedJRL) {
+                            setIsLevelDropdownOpen((prev) => ({
+                              ...prev,
+                              [index]: !prev[index],
+                            }));
+                          }
+                        }}
+                        disabled={isUploadedFromFirebase || !cv.jobRoleLevelId}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-sm border rounded-lg transition-colors ${
+                          isUploadedFromFirebase || !cv.jobRoleLevelId
+                            ? 'border-neutral-300 bg-neutral-50 cursor-not-allowed opacity-75'
+                            : 'border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 hover:border-neutral-400'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Target className="w-4 h-4 text-neutral-500" />
+                          <span className="truncate text-sm">
+                            {cv.jobRoleLevelId
+                              ? (selectedLevel[index] !== undefined
+                                  ? getLevelText(selectedLevel[index]!)
+                                  : 'Chọn cấp độ')
+                              : 'Chọn vị trí trước'}
+                          </span>
+                        </div>
+                        <ChevronDown
+                          className={`w-4 h-4 text-neutral-400 transition-transform ${
+                            isLevelDropdownOpen[index] ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </button>
+                      {isLevelDropdownOpen[index] && cv.jobRoleLevelId && !isUploadedFromFirebase && (
+                        <div
+                          className="absolute z-[60] mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
+                          onMouseLeave={() => {
+                            setIsLevelDropdownOpen((prev) => ({
+                              ...prev,
+                              [index]: false,
+                            }));
+                          }}
+                        >
+                          <div className="max-h-56 overflow-y-auto">
+                            {(() => {
+                              // Lấy vị trí từ talentJobRoleLevels (dropdown cấp độ phụ thuộc vào talentJobRoleLevels)
+                              const talentJobRoleLevel = talentJobRoleLevels[0];
+                              if (!talentJobRoleLevel || !talentJobRoleLevel.jobRoleLevelId) {
+                                return (
+                                  <p className="px-4 py-3 text-sm text-neutral-500">
+                                    Vui lòng chọn vị trí công việc trước
+                                  </p>
+                                );
+                              }
+
+                              // Tìm jobRoleLevel từ talentJobRoleLevels
+                              const selectedJRL = jobRoleLevels.find((jrl) => jrl.id === talentJobRoleLevel.jobRoleLevelId);
+                              if (!selectedJRL) return null;
+                              
+                              // Lấy tất cả các cấp độ có cùng tên vị trí
+                              const availableLevels = jobRoleLevels
+                                .filter((jrl) => jrl.name === selectedJRL.name)
+                                .map((jrl) => jrl.level)
+                                .filter((level, idx, self) => self.indexOf(level) === idx);
+
+                              if (availableLevels.length === 0) {
+                                return (
+                                  <p className="px-4 py-3 text-sm text-neutral-500">
+                                    Không có cấp độ nào cho vị trí này
+                                  </p>
+                                );
+                              }
+
+                              return availableLevels.map((level) => {
+                                const matchingJRL = jobRoleLevels.find(
+                                  (jrl) => jrl.name === selectedJRL.name && jrl.level === level
+                                );
+
+                                if (!matchingJRL) {
+                                  console.warn(`Không tìm thấy jobRoleLevel với name="${selectedJRL.name}" và level=${level}`);
+                                  return null;
+                                }
+
+                                return (
+                                  <button
+                                    type="button"
+                                    key={level}
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (matchingJRL && matchingJRL.id && matchingJRL.id > 0) {
+                                        setSelectedLevel((prev) => ({
+                                          ...prev,
+                                          [index]: level,
+                                        }));
+                                        // Chỉ cập nhật talentJobRoleLevels, KHÔNG cập nhật cv.jobRoleLevelId
+                                        // Vì cùng tên vị trí, chỉ khác cấp độ
+                                        onUpdateTalentJobRoleLevel(0, 'jobRoleLevelId', matchingJRL.id);
+                                        setIsLevelDropdownOpen((prev) => ({
+                                          ...prev,
+                                          [index]: false,
+                                        }));
+                                      } else {
+                                        console.error('matchingJRL không hợp lệ:', matchingJRL);
+                                      }
+                                    }}
+                                    className={`w-full text-left px-4 py-2.5 text-sm ${
+                                      talentJobRoleLevels[0]?.jobRoleLevelId === matchingJRL?.id
+                                        ? 'bg-primary-50 text-primary-700 font-medium'
+                                        : 'hover:bg-neutral-50 text-neutral-700'
+                                    }`}
+                                  >
+                                    {getLevelText(level)}
+                                  </button>
+                                );
+                              });
+                            })()}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
+                  {/* Dropdown chọn vị trí */}
                   <div className="relative">
                     <button
                       type="button"
@@ -357,21 +533,28 @@ export function TalentCVSection({
                         }))
                       }
                       disabled={isUploadedFromFirebase}
-                      className={`w-full flex items-center justify-between px-4 py-2 border rounded-lg bg-white/50 text-left focus:ring-2 focus:ring-primary-500/20 transition-all ${
+                      className={`w-full flex items-center justify-between px-4 py-2.5 border rounded-lg bg-white text-left focus:ring-2 focus:ring-primary-500/20 transition-all ${
                         isUploadedFromFirebase
                           ? 'border-green-300 bg-green-50 cursor-not-allowed opacity-75'
-                          : 'border-neutral-300 focus:border-primary-500'
+                          : errors[`cv_${index}_jobRoleLevelId`]
+                          ? 'border-red-500 bg-red-50'
+                          : 'border-neutral-300 focus:border-primary-500 hover:border-primary-300'
                       }`}
                     >
                       <div className="flex items-center gap-2 text-sm text-neutral-700">
                         <Target className="w-4 h-4 text-neutral-400" />
-                        <span>
+                        <span className={cv.jobRoleLevelId ? 'text-neutral-900 font-medium' : 'text-neutral-500'}>
                           {cv.jobRoleLevelId
                             ? jobRoleLevelsForCV.find((jrl) => jrl.id === cv.jobRoleLevelId)?.name ||
                               'Chọn vị trí'
                             : 'Chọn vị trí'}
                         </span>
                       </div>
+                      <ChevronDown
+                        className={`w-4 h-4 text-neutral-400 transition-transform ${
+                          isJobRoleLevelDropdownOpen[index] ? 'rotate-180' : ''
+                        }`}
+                      />
                     </button>
                     {isJobRoleLevelDropdownOpen[index] && !isUploadedFromFirebase && (
                       <div
@@ -432,6 +615,8 @@ export function TalentCVSection({
                                 key={jobRoleLevel.id}
                                 onClick={() => {
                                   onUpdateCV(index, 'jobRoleLevelId', jobRoleLevel.id);
+                                  // Tự động set version = 1
+                                  onUpdateCV(index, 'version', 1);
                                   setIsJobRoleLevelDropdownOpen((prev) => ({
                                     ...prev,
                                     [index]: false,
@@ -440,14 +625,6 @@ export function TalentCVSection({
                                     ...prev,
                                     [index]: '',
                                   }));
-
-                                  // Tự động set version = 1 nếu đây là CV đầu tiên cho jobRoleLevelId này
-                                  const cvsSameJobRoleLevel = initialCVs.filter(
-                                    (c, i) => i !== index && c.jobRoleLevelId === jobRoleLevel.id
-                                  );
-                                  if (cvsSameJobRoleLevel.length === 0) {
-                                    onUpdateCV(index, 'version', 1);
-                                  }
                                 }}
                                 className={`w-full text-left px-4 py-2.5 text-sm ${
                                   cv.jobRoleLevelId === jobRoleLevel.id
@@ -463,11 +640,6 @@ export function TalentCVSection({
                       </div>
                     )}
                   </div>
-                  {!cv.jobRoleLevelId && !isUploadedFromFirebase && (
-                    <p className="text-xs text-orange-600 mt-1">
-                      ⚠️ Phải chọn vị trí công việc trước khi upload CV lên Firebase
-                    </p>
-                  )}
                   {isUploadedFromFirebase && (
                     <p className="text-xs text-green-600 mt-1">
                       File đã được upload lên Firebase, không thể thay đổi vị trí công việc
@@ -475,128 +647,8 @@ export function TalentCVSection({
                   )}
                 </div>
 
-                {/* Version */}
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                    Version <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    type="number"
-                    value={cv.version || 1}
-                    onChange={(e) => {
-                      const newVersion = Number(e.target.value);
-                      onUpdateCV(index, 'version', newVersion);
-                    }}
-                    placeholder="1"
-                    min="1"
-                    step="1"
-                    required={!!cvFile}
-                    disabled={isUploadedFromFirebase || isFirstCVForJobRoleLevel}
-                    className={`w-full border-neutral-200 focus:border-primary-500 focus:ring-primary-500 rounded-lg ${
-                      isUploadedFromFirebase || isFirstCVForJobRoleLevel
-                        ? 'border-green-300 bg-green-50 cursor-not-allowed opacity-75'
-                        : versionError
-                          ? 'border-red-500'
-                          : ''
-                    }`}
-                  />
-                  {(isUploadedFromFirebase || isFirstCVForJobRoleLevel) && (
-                    <p className="text-xs text-green-600 mt-1">
-                      {isUploadedFromFirebase
-                        ? 'File đã được upload lên Firebase, không thể thay đổi version CV'
-                        : 'Đây là CV đầu tiên cho vị trí công việc này, version mặc định là 1 và không thể thay đổi'}
-                    </p>
-                  )}
-                  {versionError && !isUploadedFromFirebase && !isFirstCVForJobRoleLevel && (
-                    <p className="text-xs text-red-500 mt-1">{versionError}</p>
-                  )}
-                  {cvFile &&
-                    !isUploadedFromFirebase &&
-                    !isFirstCVForJobRoleLevel &&
-                    !versionError && (
-                      <p className="text-xs text-neutral-500 mt-1">Bắt buộc nhập để upload CV</p>
-                    )}
-                  {cv.jobRoleLevelId &&
-                    cvsSameJobRoleLevel.length > 0 &&
-                    !isUploadedFromFirebase && (
-                      <p className="text-xs text-neutral-500 mt-1">
-                        Các version hiện có cho vị trí này:{' '}
-                        {cvsSameJobRoleLevel.map((c) => c.version || 'N/A').join(', ')}
-                      </p>
-                    )}
-                </div>
               </div>
 
-              {/* CV URL */}
-              <div className="mt-4">
-                <label className="block text-sm font-semibold text-neutral-700 mb-2">
-                  URL file CV <span className="text-red-500">*</span>{' '}
-                  {cv.cvFileUrl && (
-                    <span className="text-green-600 text-xs">(✓ Đã có)</span>
-                  )}
-                </label>
-
-                {/* Warning when URL is from Firebase */}
-                {cv.cvFileUrl && uploadedCVUrl === cv.cvFileUrl && (
-                  <div className="mb-2 p-2 bg-orange-50 border border-orange-200 rounded-lg">
-                    <p className="text-xs text-orange-700 flex items-center gap-1.5">
-                      <span className="font-semibold">🔒</span>
-                      <span>
-                        URL này đã được upload từ Firebase và đã bị khóa. Không thể chỉnh sửa trực tiếp.
-                        Để nhập URL thủ công, bạn PHẢI nhấn nút "Xóa" để xóa file trong Firebase trước.
-                      </span>
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex gap-2">
-                  <Input
-                    type="url"
-                    value={cv.cvFileUrl || ''}
-                    onChange={(e) => onCVUrlChange(index, e.target.value)}
-                    placeholder="https://... hoặc upload từ file CV đã chọn"
-                    disabled={
-                      !!(cv.cvFileUrl && uploadedCVUrl === cv.cvFileUrl) ||
-                      (uploadingCV && uploadingCVIndex === index)
-                    }
-                    className={`flex-1 border-neutral-200 focus:border-primary-500 focus:ring-primary-500 rounded-lg ${
-                      cv.cvFileUrl && uploadedCVUrl === cv.cvFileUrl
-                        ? 'bg-gray-100 cursor-not-allowed opacity-75 border-gray-300'
-                        : isUploadedFromFirebase
-                          ? 'border-green-300 bg-green-50'
-                          : ''
-                    }`}
-                  />
-                  {cv.cvFileUrl && (
-                    <>
-                      <a
-                        href={cv.cvFileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200 transition-all"
-                      >
-                        <Eye className="w-4 h-4" />
-                        Xem
-                      </a>
-                      <Button
-                        type="button"
-                        onClick={() => onDeleteCVFile(index)}
-                        disabled={uploadingCV && uploadingCVIndex === index}
-                        variant="outline"
-                        className="text-red-600 border-red-300 hover:bg-red-50"
-                        title={
-                          uploadedCVUrl === cv.cvFileUrl
-                            ? 'Xóa URL và file trong Firebase'
-                            : 'Xóa URL'
-                        }
-                      >
-                        <X className="w-4 h-4 mr-2" />
-                        Xóa
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
 
               {/* Summary */}
               <div className="mt-4">

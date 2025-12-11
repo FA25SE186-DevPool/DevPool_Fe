@@ -21,6 +21,7 @@ export function useTalentCreateFilters() {
   const [jobRoleLevelNameSearch, setJobRoleLevelNameSearch] = useState<Record<number, string>>({});
   const [isJobRoleLevelNameDropdownOpen, setIsJobRoleLevelNameDropdownOpen] = useState<Record<number, boolean>>({});
   const [isLevelDropdownOpen, setIsLevelDropdownOpen] = useState<Record<number, boolean>>({});
+  const [selectedLevel, setSelectedLevel] = useState<Record<number, number | undefined>>({});
 
   // Skills dropdown states
   const [skillSearchQuery, setSkillSearchQuery] = useState<Record<number, string>>({});
@@ -32,6 +33,10 @@ export function useTalentCreateFilters() {
   // Work Experience dropdown states
   const [workExperiencePositionSearch, setWorkExperiencePositionSearch] = useState<Record<number, string>>({});
   const [isWorkExperiencePositionDropdownOpen, setIsWorkExperiencePositionDropdownOpen] = useState<Record<number, boolean>>({});
+
+  // Projects dropdown states
+  const [projectPositionSearch, setProjectPositionSearch] = useState<Record<number, string>>({});
+  const [isProjectPositionDropdownOpen, setIsProjectPositionDropdownOpen] = useState<Record<number, boolean>>({});
 
   // Certificates dropdown states
   const [certificateTypeSearch, setCertificateTypeSearch] = useState<Record<number, string>>({});
@@ -59,6 +64,8 @@ export function useTalentCreateFilters() {
     setIsJobRoleLevelNameDropdownOpen,
     isLevelDropdownOpen,
     setIsLevelDropdownOpen,
+    selectedLevel,
+    setSelectedLevel,
     
     // Skills
     skillSearchQuery,
@@ -77,6 +84,12 @@ export function useTalentCreateFilters() {
     setWorkExperiencePositionSearch,
     isWorkExperiencePositionDropdownOpen,
     setIsWorkExperiencePositionDropdownOpen,
+    
+    // Projects
+    projectPositionSearch,
+    setProjectPositionSearch,
+    isProjectPositionDropdownOpen,
+    setIsProjectPositionDropdownOpen,
     
     // Certificates
     certificateTypeSearch,

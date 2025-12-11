@@ -51,7 +51,7 @@ export function useTalentCreateCVModal({
   // Modal states
   const [showExtractCVModal, setShowExtractCVModal] = useState(false);
   const [useExtractCV, setUseExtractCV] = useState(false);
-  const [createCVFromExtract, setCreateCVFromExtract] = useState(true);
+  const [createCVFromExtract, setCreateCVFromExtract] = useState(false);
   const [modalCVFile, setModalCVFile] = useState<File | null>(null);
   const [modalCVPreviewUrl, setModalCVPreviewUrl] = useState<string | null>(null);
   const [cvFile, setCvFile] = useState<File | null>(null);
@@ -244,6 +244,7 @@ export function useTalentCreateCVModal({
         );
         if (!confirmed) return;
 
+        // Xóa file CV từ Firebase nếu đã upload
         if (isUploadedFromFirebase && initialCVs[0]?.cvFileUrl) {
           try {
             await deleteCVFile(0, initialCVs[0].cvFileUrl, true);
@@ -251,10 +252,43 @@ export function useTalentCreateCVModal({
             console.error('Lỗi khi xóa file CV từ Firebase:', error);
           }
         }
+
+        // Xóa tất cả dữ liệu đã điền từ CV extraction
+        // Reset basic info về giá trị mặc định
+        updateBasicField('fullName', '');
+        updateBasicField('email', '');
+        updateBasicField('phone', '');
+        updateBasicField('dateOfBirth', '');
+        updateBasicField('locationId', undefined);
+        updateBasicField('workingMode', 0); // WorkingMode.None
+        updateBasicField('githubUrl', '');
+        updateBasicField('portfolioUrl', '');
+
+        // Xóa tất cả skills, work experiences, projects, certificates, job role levels
+        setTalentSkills([]);
+        setTalentWorkExperiences([]);
+        setTalentProjects([]);
+        setTalentCertificates([]);
+        setTalentJobRoleLevels([
+          {
+            jobRoleLevelId: 0,
+            yearsOfExp: 0,
+            ratePerMonth: undefined,
+          },
+        ]);
+
+        // Reset CV extraction data
+        cvExtraction.setUnmatchedData({});
+        // Reset extractedData bằng cách set null (nếu hook hỗ trợ)
+        if (cvExtraction.setExtractedData) {
+          cvExtraction.setExtractedData(null);
+        }
       }
 
       setUseExtractCV(false);
       setShowExtractCVModal(false);
+      setIsUploadedFromFirebase(false);
+      setUploadedCVUrl(null);
       setModalCVFile(null);
       setCvFile(null);
       if (modalCVPreviewUrl) {
@@ -277,7 +311,6 @@ export function useTalentCreateCVModal({
           generatedForJobRequestId: undefined,
         },
       ]);
-      cvExtraction.setUnmatchedData({});
     }
   }, [
     cvExtraction,
@@ -287,6 +320,14 @@ export function useTalentCreateCVModal({
     modalCVPreviewUrl,
     cvPreviewUrl,
     setInitialCVs,
+    updateBasicField,
+    setTalentSkills,
+    setTalentWorkExperiences,
+    setTalentProjects,
+    setTalentCertificates,
+    setTalentJobRoleLevels,
+    setIsUploadedFromFirebase,
+    setUploadedCVUrl,
   ]);
 
   return {

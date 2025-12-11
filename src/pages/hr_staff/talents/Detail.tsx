@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { XCircle } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
@@ -99,7 +99,7 @@ export default function TalentDetailPage() {
   );
 
   // Skill Group Verification
-  const skillGroupVerification = useTalentDetailSkillGroupVerification();
+  const skillGroupVerification = useTalentDetailSkillGroupVerification(talentSkills);
 
   // Pagination
   const pagination = useTalentDetailPagination();
@@ -130,22 +130,49 @@ export default function TalentDetailPage() {
   // Experiences section states
   const [workExperiencePositionSearch, setWorkExperiencePositionSearch] = useState<string>('');
   const [isWorkExperiencePositionDropdownOpen, setIsWorkExperiencePositionDropdownOpen] = useState(false);
-  const workExperiencePositions = [
-    'Frontend Developer (React, Angular, Vue)',
-    'Backend Developer (Node.js, .NET, Java, Go)',
-    'Fullstack Developer',
-    'Mobile Developer (iOS/Android/Flutter/React Native)',
-    'AI/ML Engineer',
-    'Data Engineer',
-    'Data Scientist',
-    'DevOps Engineer',
-    'Cloud Engineer',
-    'QA/QC Engineer (Manual / Automation)',
-    'Test Lead',
-    'Solution Architect',
-    'Technical Lead (Tech Lead)',
-    'Software Architect',
-  ];
+  
+  // Projects section states
+  const [projectPositionSearch, setProjectPositionSearch] = useState<string>('');
+  const [isProjectPositionDropdownOpen, setIsProjectPositionDropdownOpen] = useState(false);
+
+  // Tính toán danh sách vị trí từ CVs đã được tạo
+  const availablePositions = useMemo(() => {
+    if (!talentCVs || talentCVs.length === 0 || !lookupJobRoleLevelsForTalent || lookupJobRoleLevelsForTalent.length === 0) {
+      return [];
+    }
+
+    // Lấy các jobRoleLevelId từ CVs (chỉ lấy những CV có jobRoleLevelId hợp lệ)
+    const cvJobRoleLevelIds = talentCVs
+      .filter((cv) => cv.jobRoleLevelId && cv.jobRoleLevelId > 0)
+      .map((cv) => cv.jobRoleLevelId!)
+      .filter((id, index, self) => self.indexOf(id) === index);
+
+    if (cvJobRoleLevelIds.length === 0) {
+      return [];
+    }
+
+    // Lấy các jobRoleId từ các jobRoleLevel đã chọn trong CV
+    const cvJobRoleIds = lookupJobRoleLevelsForTalent
+      .filter((jrl) => cvJobRoleLevelIds.includes(jrl.id))
+      .map((jrl) => jrl.jobRoleId)
+      .filter((id, index, self) => self.indexOf(id) === index);
+
+    // Lọc các jobRoleLevel có cùng jobRoleId với các CV đã chọn
+    const filteredJobRoleLevels = lookupJobRoleLevelsForTalent.filter((jrl) =>
+      cvJobRoleIds.includes(jrl.jobRoleId)
+    );
+
+    // Lấy unique names từ các jobRoleLevel đã lọc
+    const uniqueNames = Array.from(
+      new Set(filteredJobRoleLevels.map((jrl) => jrl.name).filter((name) => name && name.trim() !== ''))
+    ).sort();
+
+    return uniqueNames;
+  }, [talentCVs, lookupJobRoleLevelsForTalent]);
+
+  // Sử dụng availablePositions cho cả work experience và project
+  const workExperiencePositions = availablePositions;
+  const projectPositions = availablePositions;
 
   // Job Role Levels section states
   const [selectedJobRoleLevelName, setSelectedJobRoleLevelName] = useState<string>('');
@@ -285,6 +312,137 @@ export default function TalentDetailPage() {
     });
   }, [operations, lookupJobRoleLevelsForTalent, setJobRoleLevels]);
 
+  // Quick create job role level handler
+  const handleQuickCreateJobRoleLevel = useCallback(
+    (jobRole: {
+      jobRoleLevelId: number;
+      position: string;
+      level?: string;
+      yearsOfExp?: number;
+      ratePerMonth?: number;
+    }) => {
+      setActiveTab('jobRoleLevels');
+      operations.handleOpenInlineForm('jobRoleLevel');
+
+      setTimeout(() => {
+        // Tìm job role level từ lookup
+        const jobRoleLevel = lookupJobRoleLevelsForTalent.find((jrl) => jrl.id === jobRole.jobRoleLevelId);
+        
+        if (jobRoleLevel) {
+          // Set tên vị trí
+          setSelectedJobRoleLevelName(jobRoleLevel.name || '');
+          
+          // Set level từ CV nếu có, nếu không thì dùng level từ jobRoleLevel
+          if (jobRole.level) {
+            // Map CV level to system level
+            const levelMap: Record<string, number> = {
+              junior: 0,
+              middle: 1,
+              senior: 2,
+              lead: 3,
+            };
+            const cvLevel = jobRole.level.toLowerCase();
+            const mappedLevel = levelMap[cvLevel] !== undefined ? levelMap[cvLevel] : jobRoleLevel.level;
+            setSelectedLevel(mappedLevel);
+          } else {
+            setSelectedLevel(jobRoleLevel.level);
+          }
+
+          // Set form data
+          operations.setInlineJobRoleLevelForm({
+            jobRoleLevelId: jobRole.jobRoleLevelId,
+            yearsOfExp: jobRole.yearsOfExp || 1,
+            ratePerMonth: jobRole.ratePerMonth,
+          });
+
+          // Set job role filter
+          setSelectedJobRoleFilterId(jobRoleLevel.jobRoleId);
+        }
+
+        setIsJobRoleLevelNameDropdownOpen(false);
+        setJobRoleLevelNameSearch('');
+      }, 100);
+    },
+    [
+      setActiveTab,
+      operations,
+      lookupJobRoleLevelsForTalent,
+      setSelectedJobRoleLevelName,
+      setSelectedLevel,
+      setSelectedJobRoleFilterId,
+      setIsJobRoleLevelNameDropdownOpen,
+      setJobRoleLevelNameSearch,
+    ]
+  );
+
+  // Quick create unmatched job role level handler (chưa có trong hệ thống)
+  const handleQuickCreateUnmatchedJobRoleLevel = useCallback(
+    (jobRole: {
+      position: string;
+      level?: string;
+      yearsOfExp?: number;
+      ratePerMonth?: number;
+    }) => {
+      setActiveTab('jobRoleLevels');
+      operations.handleOpenInlineForm('jobRoleLevel');
+
+      setTimeout(() => {
+        // Tìm job role level tương tự từ lookup dựa trên position và level
+        const levelMap: Record<string, number> = {
+          junior: 0,
+          middle: 1,
+          senior: 2,
+          lead: 3,
+        };
+        const cvLevel = jobRole.level ? levelMap[jobRole.level.toLowerCase()] : undefined;
+
+        // Tìm job role level có tên tương tự
+        const similarJobRoleLevel = lookupJobRoleLevelsForTalent.find((jrl) => {
+          const nameMatch = jrl.name?.toLowerCase().includes(jobRole.position.toLowerCase()) ||
+            jobRole.position.toLowerCase().includes(jrl.name?.toLowerCase() || '');
+          const levelMatch = cvLevel !== undefined ? jrl.level === cvLevel : true;
+          return nameMatch && levelMatch;
+        });
+
+        if (similarJobRoleLevel) {
+          // Nếu tìm thấy job role level tương tự, set nó
+          setSelectedJobRoleLevelName(similarJobRoleLevel.name || '');
+          setSelectedLevel(similarJobRoleLevel.level);
+          operations.setInlineJobRoleLevelForm({
+            jobRoleLevelId: similarJobRoleLevel.id,
+            yearsOfExp: jobRole.yearsOfExp || 1,
+            ratePerMonth: jobRole.ratePerMonth,
+          });
+          setSelectedJobRoleFilterId(similarJobRoleLevel.jobRoleId);
+        } else {
+          // Nếu không tìm thấy, chỉ điền thông tin từ CV, để người dùng tự chọn
+          setSelectedJobRoleLevelName('');
+          setSelectedLevel(cvLevel);
+          operations.setInlineJobRoleLevelForm({
+            jobRoleLevelId: 0,
+            yearsOfExp: jobRole.yearsOfExp || 1,
+            ratePerMonth: jobRole.ratePerMonth,
+          });
+          
+          // Set search query để gợi ý
+          setJobRoleLevelNameSearch(jobRole.position);
+        }
+
+        setIsJobRoleLevelNameDropdownOpen(false);
+      }, 100);
+    },
+    [
+      setActiveTab,
+      operations,
+      lookupJobRoleLevelsForTalent,
+      setSelectedJobRoleLevelName,
+      setSelectedLevel,
+      setSelectedJobRoleFilterId,
+      setIsJobRoleLevelNameDropdownOpen,
+      setJobRoleLevelNameSearch,
+    ]
+  );
+
   // Delete handlers
   const handleDeleteProjects = useCallback(async () => {
     await operations.handleDeleteProjects((projects) => {
@@ -354,13 +512,19 @@ export default function TalentDetailPage() {
 
   // Cancel analysis handler
   const handleCancelAnalysis = useCallback(async () => {
+    const hasFirebaseFile = cvForm?.isCVUploadedFromFirebase || false;
+    const uploadedCVUrl = cvForm?.uploadedCVUrl || null;
+    
     await cvAnalysis.handleCancelAnalysis(
       canEdit,
-      false, // hasFirebaseFile - TODO: check from operations
-      null, // uploadedCVUrl - TODO: get from operations
-      operations.handleCloseInlineForm
+      hasFirebaseFile,
+      uploadedCVUrl,
+      () => {
+        // Luôn đóng form CV khi hủy phân tích
+        operations.handleCloseInlineForm();
+      }
     );
-  }, [cvAnalysis, canEdit, operations]);
+  }, [cvAnalysis, canEdit, operations, cvForm]);
 
 
   // Use getLevelTextForSkills from utils
@@ -546,6 +710,11 @@ export default function TalentDetailPage() {
                 pageProjects={pagination.pageProjects}
                 setPageProjects={pagination.setPageProjects}
                 itemsPerPage={pagination.itemsPerPage}
+                projectPositions={projectPositions}
+                projectPositionSearch={projectPositionSearch}
+                setProjectPositionSearch={setProjectPositionSearch}
+                isProjectPositionDropdownOpen={isProjectPositionDropdownOpen}
+                setIsProjectPositionDropdownOpen={setIsProjectPositionDropdownOpen}
                 showInlineForm={operations.showInlineForm === 'project'}
                 inlineProjectForm={operations.inlineProjectForm}
                 setInlineProjectForm={operations.setInlineProjectForm}
@@ -586,7 +755,6 @@ export default function TalentDetailPage() {
                 setExpandedAnalysisDetail={cvAnalysis.setExpandedAnalysisDetail}
                 expandedBasicInfo={cvAnalysis.expandedBasicInfo}
                 setExpandedBasicInfo={cvAnalysis.setExpandedBasicInfo}
-                matchedSkillsDetails={cvAnalysis.matchedSkillsDetails}
                 matchedSkillsNotInProfile={cvAnalysis.matchedSkillsNotInProfile}
                 unmatchedSkillSuggestions={cvAnalysis.unmatchedSkillSuggestions}
                 jobRoleLevelsMatched={cvAnalysis.jobRoleLevelsMatched}
@@ -637,6 +805,8 @@ export default function TalentDetailPage() {
                 analysisResult={cvAnalysis.analysisResult}
                 matchedJobRoleLevelsNotInProfile={cvAnalysis.matchedJobRoleLevelsNotInProfile}
                 jobRoleLevelsUnmatched={cvAnalysis.jobRoleLevelsUnmatched}
+                onQuickCreateJobRoleLevel={handleQuickCreateJobRoleLevel}
+                onQuickCreateUnmatchedJobRoleLevel={handleQuickCreateUnmatchedJobRoleLevel}
                 canEdit={canEdit}
                 getLevelText={getLevelText}
               />
@@ -710,6 +880,7 @@ export default function TalentDetailPage() {
                 }
                 canEdit={canEdit}
                 getLevelText={getLevelTextForSkillsWrapper}
+                getLevelLabel={getLevelLabel}
               />
             )}
 

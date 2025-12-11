@@ -92,6 +92,7 @@ interface TalentDetailSkillsSectionProps {
   skillSuggestionDisplayItems: string[];
   skillSuggestionDetailItems: Array<Record<string, string>>;
   isSuggestionPending: (key: string) => boolean;
+  getLevelLabel?: (level: string | null | undefined) => string;
 
   // Skill Group Verification
   onOpenVerifySkillGroup: (skillGroupId: number | undefined) => void;
@@ -162,6 +163,7 @@ export function TalentDetailSkillsSection({
   onInvalidateSkillGroup,
   canEdit,
   getLevelText,
+  getLevelLabel,
 }: TalentDetailSkillsSectionProps) {
   const navigate = useNavigate();
 
@@ -257,6 +259,82 @@ export function TalentDetailSkillsSection({
 
   return (
     <div className="space-y-6">
+      {/* CV Analysis Suggestions */}
+      {analysisResult &&
+        (analysisResult.skills.newFromCV.length > 0 || analysisResult.skills.matched.length > 0) && (
+          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-semibold text-amber-900">Kỹ năng</h3>
+            </div>
+            <div className="space-y-3">
+              {matchedSkillsNotInProfile.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-amber-800 mb-1.5">Cần tạo mới từ cv có ({matchedSkillsNotInProfile.length})</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {matchedSkillsNotInProfile.map((skill, index) => (
+                      <div key={`skill-matched-notin-${index}`} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-amber-200 rounded-lg text-xs text-amber-900">
+                        <span>{skill.skillName}</span>
+                        {onQuickCreateSkill && (
+                          <button
+                            onClick={() => onQuickCreateSkill({
+                              skillId: skill.skillId,
+                              skillName: skill.skillName,
+                              cvLevel: skill.cvLevel,
+                              cvYearsExp: skill.cvYearsExp ?? undefined,
+                            })}
+                            className="px-2 py-0.5 bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors text-xs font-medium"
+                          >
+                            Tạo nhanh
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {unmatchedSkillSuggestions.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-amber-800 mb-1.5">Chưa có trong hệ thống (cần đề xuất admin tạo mới) ({unmatchedSkillSuggestions.length})</p>
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {unmatchedSkillSuggestions.map((skill, index) => (
+                      <span key={`skill-unmatched-${index}`} className="inline-flex items-center px-2.5 py-1 bg-white border border-amber-200 rounded-lg text-xs text-amber-900">
+                        {skill.skillName}
+                        {skill.level && getLevelLabel && <span className="ml-1.5 text-amber-600">· {getLevelLabel(skill.level)}</span>}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <Button
+                      onClick={() =>
+                        onSuggestionRequest('skill', skillSuggestionRequestKey, skillSuggestionDisplayItems, skillSuggestionDetailItems)
+                      }
+                      disabled={!skillSuggestionDisplayItems.length || isSuggestionPending(skillSuggestionRequestKey)}
+                      className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold text-white shadow-soft transition-all duration-300 ${
+                        !skillSuggestionDisplayItems.length || isSuggestionPending(skillSuggestionRequestKey)
+                          ? 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700'
+                      }`}
+                    >
+                      <Plus className="w-4 h-4" />
+                      {isSuggestionPending(skillSuggestionRequestKey)
+                        ? 'Đã gửi đề xuất'
+                        : 'Đề xuất thêm kỹ năng vào hệ thống'}
+                    </Button>
+                    {isSuggestionPending(skillSuggestionRequestKey) && (
+                      <span className="text-xs text-amber-600">Đang chờ Admin xem xét đề xuất này.</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {matchedSkillsNotInProfile.length === 0 && unmatchedSkillSuggestions.length === 0 && (
+                <p className="text-xs text-amber-700">Không có gợi ý kỹ năng nào</p>
+              )}
+            </div>
+          </div>
+        )}
+
       {/* Inline Skill Form */}
       {showInlineForm && (
         <div className="bg-white rounded-xl border-2 border-secondary-200 p-6 mb-6 shadow-lg">
@@ -481,91 +559,6 @@ export function TalentDetailSkillsSection({
           </div>
         </div>
       )}
-
-      {/* CV Analysis Suggestions */}
-      {analysisResult &&
-        (analysisResult.skills.newFromCV.length > 0 || analysisResult.skills.matched.length > 0) && (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50/80 p-4">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-amber-900 uppercase tracking-wide">Đề xuất kỹ năng</h3>
-              <span className="text-xs text-amber-700">
-                {matchedSkillsNotInProfile.length} cần tạo mới · {unmatchedSkillSuggestions.length} chưa có trong hệ
-                thống
-              </span>
-            </div>
-            {(matchedSkillsNotInProfile.length > 0 || unmatchedSkillSuggestions.length > 0) && (
-              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-                <p className="font-medium mb-2 text-sm text-amber-900">So sánh khác với hồ sơ hiện tại:</p>
-                {matchedSkillsNotInProfile.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="font-semibold text-amber-900">
-                      Cần tạo mới (có trong hệ thống, chưa có trong hồ sơ) ({matchedSkillsNotInProfile.length}):
-                    </p>
-                    <ul className="space-y-1">
-                      {matchedSkillsNotInProfile.map((skill, index) => (
-                        <li
-                          key={`missing-skill-system-${index}`}
-                          className="flex items-center justify-between rounded-lg border border-amber-200 bg-white px-3 py-2 text-amber-900 shadow-sm"
-                        >
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-sm">{skill.skillName}</span>
-                          </div>
-                          <Button
-                            onClick={() =>
-                              onQuickCreateSkill({
-                                skillId: skill.skillId,
-                                skillName: skill.skillName,
-                                cvLevel: skill.cvLevel,
-                                cvYearsExp: skill.cvYearsExp ?? undefined,
-                              })
-                            }
-                            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary-600 to-primary-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-300 hover:from-primary-700 hover:to-primary-800"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Tạo nhanh
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {unmatchedSkillSuggestions.length > 0 && (
-                  <div className="mt-3 rounded-xl border border-dashed border-amber-300 bg-white p-3 text-xs text-amber-700">
-                    <p className="font-semibold text-amber-900">
-                      Chưa có trong hệ thống (cần đề xuất admin tạo mới) ({unmatchedSkillSuggestions.length}):
-                    </p>
-                    <ul className="mt-2 space-y-1">
-                      {unmatchedSkillSuggestions.map((skill, index) => (
-                        <li key={`unmatched-skill-${index}`}>- {skill.skillName}</li>
-                      ))}
-                    </ul>
-                    <div className="mt-3 flex flex-col items-end gap-1">
-                      <Button
-                        onClick={() =>
-                          onSuggestionRequest('skill', skillSuggestionRequestKey, skillSuggestionDisplayItems, skillSuggestionDetailItems)
-                        }
-                        disabled={!skillSuggestionDisplayItems.length || isSuggestionPending(skillSuggestionRequestKey)}
-                        className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold text-white shadow-soft transition-all duration-300 ${
-                          !skillSuggestionDisplayItems.length || isSuggestionPending(skillSuggestionRequestKey)
-                            ? 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700'
-                        }`}
-                      >
-                        <Plus className="w-4 h-4" />
-                        {isSuggestionPending(skillSuggestionRequestKey)
-                          ? 'Đã gửi đề xuất'
-                          : 'Đề xuất thêm kỹ năng vào hệ thống'}
-                      </Button>
-                      {isSuggestionPending(skillSuggestionRequestKey) && (
-                        <span className="text-xs text-amber-600">Đang chờ Admin xem xét đề xuất này.</span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
 
       {/* Header with actions */}
       <div className="flex items-center justify-between mb-4">

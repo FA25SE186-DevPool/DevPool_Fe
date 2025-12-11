@@ -25,7 +25,8 @@ export default function ListDev() {
     setSearchTerm, 
     setLocation, 
     setStatus, 
-    setWorkingMode, 
+    setWorkingMode,
+    setPartnerId,
     resetFilters, 
     filteredTalents 
   } = useTalentFilters(currentTalentsList);
@@ -64,24 +65,42 @@ export default function ListDev() {
       value: currentTalentsList.length.toString(),
       color: "blue" as const,
       icon: <Users className="w-6 h-6" />,
+      status: undefined, // Không filter, hiển thị tất cả
     },
     {
       title: "Sẵn sàng làm việc",
       value: currentTalentsList.filter((t) => t.status === "Available").length.toString(),
       color: "green" as const,
       icon: <Briefcase className="w-6 h-6" />,
+      status: "Available",
     },
     {
       title: "Đang bận",
       value: currentTalentsList.filter((t) => t.status === "Busy").length.toString(),
       color: "orange" as const,
       icon: <MapPin className="w-6 h-6" />,
+      status: "Busy",
     },
     {
       title: "Đang làm việc",
       value: currentTalentsList.filter((t) => t.status === "Working").length.toString(),
       color: "blue" as const,
       icon: <Briefcase className="w-6 h-6" />,
+      status: "Working",
+    },
+    {
+      title: "Đang ứng tuyển",
+      value: currentTalentsList.filter((t) => t.status === "Applying").length.toString(),
+      color: "purple" as const,
+      icon: <Users className="w-6 h-6" />,
+      status: "Applying",
+    },
+    {
+      title: "Tạm ngưng",
+      value: currentTalentsList.filter((t) => t.status === "Unavailable").length.toString(),
+      color: "gray" as const,
+      icon: <MapPin className="w-6 h-6" />,
+      status: "Unavailable",
     },
   ], [currentTalentsList, activeTab]);
 
@@ -226,6 +245,15 @@ export default function ListDev() {
           pageSize={statsPageSize}
           onPrev={handlePrevStats}
           onNext={handleNextStats}
+          onStatClick={(status) => {
+            if (status === undefined) {
+              // Reset filter nếu click vào "Tổng nhân sự"
+              resetFilters();
+            } else {
+              // Set filter theo status
+              setStatus(status);
+            }
+          }}
         />
 
         {/* Filters - Component tái sử dụng */}
@@ -240,7 +268,10 @@ export default function ListDev() {
           onStatusChange={setStatus}
           filterWorkingMode={filters.workingMode}
           onWorkingModeChange={setWorkingMode}
+          filterPartnerId={filters.partnerId}
+          onPartnerIdChange={setPartnerId}
           locations={locations}
+          partners={partners}
           onReset={resetFilters}
         />
 
