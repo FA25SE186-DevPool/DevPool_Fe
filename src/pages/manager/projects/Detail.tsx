@@ -7,7 +7,9 @@ import { projectService, type ProjectDetailedModel } from "../../../services/Pro
 import { clientCompanyService, type ClientCompany } from "../../../services/ClientCompany";
 import { projectPeriodService, type ProjectPeriodModel } from "../../../services/ProjectPeriod";
 import { talentAssignmentService, type TalentAssignmentModel } from "../../../services/TalentAssignment";
-import { talentService } from "../../../services/Talent";
+import { talentService, type Talent } from "../../../services/Talent";
+import { partnerService, type Partner } from "../../../services/Partner";
+import { formatNumberInput } from "../../../utils/formatters";
 import { clientContractPaymentService, type ClientContractPaymentModel } from "../../../services/ClientContractPayment";
 import { partnerContractPaymentService, type PartnerContractPaymentModel } from "../../../services/PartnerContractPayment";
 import { 
@@ -26,7 +28,12 @@ import {
   ChevronUp,
   PlayCircle,
   AlertTriangle,
-  Hash
+  Hash,
+  UserCheck,
+  ExternalLink,
+  Download,
+  User,
+  Eye
 } from "lucide-react";
 
 export default function ManagerProjectDetailPage() {
@@ -52,6 +59,13 @@ export default function ManagerProjectDetailPage() {
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [talentNamesMap, setTalentNamesMap] = useState<Record<number, string>>({});
   const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  // Talent Assignment states (read-only)
+  const [talentAssignments, setTalentAssignments] = useState<TalentAssignmentModel[]>([]);
+  const [talents, setTalents] = useState<Talent[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [showDetailAssignmentModal, setShowDetailAssignmentModal] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<TalentAssignmentModel | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -81,6 +95,27 @@ export default function ManagerProjectDetailPage() {
           } catch (err) {
             console.error("❌ Lỗi tải thông tin công ty:", err);
           }
+        }
+
+        // Fetch talent assignments for this project
+        try {
+          const assignments = await talentAssignmentService.getAll({ projectId: projectId });
+          const filteredAssignments = assignments.filter(a => a.projectId === projectId);
+          setTalentAssignments(filteredAssignments);
+        } catch (err) {
+          console.error("❌ Lỗi tải danh sách phân công nhân sự:", err);
+        }
+
+        // Fetch talents and partners for display
+        try {
+          const [allTalents, allPartners] = await Promise.all([
+            talentService.getAll({ excludeDeleted: true }),
+            partnerService.getAll()
+          ]);
+          setTalents(allTalents);
+          setPartners(allPartners);
+        } catch (err) {
+          console.error("❌ Lỗi tải danh sách talents/partners:", err);
         }
         
         // Filter client-side để đảm bảo chỉ lấy periods của dự án này
@@ -271,6 +306,30 @@ export default function ManagerProjectDetailPage() {
       style: "currency",
       currency: "VND",
     }).format(amount);
+  };
+
+  const formatViDate = (dateStr?: string | null) => {
+    if (!dateStr) return "—";
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime()) || date.getFullYear() < 1900) {
+        return "—";
+      }
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch {
+      return "—";
+    }
+  };
+
+  const assignmentStatusLabels: Record<string, string> = {
+    Active: "Đang hoạt động",
+    Completed: "Đã hoàn thành",
+    Terminated: "Đã chấm dứt",
+    Inactive: "Không hoạt động",
+    Draft: "Nháp",
   };
 
   const handleChangeStatusToOngoing = async () => {
@@ -488,8 +547,21 @@ export default function ManagerProjectDetailPage() {
                     : 'text-neutral-600 hover:text-neutral-900'
                 }`}
               >
-                Hợp đồng
+                Chu kỳ thanh toán
                 {activeTab === 'contracts' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600"></div>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('staff')}
+                className={`px-6 py-4 font-medium text-sm transition-all duration-300 relative ${
+                  activeTab === 'staff'
+                    ? 'text-primary-600'
+                    : 'text-neutral-600 hover:text-neutral-900'
+                }`}
+              >
+                Nhân sự tham gia
+                {activeTab === 'staff' && (
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600"></div>
                 )}
               </button>
@@ -851,9 +923,325 @@ export default function ManagerProjectDetailPage() {
                 )}
               </div>
             )}
+
+            {/* Tab: Nhân sự tham gia */}
+            {activeTab === 'staff' && (
+              <div className="animate-fade-in">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Danh sách nhân sự tham gia</h3>
+                  <span className="text-sm text-neutral-500">
+                    ({talentAssignments.length} nhân sự)
+                  </span>
+                </div>
+                {talentAssignments.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-neutral-200">
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Nhân sự</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Đối tác</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Ngày bắt đầu</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Ngày kết thúc</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Trạng thái</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">File cam kết</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Ngày cập nhật gần nhất</th>
+                          <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-700">Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...talentAssignments]
+                          .filter(a => a.projectId === Number(id))
+                          .sort((a, b) => {
+                            // Sắp xếp theo ngày cập nhật gần nhất (mới nhất trước)
+                            const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+                            const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+                            return dateB - dateA; // Sắp xếp giảm dần (mới nhất trước)
+                          })
+                          .map((assignment) => {
+                            const talent = talents.find(t => t.id === assignment.talentId);
+                            const partner = partners.find(p => p.id === assignment.partnerId);
+                            return (
+                              <tr 
+                                key={assignment.id} 
+                                className="border-b border-neutral-100 hover:bg-neutral-50"
+                              >
+                                <td className="py-3 px-4 text-sm text-neutral-900 font-medium">
+                                  {talent?.fullName || `Nhân sự #${assignment.talentId}`}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-neutral-700">
+                                  {partner?.companyName || `Đối tác #${assignment.partnerId}`}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-neutral-700">
+                                  {assignment.startDate ? formatViDate(assignment.startDate) : "—"}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-neutral-700">
+                                  {assignment.endDate ? formatViDate(assignment.endDate) : "—"}
+                                </td>
+                                <td className="py-3 px-4">
+                                  <span className={`inline-flex px-2 py-1 rounded-lg text-xs font-medium ${
+                                    assignment.status === "Active" ? "bg-green-100 text-green-800" :
+                                    assignment.status === "Completed" ? "bg-blue-100 text-blue-800" :
+                                    assignment.status === "Terminated" ? "bg-red-100 text-red-800" :
+                                    assignment.status === "Inactive" ? "bg-gray-100 text-gray-800" :
+                                    "bg-neutral-100 text-neutral-800"
+                                  }`}>
+                                    {assignment.status ? (assignmentStatusLabels[assignment.status] || "Không xác định") : "—"}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4">
+                                  {assignment.commitmentFileUrl ? (
+                                    <div className="flex items-center gap-2">
+                                      <a
+                                        href={assignment.commitmentFileUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-xs font-medium transition-colors"
+                                        onClick={(e) => e.stopPropagation()}
+                                        title="Xem file trong tab mới"
+                                      >
+                                        <ExternalLink className="w-3 h-3" />
+                                        Xem
+                                      </a>
+                                      <a
+                                        href={assignment.commitmentFileUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        download
+                                        className="inline-flex items-center gap-1 px-2 py-1 bg-primary-100 hover:bg-primary-200 text-primary-700 rounded text-xs font-medium transition-colors"
+                                        onClick={(e) => e.stopPropagation()}
+                                        title="Tải file xuống"
+                                      >
+                                        <Download className="w-3 h-3" />
+                                        Tải xuống
+                                      </a>
+                                    </div>
+                                  ) : (
+                                    <span className="text-sm text-neutral-400">—</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-neutral-700">
+                                  {assignment.updatedAt 
+                                    ? formatViDateTime(assignment.updatedAt)
+                                    : assignment.createdAt 
+                                      ? formatViDateTime(assignment.createdAt)
+                                      : "—"}
+                                </td>
+                                <td className="py-3 px-4 text-center">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedAssignment(assignment);
+                                      setShowDetailAssignmentModal(true);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary-100 hover:bg-primary-200 text-primary-700 rounded-lg text-sm font-medium transition-colors"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                    Xem chi tiết
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-neutral-500">
+                    <UserCheck className="w-12 h-12 mx-auto mb-3 text-neutral-400" />
+                    <p>Chưa có nhân sự nào được phân công</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Detail Assignment Modal (Read-only) */}
+      {showDetailAssignmentModal && selectedAssignment && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowDetailAssignmentModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <User className="w-5 h-5 text-primary-600" />
+                Chi tiết phân công nhân sự
+              </h3>
+              <button
+                onClick={() => {
+                  setShowDetailAssignmentModal(false);
+                  setSelectedAssignment(null);
+                }}
+                className="text-neutral-400 hover:text-neutral-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Talent Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Nhân sự</label>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {talents.find(t => t.id === selectedAssignment.talentId)?.fullName || `Nhân sự #${selectedAssignment.talentId}`}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Đối tác</label>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {partners.find(p => p.id === selectedAssignment.partnerId)?.companyName || `Đối tác #${selectedAssignment.partnerId}`}
+                  </p>
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Ngày bắt đầu</label>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {selectedAssignment.startDate ? formatViDate(selectedAssignment.startDate) : "—"}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Ngày kết thúc</label>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {selectedAssignment.endDate ? formatViDate(selectedAssignment.endDate) : "—"}
+                  </p>
+                </div>
+                {selectedAssignment.terminationDate && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">Ngày chấm dứt</label>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {formatViDate(selectedAssignment.terminationDate)}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Trạng thái</label>
+                <span className={`inline-flex px-3 py-1 rounded-lg text-sm font-medium ${
+                  selectedAssignment.status === "Active" ? "bg-green-100 text-green-800" :
+                  selectedAssignment.status === "Completed" ? "bg-blue-100 text-blue-800" :
+                  selectedAssignment.status === "Terminated" ? "bg-red-100 text-red-800" :
+                  selectedAssignment.status === "Inactive" ? "bg-gray-100 text-gray-800" :
+                  selectedAssignment.status === "Draft" ? "bg-yellow-100 text-yellow-800" :
+                  "bg-neutral-100 text-neutral-800"
+                }`}>
+                  {selectedAssignment.status ? (assignmentStatusLabels[selectedAssignment.status] || "Không xác định") : "—"}
+                </span>
+              </div>
+
+              {/* Commitment File */}
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">File cam kết</label>
+                {selectedAssignment.commitmentFileUrl ? (
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={selectedAssignment.commitmentFileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium transition-colors"
+                      title="Xem file trong tab mới"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Xem file
+                    </a>
+                    <a
+                      href={selectedAssignment.commitmentFileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-100 hover:bg-primary-200 text-primary-700 rounded-lg text-sm font-medium transition-colors"
+                      title="Tải file xuống"
+                    >
+                      <Download className="w-4 h-4" />
+                      Tải xuống
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-sm text-neutral-400">Chưa có file</p>
+                )}
+              </div>
+
+              {/* Termination Reason */}
+              {selectedAssignment.terminationReason && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Lý do chấm dứt</label>
+                  <p className="text-sm text-gray-900 whitespace-pre-wrap">
+                    {selectedAssignment.terminationReason}
+                  </p>
+                </div>
+              )}
+
+              {/* Estimated Rates */}
+              {(selectedAssignment.estimatedClientRate || selectedAssignment.estimatedPartnerRate) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Chi phí ước tính</label>
+                  <div className="space-y-2">
+                    {selectedAssignment.estimatedClientRate && (
+                      <div>
+                        <span className="text-xs text-neutral-500">Khách hàng: </span>
+                        <span className="text-sm font-semibold text-gray-900">
+                          {formatNumberInput(selectedAssignment.estimatedClientRate)} {selectedAssignment.currencyCode || "VND"}
+                        </span>
+                      </div>
+                    )}
+                    {selectedAssignment.estimatedPartnerRate && (
+                      <div>
+                        <span className="text-xs text-neutral-500">Đối tác: </span>
+                        <span className="text-sm font-semibold text-gray-900">
+                          {formatNumberInput(selectedAssignment.estimatedPartnerRate)} {selectedAssignment.currencyCode || "VND"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Ghi chú</label>
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">
+                  {selectedAssignment.notes || "—"}
+                </p>
+              </div>
+
+              {/* Timestamps */}
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-neutral-200">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Ngày tạo</label>
+                  <p className="text-sm text-gray-600">
+                    {selectedAssignment.createdAt ? formatViDateTime(selectedAssignment.createdAt) : "—"}
+                  </p>
+                </div>
+                {selectedAssignment.updatedAt && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">Ngày cập nhật</label>
+                    <p className="text-sm text-gray-600">
+                      {formatViDateTime(selectedAssignment.updatedAt)}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Close Button */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
+                <button
+                  onClick={() => {
+                    setShowDetailAssignmentModal(false);
+                    setSelectedAssignment(null);
+                  }}
+                  className="px-4 py-2 border border-neutral-200 rounded-lg text-neutral-700 hover:bg-neutral-50 transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Company Info Modal */}
       {showCompanyInfo && company && (

@@ -99,7 +99,7 @@ export default function ProjectDetailPage() {
   const [assignmentErrors, setAssignmentErrors] = useState<{ startDate?: string; endDate?: string }>({});
   const [assignmentWarnings, setAssignmentWarnings] = useState<{ startDate?: string }>({});
   const [completedActivityDate, setCompletedActivityDate] = useState<string | null>(null); // Lưu CompletedDate của ApplyActivity
-  const [updateErrors, setUpdateErrors] = useState<{ startDate?: string; endDate?: string }>({});
+  const [updateErrors, setUpdateErrors] = useState<{ startDate?: string; endDate?: string; estimatedClientRate?: string; estimatedPartnerRate?: string }>({});
   const [editLastActivityScheduledDate, setEditLastActivityScheduledDate] = useState<string | null>(null);
   
   // Form state for creating assignment
@@ -698,6 +698,25 @@ export default function ProjectDetailPage() {
           });
           return;
         }
+      }
+    }
+
+    // Validation: Chi phí ước tính với khách hàng phải >= chi phí ước tính với đối tác
+    const effectiveClientRate = updateForm.estimatedClientRate !== undefined 
+      ? updateForm.estimatedClientRate 
+      : selectedAssignment.estimatedClientRate;
+    const effectivePartnerRate = updateForm.estimatedPartnerRate !== undefined 
+      ? updateForm.estimatedPartnerRate 
+      : selectedAssignment.estimatedPartnerRate;
+    
+    if (effectiveClientRate !== null && effectiveClientRate !== undefined && 
+        effectivePartnerRate !== null && effectivePartnerRate !== undefined) {
+      if (effectiveClientRate < effectivePartnerRate) {
+        setUpdateErrors({
+          estimatedClientRate: "Chi phí ước tính với khách hàng đang ít hơn so với đối tác",
+          estimatedPartnerRate: "Chi phí ước tính với đối tác đang nhiều hơn so với khách hàng"
+        });
+        return;
       }
     }
 
@@ -1492,7 +1511,7 @@ export default function ProjectDetailPage() {
                 }`}
               >
                 <FileCheck className="w-4 h-4" />
-                Hợp đồng
+                Chu kỳ thanh toán
                 {project.clientContracts && project.clientContracts.length > 0 && (
                   <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-neutral-200 text-neutral-700">
                     {project.clientContracts.length}
@@ -2460,7 +2479,7 @@ export default function ProjectDetailPage() {
                 {/* Estimated Client Rate */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tỷ giá ước tính khách hàng (Tùy chọn)
+                    Chi phí ước tính với khách hàng (Tùy chọn)
                   </label>
                   <input
                     type="text"
@@ -2473,14 +2492,14 @@ export default function ProjectDetailPage() {
                       });
                     }}
                     className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
-                    placeholder="Nhập tỷ giá (ví dụ: 20.000.000)"
+                    placeholder="Nhập chi phí (ví dụ: 10.000.000)"
                   />
                 </div>
 
                 {/* Estimated Partner Rate */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tỷ giá ước tính đối tác (Tùy chọn)
+                    Chi phí ước tính với đối tác (Tùy chọn)
                   </label>
                   <input
                     type="text"
@@ -2493,7 +2512,7 @@ export default function ProjectDetailPage() {
                       });
                     }}
                     className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
-                    placeholder="Nhập tỷ giá (ví dụ: 20.000.000)"
+                    placeholder="Nhập tỷ giá (ví dụ: 10.000.000)"
                   />
                 </div>
 
@@ -2557,8 +2576,8 @@ export default function ProjectDetailPage() {
 
       {/* Update/Extend Talent Assignment Modal */}
       {showUpdateAssignmentModal && selectedAssignment && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowUpdateAssignmentModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                 <Edit className="w-5 h-5 text-primary-600" />
@@ -2738,7 +2757,7 @@ export default function ProjectDetailPage() {
               {/* Estimated Client Rate - Optional */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tỷ giá ước tính khách hàng (Tùy chọn)
+                  Chi phí ước tính với khách hàng (Tùy chọn)
                 </label>
                 <input
                   type="text"
@@ -2749,16 +2768,32 @@ export default function ProjectDetailPage() {
                       ...updateForm, 
                       estimatedClientRate: parsed > 0 ? parsed : null
                     });
+                    // Clear error when user changes value
+                    if (updateErrors.estimatedClientRate) {
+                      setUpdateErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.estimatedClientRate;
+                        delete newErrors.estimatedPartnerRate;
+                        return newErrors;
+                      });
+                    }
                   }}
-                  className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
-                  placeholder="Nhập tỷ giá (ví dụ: 20.000.000)"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-primary-500 ${
+                    updateErrors.estimatedClientRate 
+                      ? 'border-red-500 focus:border-red-500' 
+                      : 'border-neutral-200 focus:border-primary-500'
+                  }`}
+                  placeholder="Nhập chi phí (ví dụ: 10.000.000)"
                 />
+                {updateErrors.estimatedClientRate && (
+                  <p className="mt-1 text-sm text-red-500">{updateErrors.estimatedClientRate}</p>
+                )}
               </div>
 
               {/* Estimated Partner Rate - Optional */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tỷ giá ước tính đối tác (Tùy chọn)
+                  Chi phí ước tính với đối tác (Tùy chọn)
                 </label>
                 <input
                   type="text"
@@ -2769,10 +2804,26 @@ export default function ProjectDetailPage() {
                       ...updateForm, 
                       estimatedPartnerRate: parsed > 0 ? parsed : null
                     });
+                    // Clear error when user changes value
+                    if (updateErrors.estimatedPartnerRate) {
+                      setUpdateErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.estimatedClientRate;
+                        delete newErrors.estimatedPartnerRate;
+                        return newErrors;
+                      });
+                    }
                   }}
-                  className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
-                  placeholder="Nhập tỷ giá (ví dụ: 20.000.000)"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-primary-500 ${
+                    updateErrors.estimatedPartnerRate 
+                      ? 'border-red-500 focus:border-red-500' 
+                      : 'border-neutral-200 focus:border-primary-500'
+                  }`}
+                  placeholder="Nhập chi phí (ví dụ: 10.000.000)"
                 />
+                {updateErrors.estimatedPartnerRate && (
+                  <p className="mt-1 text-sm text-red-500">{updateErrors.estimatedPartnerRate}</p>
+                )}
               </div>
 
               {/* Currency Code */}
@@ -2849,8 +2900,8 @@ export default function ProjectDetailPage() {
 
       {/* Detail Talent Assignment Modal */}
       {showDetailAssignmentModal && selectedAssignment && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowDetailAssignmentModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                 <User className="w-5 h-5 text-primary-600" />
@@ -2981,11 +3032,11 @@ export default function ProjectDetailPage() {
               {/* Estimated Rates */}
               {(selectedAssignment.estimatedClientRate || selectedAssignment.estimatedPartnerRate) && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Tỷ giá ước tính</label>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Chi phí ước tính</label>
                   <div className="space-y-2">
                     {selectedAssignment.estimatedClientRate && (
                       <div>
-                        <span className="text-xs text-neutral-500">Tỷ giá khách hàng: </span>
+                        <span className="text-xs text-neutral-500">Khách hàng: </span>
                         <span className="text-sm font-semibold text-gray-900">
                           {formatNumberInput(selectedAssignment.estimatedClientRate)} {selectedAssignment.currencyCode || "VND"}
                         </span>
@@ -2993,7 +3044,7 @@ export default function ProjectDetailPage() {
                     )}
                     {selectedAssignment.estimatedPartnerRate && (
                       <div>
-                        <span className="text-xs text-neutral-500">Tỷ giá đối tác: </span>
+                        <span className="text-xs text-neutral-500">Đối tác: </span>
                         <span className="text-sm font-semibold text-gray-900">
                           {formatNumberInput(selectedAssignment.estimatedPartnerRate)} {selectedAssignment.currencyCode || "VND"}
                         </span>
@@ -3145,8 +3196,8 @@ export default function ProjectDetailPage() {
 
       {/* Terminate Talent Assignment Modal */}
       {showTerminateAssignmentModal && selectedAssignment && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowTerminateAssignmentModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                 <X className="w-5 h-5 text-red-600" />
@@ -3261,8 +3312,8 @@ export default function ProjectDetailPage() {
 
       {/* Extend Talent Assignment Modal */}
       {showExtendAssignmentModal && selectedAssignment && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowExtendAssignmentModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                 <CalendarDays className="w-5 h-5 text-primary-600" />

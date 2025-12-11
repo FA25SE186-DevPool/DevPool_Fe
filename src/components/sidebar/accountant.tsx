@@ -28,10 +28,10 @@ export const sidebarItems = [
   //     },
   //   ],
   // },
-  {
-    label: "Danh sách tài liệu",
-    href: "/accountant/documents",
-    icon: FileText,
-  },
+  // {
+  //   label: "Danh sách tài liệu",
+  //   href: "/accountant/documents",
+  //   icon: FileText,
+  // },
 ];
 
