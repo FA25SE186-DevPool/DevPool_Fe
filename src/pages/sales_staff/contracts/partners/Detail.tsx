@@ -67,7 +67,7 @@ const contractStatusConfigMap: Record<
     icon: <FileText className="w-4 h-4" />,
   },
   Verified: {
-    label: "Đã xác minh",
+    label: "Chờ duyệt",
     color: "text-purple-800",
     bgColor: "bg-purple-50 border border-purple-200",
     icon: <CheckCircle className="w-4 h-4" />,

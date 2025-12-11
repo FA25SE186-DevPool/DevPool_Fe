@@ -105,3 +105,8 @@ export { cvTemplateService } from './CVTemplate';
 // Audit Log
 export { auditLogService } from './AuditLog';
 
+// Exchange Rate
+export { exchangeRateService } from './ExchangeRate';
+export type { CurrencyCode, ExchangeRateResponse } from './ExchangeRate';
+export { AVAILABLE_CURRENCIES } from './ExchangeRate';
+

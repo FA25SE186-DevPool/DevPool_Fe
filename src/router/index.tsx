@@ -204,7 +204,7 @@ const ContactInquiryDetailPage = React.lazy(() => import('../pages/sales_staff/c
 
 // Contracts - Sales có thể xem và thao tác client contract, chỉ xem partner contract
 const SalesClientContractDetail = React.lazy(() => import('../pages/sales_staff/contracts/clients/Detail'));
-const SalesPartnerContractDetail = React.lazy(() => import('../pages/sales_staff/contracts/partners/Detail'));
+// const SalesPartnerContractDetail = React.lazy(() => import('../pages/sales_staff/contracts/partners/Detail'));
 
 // ========================================
 // ACCOUNTANT STAFF PAGES - Lazy Loading
@@ -391,7 +391,7 @@ const AppRouter: React.FC = () => {
 
               {/* Contracts */}
               <Route path={ROUTES.SALES_STAFF.CONTRACTS.CLIENT_DETAIL} element={<SalesClientContractDetail />} />
-              <Route path={ROUTES.SALES_STAFF.CONTRACTS.PARTNER_DETAIL} element={<SalesPartnerContractDetail />} />
+              {/* Sales không được phép xem partner contract - route đã bị xóa */}
             </Route>
           </Route>
 

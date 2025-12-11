@@ -32,6 +32,7 @@ import {
   partnerContractPaymentService,
   type PartnerContractPaymentModel,
 } from "../../../../services/PartnerContractPayment";
+import { partnerDocumentService } from "../../../../services/PartnerDocument";
 import { projectPeriodService, type ProjectPeriodModel } from "../../../../services/ProjectPeriod";
 import { talentAssignmentService, type TalentAssignmentModel } from "../../../../services/TalentAssignment";
 import { projectService } from "../../../../services/Project";
@@ -86,13 +87,13 @@ const contractStatusConfigMap: Record<
     icon: <Clock className="w-4 h-4" />,
   },
   Submitted: {
-    label: "Đã gửi",
+    label: "Chờ xác minh",
     color: "text-blue-800",
     bgColor: "bg-blue-50 border border-blue-200",
     icon: <FileCheck className="w-4 h-4" />,
   },
   Verified: {
-    label: "Đã xác minh",
+    label: "Chờ duyệt",
     color: "text-purple-800",
     bgColor: "bg-purple-50 border border-purple-200",
     icon: <CheckCircle className="w-4 h-4" />,
@@ -146,7 +147,17 @@ const paymentStatusConfigMap: Record<
   },
 };
 
-const getContractStatusConfig = (status: string) => {
+const getContractStatusConfig = (status: string, userRole?: string) => {
+  // Nếu là Manager và status là Verified, hiển thị "Chờ duyệt"
+  if (userRole === "Manager" && status === "Verified") {
+    return {
+      label: "Chờ duyệt",
+      color: "text-purple-800",
+      bgColor: "bg-purple-50 border border-purple-200",
+      icon: <Clock className="w-4 h-4" />,
+    };
+  }
+  
   return (
     contractStatusConfigMap[status] ?? {
       label: status,
@@ -226,11 +237,13 @@ export default function ClientContractDetailPage() {
 
         // Fetch corresponding partner contract payment
         try {
-          const partnerPayments = await partnerContractPaymentService.getAll({
+          const data = await partnerContractPaymentService.getAll({
             projectPeriodId: paymentData.projectPeriodId,
             talentAssignmentId: paymentData.talentAssignmentId,
             excludeDeleted: true,
           });
+          // Xử lý format dữ liệu trả về (có thể là array hoặc object có items)
+          const partnerPayments = Array.isArray(data) ? data : ((data as any)?.items || []);
           if (partnerPayments && partnerPayments.length > 0) {
             setPartnerContractPayment(partnerPayments[0]);
           } else {
@@ -345,11 +358,13 @@ export default function ClientContractDetailPage() {
       
       // Refresh partner contract payment
       try {
-        const partnerPayments = await partnerContractPaymentService.getAll({
+        const data = await partnerContractPaymentService.getAll({
           projectPeriodId: paymentData.projectPeriodId,
           talentAssignmentId: paymentData.talentAssignmentId,
           excludeDeleted: true,
         });
+        // Xử lý format dữ liệu trả về (có thể là array hoặc object có items)
+        const partnerPayments = Array.isArray(data) ? data : ((data as any)?.items || []);
         if (partnerPayments && partnerPayments.length > 0) {
           setPartnerContractPayment(partnerPayments[0]);
         } else {
@@ -412,7 +427,109 @@ export default function ClientContractDetailPage() {
     }
     try {
       setIsProcessing(true);
+      
+      // Lưu contract status trước khi reject (không sử dụng nhưng giữ lại để tracking)
+      // const previousStatus = contractPayment.contractStatus;
+      
+      // Reject contract (sẽ quay về Draft)
       await clientContractPaymentService.rejectContract(Number(id), rejectForm);
+      
+      // Khi contract về Draft, xóa tất cả client documents liên quan
+      // Vì những tài liệu bị từ chối thì không còn hiệu lực nữa
+      try {
+        // Lấy tất cả client documents liên quan đến contract này
+        const data = await clientDocumentService.getAll({
+          clientContractPaymentId: Number(id),
+          excludeDeleted: true,
+        });
+        
+        // Xử lý format dữ liệu trả về (có thể là array hoặc object có items)
+        const documents = Array.isArray(data) ? data : (data?.items || []);
+        
+        // Xóa từng document
+        if (documents && documents.length > 0) {
+          for (const doc of documents) {
+            try {
+              await clientDocumentService.delete(doc.id);
+            } catch (docErr) {
+              console.error(`❌ Lỗi khi xóa client document ${doc.id}:`, docErr);
+              // Tiếp tục xóa các document khác dù có lỗi
+            }
+          }
+        }
+      } catch (docErr) {
+        console.error("❌ Lỗi khi xóa client documents:", docErr);
+        // Không throw error để không ảnh hưởng đến việc reject contract
+      }
+      
+      // TH1: Reject Client Contract -> BẮT BUỘC kéo Partner Contract về Draft
+      // Lý do: Nếu SOW/Giá với khách bị sai/bị từ chối -> Hợp đồng với Partner (dựa trên SOW đó) trở nên vô nghĩa
+      if (partnerContractPayment && partnerContractPayment.id) {
+        try {
+          // Refresh partner contract để lấy trạng thái mới nhất (có thể backend đã tự động reject)
+          const updatedPartnerContract = await partnerContractPaymentService.getById(partnerContractPayment.id);
+          
+          // Chỉ reject nếu partner contract chưa ở Draft
+          // Nếu backend đã tự động reject về Draft, thì chỉ cần xóa documents
+          if (updatedPartnerContract.contractStatus !== "Draft") {
+            try {
+              // Reject partner contract với cùng lý do từ chối
+              await partnerContractPaymentService.rejectContract(
+                partnerContractPayment.id,
+                { rejectionReason: rejectForm.rejectionReason }
+              );
+              console.log(`✅ Đã từ chối partner contract ${partnerContractPayment.id} khi từ chối client contract ${id}`);
+            } catch (rejectErr: unknown) {
+              // Nếu lỗi là do contract đã ở Draft (backend đã tự động reject), thì bỏ qua
+              const errorMessage = rejectErr instanceof Error ? rejectErr.message : String(rejectErr);
+              if (errorMessage.includes("Draft") || errorMessage.includes("must be in Verified")) {
+                console.log(`ℹ️ Partner contract ${partnerContractPayment.id} đã được backend tự động reject về Draft`);
+              } else {
+                throw rejectErr; // Ném lại lỗi khác
+              }
+            }
+          } else {
+            console.log(`ℹ️ Partner contract ${partnerContractPayment.id} đã ở trạng thái Draft, không cần reject`);
+          }
+          
+          // Khi partner contract về Draft, xóa tất cả partner documents liên quan
+          // Vì những tài liệu bị từ chối thì không còn hiệu lực nữa
+          try {
+            // Lấy tất cả partner documents liên quan đến partner contract này
+            const data = await partnerDocumentService.getAll({
+              partnerContractPaymentId: partnerContractPayment.id,
+              excludeDeleted: true,
+            });
+            
+            // Xử lý format dữ liệu trả về (có thể là array hoặc object có items)
+            const documents = Array.isArray(data) ? data : (data?.items || []);
+            
+            // Xóa từng document
+            if (documents && documents.length > 0) {
+              for (const doc of documents) {
+                try {
+                  await partnerDocumentService.delete(doc.id);
+                } catch (docErr) {
+                  console.error(`❌ Lỗi khi xóa partner document ${doc.id}:`, docErr);
+                  // Tiếp tục xóa các document khác dù có lỗi
+                }
+              }
+            }
+          } catch (docErr) {
+            console.error("❌ Lỗi khi xóa partner documents:", docErr);
+            // Không throw error để không ảnh hưởng đến việc reject contract
+          }
+        } catch (partnerErr: unknown) {
+          console.error("❌ Lỗi khi xử lý partner contract:", partnerErr);
+          // Không throw error để không ảnh hưởng đến việc reject client contract
+          // Nhưng vẫn hiển thị cảnh báo nếu không phải lỗi do contract đã ở Draft
+          const errorMessage = partnerErr instanceof Error ? partnerErr.message : String(partnerErr);
+          if (!errorMessage.includes("Draft") && !errorMessage.includes("must be in Verified")) {
+            alert("Đã từ chối hợp đồng khách hàng, nhưng có lỗi khi xử lý hợp đồng đối tác tương ứng. Vui lòng kiểm tra lại.");
+          }
+        }
+      }
+      
       alert("Đã từ chối hợp đồng thành công!");
       await refreshContractPayment();
       setShowRejectContractModal(false);
@@ -462,7 +579,7 @@ export default function ClientContractDetailPage() {
     );
   }
 
-  const contractStatusConfig = getContractStatusConfig(contractPayment.contractStatus);
+  const contractStatusConfig = getContractStatusConfig(contractPayment.contractStatus, user?.role);
   const paymentStatusConfig = getPaymentStatusConfig(contractPayment.paymentStatus);
 
   return (
@@ -515,18 +632,10 @@ export default function ClientContractDetailPage() {
               </div>
             </div>
             <div className="flex flex-col items-end gap-3">
-              {/* Warning message if partner contract payment is not Verified or Approved */}
-              {user?.role === "Manager" && 
-               contractPayment.contractStatus === "Verified" && 
-               (!partnerContractPayment || (partnerContractPayment.contractStatus !== "Verified" && partnerContractPayment.contractStatus !== "Approved")) && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>
-                    Không thể duyệt: Hợp đồng đối tác tương ứng chưa được xác minh (Verified) hoặc đã duyệt (Approved)
-                  </span>
-                </div>
-              )}
+              {/* Warning message if partner contract payment is not Approved */}
+              {/* Note: Manager có thể duyệt client contract mà không cần đợi partner contract */}
               {/* Action Buttons for Manager */}
+              {/* Manager có thể duyệt client contract trước, không cần đợi partner contract */}
               {user?.role === "Manager" && contractPayment.contractStatus === "Verified" && (
                 <div className="flex items-center gap-3">
                   <button
@@ -963,7 +1072,7 @@ export default function ClientContractDetailPage() {
                                     </span>
                                   </div>
                                   {doc.description && (
-                                    <p className="text-xs text-gray-600 mt-1">{doc.description}</p>
+                                    <p className="text-xs text-gray-600 mt-1">Mô tả: {doc.description}</p>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">

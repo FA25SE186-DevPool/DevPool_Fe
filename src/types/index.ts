@@ -106,6 +106,9 @@ export * from './cvtemplate.types';
 // Audit Log
 export * from './auditlog.types';
 
+// Exchange Rate
+export * from './exchangerate.types';
+
 // Working Mode (đã chuyển sang constants/)
 export * from '../constants/WORKING_MODE';
 

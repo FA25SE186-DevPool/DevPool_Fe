@@ -915,8 +915,8 @@ export default function AccountantProjectDetailPage() {
   const contractStatusLabels: Record<string, string> = {
     Draft: "Nháp",
     NeedMoreInformation: "Cần thêm thông tin",
-    Submitted: "Đã gửi",
-    Verified: "Đã xác minh",
+    Submitted: "Chờ xác minh",
+    Verified: "Chờ duyệt",
     Approved: "Đã duyệt",
     Rejected: "Từ chối",
   };

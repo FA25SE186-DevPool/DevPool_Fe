@@ -78,7 +78,7 @@ const contractStatusConfigMap: Record<
     icon: <FileText className="w-4 h-4" />,
   },
   Verified: {
-    label: "Đã xác minh",
+    label: "Chờ duyệt",
     color: "text-purple-800",
     bgColor: "bg-purple-50 border border-purple-200",
     icon: <CheckCircle className="w-4 h-4" />,
@@ -116,7 +116,17 @@ const paymentStatusConfigMap: Record<
   },
 };
 
-const getContractStatusConfig = (status: string) => {
+const getContractStatusConfig = (status: string, userRole?: string) => {
+  // Nếu là Manager và status là Verified, hiển thị "Chờ duyệt"
+  if (userRole === "Manager" && status === "Verified") {
+    return {
+      label: "Chờ duyệt",
+      color: "text-purple-800",
+      bgColor: "bg-purple-50 border border-purple-200",
+      icon: <Clock className="w-4 h-4" />,
+    };
+  }
+  
   return (
     contractStatusConfigMap[status] ?? {
       label: status,
@@ -195,11 +205,13 @@ export default function PartnerContractDetailPage() {
 
       // Fetch corresponding client contract payment
       try {
-        const clientPayments = await clientContractPaymentService.getAll({
+        const data = await clientContractPaymentService.getAll({
           projectPeriodId: paymentData.projectPeriodId,
           talentAssignmentId: paymentData.talentAssignmentId,
           excludeDeleted: true,
         });
+        // Xử lý format dữ liệu trả về (có thể là array hoặc object có items)
+        const clientPayments = Array.isArray(data) ? data : ((data as any)?.items || []);
         if (clientPayments && clientPayments.length > 0) {
           setClientContractPayment(clientPayments[0]);
         } else {
@@ -353,7 +365,41 @@ export default function PartnerContractDetailPage() {
 
     try {
       setIsProcessing(true);
+      
+      // Lưu contract status trước khi reject (không sử dụng nhưng giữ lại để tracking)
+      // const previousStatus = contractPayment.contractStatus;
+      
+      // Reject contract (sẽ quay về Draft)
       await partnerContractPaymentService.rejectContract(Number(id), rejectForm);
+      
+      // Khi contract về Draft, xóa tất cả partner documents liên quan
+      // Vì những tài liệu bị từ chối thì không còn hiệu lực nữa
+      try {
+        // Lấy tất cả partner documents liên quan đến contract này
+        const data = await partnerDocumentService.getAll({
+          partnerContractPaymentId: Number(id),
+          excludeDeleted: true,
+        });
+        
+        // Xử lý format dữ liệu trả về (có thể là array hoặc object có items)
+        const documents = Array.isArray(data) ? data : (data?.items || []);
+        
+        // Xóa từng document
+        if (documents && documents.length > 0) {
+          for (const doc of documents) {
+            try {
+              await partnerDocumentService.delete(doc.id);
+            } catch (docErr) {
+              console.error(`❌ Lỗi khi xóa partner document ${doc.id}:`, docErr);
+              // Tiếp tục xóa các document khác dù có lỗi
+            }
+          }
+        }
+      } catch (docErr) {
+        console.error("❌ Lỗi khi xóa partner documents:", docErr);
+        // Không throw error để không ảnh hưởng đến việc reject contract
+      }
+      
       await fetchData();
       setShowRejectContractModal(false);
       setRejectForm({ rejectionReason: "" });
@@ -405,7 +451,7 @@ export default function PartnerContractDetailPage() {
     );
   }
 
-  const contractStatusConfig = getContractStatusConfig(contractPayment.contractStatus);
+  const contractStatusConfig = getContractStatusConfig(contractPayment.contractStatus, user?.role);
   const paymentStatusConfig = getPaymentStatusConfig(contractPayment.paymentStatus);
 
   return (
@@ -452,19 +498,23 @@ export default function PartnerContractDetailPage() {
               </div>
             </div>
             <div className="flex flex-col items-end gap-3">
-              {/* Warning message if client contract payment is not Verified or Approved */}
+              {/* Warning message if client contract payment is not Approved */}
               {user?.role === "Manager" && 
                contractPayment.contractStatus === "Verified" && 
-               (!clientContractPayment || (clientContractPayment.contractStatus !== "Verified" && clientContractPayment.contractStatus !== "Approved")) && (
+               (!clientContractPayment || clientContractPayment.contractStatus !== "Approved") && (
                 <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
                   <AlertCircle className="w-4 h-4" />
                   <span>
-                    Không thể duyệt: Hợp đồng khách hàng tương ứng chưa được xác minh (Verified) hoặc đã duyệt (Approved)
+                    Không thể duyệt: Hợp đồng khách hàng tương ứng chưa được duyệt (Approved)
                   </span>
                 </div>
               )}
               {/* Action Buttons for Manager */}
-              {user?.role === "Manager" && contractPayment.contractStatus === "Verified" && (
+              {/* Chỉ hiển thị nút khi client contract đã được duyệt (Approved) */}
+              {user?.role === "Manager" && 
+               contractPayment.contractStatus === "Verified" && 
+               clientContractPayment && 
+               clientContractPayment.contractStatus === "Approved" && (
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setShowApproveContractModal(true)}
@@ -843,7 +893,7 @@ export default function PartnerContractDetailPage() {
                                     </span>
                                   </div>
                                   {doc.description && (
-                                    <p className="text-xs text-gray-600 mt-1">{doc.description}</p>
+                                    <p className="text-xs text-gray-600 mt-1">Mô tả: {doc.description}</p>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">

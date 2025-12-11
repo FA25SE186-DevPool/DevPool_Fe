@@ -8,7 +8,7 @@ import { clientCompanyService, type ClientCompany } from "../../../services/Clie
 import { projectPeriodService, type ProjectPeriodModel } from "../../../services/ProjectPeriod";
 import { talentAssignmentService, type TalentAssignmentModel, type TalentAssignmentCreateModel, type TalentAssignmentUpdateModel, type TalentAssignmentExtendModel, type TalentAssignmentTerminateModel } from "../../../services/TalentAssignment";
 import { clientContractPaymentService, type ClientContractPaymentModel } from "../../../services/ClientContractPayment";
-import { partnerContractPaymentService, type PartnerContractPaymentModel } from "../../../services/PartnerContractPayment";
+import { partnerContractPaymentService } from "../../../services/PartnerContractPayment";
 import { talentApplicationService, type TalentApplication } from "../../../services/TalentApplication";
 import { applyActivityService, ApplyActivityStatus } from "../../../services/ApplyActivity";
 import { talentService, type Talent } from "../../../services/Talent";
@@ -48,7 +48,8 @@ import {
   User,
   Eye,
   ExternalLink,
-  Hash
+  Hash,
+  DollarSign
 } from "lucide-react";
 
 export default function ProjectDetailPage() {
@@ -76,7 +77,7 @@ export default function ProjectDetailPage() {
 
   // Contract Payments states
   const [clientContractPayments, setClientContractPayments] = useState<ClientContractPaymentModel[]>([]);
-  const [partnerContractPayments, setPartnerContractPayments] = useState<PartnerContractPaymentModel[]>([]);
+  // const [partnerContractPayments, setPartnerContractPayments] = useState<PartnerContractPaymentModel[]>([]); // Không được sử dụng - Sales không được phép xem partner contract
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [talentNamesMap, setTalentNamesMap] = useState<Record<number, string>>({});
 
@@ -1188,45 +1189,36 @@ export default function ProjectDetailPage() {
     const fetchContractPayments = async () => {
       if (!selectedPeriodId || !id) {
         setClientContractPayments([]);
-        setPartnerContractPayments([]);
+        // setPartnerContractPayments([]); // Không được sử dụng
         return;
       }
 
       const selectedPeriod = projectPeriods.find(p => p.id === selectedPeriodId);
       if (!selectedPeriod || selectedPeriod.projectId !== Number(id)) {
         setClientContractPayments([]);
-        setPartnerContractPayments([]);
+        // setPartnerContractPayments([]); // Không được sử dụng
         return;
       }
 
       try {
         setLoadingPayments(true);
-        const [clientPayments, partnerPayments] = await Promise.all([
-          clientContractPaymentService.getAll({ 
-            projectPeriodId: selectedPeriodId, 
-            excludeDeleted: true 
-          }),
-          partnerContractPaymentService.getAll({ 
-            projectPeriodId: selectedPeriodId, 
-            excludeDeleted: true 
-          })
-        ]);
+        // Sales không được phép xem partner contract, chỉ fetch client contract
+        const clientPayments = await clientContractPaymentService.getAll({ 
+          projectPeriodId: selectedPeriodId, 
+          excludeDeleted: true 
+        });
 
         const filteredClientPayments = Array.isArray(clientPayments) 
           ? clientPayments.filter(p => p.projectPeriodId === selectedPeriodId)
           : [];
-        const filteredPartnerPayments = Array.isArray(partnerPayments) 
-          ? partnerPayments.filter(p => p.projectPeriodId === selectedPeriodId)
-          : [];
 
         setClientContractPayments(filteredClientPayments);
-        setPartnerContractPayments(filteredPartnerPayments);
+        // setPartnerContractPayments([]); // Không được sử dụng // Sales không được phép xem partner contract
 
         // Fetch talent names
         const allTalentAssignmentIds = [
           ...new Set([
-            ...filteredClientPayments.map(p => p.talentAssignmentId),
-            ...filteredPartnerPayments.map(p => p.talentAssignmentId)
+            ...filteredClientPayments.map(p => p.talentAssignmentId)
           ])
         ];
 
@@ -1264,7 +1256,7 @@ export default function ProjectDetailPage() {
       } catch (err) {
         console.error("❌ Lỗi tải hợp đồng thanh toán:", err);
         setClientContractPayments([]);
-        setPartnerContractPayments([]);
+        // setPartnerContractPayments([]); // Không được sử dụng
       } finally {
         setLoadingPayments(false);
       }
@@ -1856,9 +1848,9 @@ export default function ProjectDetailPage() {
                             <p className="text-gray-500">Đang tải hợp đồng...</p>
                           </div>
                         ) : (
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Client Contract Payments */}
-                            <div>
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {/* Client Contract Payments - Chiếm 2/3 width */}
+                            <div className="lg:col-span-2">
                               <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                                   <Building2 className="w-5 h-5 text-primary-600" />
@@ -1936,95 +1928,63 @@ export default function ProjectDetailPage() {
                               )}
                             </div>
 
-                            {/* Partner Contract Payments */}
-                            <div>
-                              <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                                  <FileCheck className="w-5 h-5 text-secondary-600" />
-                                  Hợp đồng đối tác
-                                </h3>
-                                <span className="px-3 py-1 bg-secondary-100 text-secondary-700 rounded-full text-sm font-medium">
-                                  {partnerContractPayments.length} hợp đồng
-                                </span>
-                              </div>
-                              {partnerContractPayments.length === 0 ? (
-                                <div className="text-center py-12 bg-neutral-50 rounded-lg border border-neutral-200">
-                                  <FileCheck className="w-8 h-8 text-neutral-400 mx-auto mb-2" />
-                                  <p className="text-sm text-neutral-500">Chưa có hợp đồng đối tác</p>
-                                </div>
-                              ) : (
+                            {/* Thông tin tổng hợp bên phải */}
+                            <div className="lg:col-span-1">
+                              <div className="bg-white border border-neutral-200 rounded-lg p-4 sticky top-4">
+                                <h4 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                  <DollarSign className="w-4 h-4 text-primary-600" />
+                                  Tổng hợp
+                                </h4>
                                 <div className="space-y-4">
-                                  {/* Nhóm theo talentAssignmentId */}
-                                  {Array.from(new Set(partnerContractPayments.map(p => p.talentAssignmentId))).map((talentAssignmentId) => {
-                                    const partnerPaymentsForTalent = partnerContractPayments.filter(p => p.talentAssignmentId === talentAssignmentId);
-                                    return (
-                                      <div key={talentAssignmentId} className="border border-neutral-200 rounded-lg p-4">
-                                        <div className="mb-3 pb-3 border-b border-neutral-200">
-                                          <p className="text-sm font-medium text-neutral-600">
-                                            {talentNamesMap[talentAssignmentId] || `Phân công nhân sự ID: ${talentAssignmentId}`}
-                                          </p>
+                                  <div>
+                                    <p className="text-xs text-neutral-600 mb-1">Tổng số hợp đồng</p>
+                                    <p className="text-lg font-semibold text-gray-900">{clientContractPayments.length}</p>
+                                  </div>
+                                  <div className="pt-3 border-t border-neutral-200">
+                                    <p className="text-xs text-neutral-600 mb-1">Tổng số tiền dự kiến</p>
+                                    <p className="text-lg font-semibold text-primary-600">
+                                      {formatCurrency(
+                                        clientContractPayments.reduce((sum, p) => sum + (p.plannedAmountVND || 0), 0)
+                                      )}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-neutral-600 mb-1">Tổng đã thanh toán</p>
+                                    <p className="text-lg font-semibold text-green-600">
+                                      {formatCurrency(
+                                        clientContractPayments.reduce((sum, p) => sum + (p.totalPaidAmount || 0), 0)
+                                      )}
+                                    </p>
+                                  </div>
+                                  {clientContractPayments.some(p => p.actualAmountVND !== null && p.actualAmountVND !== undefined) && (
+                                    <div className="pt-3 border-t border-neutral-200">
+                                      <p className="text-xs text-neutral-600 mb-1">Tổng số tiền thực tế</p>
+                                      <p className="text-lg font-semibold text-blue-600">
+                                        {formatCurrency(
+                                          clientContractPayments.reduce((sum, p) => sum + (p.actualAmountVND || 0), 0)
+                                        )}
+                                      </p>
+                                    </div>
+                                  )}
+                                  <div className="pt-3 border-t border-neutral-200">
+                                    <p className="text-xs text-neutral-600 mb-2">Trạng thái hợp đồng</p>
+                                    <div className="space-y-1">
+                                      {Object.entries(
+                                        clientContractPayments.reduce((acc, p) => {
+                                          const status = contractStatusLabels[p.contractStatus] || p.contractStatus;
+                                          acc[status] = (acc[status] || 0) + 1;
+                                          return acc;
+                                        }, {} as Record<string, number>)
+                                      ).map(([status, count]) => (
+                                        <div key={status} className="flex items-center justify-between text-xs">
+                                          <span className="text-neutral-600">{status}</span>
+                                          <span className="font-medium text-gray-900">{count}</span>
                                         </div>
-                                        {partnerPaymentsForTalent.map((payment: PartnerContractPaymentModel) => (
-                                          <div 
-                                            key={payment.id} 
-                                            onClick={() => navigate(`/sales/contracts/partners/${payment.id}`)}
-                                            className="mb-4 last:mb-0 border border-neutral-200 rounded-lg p-4 hover:border-secondary-300 hover:shadow-sm transition-all cursor-pointer"
-                                          >
-                                            <div className="flex items-start justify-between mb-3">
-                                              <div className="flex-1">
-                                                <p className="font-semibold text-gray-900 mb-1">{payment.contractNumber}</p>
-                                                <p className="text-sm text-neutral-600">{talentNamesMap[payment.talentAssignmentId] || `Phân công nhân sự ID: ${payment.talentAssignmentId}`}</p>
-                                              </div>
-                                              <div className="flex flex-col items-end gap-2">
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                  payment.contractStatus === 'Approved' 
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : payment.contractStatus === 'Verified'
-                                                    ? 'bg-purple-100 text-purple-800'
-                                                    : 'bg-gray-100 text-gray-800'
-                                                }`}>
-                                                  {contractStatusLabels[payment.contractStatus] || payment.contractStatus}
-                                                </span>
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                  payment.paymentStatus === 'Paid' 
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : payment.paymentStatus === 'Processing'
-                                                    ? 'bg-yellow-100 text-yellow-800'
-                                                    : 'bg-gray-100 text-gray-800'
-                                                }`}>
-                                                  {payment.paymentStatus === 'Paid' ? 'Đã thanh toán' : payment.paymentStatus === 'Processing' ? 'Đang xử lý' : 'Chờ thanh toán'}
-                                                </span>
-                                              </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4 pt-3 border-t border-neutral-100">
-                                              <div>
-                                                <p className="text-xs text-neutral-600 mb-1">
-                                                  {payment.actualAmountVND !== null && payment.actualAmountVND !== undefined ? "Số tiền thực tế" : "Số tiền dự kiến"}
-                                                </p>
-                                                <p className="font-semibold text-gray-900">
-                                                  {formatCurrency(payment.actualAmountVND !== null && payment.actualAmountVND !== undefined ? payment.actualAmountVND : (payment.plannedAmountVND || 0))}
-                                                </p>
-                                              </div>
-                                              <div>
-                                                <p className="text-xs text-neutral-600 mb-1">Đã thanh toán</p>
-                                                <p className="font-semibold text-gray-900">{formatCurrency(payment.totalPaidAmount)}</p>
-                                              </div>
-                                            </div>
-                                            {payment.reportedHours && (
-                                              <div className="mt-3 pt-3 border-t border-neutral-100">
-                                                <div className="flex items-center gap-2 text-sm text-neutral-600">
-                                                  <Clock className="w-4 h-4" />
-                                                  <span>Giờ làm việc: {payment.reportedHours}h</span>
-                                                </div>
-                                              </div>
-                                            )}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    );
-                                  })}
+                                      ))}
+                                    </div>
+                                  </div>
                                 </div>
-                              )}
+                              </div>
                             </div>
                           </div>
                         )}

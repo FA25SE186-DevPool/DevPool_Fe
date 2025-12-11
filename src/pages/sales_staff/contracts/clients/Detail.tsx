@@ -19,6 +19,8 @@ import {
   Loader2,
   Eye,
   Download,
+  RefreshCw,
+  Info,
 } from "lucide-react";
 import Sidebar from "../../../../components/common/Sidebar";
 import { sidebarItems } from "../../../../components/sidebar/sales";
@@ -35,6 +37,7 @@ import { partnerService } from "../../../../services/Partner";
 import { talentService } from "../../../../services/Talent";
 import { clientDocumentService, type ClientDocument, type ClientDocumentCreate } from "../../../../services/ClientDocument";
 import { documentTypeService, type DocumentType } from "../../../../services/DocumentType";
+import { exchangeRateService, AVAILABLE_CURRENCIES, type CurrencyCode } from "../../../../services/ExchangeRate";
 import { uploadFile } from "../../../../utils/firebaseStorage";
 import { formatNumberInput, parseNumberInput } from "../../../../utils/formatters";
 import { useAuth } from "../../../../context/AuthContext";
@@ -84,13 +87,13 @@ const contractStatusConfigMap: Record<
     icon: <Clock className="w-4 h-4" />,
   },
   Submitted: {
-    label: "Đã gửi",
+    label: "Chờ xác minh",
     color: "text-blue-800",
     bgColor: "bg-blue-50 border border-blue-200",
     icon: <FileCheck className="w-4 h-4" />,
   },
   Verified: {
-    label: "Đã xác minh",
+    label: "Chờ duyệt",
     color: "text-purple-800",
     bgColor: "bg-purple-50 border border-purple-200",
     icon: <CheckCircle className="w-4 h-4" />,
@@ -191,7 +194,7 @@ export default function ClientContractDetailPage() {
     currencyCode: "USD",
     exchangeRate: 1,
     calculationMethod: "Percentage",
-    percentageValue: null,
+    percentageValue: 100,
     fixedAmount: null,
     plannedAmountVND: null,
     sowDescription: null,
@@ -204,6 +207,18 @@ export default function ClientContractDetailPage() {
 
   // Loading states
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Exchange rate states
+  const [exchangeRateData, setExchangeRateData] = useState<{
+    transferRate: number | null;
+    buyRate: number | null;
+    sellRate: number | null;
+    date: string | null;
+    source: string | null;
+    note: string | null;
+  } | null>(null);
+  const [loadingExchangeRate, setLoadingExchangeRate] = useState(false);
+  const [exchangeRateError, setExchangeRateError] = useState<string | null>(null);
 
   // Get current user
   const authContext = useAuth();
@@ -318,7 +333,7 @@ export default function ClientContractDetailPage() {
           typesMap.set(type.id, type);
         });
         setDocumentTypes(typesMap);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("❌ Lỗi tải loại tài liệu:", err);
       }
     };
@@ -336,7 +351,7 @@ export default function ClientContractDetailPage() {
         });
         const documents = Array.isArray(data) ? data : (data?.items || []);
         setClientDocuments(documents);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("❌ Lỗi tải tài liệu khách hàng:", err);
       }
     };
@@ -352,6 +367,30 @@ export default function ClientContractDetailPage() {
     } catch (err) {
       console.error("❌ Lỗi refresh hợp đồng:", err);
     }
+  };
+
+  // Helper function to format number without trailing zeros
+  const formatNumberWithoutTrailingZeros = (num: number): string => {
+    // Convert to string and remove trailing zeros after decimal point
+    const str = num.toString();
+    if (str.includes('.')) {
+      return str.replace(/\.?0+$/, '');
+    }
+    return str;
+  };
+
+  // Helper function to format number with Vietnamese locale, removing trailing zeros
+  const formatNumberVi = (num: number): string => {
+    // If it's a whole number, format without decimals
+    if (Number.isInteger(num)) {
+      return num.toLocaleString("vi-VN");
+    }
+    // For decimal numbers, format and remove trailing zeros
+    const formatted = num.toLocaleString("vi-VN", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 10,
+    });
+    return formatted;
   };
 
   // Calculate PlannedAmountVND
@@ -426,29 +465,116 @@ export default function ClientContractDetailPage() {
         notes: submitForm.notes ?? "",
       };
 
-      // Create ClientDocument for SOW
+      // Tìm documentTypeId cho "SOWExcel"
+      const sowExcelType = Array.from(documentTypes.values()).find(
+        (type) => type.typeName === "SOWExcel" || type.typeName === "SOW Excel"
+      );
+      
+      if (!sowExcelType) {
+        alert("Không tìm thấy loại tài liệu SOWExcel. Vui lòng liên hệ quản trị viên.");
+        return;
+      }
+
+      // Xóa các document SOWExcel cũ trước khi tạo mới để tránh duplicate
+      try {
+        const existingDocs = await clientDocumentService.getAll({
+          clientContractPaymentId: Number(id),
+          excludeDeleted: true,
+        });
+        const existingDocsArray = Array.isArray(existingDocs) ? existingDocs : (existingDocs?.items || []);
+        const oldSowExcelDocs = existingDocsArray.filter(
+          (doc: ClientDocument) => doc.documentTypeId === sowExcelType.id
+        );
+        
+        // Xóa các document SOWExcel cũ
+        for (const oldDoc of oldSowExcelDocs) {
+          try {
+            await clientDocumentService.delete(oldDoc.id);
+          } catch (deleteErr) {
+            console.error(`❌ Lỗi khi xóa document SOWExcel cũ ${oldDoc.id}:`, deleteErr);
+            // Tiếp tục dù có lỗi
+          }
+        }
+      } catch (err) {
+        console.error("❌ Lỗi khi kiểm tra/xóa document SOWExcel cũ:", err);
+        // Tiếp tục tạo document mới dù có lỗi
+      }
+
+      // Create ClientDocument for SOWExcel
       const documentPayload: ClientDocumentCreate = {
         clientContractPaymentId: Number(id),
-        documentTypeId: 1, // Assuming 1 is for "SOW" type
+        documentTypeId: sowExcelType.id,
         fileName: sowExcelFile.name,
         filePath: fileUrl,
         uploadedByUserId: userId,
-        description: "Statement of Work (SOW)",
+        description: submitForm.sowDescription || "SOW Excel file submitted with contract",
         source: "Sales",
       };
       await clientDocumentService.create(documentPayload);
 
       // Submit contract
       await clientContractPaymentService.submitContract(Number(id), submitPayload);
+      
+      // Sau khi submit, backend có thể tự động tạo document từ sowExcelFileUrl
+      // Cần xóa các document SOWExcel không phải tên file gốc (chỉ giữ file đầu tiên với tên gốc)
+      try {
+        // Đợi một chút để backend xử lý xong
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Lấy lại danh sách documents sau khi submit
+        const updatedDocs = await clientDocumentService.getAll({
+          clientContractPaymentId: Number(id),
+          excludeDeleted: true,
+        });
+        const updatedDocsArray = Array.isArray(updatedDocs) ? updatedDocs : (updatedDocs?.items || []);
+        const sowExcelDocs = updatedDocsArray.filter(
+          (doc: ClientDocument) => doc.documentTypeId === sowExcelType.id
+        );
+        
+        // Tìm document có tên file gốc (tên file user upload)
+        const originalFileName = sowExcelFile.name;
+        const originalDoc = sowExcelDocs.find(
+          (doc: ClientDocument) => doc.fileName === originalFileName
+        );
+        
+        // Xóa các document SOWExcel không phải tên file gốc (file được backend tự động tạo)
+        for (const doc of sowExcelDocs) {
+          // Giữ lại document có tên file gốc, xóa các document khác
+          if (doc.id !== originalDoc?.id) {
+            try {
+              await clientDocumentService.delete(doc.id);
+            } catch (deleteErr) {
+              console.error(`❌ Lỗi khi xóa document SOWExcel ${doc.id}:`, deleteErr);
+            }
+          }
+        }
+      } catch (cleanupErr) {
+        console.error("❌ Lỗi khi dọn dẹp documents sau submit:", cleanupErr);
+        // Không throw error để không ảnh hưởng đến flow chính
+      }
+      
       alert("Gửi hợp đồng thành công!");
       await refreshContractPayment();
+      
+      // Reload documents để hiển thị đúng
+      try {
+        const data = await clientDocumentService.getAll({
+          clientContractPaymentId: Number(id),
+          excludeDeleted: true,
+        });
+        const documents = Array.isArray(data) ? data : (data?.items || []);
+        setClientDocuments(documents);
+      } catch (err) {
+        console.error("❌ Lỗi reload documents:", err);
+      }
+      
       setShowSubmitContractModal(false);
       setSubmitForm({
         unitPriceForeignCurrency: 0,
         currencyCode: "USD",
         exchangeRate: 1,
         calculationMethod: "Percentage",
-        percentageValue: null,
+        percentageValue: 100,
         fixedAmount: null,
         plannedAmountVND: null,
         sowDescription: null,
@@ -456,6 +582,10 @@ export default function ClientContractDetailPage() {
         notes: null,
       });
       setSowExcelFile(null);
+      setExchangeRateData(null);
+      setExchangeRateError(null);
+      setExchangeRateData(null);
+      setExchangeRateError(null);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Lỗi khi gửi hợp đồng");
     } finally {
@@ -555,7 +685,10 @@ export default function ClientContractDetailPage() {
             </div>
             <div className="flex items-center gap-3">
               {/* Action Buttons for Sales */}
-              {user?.role === "Staff Sales" && contractPayment.contractStatus === "NeedMoreInformation" && (
+              {/* Cho phép gửi hợp đồng khi ở trạng thái Draft hoặc NeedMoreInformation */}
+              {user?.role === "Staff Sales" && 
+               contractPayment && 
+               (contractPayment.contractStatus === "Draft" || contractPayment.contractStatus === "NeedMoreInformation") && (
                 <button
                   onClick={() => {
                     // Pre-fill form with contract payment data
@@ -565,8 +698,8 @@ export default function ClientContractDetailPage() {
                       currencyCode: contractPayment.currencyCode || "USD",
                       exchangeRate: contractPayment.exchangeRate || 1,
                       calculationMethod: method,
-                      percentageValue: method === "Percentage" ? (contractPayment.percentageValue ?? null) : 0,
-                      fixedAmount: method === "FixedAmount" ? (contractPayment.fixedAmount ?? contractPayment.unitPriceForeignCurrency ?? null) : 0,
+                      percentageValue: method === "Percentage" ? (contractPayment.percentageValue ?? 100) : null,
+                      fixedAmount: method === "FixedAmount" ? (contractPayment.fixedAmount ?? contractPayment.unitPriceForeignCurrency ?? null) : null,
                       plannedAmountVND: contractPayment.plannedAmountVND ?? null,
                       sowDescription: contractPayment.sowDescription ?? null,
                       standardHours: contractPayment.standardHours || 160,
@@ -998,7 +1131,7 @@ export default function ClientContractDetailPage() {
                                     </span>
                                   </div>
                                   {doc.description && (
-                                    <p className="text-xs text-gray-600 mt-1">{doc.description}</p>
+                                    <p className="text-xs text-gray-600 mt-1">Mô tả: {doc.description}</p>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -1050,8 +1183,15 @@ export default function ClientContractDetailPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Gửi hợp đồng</h3>
-              <button onClick={() => setShowSubmitContractModal(false)} className="text-gray-400 hover:text-gray-600">
+              <h3 className="text-lg font-semibold">Ghi nhận thông tin</h3>
+              <button 
+                onClick={() => {
+                  setShowSubmitContractModal(false);
+                  setExchangeRateData(null);
+                  setExchangeRateError(null);
+                }} 
+                className="text-gray-400 hover:text-gray-600"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1103,25 +1243,127 @@ export default function ClientContractDetailPage() {
                   <label className="block text-sm font-medium mb-2">Mã tiền tệ</label>
                   <select
                     value={submitForm.currencyCode}
-                    onChange={(e) => setSubmitForm({ ...submitForm, currencyCode: e.target.value })}
+                    onChange={(e) => {
+                      setSubmitForm({ ...submitForm, currencyCode: e.target.value });
+                      // Reset exchange rate data khi đổi currency
+                      setExchangeRateData(null);
+                      setExchangeRateError(null);
+                    }}
                     className="w-full border rounded-lg p-2"
                   >
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
                     <option value="VND">VND</option>
+                    {AVAILABLE_CURRENCIES.map((currency) => (
+                      <option key={currency} value={currency}>
+                        {currency}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Tỷ giá <span className="text-red-500">*</span></label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium">
+                      Tỷ giá <span className="text-red-500">*</span>
+                    </label>
+                    {submitForm.currencyCode !== "VND" && AVAILABLE_CURRENCIES.includes(submitForm.currencyCode as CurrencyCode) && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!submitForm.currencyCode || submitForm.currencyCode === "VND") return;
+                          
+                          try {
+                            setLoadingExchangeRate(true);
+                            setExchangeRateError(null);
+                            const response = await exchangeRateService.getVietcombankRate(submitForm.currencyCode as CurrencyCode);
+                            
+                            if (response.success && response.data) {
+                              setExchangeRateData({
+                                transferRate: response.data.transferRate,
+                                buyRate: response.data.buyRate,
+                                sellRate: response.data.sellRate,
+                                date: response.data.date,
+                                source: response.data.source,
+                                note: response.data.note,
+                              });
+                            } else {
+                              setExchangeRateError(response.message || "Không thể lấy tỷ giá");
+                            }
+                          } catch (err: unknown) {
+                            console.error("❌ Lỗi khi lấy tỷ giá:", err);
+                            const errorMessage = err instanceof Error ? err.message : "Không thể lấy tỷ giá từ Vietcombank";
+                            setExchangeRateError(errorMessage);
+                            setExchangeRateData(null);
+                          } finally {
+                            setLoadingExchangeRate(false);
+                          }
+                        }}
+                        disabled={loadingExchangeRate || submitForm.currencyCode === "VND"}
+                        className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 rounded border border-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loadingExchangeRate ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Đang tải...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-3 h-3" />
+                            Lấy tỷ giá VCB
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
                   <input
-                    type="number"
-                    step="0.0001"
-                    min="0"
-                    value={submitForm.exchangeRate}
-                    onChange={(e) => setSubmitForm({ ...submitForm, exchangeRate: parseFloat(e.target.value) || 0 })}
+                    type="text"
+                    inputMode="numeric"
+                    value={formatNumberInput(submitForm.exchangeRate)}
+                    onChange={(e) => {
+                      const value = parseNumberInput(e.target.value);
+                      setSubmitForm({ ...submitForm, exchangeRate: value || 0 });
+                    }}
+                    onBlur={(e) => {
+                      // Format lại khi blur
+                      const value = parseNumberInput(e.target.value);
+                      if (value !== submitForm.exchangeRate) {
+                        setSubmitForm({ ...submitForm, exchangeRate: value || 0 });
+                      }
+                    }}
+                    maxLength={20}
                     className="w-full border rounded-lg p-2"
+                    placeholder="Ví dụ: 30.000.000"
                     required
                   />
+                  {exchangeRateData && (
+                    <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 text-xs text-blue-800">
+                          <p className="font-medium mb-1">Tỷ giá từ Vietcombank:</p>
+                          <p className="mb-1">
+                            <span className="font-semibold">Tỷ giá chuyển khoản: {exchangeRateData.transferRate?.toLocaleString("vi-VN")}</span>
+                          </p>
+                          <p className="mb-1 text-blue-700">
+                            Mua: {exchangeRateData.buyRate?.toLocaleString("vi-VN")} | Bán: {exchangeRateData.sellRate?.toLocaleString("vi-VN")}
+                          </p>
+                          {exchangeRateData.date && (
+                            <p className="text-blue-600 text-xs mt-1">
+                              Cập nhật: {new Date(exchangeRateData.date).toLocaleString("vi-VN")}
+                            </p>
+                          )}
+                          {exchangeRateData.note && (
+                            <p className="text-amber-700 text-xs mt-1 font-medium">
+                              ⚠️ {exchangeRateData.note}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {exchangeRateError && (
+                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-xs text-red-700">{exchangeRateError}</p>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Phương pháp tính</label>
@@ -1133,8 +1375,8 @@ export default function ClientContractDetailPage() {
                         setSubmitForm({ 
                           ...submitForm, 
                           calculationMethod: newMethod, 
+                          percentageValue: 100,
                           fixedAmount: 0,
-                          unitPriceForeignCurrency: submitForm.unitPriceForeignCurrency || 0
                         });
                       } else if (newMethod === "FixedAmount") {
                         setSubmitForm({ 
@@ -1161,8 +1403,8 @@ export default function ClientContractDetailPage() {
                       type="number"
                       step="0.01"
                       min="0"
-                      value={submitForm.percentageValue || ""}
-                      onChange={(e) => setSubmitForm({ ...submitForm, percentageValue: parseFloat(e.target.value) || null, fixedAmount: 0 })}
+                      value={submitForm.percentageValue || 100}
+                      onChange={(e) => setSubmitForm({ ...submitForm, percentageValue: parseFloat(e.target.value) || 100, fixedAmount: 0 })}
                       className="w-full border rounded-lg p-2"
                       placeholder="Ví dụ: 100 (full month), 120 (overtime)"
                       required
@@ -1264,26 +1506,26 @@ export default function ClientContractDetailPage() {
               {/* Hiển thị tính toán PlannedAmountVND */}
               {submitForm.calculationMethod === "Percentage" && submitForm.unitPriceForeignCurrency && submitForm.exchangeRate && submitForm.percentageValue && (
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm font-semibold text-blue-900 mb-2">Tính toán PlannedAmountVND:</p>
+                  <p className="text-sm font-semibold text-blue-900 mb-2">Tính toán chi phí dự kiến:</p>
                   <p className="text-sm text-blue-800">
-                    PlannedAmountVND = {submitForm.unitPriceForeignCurrency.toLocaleString("vi-VN")} × {submitForm.exchangeRate.toLocaleString("vi-VN")} × ({submitForm.percentageValue} / 100)
+                    Chi phí dự kiến = {formatNumberVi(submitForm.unitPriceForeignCurrency)} × {formatNumberVi(submitForm.exchangeRate)} × ({submitForm.percentageValue} / 100)
                   </p>
                   <p className="text-sm text-blue-800">
-                    = {(submitForm.unitPriceForeignCurrency * submitForm.exchangeRate).toLocaleString("vi-VN")} × {(submitForm.percentageValue / 100).toFixed(2)}
+                    = {formatNumberVi(submitForm.unitPriceForeignCurrency * submitForm.exchangeRate)} × {formatNumberWithoutTrailingZeros(submitForm.percentageValue / 100)}
                   </p>
                   <p className="text-sm font-bold text-blue-900 mt-1">
-                    = {calculatePlannedAmountVND()?.toLocaleString("vi-VN")} VND
+                    = {calculatePlannedAmountVND() ? formatNumberVi(calculatePlannedAmountVND()!) : "0"} VND
                   </p>
                 </div>
               )}
               {submitForm.calculationMethod === "FixedAmount" && submitForm.fixedAmount && submitForm.exchangeRate && (
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-sm font-semibold text-green-900 mb-2">Tính toán PlannedAmountVND:</p>
+                  <p className="text-sm font-semibold text-green-900 mb-2">Tính toán chi phí dự kiến:</p>
                   <p className="text-sm text-green-800">
-                    PlannedAmountVND = {submitForm.fixedAmount.toLocaleString("vi-VN")} × {submitForm.exchangeRate.toLocaleString("vi-VN")}
+                    Chi phí dự kiến = {formatNumberVi(submitForm.fixedAmount)} × {formatNumberVi(submitForm.exchangeRate)}
                   </p>
                   <p className="text-sm font-bold text-green-900 mt-1">
-                    = {calculatePlannedAmountVND()?.toLocaleString("vi-VN")} VND
+                    = {calculatePlannedAmountVND() ? formatNumberVi(calculatePlannedAmountVND()!) : "0"} VND
                   </p>
                   <p className="text-xs text-green-700 mt-2 italic">
                     Lưu ý: Số tiền cố định không phụ thuộc vào số giờ làm việc
@@ -1300,7 +1542,7 @@ export default function ClientContractDetailPage() {
                     currencyCode: "USD",
                     exchangeRate: 1,
                     calculationMethod: "Percentage",
-                    percentageValue: null,
+                    percentageValue: 100,
                     fixedAmount: null,
                     plannedAmountVND: null,
                     sowDescription: null,
@@ -1308,6 +1550,8 @@ export default function ClientContractDetailPage() {
                     notes: null,
                   });
                   setSowExcelFile(null);
+                  setExchangeRateData(null);
+                  setExchangeRateError(null);
                 }}
                 className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
               >
@@ -1327,7 +1571,7 @@ export default function ClientContractDetailPage() {
                 }
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Gửi hợp đồng"}
+                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ghi nhận"}
               </button>
             </div>
           </div>
