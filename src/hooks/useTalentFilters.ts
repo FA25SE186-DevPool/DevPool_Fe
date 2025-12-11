@@ -2,10 +2,11 @@ import { useState, useMemo } from 'react';
 import { type Talent } from '../services/Talent';
 
 interface TalentFilters {
-  searchTerm: string;
+  searchTerm: string; // Tìm kiếm theo email, mã nhân sự, và tên
   location: string;
   status: string;
   workingMode: string;
+  partnerId: string; // Đối tác
 }
 
 interface UseTalentFiltersReturn {
@@ -14,6 +15,7 @@ interface UseTalentFiltersReturn {
   setLocation: (value: string) => void;
   setStatus: (value: string) => void;
   setWorkingMode: (value: string) => void;
+  setPartnerId: (value: string) => void;
   resetFilters: () => void;
   filteredTalents: Talent[];
   applyFilters: (talents: Talent[]) => Talent[];
@@ -28,6 +30,7 @@ export function useTalentFilters(talents: Talent[]): UseTalentFiltersReturn {
     location: '',
     status: '',
     workingMode: '',
+    partnerId: '',
   });
 
   const setSearchTerm = (value: string) => {
@@ -46,27 +49,40 @@ export function useTalentFilters(talents: Talent[]): UseTalentFiltersReturn {
     setFilters(prev => ({ ...prev, workingMode: value }));
   };
 
+  const setPartnerId = (value: string) => {
+    setFilters(prev => ({ ...prev, partnerId: value }));
+  };
+
   const resetFilters = () => {
     setFilters({
       searchTerm: '',
       location: '',
       status: '',
       workingMode: '',
+      partnerId: '',
     });
   };
 
   const applyFilters = useMemo(() => {
     return (talentsToFilter: Talent[]): Talent[] => {
       return talentsToFilter.filter(talent => {
-        // Search term filter (name, email, phone)
+        // Search term filter - tìm kiếm theo email, mã nhân sự, và tên
         if (filters.searchTerm) {
           const searchLower = filters.searchTerm.toLowerCase();
-          const matchesSearch = 
-            talent.fullName?.toLowerCase().includes(searchLower) ||
-            talent.email?.toLowerCase().includes(searchLower) ||
-            talent.phone?.toLowerCase().includes(searchLower) ||
-            talent.code?.toLowerCase().includes(searchLower);
-          if (!matchesSearch) return false;
+          const matchesEmail = talent.email?.toLowerCase().includes(searchLower);
+          const matchesCode = talent.code?.toLowerCase().includes(searchLower);
+          const matchesFullName = talent.fullName?.toLowerCase().includes(searchLower);
+          
+          if (!matchesEmail && !matchesCode && !matchesFullName) {
+            return false;
+          }
+        }
+
+        // Partner filter (đối tác)
+        if (filters.partnerId) {
+          if (talent.currentPartnerId?.toString() !== filters.partnerId) {
+            return false;
+          }
         }
 
         // Location filter
@@ -106,6 +122,7 @@ export function useTalentFilters(talents: Talent[]): UseTalentFiltersReturn {
     setLocation,
     setStatus,
     setWorkingMode,
+    setPartnerId,
     resetFilters,
     filteredTalents,
     applyFilters,

@@ -9,4 +9,3 @@ export const API_BASE_URL =
 // Google Vision API Key
 export const GOOGLE_VISION_API_KEY =
   import.meta.env.VITE_GOOGLE_VISION_API_KEY || 'AIzaSyBIx866qiL5uh4ZgFPqn7tsP66us5UVAMg';
-

@@ -113,6 +113,47 @@ export function TalentDetailCertificatesSection({
 
   return (
     <div className="space-y-6">
+      {/* CV Analysis Suggestions */}
+      {(certificatesRecognized.length > 0 || certificatesUnmatched.length > 0) && (
+        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50/80 p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-rose-900 uppercase tracking-wide">Đề xuất chứng chỉ</h3>
+            <span className="text-xs text-rose-700">
+              {certificatesRecognized.length} đề xuất thêm · {certificatesUnmatched.length} cần tạo mới
+            </span>
+          </div>
+          {(certificatesRecognized.length > 0 || certificatesUnmatched.length > 0) && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 space-y-3">
+              {certificatesRecognized.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-amber-800 mb-1.5">Cần tạo loại chứng chỉ theo tên các chứng chỉ ({certificatesRecognized.length})</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {certificatesRecognized.map(({ suggestion, system }, index) => (
+                      <span key={`certificate-recognized-${index}`} className="inline-flex items-center px-2.5 py-1 bg-white border border-amber-200 rounded-lg text-xs text-amber-900">
+                        {system.name}
+                        {suggestion.issuedDate && <span className="ml-1.5 text-amber-600">· {suggestion.issuedDate}</span>}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {certificatesUnmatched.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-amber-800 mb-1.5">Thiếu trong hồ sơ (chưa có trong hệ thống) ({certificatesUnmatched.length})</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {certificatesUnmatched.map((suggestion, index) => (
+                      <span key={`certificate-unmatched-${index}`} className="inline-flex items-center px-2.5 py-1 bg-white border border-amber-200 rounded-lg text-xs text-amber-900">
+                        {suggestion.certificateName}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Inline Certificate Form */}
       {showInlineForm && (
         <div className="bg-white rounded-xl border-2 border-primary-200 p-6 mb-6 shadow-lg">
@@ -427,50 +468,6 @@ export function TalentDetailCertificatesSection({
               </Button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* CV Analysis Suggestions */}
-      {(certificatesRecognized.length > 0 || certificatesUnmatched.length > 0) && (
-        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50/80 p-4 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-rose-900 uppercase tracking-wide">Đề xuất chứng chỉ</h3>
-            <span className="text-xs text-rose-700">
-              {certificatesRecognized.length} đề xuất thêm · {certificatesUnmatched.length} cần tạo mới
-            </span>
-          </div>
-          {(certificatesRecognized.length > 0 || certificatesUnmatched.length > 0) && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 space-y-3">
-              {certificatesRecognized.length > 0 && (
-                <div className="space-y-2">
-                  <p className="font-semibold text-amber-900">Thiếu trong hồ sơ (đã có trong hệ thống):</p>
-                  <ul className="space-y-2">
-                    {certificatesRecognized.map(({ suggestion }, index) => (
-                      <li
-                        key={`certificate-recognized-${index}`}
-                        className="flex flex-col rounded-lg border border-amber-200 bg-white px-3 py-2 text-amber-900 shadow-sm"
-                      >
-                        <span className="font-semibold text-sm">{suggestion.certificateName}</span>
-                        <p className="text-xs text-amber-600 mt-1">
-                          Gợi ý CV: Ngày cấp {suggestion.issuedDate ?? 'Chưa rõ'}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {certificatesUnmatched.length > 0 && (
-                <div className="rounded-xl border border-dashed border-amber-300 bg-white p-3 text-xs text-amber-700">
-                  <p className="font-semibold text-amber-900">Thiếu trong hồ sơ (chưa có trong hệ thống):</p>
-                  <ul className="mt-2 space-y-1">
-                    {certificatesUnmatched.map((suggestion, index) => (
-                      <li key={`certificate-unmatched-${index}`}>- {suggestion.certificateName}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
 

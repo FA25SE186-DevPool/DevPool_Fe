@@ -1,9 +1,12 @@
 
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
 interface Stat {
   title: string;
   value: string;
   color: 'blue' | 'green' | 'orange' | 'purple' | 'gray';
   icon: React.ReactNode;
+  status?: string; // Status để filter (Available, Busy, Working, hoặc undefined để reset)
 }
 
 interface TalentStatsProps {
@@ -12,12 +15,13 @@ interface TalentStatsProps {
   pageSize: number;
   onPrev: () => void;
   onNext: () => void;
+  onStatClick?: (status: string | undefined) => void;
 }
 
 /**
  * Component hiển thị thống kê talents
  */
-export function TalentStats({ stats, startIndex, pageSize, onPrev, onNext }: TalentStatsProps) {
+export function TalentStats({ stats, startIndex, pageSize, onPrev, onNext, onStatClick }: TalentStatsProps) {
   const statsSlice = stats.slice(startIndex, Math.min(startIndex + pageSize, stats.length));
   const canShowNav = stats.length > pageSize;
   const canGoPrev = canShowNav && startIndex > 0;
@@ -45,7 +49,14 @@ export function TalentStats({ stats, startIndex, pageSize, onPrev, onNext }: Tal
           {statsSlice.map((stat, index) => (
             <div
               key={`${stat.title}-${startIndex + index}`}
-              className="group bg-white rounded-2xl shadow-soft hover:shadow-medium p-6 transition-all duration-300 transform hover:-translate-y-1 border border-neutral-100 hover:border-primary-200"
+              onClick={() => {
+                if (onStatClick) {
+                  onStatClick(stat.status);
+                }
+              }}
+              className={`group bg-white rounded-2xl shadow-soft hover:shadow-medium p-6 transition-all duration-300 transform hover:-translate-y-1 border border-neutral-100 hover:border-primary-200 ${
+                onStatClick ? 'cursor-pointer' : ''
+              }`}
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -76,9 +87,7 @@ export function TalentStats({ stats, startIndex, pageSize, onPrev, onNext }: Tal
               }`}
               aria-label="Xem thống kê phía trước"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               type="button"
@@ -91,9 +100,7 @@ export function TalentStats({ stats, startIndex, pageSize, onPrev, onNext }: Tal
               }`}
               aria-label="Xem thống kê tiếp theo"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              <ChevronRight className="w-4 h-4" />
             </button>
           </>
         )}
@@ -105,7 +112,12 @@ export function TalentStats({ stats, startIndex, pageSize, onPrev, onNext }: Tal
               type="button"
               onClick={onPrev}
               disabled={!canGoPrev}
-              className={canGoPrev ? 'text-primary-600 hover:text-primary-700' : 'text-neutral-300 cursor-not-allowed'}
+              className={`rounded-full border px-3 py-1 transition-all duration-300 ${
+                canGoPrev
+                  ? 'bg-white border-neutral-200 text-neutral-600 hover:text-primary-600 hover:border-primary-300'
+                  : 'bg-neutral-100 border-neutral-200 text-neutral-300 cursor-not-allowed'
+              }`}
+              aria-label="Xem thống kê phía trước"
             >
               Trước
             </button>
@@ -116,9 +128,14 @@ export function TalentStats({ stats, startIndex, pageSize, onPrev, onNext }: Tal
               type="button"
               onClick={onNext}
               disabled={!canGoNext}
-              className={canGoNext ? 'text-primary-600 hover:text-primary-700' : 'text-neutral-300 cursor-not-allowed'}
+              className={`rounded-full border px-3 py-1 transition-all duration-300 ${
+                canGoNext
+                  ? 'bg-white border-neutral-200 text-neutral-600 hover:text-primary-600 hover:border-primary-300'
+                  : 'bg-neutral-100 border-neutral-200 text-neutral-300 cursor-not-allowed'
+              }`}
+              aria-label="Xem thống kê tiếp theo"
             >
-              Sau
+              Tiếp
             </button>
           </div>
         </div>

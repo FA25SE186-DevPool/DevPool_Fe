@@ -54,12 +54,13 @@ export default function ForgotPasswordForm() {
     }
   }, [step, otp, newPassword, confirmPassword]);
 
-  // Reset flag when step changes to email
+  // Reset flag when step changes to email or when success
   useEffect(() => {
-    if (step === 'email') {
+    if (step === 'email' || isSuccess) {
       hasFormDataRef.current = false;
+      isNavigatingRef.current = false;
     }
-  }, [step]);
+  }, [step, isSuccess]);
 
   // Handle browser navigation warning (close tab, back button, etc.)
   useEffect(() => {
@@ -81,6 +82,11 @@ export default function ForgotPasswordForm() {
   const prevLocationRef = useRef(location.pathname);
   
   useEffect(() => {
+    // Không intercept navigation khi đã thành công
+    if (isSuccess) {
+      return;
+    }
+    
     if (step === 'reset' && hasFormDataRef.current && !isSuccess) {
       // Check if location changed (navigation occurred)
       if (location.pathname !== prevLocationRef.current && location.pathname !== '/forgot-password') {
@@ -105,6 +111,14 @@ export default function ForgotPasswordForm() {
 
   // Intercept React Router navigation and other link clicks when in step 2
   useEffect(() => {
+    // Không intercept navigation khi đã thành công
+    if (isSuccess) {
+      // Reset flags và cleanup khi thành công
+      hasFormDataRef.current = false;
+      isNavigatingRef.current = false;
+      return;
+    }
+    
     if (step === 'reset' && hasFormDataRef.current && !isSuccess) {
       const handleClick = (e: MouseEvent) => {
         if (isNavigatingRef.current) {
@@ -343,7 +357,14 @@ export default function ForgotPasswordForm() {
       });
       setIsSuccess(true);
       setSuccess('Đặt lại mật khẩu thành công! Đang chuyển đến trang đăng nhập...');
+      
+      // Reset flags để không còn cảnh báo khi navigate
+      hasFormDataRef.current = false;
+      isNavigatingRef.current = true;
+      
       setTimeout(() => {
+        // Cho phép navigation tự do sau khi thành công
+        isNavigatingRef.current = true;
         navigate('/login');
       }, 2000);
     } catch (error: any) {
@@ -471,7 +492,7 @@ export default function ForgotPasswordForm() {
                       ? 'border-error-300 focus:border-error-500 focus:ring-error-500/20' 
                       : 'border-neutral-300 focus:border-primary-500 hover:border-neutral-400'
                   }`}
-                  placeholder="Nhập email của bạn (ví dụ: example@email.com)"
+                  placeholder="Nhập email của bạn"
                   required
                   disabled={isLoading}
                 />

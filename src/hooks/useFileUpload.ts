@@ -52,7 +52,8 @@ export function useFileUpload() {
       );
 
       if (!confirmed) {
-        return null;
+        // User đã cancel, không throw error
+        return 'CANCELLED' as any;
       }
 
       setUploadingCVIndex(cvIndex);
@@ -75,7 +76,9 @@ export function useFileUpload() {
           onSuccess(downloadURL);
         }
 
-        alert('✅ Upload CV thành công!');
+        // Không hiển thị alert khi upload tự động trong form submit
+        // Alert sẽ được hiển thị ở nơi gọi hàm này nếu cần
+        // alert('✅ Upload CV thành công!');
         return downloadURL;
       } catch (err: any) {
         console.error('❌ Error uploading CV:', err);
@@ -93,24 +96,35 @@ export function useFileUpload() {
   /**
    * Handle certificate image file selection
    */
-  const handleFileChangeCertificate = useCallback((certIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChangeCertificate = useCallback((certIndex: number, e: React.ChangeEvent<HTMLInputElement> | { target: { files: null; value: string } }) => {
     const file = e.target.files?.[0];
     if (file) {
       // Validate file type (images only)
       if (!file.type.startsWith('image/')) {
         alert('⚠️ Vui lòng chọn file ảnh (jpg, png, gif, etc.)');
-        e.target.value = '';
+        if ('value' in e.target) {
+          e.target.value = '';
+        }
         return;
       }
 
       // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
         alert('⚠️ Kích thước file không được vượt quá 10MB');
-        e.target.value = '';
+        if ('value' in e.target) {
+          e.target.value = '';
+        }
         return;
       }
 
       setCertificateImageFiles((prev) => ({ ...prev, [certIndex]: file }));
+    } else {
+      // Clear file from state
+      setCertificateImageFiles((prev) => {
+        const newFiles = { ...prev };
+        delete newFiles[certIndex];
+        return newFiles;
+      });
     }
   }, []);
 
@@ -183,15 +197,28 @@ export function useFileUpload() {
    */
   const extractFirebasePath = useCallback((url: string): string | null => {
     try {
-      const urlObj = new URL(url);
-      const pathMatch = urlObj.pathname.match(/\/o\/(.+)\?/);
-      if (pathMatch) {
-        return decodeURIComponent(pathMatch[1]);
+      // Check if it's a Firebase Storage URL
+      if (!url.includes('firebasestorage.googleapis.com') && !url.includes('firebaseapp.com')) {
+        console.warn('URL không phải là Firebase Storage URL:', url);
+        return null;
       }
+
+      const urlObj = new URL(url);
+      // Match pattern: /o/{path}? or /o/{path}
+      // Firebase Storage URLs: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{path}?...
+      const pathMatch = urlObj.pathname.match(/\/o\/(.+)/);
+      if (pathMatch && pathMatch[1]) {
+        // Decode the path (Firebase encodes spaces and special chars)
+        const decodedPath = decodeURIComponent(pathMatch[1]);
+        console.log('Extracted Firebase path:', decodedPath);
+        return decodedPath;
+      }
+      console.warn('Không thể extract path từ URL:', url);
+      return null;
     } catch (e) {
-      console.error('Error extracting Firebase path:', e);
+      console.error('Error extracting Firebase path:', e, 'URL:', url);
+      return null;
     }
-    return null;
   }, []);
 
   /**
@@ -199,7 +226,10 @@ export function useFileUpload() {
    */
   const deleteCVFile = useCallback(
     async (_cvIndex: number, cvFileUrl: string, skipConfirm: boolean = false): Promise<boolean> => {
-      if (!cvFileUrl) return false;
+      if (!cvFileUrl) {
+        console.warn('Không có URL để xóa');
+        return false;
+      }
 
       if (!skipConfirm) {
         const confirmed = window.confirm('Bạn có chắc chắn muốn xóa file CV này không?');
@@ -210,14 +240,22 @@ export function useFileUpload() {
 
       try {
         const firebasePath = extractFirebasePath(cvFileUrl);
-        if (firebasePath) {
-          const storageRef = ref(storage, firebasePath);
-          await deleteObject(storageRef);
+        if (!firebasePath) {
+          console.error('❌ Không thể extract Firebase path từ URL:', cvFileUrl);
+          alert('❌ URL không hợp lệ hoặc không phải là Firebase Storage URL. Không thể xóa file.');
+          return false;
         }
+
+        console.log('Đang xóa file từ Firebase:', firebasePath);
+        const storageRef = ref(storage, firebasePath);
+        await deleteObject(storageRef);
+        console.log('✅ Đã xóa file thành công từ Firebase');
+        alert('✅ Đã xóa file CV thành công!');
         return true;
       } catch (err: any) {
         console.error('❌ Error deleting CV file:', err);
-        alert(`❌ Lỗi khi xóa file CV: ${err.message || 'Vui lòng thử lại.'}`);
+        const errorMessage = err?.message || 'Vui lòng thử lại.';
+        alert(`❌ Lỗi khi xóa file CV: ${errorMessage}`);
         return false;
       }
     },
@@ -229,7 +267,10 @@ export function useFileUpload() {
    */
   const deleteCertificateImage = useCallback(
     async (certIndex: number, imageUrl: string): Promise<boolean> => {
-      if (!imageUrl) return false;
+      if (!imageUrl) {
+        console.warn('Không có URL để xóa');
+        return false;
+      }
 
       const uploadedUrl = uploadedCertificateUrls[certIndex];
       if (!uploadedUrl || uploadedUrl !== imageUrl) {
@@ -244,10 +285,17 @@ export function useFileUpload() {
 
       try {
         const firebasePath = extractFirebasePath(imageUrl);
-        if (firebasePath) {
-          const storageRef = ref(storage, firebasePath);
-          await deleteObject(storageRef);
+        if (!firebasePath) {
+          console.error('❌ Không thể extract Firebase path từ URL:', imageUrl);
+          alert('❌ URL không hợp lệ hoặc không phải là Firebase Storage URL. Không thể xóa file.');
+          return false;
         }
+
+        console.log('Đang xóa ảnh từ Firebase:', firebasePath);
+        const storageRef = ref(storage, firebasePath);
+        await deleteObject(storageRef);
+        console.log('✅ Đã xóa ảnh thành công từ Firebase');
+        alert('✅ Đã xóa ảnh chứng chỉ thành công!');
 
         // Clear from uploaded URLs
         setUploadedCertificateUrls((prev) => {
@@ -259,7 +307,8 @@ export function useFileUpload() {
         return true;
       } catch (err: any) {
         console.error('❌ Error deleting certificate image:', err);
-        alert(`❌ Lỗi khi xóa ảnh: ${err.message || 'Vui lòng thử lại.'}`);
+        const errorMessage = err?.message || 'Vui lòng thử lại.';
+        alert(`❌ Lỗi khi xóa ảnh: ${errorMessage}`);
         return false;
       }
     },

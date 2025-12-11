@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   talentSkillGroupAssessmentService,
@@ -13,7 +13,9 @@ import { type TalentSkill } from '../services/TalentSkill';
 /**
  * Hook để quản lý Skill Group Verification logic cho Talent Detail page
  */
-export function useTalentDetailSkillGroupVerification() {
+export function useTalentDetailSkillGroupVerification(
+  talentSkills?: (TalentSkill & { skillName: string; skillGroupId?: number })[]
+) {
   const { id } = useParams<{ id: string }>();
 
   // Verification states
@@ -403,6 +405,48 @@ export function useTalentDetailSkillGroupVerification() {
   const handleCloseHistoryModal = useCallback(() => {
     setHistoryModal({ isOpen: false, items: [], loading: false });
   }, []);
+
+  // Memoize skill group IDs to avoid unnecessary re-fetches
+  const skillGroupIds = useMemo(() => {
+    if (!talentSkills || talentSkills.length === 0) {
+      return [];
+    }
+    return Array.from(
+      new Set(
+        talentSkills
+          .map((s) => s.skillGroupId)
+          .filter((gid: number | undefined) => typeof gid === 'number')
+      )
+    ) as number[];
+  }, [talentSkills]);
+
+  // Load verification statuses when talentSkills are available
+  useEffect(() => {
+    if (!id || skillGroupIds.length === 0) {
+      return;
+    }
+
+    const loadVerificationStatuses = async () => {
+      try {
+        const statuses = await talentSkillGroupAssessmentService.getVerificationStatuses(
+          Number(id),
+          skillGroupIds
+        );
+
+        if (Array.isArray(statuses)) {
+          const statusMap: Record<number, SkillGroupVerificationStatus> = {};
+          statuses.forEach((st) => {
+            statusMap[st.skillGroupId] = st;
+          });
+          setSkillGroupVerificationStatuses(statusMap);
+        }
+      } catch (error) {
+        console.error('❌ Lỗi khi tải trạng thái verify skill group:', error);
+      }
+    };
+
+    loadVerificationStatuses();
+  }, [id, skillGroupIds]);
 
   return {
     // States

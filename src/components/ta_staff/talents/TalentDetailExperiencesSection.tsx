@@ -77,6 +77,46 @@ export function TalentDetailExperiencesSection({
 
   return (
     <div className="space-y-6">
+      {/* CV Analysis Suggestions */}
+      {analysisResult &&
+        (analysisResult.workExperiences.newEntries.length > 0 || analysisResult.workExperiences.potentialDuplicates.length > 0) && (
+          <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50/80 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-blue-900 uppercase tracking-wide">Đề xuất kinh nghiệm làm việc</h3>
+              <span className="text-xs text-blue-700">
+                {analysisResult.workExperiences.newEntries.length} mục mới · {analysisResult.workExperiences.potentialDuplicates.length} mục có thể trùng
+              </span>
+            </div>
+            {analysisResult.workExperiences.newEntries.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-blue-700 font-medium">Kinh nghiệm mới nên thêm:</p>
+                {analysisResult.workExperiences.newEntries.map((exp, index) => (
+                  <div key={`suggested-exp-${index}`} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-blue-900 shadow-sm">
+                    <p className="font-semibold">{exp.position}</p>
+                    <p className="text-xs text-blue-700">{exp.company}</p>
+                    <p className="text-xs text-blue-600">
+                      {exp.startDate ?? '—'} - {exp.endDate ?? 'Hiện tại'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {analysisResult.workExperiences.potentialDuplicates.length > 0 && (
+              <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
+                <p className="font-medium mb-1">Mục cần rà soát trùng lặp:</p>
+                <ul className="space-y-1">
+                  {analysisResult.workExperiences.potentialDuplicates.map((dup, index) => (
+                    <li key={`dup-exp-${index}`}>
+                      - {dup.fromCV.position} tại {dup.fromCV.company} · Khuyến nghị:{' '}
+                      <span className="font-semibold">{dup.recommendation}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
       {/* Inline Experience Form */}
       {showInlineForm && (
         <div className="bg-white rounded-xl border-2 border-accent-200 p-6 mb-6 shadow-lg">
@@ -257,46 +297,6 @@ export function TalentDetailExperiencesSection({
           </div>
         </div>
       )}
-
-      {/* CV Analysis Suggestions */}
-      {analysisResult &&
-        (analysisResult.workExperiences.newEntries.length > 0 || analysisResult.workExperiences.potentialDuplicates.length > 0) && (
-          <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50/80 p-4">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-blue-900 uppercase tracking-wide">Đề xuất kinh nghiệm làm việc</h3>
-              <span className="text-xs text-blue-700">
-                {analysisResult.workExperiences.newEntries.length} mục mới · {analysisResult.workExperiences.potentialDuplicates.length} mục có thể trùng
-              </span>
-            </div>
-            {analysisResult.workExperiences.newEntries.length > 0 && (
-              <div className="mt-3 space-y-2">
-                <p className="text-xs text-blue-700 font-medium">Kinh nghiệm mới nên thêm:</p>
-                {analysisResult.workExperiences.newEntries.map((exp, index) => (
-                  <div key={`suggested-exp-${index}`} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-blue-900 shadow-sm">
-                    <p className="font-semibold">{exp.position}</p>
-                    <p className="text-xs text-blue-700">{exp.company}</p>
-                    <p className="text-xs text-blue-600">
-                      {exp.startDate ?? '—'} - {exp.endDate ?? 'Hiện tại'}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-            {analysisResult.workExperiences.potentialDuplicates.length > 0 && (
-              <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
-                <p className="font-medium mb-1">Mục cần rà soát trùng lặp:</p>
-                <ul className="space-y-1">
-                  {analysisResult.workExperiences.potentialDuplicates.map((dup, index) => (
-                    <li key={`dup-exp-${index}`}>
-                      - {dup.fromCV.position} tại {dup.fromCV.company} · Khuyến nghị:{' '}
-                      <span className="font-semibold">{dup.recommendation}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
 
       {/* Header with actions */}
       <div className="flex items-center justify-between mb-4">

@@ -815,6 +815,7 @@ export function useCVExtraction(
   return {
     extractingCV,
     extractedData,
+    setExtractedData,
     unmatchedData,
     setUnmatchedData,
     extractAndFillDataFromCV,

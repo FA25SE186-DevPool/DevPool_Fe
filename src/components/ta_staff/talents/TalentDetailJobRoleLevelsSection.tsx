@@ -60,7 +60,25 @@ interface TalentDetailJobRoleLevelsSectionProps {
     yearsOfExp?: number;
     ratePerMonth?: number;
   }>;
-  jobRoleLevelsUnmatched: any[];
+  jobRoleLevelsUnmatched: Array<{
+    position?: string;
+    level?: string;
+    yearsOfExp?: number;
+    ratePerMonth?: number;
+  }>;
+  onQuickCreateJobRoleLevel?: (jobRole: {
+    jobRoleLevelId: number;
+    position: string;
+    level?: string;
+    yearsOfExp?: number;
+    ratePerMonth?: number;
+  }) => void;
+  onQuickCreateUnmatchedJobRoleLevel?: (jobRole: {
+    position: string;
+    level?: string;
+    yearsOfExp?: number;
+    ratePerMonth?: number;
+  }) => void;
 
   // Permissions
   canEdit: boolean;
@@ -108,6 +126,8 @@ export function TalentDetailJobRoleLevelsSection({
   analysisResult: _analysisResult,
   matchedJobRoleLevelsNotInProfile,
   jobRoleLevelsUnmatched,
+  onQuickCreateJobRoleLevel,
+  onQuickCreateUnmatchedJobRoleLevel,
   canEdit,
   getLevelText,
 }: TalentDetailJobRoleLevelsSectionProps) {
@@ -134,9 +154,89 @@ export function TalentDetailJobRoleLevelsSection({
 
   // Get selected job role level IDs (excluding current form)
   const selectedJobRoleLevelIds = jobRoleLevels.map((jrl) => jrl.jobRoleLevelId).filter((id) => id > 0);
+  
+  // Get selected position names (for checking if a position name is already selected)
+  const selectedPositionNames = Array.from(
+    new Set(
+      jobRoleLevels
+        .map((jrl) => jrl.jobRoleLevelName)
+        .filter((name) => name && name.trim() !== '')
+    )
+  );
 
   return (
     <div className="space-y-6">
+      {/* CV Analysis Suggestions */}
+      {(matchedJobRoleLevelsNotInProfile.length > 0 || jobRoleLevelsUnmatched.length > 0) && (
+        <div className="mb-4 rounded-xl border border-green-200 bg-green-50/80 p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-green-900 uppercase tracking-wide">Đề xuất vị trí (CV có)</h3>
+            <span className="text-xs text-green-700">
+              {matchedJobRoleLevelsNotInProfile.length} cần tạo mới · {jobRoleLevelsUnmatched.length} chưa có trong hệ thống
+            </span>
+          </div>
+          {(matchedJobRoleLevelsNotInProfile.length > 0 || jobRoleLevelsUnmatched.length > 0) && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 space-y-3">
+              {matchedJobRoleLevelsNotInProfile.length > 0 && (
+                <div className="space-y-2">
+                  <ul className="space-y-2">
+                    {matchedJobRoleLevelsNotInProfile.map((jobRole, index) => (
+                      <li
+                        key={`jobrole-matched-notin-${index}`}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-white px-3 py-2 text-amber-900 shadow-sm"
+                      >
+                        <span className="font-semibold text-sm">
+                          {jobRole.position}
+                        </span>
+                        {onQuickCreateJobRoleLevel && (
+                          <button
+                            onClick={() => onQuickCreateJobRoleLevel(jobRole)}
+                            className="px-2 py-0.5 bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors text-xs font-medium"
+                          >
+                            Tạo nhanh
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {jobRoleLevelsUnmatched.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-amber-800 mb-1.5">Chưa có trong hệ thống (cần đề xuất admin tạo mới) ({jobRoleLevelsUnmatched.length})</p>
+                  <ul className="space-y-2">
+                    {jobRoleLevelsUnmatched.map((suggestion, index) => (
+                      <li
+                        key={`jobrole-unmatched-${index}`}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-white px-3 py-2 text-amber-900 shadow-sm"
+                      >
+                        <span className="font-semibold text-sm">
+                          {suggestion.position ?? 'Vị trí chưa rõ'}
+                          {suggestion.level && <span className="ml-1.5 text-amber-600">· {suggestion.level}</span>}
+                        </span>
+                        {onQuickCreateUnmatchedJobRoleLevel && (
+                          <button
+                            onClick={() => onQuickCreateUnmatchedJobRoleLevel({
+                              position: suggestion.position ?? 'Vị trí chưa rõ',
+                              level: suggestion.level,
+                              yearsOfExp: suggestion.yearsOfExp,
+                              ratePerMonth: suggestion.ratePerMonth,
+                            })}
+                            className="px-2 py-0.5 bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors text-xs font-medium"
+                          >
+                            Tạo nhanh
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Inline JobRoleLevel Form */}
       {showInlineForm && (
         <div className="bg-white rounded-xl border-2 border-warning-200 p-6 mb-6 shadow-lg">
@@ -283,32 +383,44 @@ export function TalentDetailJobRoleLevelsSection({
                         {filteredNames.length === 0 ? (
                           <p className="px-4 py-3 text-sm text-neutral-500">Không tìm thấy vị trí nào</p>
                         ) : (
-                          filteredNames.map((name) => (
-                            <button
-                              type="button"
-                              key={name}
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setSelectedJobRoleLevelName(name);
-                                setIsJobRoleLevelNameDropdownOpen(false);
-                                setJobRoleLevelNameSearch('');
-                                setSelectedLevel(undefined);
-                                setInlineJobRoleLevelForm((prev) => ({ ...prev, jobRoleLevelId: 0 }));
-                                const firstMatch = lookupJobRoleLevelsForTalent.find((j) => j.name === name);
-                                if (firstMatch) {
-                                  setSelectedJobRoleFilterId(firstMatch.jobRoleId);
-                                }
-                              }}
-                              className={`w-full text-left px-4 py-2.5 text-sm ${
-                                selectedJobRoleLevelName === name
-                                  ? 'bg-warning-50 text-warning-700'
-                                  : 'hover:bg-neutral-50 text-neutral-700'
-                              }`}
-                            >
-                              {name}
-                            </button>
-                          ))
+                          filteredNames.map((name) => {
+                            // Kiểm tra xem vị trí này đã được chọn chưa
+                            const isAlreadySelected = selectedPositionNames.includes(name);
+                            
+                            return (
+                              <button
+                                type="button"
+                                key={name}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (!isAlreadySelected) {
+                                    setSelectedJobRoleLevelName(name);
+                                    setIsJobRoleLevelNameDropdownOpen(false);
+                                    setJobRoleLevelNameSearch('');
+                                    setSelectedLevel(undefined);
+                                    setInlineJobRoleLevelForm((prev) => ({ ...prev, jobRoleLevelId: 0 }));
+                                    const firstMatch = lookupJobRoleLevelsForTalent.find((j) => j.name === name);
+                                    if (firstMatch) {
+                                      setSelectedJobRoleFilterId(firstMatch.jobRoleId);
+                                    }
+                                  }
+                                }}
+                                disabled={isAlreadySelected}
+                                className={`w-full text-left px-4 py-2.5 text-sm ${
+                                  selectedJobRoleLevelName === name
+                                    ? 'bg-warning-50 text-warning-700'
+                                    : isAlreadySelected
+                                      ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed italic'
+                                      : 'hover:bg-neutral-50 text-neutral-700'
+                                }`}
+                                title={isAlreadySelected ? 'Vị trí này đã được chọn' : ''}
+                              >
+                                {name}
+                                {isAlreadySelected && ' (đã chọn)'}
+                              </button>
+                            );
+                          })
                         )}
                       </div>
                     </div>
@@ -439,47 +551,6 @@ export function TalentDetailJobRoleLevelsSection({
               </Button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* CV Analysis Suggestions */}
-      {(matchedJobRoleLevelsNotInProfile.length > 0 || jobRoleLevelsUnmatched.length > 0) && (
-        <div className="mb-4 rounded-xl border border-green-200 bg-green-50/80 p-4 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-green-900 uppercase tracking-wide">Đề xuất vị trí (CV có)</h3>
-            <span className="text-xs text-green-700">
-              {matchedJobRoleLevelsNotInProfile.length} cần tạo mới · {jobRoleLevelsUnmatched.length} chưa có trong hệ thống
-            </span>
-          </div>
-          {(matchedJobRoleLevelsNotInProfile.length > 0 || jobRoleLevelsUnmatched.length > 0) && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 space-y-3">
-              {matchedJobRoleLevelsNotInProfile.length > 0 && (
-                <div className="space-y-2">
-                  <ul className="space-y-2">
-                    {matchedJobRoleLevelsNotInProfile.map((jobRole, index) => (
-                      <li
-                        key={`jobrole-matched-notin-${index}`}
-                        className="flex flex-col rounded-lg border border-amber-200 bg-white px-3 py-2 text-amber-900 shadow-sm"
-                      >
-                        <span className="font-semibold text-sm">
-                          {jobRole.position}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {jobRoleLevelsUnmatched.length > 0 && (
-                <div className="rounded-xl border border-dashed border-amber-300 bg-white p-3 text-xs text-amber-700">
-                  <ul className="space-y-1">
-                    {jobRoleLevelsUnmatched.map((suggestion, index) => (
-                      <li key={`jobrole-unmatched-${index}`}>- {suggestion.position ?? 'Vị trí chưa rõ'} <span className="text-amber-600">(CV có)</span></li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import { FileText, Briefcase, Target, Workflow, Clock } from 'lucide-react';
+import { FileText, Briefcase, Target, Star, FolderOpen, Award, Clock } from 'lucide-react';
 
 export type TalentDetailTab =
   | 'projects'
@@ -20,12 +20,12 @@ export function TalentDetailTabNavigation({
 }: TalentDetailTabNavigationProps) {
   const tabs: Array<{ id: TalentDetailTab; label: string; icon: React.ReactNode }> = [
     { id: 'cvs', label: 'CV', icon: <FileText className="w-4 h-4" /> },
-    { id: 'projects', label: 'Dự án', icon: <Briefcase className="w-4 h-4" /> },
     { id: 'jobRoleLevels', label: 'Vị trí', icon: <Target className="w-4 h-4" /> },
-    { id: 'skills', label: 'Kỹ năng', icon: <Workflow className="w-4 h-4" /> },
-    { id: 'availableTimes', label: 'Thời gian', icon: <Clock className="w-4 h-4" /> },
-    { id: 'certificates', label: 'Chứng chỉ', icon: <FileText className="w-4 h-4" /> },
+    { id: 'skills', label: 'Kỹ năng', icon: <Star className="w-4 h-4" /> },
+    { id: 'projects', label: 'Dự án', icon: <FolderOpen className="w-4 h-4" /> },
     { id: 'experiences', label: 'Kinh nghiệm', icon: <Briefcase className="w-4 h-4" /> },
+    { id: 'certificates', label: 'Chứng chỉ', icon: <Award className="w-4 h-4" /> },
+    { id: 'availableTimes', label: 'Thời gian', icon: <Clock className="w-4 h-4" /> },
   ];
 
   return (

@@ -44,14 +44,6 @@ interface TalentDetailCVsSectionProps {
   setExpandedAnalysisDetail?: (detail: 'skills' | 'jobRoleLevels' | 'certificates' | 'projects' | 'experiences' | null) => void;
   expandedBasicInfo?: boolean;
   setExpandedBasicInfo?: (expanded: boolean) => void;
-  matchedSkillsDetails?: Array<{
-    skillName: string;
-    cvLevel: string;
-    cvYearsExp: string | number;
-    matchConfidence: number;
-    systemLevel: string;
-    systemYearsExp: string | number;
-  }>;
   matchedSkillsNotInProfile?: Array<{
     skillId: number;
     skillName: string;
@@ -166,15 +158,14 @@ export function TalentDetailCVsSection({
   setExpandedAnalysisDetail,
   expandedBasicInfo = true,
   setExpandedBasicInfo,
-  matchedSkillsDetails = [],
   matchedSkillsNotInProfile = [],
   unmatchedSkillSuggestions = [],
-  jobRoleLevelsMatched = [],
+  jobRoleLevelsMatched: _jobRoleLevelsMatched = [],
   matchedJobRoleLevelsNotInProfile = [],
   jobRoleLevelsUnmatched = [],
   onQuickCreateSkill,
   getLevelLabel,
-  getTalentLevelName,
+  getTalentLevelName: _getTalentLevelName,
   isValueDifferent,
 }: TalentDetailCVsSectionProps) {
   const navigate = useNavigate();
@@ -446,10 +437,10 @@ export function TalentDetailCVsSection({
                   <ChevronDown className={`w-4 h-4 text-amber-600 transition-transform ${expandedAnalysisDetail === "skills" ? "rotate-180" : ""}`} />
                 </div>
                 <p className="mt-1 text-lg font-bold text-amber-900">
-                  {matchedSkillsNotInProfile.length + matchedSkillsDetails.length + unmatchedSkillSuggestions.length}
+                  {matchedSkillsNotInProfile.length + unmatchedSkillSuggestions.length}
                 </p>
                 <p className="mt-2 text-xs text-amber-700 cursor-pointer hover:text-amber-900">
-                  {matchedSkillsNotInProfile.length} cần tạo mới · {matchedSkillsDetails.length} trùng CV · {unmatchedSkillSuggestions.length} chưa có trong hệ thống
+                  {matchedSkillsNotInProfile.length} cần tạo mới · {unmatchedSkillSuggestions.length} chưa có trong hệ thống
                   <span className="ml-2 text-amber-600 underline">(Nhấp để xem chi tiết)</span>
                 </p>
               </div>
@@ -462,10 +453,10 @@ export function TalentDetailCVsSection({
                   <ChevronDown className={`w-4 h-4 text-green-600 transition-transform ${expandedAnalysisDetail === "jobRoleLevels" ? "rotate-180" : ""}`} />
                 </div>
                 <p className="mt-1 text-lg font-bold text-green-900">
-                  {matchedJobRoleLevelsNotInProfile.length + jobRoleLevelsMatched.length + jobRoleLevelsUnmatched.length}
+                  {matchedJobRoleLevelsNotInProfile.length + jobRoleLevelsUnmatched.length}
                 </p>
                 <p className="mt-2 text-xs text-green-700 cursor-pointer hover:text-green-900">
-                  {matchedJobRoleLevelsNotInProfile.length} cần tạo mới · {jobRoleLevelsMatched.length} trùng CV · {jobRoleLevelsUnmatched.length} chưa có trong hệ thống
+                  {matchedJobRoleLevelsNotInProfile.length} cần tạo mới · {jobRoleLevelsUnmatched.length} chưa có trong hệ thống
                   <span className="ml-2 text-green-600 underline">(Nhấp để xem chi tiết)</span>
                 </p>
               </div>
@@ -528,22 +519,9 @@ export function TalentDetailCVsSection({
                   </button>
                 </div>
                 <div className="space-y-3">
-                  {matchedSkillsDetails.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-green-800 mb-1.5">Trùng CV ({matchedSkillsDetails.length})</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {matchedSkillsDetails.map((match, index) => (
-                          <span key={`skill-match-${index}`} className="inline-flex items-center px-2.5 py-1 bg-white border border-green-200 rounded-lg text-xs text-green-900">
-                            {match.skillName}: CV {match.cvLevel} ({match.cvYearsExp} năm) · Hồ sơ {match.systemLevel} ({match.systemYearsExp} năm)
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
                   {matchedSkillsNotInProfile.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-amber-800 mb-1.5">Cần tạo mới (có trong hệ thống, chưa có trong hồ sơ) ({matchedSkillsNotInProfile.length})</p>
+                      <p className="text-xs font-semibold text-amber-800 mb-1.5">Cần tạo mới từ cv có ({matchedSkillsNotInProfile.length})</p>
                       <div className="flex flex-wrap gap-1.5">
                         {matchedSkillsNotInProfile.map((skill, index) => (
                           <div key={`skill-matched-notin-${index}`} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-amber-200 rounded-lg text-xs text-amber-900">
@@ -581,7 +559,7 @@ export function TalentDetailCVsSection({
                     </div>
                   )}
 
-                  {matchedSkillsDetails.length === 0 && matchedSkillsNotInProfile.length === 0 && unmatchedSkillSuggestions.length === 0 && (
+                  {matchedSkillsNotInProfile.length === 0 && unmatchedSkillSuggestions.length === 0 && (
                     <p className="text-xs text-amber-700">Không có gợi ý kỹ năng nào</p>
                   )}
                 </div>
@@ -601,26 +579,9 @@ export function TalentDetailCVsSection({
                   </button>
                 </div>
                 <div className="space-y-3">
-                  {jobRoleLevelsMatched.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-green-800 mb-1.5">Trùng CV ({jobRoleLevelsMatched.length})</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {jobRoleLevelsMatched.map(({ suggestion, system }, index) => {
-                          const systemLevelName = system && getTalentLevelName ? getTalentLevelName(system.level) : undefined;
-                          const formattedSystemLevel = systemLevelName ? systemLevelName.charAt(0).toUpperCase() + systemLevelName.slice(1) : "—";
-                          return (
-                            <span key={`jobrole-match-${index}`} className="inline-flex items-center px-2.5 py-1 bg-white border border-green-200 rounded-lg text-xs text-green-900">
-                              {suggestion.position ?? system?.name ?? "Vị trí chưa rõ"}: CV Level {suggestion.level ?? "—"} · Hồ sơ Level {formattedSystemLevel}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
                   {matchedJobRoleLevelsNotInProfile.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-green-800 mb-1.5">Cần tạo mới (có trong hệ thống, chưa có trong hồ sơ) ({matchedJobRoleLevelsNotInProfile.length})</p>
+                      <p className="text-xs font-semibold text-green-800 mb-1.5">Cần tạo mới từ cv có ({matchedJobRoleLevelsNotInProfile.length})</p>
                       <div className="flex flex-wrap gap-1.5">
                         {matchedJobRoleLevelsNotInProfile.map((jobRole, index) => (
                           <span key={`jobrole-matched-notin-${index}`} className="inline-flex items-center px-2.5 py-1 bg-white border border-green-200 rounded-lg text-xs text-green-900">
@@ -646,7 +607,7 @@ export function TalentDetailCVsSection({
                     </div>
                   )}
 
-                  {jobRoleLevelsMatched.length === 0 && matchedJobRoleLevelsNotInProfile.length === 0 && jobRoleLevelsUnmatched.length === 0 && (
+                  {matchedJobRoleLevelsNotInProfile.length === 0 && jobRoleLevelsUnmatched.length === 0 && (
                     <p className="text-xs text-green-700">Không có gợi ý vị trí nào</p>
                   )}
                 </div>

@@ -166,12 +166,68 @@ export async function authenticateWithFirebase(
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         firebaseUser = userCredential.user;
       } catch (error: any) {
-        // Nếu user chưa tồn tại trong Firebase, tạo user mới
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          firebaseUser = userCredential.user;
+        const errorCode = error?.code || '';
+        const errorMessage = error?.message || '';
+        
+        console.log('Firebase sign-in error:', { errorCode, errorMessage });
+        
+        // Xử lý các trường hợp lỗi khác nhau
+        if (errorCode === 'auth/user-not-found') {
+          // User chưa tồn tại trong Firebase, tạo user mới
+          try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            firebaseUser = userCredential.user;
+            console.log('Created new Firebase user:', firebaseUser.uid);
+          } catch (createError: any) {
+            console.error('Failed to create Firebase user:', createError);
+            // Không throw, tiếp tục với backend authentication
+            return;
+          }
+        } else if (
+          errorCode === 'auth/invalid-credential' || 
+          errorCode === 'auth/wrong-password' ||
+          errorCode === 'auth/invalid-email' ||
+          errorMessage.includes('INVALID_PASSWORD') ||
+          errorMessage.includes('INVALID_EMAIL')
+        ) {
+          // Mật khẩu hoặc email không hợp lệ
+          // Có thể user đã đổi mật khẩu ở backend nhưng Firebase chưa được cập nhật
+          // Hoặc user chưa tồn tại trong Firebase
+          console.warn('Firebase authentication failed - user may have changed password or not exist in Firebase:', {
+            errorCode,
+            errorMessage
+          });
+          
+          // Thử tạo user mới với mật khẩu hiện tại (nếu user chưa tồn tại)
+          // Nếu user đã tồn tại với mật khẩu cũ, sẽ fail nhưng không sao vì đã có try-catch
+          try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            firebaseUser = userCredential.user;
+            console.log('Created new Firebase user after auth failure:', firebaseUser.uid);
+          } catch (createError: any) {
+            const createErrorCode = createError?.code || '';
+            // User có thể đã tồn tại với mật khẩu khác
+            if (createErrorCode === 'auth/email-already-in-use') {
+              console.warn('⚠️ Firebase user already exists with different password - cannot update from client side.');
+              console.warn('💡 Solution: Backend should automatically sync Firebase password when password is changed.');
+              console.warn('📝 Continuing with backend auth only. Firebase Storage upload may not work until Firebase password is synced.');
+            } else {
+              // Hoặc có lỗi khác khi tạo user
+              console.warn('Cannot create Firebase user - continuing with backend auth only:', createErrorCode);
+            }
+            // Không throw, tiếp tục với backend authentication
+            // Firebase authentication là optional, backend authentication đã thành công
+            // Lưu ý: Upload file lên Firebase Storage có thể không hoạt động nếu Firebase authentication fail
+            return;
+          }
         } else {
-          throw error;
+          // Các lỗi khác - log và tiếp tục
+          console.warn('Firebase authentication error (non-critical):', {
+            errorCode,
+            errorMessage
+          });
+          // Không throw, tiếp tục với backend authentication
+          return;
         }
       }
     }
@@ -186,7 +242,7 @@ export async function authenticateWithFirebase(
       console.log('User synced to Firestore successfully');
     }
   } catch (error: any) {
-    console.error('Firebase authentication error:', error);
+    console.error('Firebase authentication error (caught in outer catch):', error);
     // Không throw error để không làm gián đoạn quá trình login
     // Firebase auth có thể fail nhưng vẫn cho phép login với API
   }
@@ -396,6 +452,24 @@ export const authService = {
   async resetPasswordByOtp(payload: ResetPasswordByOtpPayload): Promise<MessageResponse> {
     try {
       const response = await apiClient.post<MessageResponse>("/auth/reset-password-by-otp", payload);
+      
+      // Sau khi đổi mật khẩu thành công, thử yêu cầu backend sync Firebase password
+      // Backend có thể có endpoint này hoặc tự động sync
+      try {
+        // Gọi API để yêu cầu backend sync Firebase password (nếu có endpoint này)
+        // Nếu không có endpoint, backend nên tự động sync khi đổi mật khẩu
+        await apiClient.post("/auth/sync-firebase-password", { 
+          email: payload.email,
+          newPassword: payload.newPassword 
+        }).catch(() => {
+          // Nếu endpoint không tồn tại, không sao - backend có thể tự động sync
+          console.log('Backend sync Firebase password endpoint không tồn tại hoặc đã được tự động sync');
+        });
+      } catch (syncError) {
+        // Không throw error vì sync Firebase password là optional
+        console.log('Không thể sync Firebase password - backend có thể tự động sync:', syncError);
+      }
+      
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

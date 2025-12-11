@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { X, User, Star, Briefcase, FolderOpen, Award } from 'lucide-react';
+import { X, User, Star, Briefcase, FolderOpen, Award, FileText, ChevronDown, Upload } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
 import { sidebarItems } from '../../../components/sidebar/ta_staff';
 import { useTalentCreate } from '../../../hooks/useTalentCreate';
@@ -15,14 +15,17 @@ import { TalentSkillsSection } from '../../../components/ta_staff/talents/Talent
 import { TalentWorkExperienceSection } from '../../../components/ta_staff/talents/TalentWorkExperienceSection';
 import { TalentProjectsSection } from '../../../components/ta_staff/talents/TalentProjectsSection';
 import { TalentCertificatesSection } from '../../../components/ta_staff/talents/TalentCertificatesSection';
-import { TalentJobRoleLevelsSection } from '../../../components/ta_staff/talents/TalentJobRoleLevelsSection';
 import { TalentCVSection } from '../../../components/ta_staff/talents/TalentCVSection';
 import { type TalentCVCreate } from '../../../services/TalentCV';
+import { talentService } from '../../../services/Talent';
 // import { notificationService, NotificationPriority, NotificationType } from '../../../services/Notification'; // Tạm thời comment vì Extracted Data Sidebar đã bị ẩn
 // import { userService } from '../../../services/User'; // Tạm thời comment vì Extracted Data Sidebar đã bị ẩn
-import { WORK_EXPERIENCE_POSITIONS } from '../../../constants/WORK_EXPERIENCE_POSITIONS';
 
 export default function CreateTalent() {
+  const [showModalCVPreview, setShowModalCVPreview] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // State để quản lý loading khi submit
+  const [submittingMessage, setSubmittingMessage] = useState('Đang xử lý...'); // Message hiển thị khi đang submit
+  
   // Main hook for form management
   const {
     formData,
@@ -44,9 +47,7 @@ export default function CreateTalent() {
     activeTab,
     setActiveTab,
     errors,
-    formError,
-    handleChange,
-    handleSubmit,
+    performSubmit, // Hàm submit không có confirm dialog
     updateBasicField,
     setTalentSkills,
     setTalentWorkExperiences,
@@ -54,8 +55,9 @@ export default function CreateTalent() {
     setTalentCertificates,
     setTalentJobRoleLevels,
     setInitialCVs,
-    setErrors: _setErrors,
+    setErrors: setFormErrors,
     setFormError: _setFormError,
+    validateAllFields,
   } = useTalentCreate();
 
   // Related data management handlers - Tách vào hook
@@ -75,7 +77,6 @@ export default function CreateTalent() {
     uploadingCVIndex,
     isUploadedFromFirebase,
     setIsUploadedFromFirebase,
-    uploadedCVUrl,
     setUploadedCVUrl,
     uploadCV,
     deleteCVFile,
@@ -99,9 +100,6 @@ export default function CreateTalent() {
 
   // Filters states - Tách vào hook
   const filters = useTalentCreateFilters();
-  
-  // Danh sách vị trí công việc cho Kinh Nghiệm - Đã move vào constants
-  const workExperiencePositions = [...WORK_EXPERIENCE_POSITIONS] as string[];
 
   // Admin users for notifications - Tạm thời comment vì Extracted Data Sidebar đã bị ẩn
   // const [adminUserIds, setAdminUserIds] = useState<string[]>([]);
@@ -342,48 +340,78 @@ export default function CreateTalent() {
     isUploadedFromFirebase,
   });
 
+  // Memoize selectedLevel[0] để tránh thay đổi dependency array
+  const selectedLevelValue = useMemo(() => filters.selectedLevel[0], [filters.selectedLevel]);
 
-  // Validate CV version
-  const validateCVVersion = (
-    version: number,
-    jobRoleLevelId: number | undefined,
-    cvIndex: number,
-    allCVs: Partial<TalentCVCreate>[]
-  ): string => {
-    if (version <= 0) {
-      return 'Version phải lớn hơn 0';
-    }
+  // Tự động tạo jobRoleLevel từ CV khi chọn vị trí ở CV
+  useEffect(() => {
+    if (!initialCVs || initialCVs.length === 0) return;
+    if (!jobRoleLevels || jobRoleLevels.length === 0) return;
 
-    if (!jobRoleLevelId || jobRoleLevelId === 0) {
-      return '';
-    }
-
-    const cvsSameJobRoleLevel = allCVs.filter(
-      (cv, i) => i !== cvIndex && cv.jobRoleLevelId === jobRoleLevelId && cv.version && cv.version > 0
-    );
-
-    if (cvsSameJobRoleLevel.length === 0) {
-      if (version !== 1) {
-        return 'Chưa có CV nào cho vị trí công việc này. Vui lòng tạo version 1 trước.';
+    const cv = initialCVs[0];
+    const cvJobRoleLevelId = cv.jobRoleLevelId;
+    
+    // Kiểm tra xem talentJobRoleLevels hiện tại có khớp với CV jobRoleLevelId không
+    const currentJobRoleLevelId = talentJobRoleLevels[0]?.jobRoleLevelId;
+    
+    if (!cvJobRoleLevelId || cvJobRoleLevelId <= 0) {
+      // Nếu CV chưa có vị trí và talentJobRoleLevels đang có vị trí, reset về trạng thái ban đầu
+      if (currentJobRoleLevelId && currentJobRoleLevelId > 0) {
+        setTalentJobRoleLevels([
+          {
+            jobRoleLevelId: 0,
+            yearsOfExp: 0,
+            ratePerMonth: undefined,
+          },
+        ]);
       }
-      return '';
+      return;
     }
 
-    const maxVersion = Math.max(...cvsSameJobRoleLevel.map((cv) => cv.version || 0));
-    const duplicateCV = cvsSameJobRoleLevel.find((cv) => cv.version === version);
-
-    if (duplicateCV) {
-      const suggestedVersion = maxVersion + 1;
-      return `Version ${version} đã tồn tại cho vị trí công việc này. Vui lòng chọn version khác (ví dụ: ${suggestedVersion}).`;
+    // Kiểm tra xem user đã chọn cấp độ khác chưa (dựa vào selectedLevel)
+    // Nếu user đã chọn cấp độ (selectedLevel có giá trị), không tự động set lại
+    if (selectedLevelValue !== undefined && selectedLevelValue !== null) {
+      // User đã chọn cấp độ, tìm jobRoleLevelId tương ứng với cấp độ đã chọn
+      // Tìm jobRoleLevel có cùng jobRoleId với CV và có level = userSelectedLevel
+      const cvJobRoleLevel = jobRoleLevels.find((jrl) => jrl.id === cvJobRoleLevelId);
+      if (cvJobRoleLevel) {
+        const selectedJobRoleLevel = jobRoleLevels.find((jrl) => 
+          jrl.jobRoleId === cvJobRoleLevel.jobRoleId && jrl.level === selectedLevelValue
+        );
+        
+        if (selectedJobRoleLevel && selectedJobRoleLevel.id && selectedJobRoleLevel.id > 0) {
+          // Nếu jobRoleLevelId hiện tại đã đúng với cấp độ user chọn, không cần cập nhật
+          if (currentJobRoleLevelId === selectedJobRoleLevel.id) return;
+          
+          // Cập nhật với jobRoleLevelId tương ứng với cấp độ user đã chọn
+          setTalentJobRoleLevels([
+            {
+              jobRoleLevelId: selectedJobRoleLevel.id,
+              yearsOfExp: 0,
+              ratePerMonth: undefined,
+            },
+          ]);
+          return;
+        }
+      }
     }
 
-    if (version <= maxVersion) {
-      const suggestedVersion = maxVersion + 1;
-      return `Version ${version} không hợp lệ. Version phải lớn hơn version cao nhất hiện có (${maxVersion}). Vui lòng chọn version ${suggestedVersion} hoặc cao hơn.`;
-    }
+    // Nếu vị trí đã đúng rồi, không cần cập nhật
+    if (currentJobRoleLevelId === cvJobRoleLevelId) return;
 
-    return '';
-  };
+    // Tìm jobRoleLevel từ CV (mặc định là cấp độ đầu tiên của vị trí này)
+    const cvJobRoleLevel = jobRoleLevels.find((jrl) => jrl.id === cvJobRoleLevelId);
+    if (!cvJobRoleLevel) return;
+
+    // Tự động tạo jobRoleLevel từ CV (chỉ khi user chưa chọn cấp độ)
+    setTalentJobRoleLevels([
+      {
+        jobRoleLevelId: cvJobRoleLevelId,
+        yearsOfExp: 0,
+        ratePerMonth: undefined,
+      },
+    ]);
+  }, [initialCVs?.[0]?.jobRoleLevelId, jobRoleLevels, talentJobRoleLevels, setTalentJobRoleLevels, selectedLevelValue]);
 
   // Update initial CV
   const updateInitialCV = (index: number, field: keyof TalentCVCreate, value: string | number | boolean | undefined) => {
@@ -402,9 +430,8 @@ export default function CreateTalent() {
     });
   };
 
-  // Tự động cập nhật vị trí ở form hiện tại khi chọn vị trí ở CV Ban Đầu
-  // Không tạo form mới, chỉ cập nhật form đầu tiên (hoặc form có jobRoleLevelId = 0)
-  // Chỉ chạy khi không phải từ trích xuất CV (vì trích xuất đã tự động thêm vị trí rồi)
+  // Tự động cập nhật tên vị trí ở form hiện tại khi chọn vị trí ở CV Ban Đầu
+  // Chỉ điền tên vị trí, không tự động điền cấp độ (để người dùng tự chọn)
   useEffect(() => {
     if (!initialCVs || initialCVs.length === 0) return;
     if (!jobRoleLevels || jobRoleLevels.length === 0) return;
@@ -415,7 +442,11 @@ export default function CreateTalent() {
 
     if (!firstCVJobRoleLevelId) return;
 
-    // Kiểm tra xem vị trí này đã có trong talentJobRoleLevels chưa
+    // Tìm jobRoleLevel từ jobRoleLevelId để lấy tên vị trí
+    const cvJobRoleLevel = jobRoleLevels.find((jrl) => jrl.id === firstCVJobRoleLevelId);
+    if (!cvJobRoleLevel || !cvJobRoleLevel.name) return;
+
+    // Kiểm tra xem vị trí này đã có trong talentJobRoleLevels chưa (theo jobRoleLevelId)
     const existingJobRoleLevel = talentJobRoleLevels.find(
       (jrl) => jrl.jobRoleLevelId === firstCVJobRoleLevelId && jrl.jobRoleLevelId > 0
     );
@@ -423,35 +454,56 @@ export default function CreateTalent() {
     // Nếu vị trí đã có rồi (từ trích xuất), không cần cập nhật nữa
     if (existingJobRoleLevel) return;
 
-    // Tìm form đầu tiên có jobRoleLevelId = 0 hoặc chưa có vị trí
-    const firstEmptyFormIndex = talentJobRoleLevels.findIndex((jrl) => !jrl.jobRoleLevelId || jrl.jobRoleLevelId === 0);
+    // Tìm form đầu tiên chưa có tên vị trí được chọn
+    const firstEmptyFormIndex = talentJobRoleLevels.findIndex(
+      (_jrl, index) => !filters.selectedJobRoleLevelName[index] || filters.selectedJobRoleLevelName[index] === ''
+    );
 
     if (firstEmptyFormIndex >= 0) {
-      // Cập nhật form đầu tiên với vị trí từ CV
-      setTalentJobRoleLevels((prev) => {
-        const updated = [...prev];
-        updated[firstEmptyFormIndex] = {
-          ...updated[firstEmptyFormIndex],
-          jobRoleLevelId: firstCVJobRoleLevelId,
-        };
-        return updated;
-      });
-    } else if (talentJobRoleLevels.length > 0) {
-      // Nếu không có form trống, cập nhật form đầu tiên
-      setTalentJobRoleLevels((prev) => {
-        const updated = [...prev];
-        updated[0] = {
-          ...updated[0],
-          jobRoleLevelId: firstCVJobRoleLevelId,
-        };
-        return updated;
-      });
+      // Chỉ set tên vị trí, không set jobRoleLevelId (để không tự động điền cấp độ)
+      filters.setSelectedJobRoleLevelName((prev) => ({
+        ...prev,
+        [firstEmptyFormIndex]: cvJobRoleLevel.name,
+      }));
+      
+      // Set jobRoleFilterId để filter dropdown đúng loại vị trí
+      filters.setSelectedJobRoleFilterId((prev) => ({
+        ...prev,
+        [firstEmptyFormIndex]: cvJobRoleLevel.jobRoleId,
+      }));
     }
-    // Note: selectedJobRoleLevelName sẽ được tự động set bởi useEffect trong TalentJobRoleLevelsSection
-  }, [initialCVs, jobRoleLevels, talentJobRoleLevels, setTalentJobRoleLevels]);
+  }, [initialCVs, jobRoleLevels, talentJobRoleLevels, filters]);
+
+  // Ref cho tab navigation container để scroll đến tab active
+  const tabNavRef = useRef<HTMLDivElement>(null);
+
+  // Tự động scroll đến tab active khi chuyển tab
+  useEffect(() => {
+    if (tabNavRef.current) {
+      const activeTabElement = tabNavRef.current.querySelector(`[data-tab="${activeTab}"]`) as HTMLElement;
+      if (activeTabElement) {
+        // Scroll với smooth behavior
+        activeTabElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'nearest', 
+          inline: 'center' 
+        });
+      }
+    }
+  }, [activeTab]);
 
   return (
-    <div className="flex bg-gray-50 min-h-screen">
+    <div className="flex bg-gray-50 min-h-screen relative">
+      {/* Loading Overlay ở giữa màn hình */}
+      {(isSubmitting || loading) && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-4 min-w-[300px]">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <p className="text-lg font-semibold text-neutral-800">{submittingMessage}</p>
+            <p className="text-sm text-neutral-500 text-center">Vui lòng đợi trong giây lát...</p>
+          </div>
+        </div>
+      )}
       <Sidebar items={sidebarItems} title="TA Staff" />
 
       <div className="flex-1 min-h-screen bg-gradient-to-br from-neutral-50 via-primary-50/30 to-secondary-50/30">
@@ -459,11 +511,7 @@ export default function CreateTalent() {
           {/* Header */}
           <div className="border-b border-neutral-200 bg-white">
             <div className="px-6 py-4">
-              {formError && (
-                <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
-                  {formError}
-                </div>
-              )}
+              {/* Không hiển thị formError ở đầu trang - chỉ hiển thị alert khi có lỗi */}
               <div className="flex items-center gap-2 text-sm text-neutral-600 mb-2">
                 <Link to="/ta/developers" className="text-primary-600 hover:text-primary-700 cursor-pointer transition-colors">
                   Nhân sự
@@ -484,7 +532,215 @@ export default function CreateTalent() {
           <div className="grid grid-cols-1 lg:grid-cols-7 gap-4 px-2 lg:px-4 py-6">
             {/* Main Form */}
             <div className="lg:col-span-4 bg-white/80 backdrop-blur-sm rounded-2xl shadow-soft border border-neutral-200/50">
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                
+                // Kiểm tra nếu đang submit thì không cho submit lại
+                if (isSubmitting) {
+                  return;
+                }
+                
+                try {
+                  // Bước 1: Validate tất cả các trường bắt buộc TRƯỚC KHI hiển thị loading overlay
+                  const validationResult = validateAllFields();
+                
+                // Kiểm tra file CV: phải được chọn
+                if (!cvModal.cvFile) {
+                  validationResult.errors['cvFile'] = 'Vui lòng chọn file CV';
+                  validationResult.isValid = false;
+                }
+                
+                // Kiểm tra cấp độ: phải được chọn khi có vị trí công việc
+                if (initialCVs[0]?.jobRoleLevelId && initialCVs[0].jobRoleLevelId > 0) {
+                  const cvIndex = 0;
+                  const selectedLevelValue = filters.selectedLevel[cvIndex];
+                  if (selectedLevelValue === undefined || selectedLevelValue === null) {
+                    validationResult.errors['level'] = 'Vui lòng chọn cấp độ cho vị trí công việc';
+                    validationResult.isValid = false;
+                  }
+                }
+                
+                // Bước 1.5: Kiểm tra email đã tồn tại TRƯỚC KHI hiển thị loading overlay (QUAN TRỌNG)
+                if (formData.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+                  try {
+                    const response = await talentService.getAll({ email: formData.email, excludeDeleted: true });
+                    if (response && response.items && Array.isArray(response.items) && response.items.length > 0) {
+                      validationResult.errors['email'] = 'Email đã tồn tại trong hệ thống. Vui lòng dùng email khác.';
+                      validationResult.isValid = false;
+                    }
+                  } catch (error: any) {
+                    // Nếu lỗi là do email đã tồn tại, bắt lỗi này
+                    const errorData = error?.response?.data || error?.message || '';
+                    const errorText = (typeof errorData === 'string' ? errorData : JSON.stringify(errorData)).toLowerCase();
+                    if (errorText.includes('email already exists') || 
+                        errorText.includes('email đã tồn tại') ||
+                        (errorText.includes('already exists') && errorText.includes('email'))) {
+                      validationResult.errors['email'] = 'Email đã tồn tại trong hệ thống. Vui lòng dùng email khác.';
+                      validationResult.isValid = false;
+                    } else {
+                      // Nếu là lỗi khác (network, server error), không chặn validation nhưng log lỗi
+                      console.warn('⚠️ Không thể kiểm tra email đã tồn tại:', error);
+                    }
+                  }
+                }
+                
+                // Nếu validation fail, KHÔNG hiển thị loading overlay và dừng lại
+                if (!validationResult.isValid) {
+                  // Hiển thị lỗi và scroll đến trường đầu tiên có lỗi
+                  setFormErrors(validationResult.errors);
+                  
+                  // Tìm và scroll đến trường đầu tiên có lỗi
+                  const firstErrorKey = Object.keys(validationResult.errors)[0];
+                  if (firstErrorKey) {
+                    // Thử tìm element theo name attribute
+                    let errorElement = document.querySelector(`[name="${firstErrorKey}"]`);
+                    // Nếu không tìm thấy, thử tìm theo id hoặc data attribute
+                    if (!errorElement) {
+                      errorElement = document.querySelector(`#${firstErrorKey}`) || 
+                                    document.querySelector(`[data-field="${firstErrorKey}"]`);
+                    }
+                    if (errorElement) {
+                      errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      // Focus vào element nếu có thể
+                      if (errorElement instanceof HTMLElement && 'focus' in errorElement) {
+                        (errorElement as HTMLElement).focus();
+                      }
+                    }
+                  }
+                  
+                  // Hiển thị alert tổng hợp các lỗi
+                  const errorMessages = Object.values(validationResult.errors).join('\n');
+                  alert(`⚠️ Vui lòng điền đầy đủ thông tin bắt buộc:\n\n${errorMessages}`);
+                  return; // Dừng lại, KHÔNG hiển thị loading overlay và KHÔNG upload CV
+                }
+                
+                // CHỈ KHI validation pass, MỚI hiển thị loading overlay
+                setIsSubmitting(true);
+                setSubmittingMessage('Đang xử lý...');
+                
+                // Bước 2: Upload CV lên Firebase TRƯỚC KHI tạo nhân sự (QUAN TRỌNG)
+                // Lưu CV URL vào biến local để đảm bảo có giá trị ngay sau khi upload
+                let uploadedCVUrl: string | null = null;
+                
+                // Kiểm tra nếu có file CV nhưng chưa upload hoặc chưa có URL
+                if (cvModal.cvFile && initialCVs[0]) {
+                  const cv = initialCVs[0];
+                  
+                  // Kiểm tra nếu CV chưa được upload lên Firebase
+                  if (!isUploadedFromFirebase || !cv.cvFileUrl || cv.cvFileUrl.trim() === '') {
+                    // Kiểm tra vị trí công việc trước khi upload
+                    if (!cv.jobRoleLevelId || cv.jobRoleLevelId <= 0) {
+                      alert('⚠️ Vui lòng chọn vị trí công việc cho CV trước khi tạo nhân sự!');
+                      setIsSubmitting(false);
+                      return;
+                    }
+                    
+                    // Tự động set version = 1 nếu chưa có
+                    if (!cv.version || cv.version <= 0) {
+                      updateInitialCV(0, 'version', 1);
+                    }
+                    
+                    try {
+                      setSubmittingMessage('Đang upload CV lên Firebase...');
+                      const finalVersion = cv.version && cv.version > 0 ? cv.version : 1;
+                      
+                      // Upload CV lên Firebase
+                      const url = await uploadCV(cvModal.cvFile, 0, finalVersion, cv.jobRoleLevelId);
+                      
+                      // Kiểm tra nếu user đã cancel
+                      if (url === 'CANCELLED') {
+                        setIsSubmitting(false);
+                        return; // User đã cancel, không hiển thị lỗi
+                      }
+                      
+                      if (url && url.trim() !== '') {
+                        // Lưu URL vào biến local
+                        uploadedCVUrl = url;
+                        
+                        // Cập nhật CV URL vào state
+                        updateInitialCV(0, 'cvFileUrl', url);
+                        // Đảm bảo version = 1
+                        updateInitialCV(0, 'version', 1);
+                        // Đánh dấu đã upload để không kiểm tra lại
+                        setIsUploadedFromFirebase(true);
+                        // Đợi một chút để state được cập nhật hoàn toàn
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                      } else {
+                        alert('⚠️ Không thể upload CV lên Firebase. Vui lòng thử lại.');
+                        setIsSubmitting(false);
+                        return;
+                      }
+                    } catch (error: any) {
+                      // Chỉ hiển thị lỗi nếu không phải là cancel
+                      if (error.message !== 'CANCELLED' && error !== 'CANCELLED') {
+                        alert(`⚠️ Lỗi khi upload CV: ${error.message || 'Vui lòng thử lại.'}`);
+                      }
+                      setIsSubmitting(false);
+                      return;
+                    }
+                  } else {
+                    // CV đã được upload trước đó, sử dụng URL từ state
+                    uploadedCVUrl = cv.cvFileUrl;
+                  }
+                }
+                
+                // Kiểm tra lại CV URL sau khi upload để đảm bảo đã có URL trước khi submit
+                // Sử dụng biến local uploadedCVUrl thay vì state để tránh vấn đề async state update
+                if (cvModal.cvFile && (!uploadedCVUrl || uploadedCVUrl.trim() === '')) {
+                  // Nếu vẫn chưa có URL, kiểm tra lại từ state (fallback)
+                  if (!initialCVs[0]?.cvFileUrl || initialCVs[0].cvFileUrl.trim() === '') {
+                    alert('⚠️ Vui lòng upload CV lên Firebase trước khi tạo nhân sự!');
+                    setIsSubmitting(false);
+                    return;
+                  }
+                  uploadedCVUrl = initialCVs[0].cvFileUrl;
+                }
+                
+                // Đảm bảo CV URL được cập nhật vào state trước khi submit (nếu có URL từ upload)
+                if (uploadedCVUrl && initialCVs[0] && (!initialCVs[0].cvFileUrl || initialCVs[0].cvFileUrl.trim() === '')) {
+                  updateInitialCV(0, 'cvFileUrl', uploadedCVUrl);
+                  // Đợi một chút để state được cập nhật
+                  await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                // Đảm bảo CV URL được cập nhật vào state trước khi submit
+                // Sử dụng setInitialCVs trực tiếp với functional update để đảm bảo state được cập nhật
+                setSubmittingMessage('Đang chuẩn bị dữ liệu...');
+                if (cvModal.cvFile && uploadedCVUrl && uploadedCVUrl.trim() !== '') {
+                  // Cập nhật CV URL vào state bằng setInitialCVs với functional update
+                  setInitialCVs((prev) => {
+                    const updated = [...prev];
+                    if (updated[0]) {
+                      updated[0] = { ...updated[0], cvFileUrl: uploadedCVUrl };
+                    }
+                    return updated;
+                  });
+                  
+                  // Đợi một chút để state được cập nhật (tăng thời gian đợi để đảm bảo state được cập nhật)
+                  await new Promise(resolve => setTimeout(resolve, 1500));
+                } else if (cvModal.cvFile && (!uploadedCVUrl || uploadedCVUrl.trim() === '')) {
+                  // Nếu có file CV nhưng không có URL
+                  setIsSubmitting(false);
+                  alert('⚠️ Vui lòng upload CV lên Firebase trước khi tạo nhân sự!');
+                  return;
+                }
+                
+                // Đợi thêm một chút để đảm bảo tất cả state đã được cập nhật hoàn toàn
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Bước 3: Sau khi upload CV thành công và đảm bảo state đã được cập nhật, gọi performSubmit để submit form
+                // Truyền uploadedCVUrl trực tiếp vào performSubmit để đảm bảo CV URL được sử dụng
+                setSubmittingMessage('Đang tạo nhân sự...');
+                await performSubmit(uploadedCVUrl);
+                } catch (error: any) {
+                  // Xử lý lỗi nếu có
+                  console.error('❌ Lỗi khi xử lý form:', error);
+                  setIsSubmitting(false);
+                } finally {
+                  // Đảm bảo luôn reset loading state
+                  setIsSubmitting(false);
+                }
+              }}>
                 {/* Checkbox "Trích xuất thông tin từ CV" */}
                 <div className="p-6 border-b border-neutral-200">
                   <div className="bg-gradient-to-br from-primary-50 via-primary-50/80 to-secondary-50 rounded-2xl p-6 border border-primary-200/50 shadow-soft">
@@ -505,8 +761,15 @@ export default function CreateTalent() {
                 </div>
 
                 {/* Tab Navigation - Sticky */}
-                <div className="sticky top-16 z-50 border-b border-neutral-200 bg-white shadow-sm">
-                  <div className="flex overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <div className="sticky top-16 z-50 border-b border-neutral-200 bg-white shadow-sm relative">
+                  {/* Scroll indicator - fade gradient ở cuối */}
+                  <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-white to-transparent pointer-events-none z-10"></div>
+                  
+                  <div 
+                    ref={tabNavRef}
+                    className="flex overflow-x-auto scrollbar-hide scroll-smooth" 
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                  >
                     <style>{`
                       .scrollbar-hide::-webkit-scrollbar {
                         display: none;
@@ -514,63 +777,71 @@ export default function CreateTalent() {
                     `}</style>
                     <button
                       type="button"
+                      data-tab="required"
                       onClick={() => setActiveTab('required')}
-                      className={`flex items-center gap-2 px-6 py-4 font-medium text-sm whitespace-nowrap border-b-2 transition-all flex-shrink-0 ${
+                      className={`flex items-center gap-2 px-4 md:px-5 lg:px-6 py-4 font-medium text-sm whitespace-nowrap border-b-2 transition-all flex-shrink-0 ${
                         activeTab === 'required'
                           ? 'border-primary-500 text-primary-600 bg-white'
                           : 'border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-100/50'
                       }`}
                     >
-                      <User className="w-4 h-4" />
-                      Thông tin cơ bản
+                      <User className="w-4 h-4 flex-shrink-0" />
+                      <span className="hidden sm:inline">Thông tin cơ bản</span>
+                      <span className="sm:hidden">Thông tin</span>
                     </button>
                     <button
                       type="button"
+                      data-tab="skills"
                       onClick={() => setActiveTab('skills')}
-                      className={`flex items-center gap-2 px-6 py-4 font-medium text-sm whitespace-nowrap border-b-2 transition-all flex-shrink-0 ${
+                      className={`flex items-center gap-2 px-4 md:px-5 lg:px-6 py-4 font-medium text-sm whitespace-nowrap border-b-2 transition-all flex-shrink-0 ${
                         activeTab === 'skills'
                           ? 'border-primary-500 text-primary-600 bg-white'
                           : 'border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-100/50'
                       }`}
                     >
-                      <Star className="w-4 h-4" />
+                      <Star className="w-4 h-4 flex-shrink-0" />
                       Kỹ năng
                     </button>
                     <button
                       type="button"
+                      data-tab="experience"
                       onClick={() => setActiveTab('experience')}
-                      className={`flex items-center gap-2 px-6 py-4 font-medium text-sm whitespace-nowrap border-b-2 transition-all flex-shrink-0 ${
+                      className={`flex items-center gap-2 px-4 md:px-5 lg:px-6 py-4 font-medium text-sm whitespace-nowrap border-b-2 transition-all flex-shrink-0 ${
                         activeTab === 'experience'
                           ? 'border-primary-500 text-primary-600 bg-white'
                           : 'border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-100/50'
                       }`}
                     >
-                      <Briefcase className="w-4 h-4" />
-                      Kinh nghiệm
+                      <Briefcase className="w-4 h-4 flex-shrink-0" />
+                      <span className="hidden sm:inline">Kinh nghiệm</span>
+                      <span className="sm:hidden">Kinh nghiệm</span>
                     </button>
                     <button
                       type="button"
+                      data-tab="projects"
                       onClick={() => setActiveTab('projects')}
-                      className={`flex items-center gap-2 px-6 py-4 font-medium text-sm whitespace-nowrap border-b-2 transition-all flex-shrink-0 ${
+                      className={`flex items-center gap-2 px-4 md:px-5 lg:px-6 py-4 font-medium text-sm whitespace-nowrap border-b-2 transition-all flex-shrink-0 ${
                         activeTab === 'projects'
                           ? 'border-primary-500 text-primary-600 bg-white'
                           : 'border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-100/50'
                       }`}
                     >
-                      <FolderOpen className="w-4 h-4" />
+                      <FolderOpen className="w-4 h-4 flex-shrink-0" />
                       Dự án
                     </button>
                     <button
                       type="button"
+                      data-tab="certificates"
                       onClick={() => setActiveTab('certificates')}
-                      className={`flex items-center gap-2 px-6 py-4 font-medium text-sm whitespace-nowrap border-b-2 transition-all flex-shrink-0 ${
+                      className={`flex items-center gap-2 px-4 md:px-5 lg:px-6 py-4 font-medium text-sm whitespace-nowrap border-b-2 transition-all flex-shrink-0 ${
                         activeTab === 'certificates'
                           ? 'border-primary-500 text-primary-600 bg-white'
                           : 'border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-100/50'
                       }`}
                     >
-                      <Award className="w-4 h-4" />
-                      Chứng chỉ
+                      <Award className="w-4 h-4 flex-shrink-0" />
+                      <span className="hidden sm:inline">Chứng chỉ</span>
+                      <span className="sm:hidden">Chứng chỉ</span>
                     </button>
                   </div>
                 </div>
@@ -585,15 +856,9 @@ export default function CreateTalent() {
                         partners={partners}
                         locations={locations}
                         errors={errors}
-                        onChange={handleChange}
+                        onChange={(e) => updateBasicField('currentPartnerId', e.target.value)}
                         onPartnerChange={(partnerId) => {
-                          const syntheticEvent = {
-                            target: {
-                              name: 'currentPartnerId',
-                              value: partnerId || '',
-                            },
-                          } as unknown as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>;
-                          handleChange(syntheticEvent);
+                          updateBasicField('currentPartnerId', partnerId || '');
                         }}
                       />
                     )}
@@ -628,7 +893,8 @@ export default function CreateTalent() {
                       <>
                         <TalentWorkExperienceSection
                           talentWorkExperiences={talentWorkExperiences}
-                          workExperiencePositions={workExperiencePositions}
+                          jobRoleLevels={jobRoleLevels}
+                          initialCVs={initialCVs}
                           workExperiencePositionSearch={filters.workExperiencePositionSearch}
                           setWorkExperiencePositionSearch={filters.setWorkExperiencePositionSearch}
                           isWorkExperiencePositionDropdownOpen={filters.isWorkExperiencePositionDropdownOpen}
@@ -646,6 +912,12 @@ export default function CreateTalent() {
                       <>
                         <TalentProjectsSection
                           talentProjects={talentProjects}
+                          jobRoleLevels={jobRoleLevels}
+                          initialCVs={initialCVs}
+                          projectPositionSearch={filters.projectPositionSearch}
+                          setProjectPositionSearch={filters.setProjectPositionSearch}
+                          isProjectPositionDropdownOpen={filters.isProjectPositionDropdownOpen}
+                          setIsProjectPositionDropdownOpen={filters.setIsProjectPositionDropdownOpen}
                           onAdd={handlers.addProject}
                           onRemove={handlers.removeProject}
                           onUpdate={handlers.updateProject}
@@ -672,8 +944,23 @@ export default function CreateTalent() {
                           onRemove={handlers.removeCertificate}
                           onUpdate={handlers.updateCertificate}
                           onFileChange={handleFileChangeCertificate}
-                          onUploadImage={uploadCertificateImage}
-                          onDeleteImage={deleteCertificateImage}
+                          onUploadImage={async (certIndex: number) => {
+                            const url = await uploadCertificateImage(certIndex);
+                            if (url) {
+                              // Cập nhật imageUrl vào certificate sau khi upload thành công
+                              handlers.updateCertificate(certIndex, 'imageUrl', url);
+                            }
+                          }}
+                          onDeleteImage={async (certIndex: number, imageUrl: string) => {
+                            const deleted = await deleteCertificateImage(certIndex, imageUrl);
+                            if (deleted) {
+                              // Reset file state và URL khi xóa thành công
+                              const event = { target: { files: null, value: '' } } as any;
+                              handleFileChangeCertificate(certIndex, event);
+                              // Xóa URL khỏi certificate
+                              handlers.updateCertificate(certIndex, 'imageUrl', '');
+                            }
+                          }}
                           errors={errors}
                         />
                       </>
@@ -683,13 +970,13 @@ export default function CreateTalent() {
                   <div className="pt-6 border-t border-neutral-200 mt-8">
                     <button
                       type="submit"
-                      disabled={loading}
+                      disabled={loading || isSubmitting}
                       className="w-full bg-gradient-to-r from-primary-600 to-secondary-600 text-white py-3.5 px-6 rounded-xl hover:from-primary-700 hover:to-secondary-700 font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-glow hover:shadow-glow-lg transform hover:scale-[1.02] active:scale-[0.98]"
                     >
-                      {loading ? (
+                      {loading || isSubmitting ? (
                         <div className="flex items-center justify-center space-x-2">
                           <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          <span>Đang tạo...</span>
+                          <span>{isSubmitting ? 'Đang xử lý...' : 'Đang tạo...'}</span>
                         </div>
                       ) : (
                         'Tạo nhân sự'
@@ -727,52 +1014,9 @@ export default function CreateTalent() {
                   uploadingCVIndex={uploadingCVIndex}
                   uploadProgress={uploadProgress}
                   isUploadedFromFirebase={isUploadedFromFirebase}
-                  uploadedCVUrl={uploadedCVUrl}
                   errors={errors}
-                  validateCVVersion={validateCVVersion}
-                  onFileChange={(file) => cvModal.setCvFile(file)}
-                  onUploadCV={async (cvIndex) => {
-                    if (!cvModal.cvFile) {
-                      alert('Vui lòng chọn file CV trước!');
-                      return;
-                    }
-                    const cv = initialCVs[cvIndex];
-                    if (!cv?.version || !cv?.jobRoleLevelId) {
-                      alert('Vui lòng nhập version và chọn vị trí công việc trước!');
-                      return;
-                    }
-                    const url = await uploadCV(cvModal.cvFile, cvIndex, cv.version, cv.jobRoleLevelId);
-                    if (url) {
-                      updateInitialCV(cvIndex, 'cvFileUrl', url);
-                    }
-                  }}
-                  onDeleteCVFile={async (cvIndex: number) => {
-                    const cv = initialCVs[cvIndex];
-                    if (cv?.cvFileUrl) {
-                      await deleteCVFile(cvIndex, cv.cvFileUrl);
-                      updateInitialCV(cvIndex, 'cvFileUrl', '');
-                    }
-                  }}
-                  onUpdateCV={updateInitialCV}
-                  onCVUrlChange={(index: number, url: string) => {
-                    updateInitialCV(index, 'cvFileUrl', url);
-                  }}
-                />
-              </div>
-
-              {/* Job Role Levels Section */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-soft border border-neutral-200/50">
-                <TalentJobRoleLevelsSection
-                  talentJobRoleLevels={talentJobRoleLevels}
-                  jobRoleLevels={jobRoleLevels}
-                  selectedJobRoleFilterId={filters.selectedJobRoleFilterId}
-                  setSelectedJobRoleFilterId={filters.setSelectedJobRoleFilterId}
-                  selectedJobRoleLevelName={filters.selectedJobRoleLevelName}
-                  setSelectedJobRoleLevelName={filters.setSelectedJobRoleLevelName}
-                  jobRoleLevelNameSearch={filters.jobRoleLevelNameSearch}
-                  setJobRoleLevelNameSearch={filters.setJobRoleLevelNameSearch}
-                  isJobRoleLevelNameDropdownOpen={filters.isJobRoleLevelNameDropdownOpen}
-                  setIsJobRoleLevelNameDropdownOpen={filters.setIsJobRoleLevelNameDropdownOpen}
+                  selectedLevel={filters.selectedLevel}
+                  setSelectedLevel={filters.setSelectedLevel}
                   isLevelDropdownOpen={filters.isLevelDropdownOpen}
                   setIsLevelDropdownOpen={filters.setIsLevelDropdownOpen}
                   getLevelText={(level: number) => {
@@ -784,13 +1028,30 @@ export default function CreateTalent() {
                     };
                     return levelMap[level] || `Level ${level}`;
                   }}
-                  onRemove={handlers.removeJobRoleLevel}
-                  onUpdate={handlers.updateJobRoleLevel}
-                  onSetErrors={_setErrors}
-                  errors={errors}
-                  initialCVs={initialCVs}
+                  talentJobRoleLevels={talentJobRoleLevels}
+                  jobRoleLevels={jobRoleLevels}
+                  onUpdateTalentJobRoleLevel={(index, field, value) => {
+                    setTalentJobRoleLevels((prev) => {
+                      const updated = [...prev];
+                      if (updated[index]) {
+                        updated[index] = { ...updated[index], [field]: value };
+                      }
+                      return updated;
+                    });
+                  }}
+                  onFileChange={async (file) => {
+                    // Nếu checkbox "Trích xuất thông tin từ CV" đã được tích và người dùng chọn lại file
+                    if (cvModal.useExtractCV) {
+                      // Bỏ tích checkbox và xóa tất cả dữ liệu đã trích xuất
+                      await cvModal.handleUseExtractCVChange(false);
+                    }
+                    // Set file mới (có thể là null nếu chọn lại)
+                    cvModal.setCvFile(file);
+                  }}
+                  onUpdateCV={updateInitialCV}
                 />
               </div>
+
 
               {/* Extracted Data Sidebar - Tạm thời ẩn đi */}
               {/* {cvExtraction.extractedData && (
@@ -1051,13 +1312,13 @@ export default function CreateTalent() {
       {/* Extract CV Modal */}
       {cvModal.showExtractCVModal && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto"
-          style={{ paddingTop: '10vh' }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               cvModal.setShowExtractCVModal(false);
               cvModal.setUseExtractCV(false);
               cvModal.setModalCVFile(null);
+              setShowModalCVPreview(false);
               if (cvModal.modalCVPreviewUrl) {
                 URL.revokeObjectURL(cvModal.modalCVPreviewUrl);
                 cvModal.setModalCVPreviewUrl(null);
@@ -1065,64 +1326,110 @@ export default function CreateTalent() {
             }
           }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-neutral-200 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-neutral-900">Trích xuất thông tin từ CV</h2>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+            {/* Header */}
+            <div className="p-4 border-b border-neutral-200 flex items-center justify-between bg-gradient-to-r from-primary-50 to-blue-50">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-primary-100 rounded-lg">
+                  <FileText className="w-5 h-5 text-primary-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-neutral-900">Trích xuất thông tin từ CV</h2>
+              </div>
               <button
                 type="button"
                 onClick={() => {
                   cvModal.setShowExtractCVModal(false);
                   cvModal.setUseExtractCV(false);
                   cvModal.setModalCVFile(null);
+                  setShowModalCVPreview(false);
                   if (cvModal.modalCVPreviewUrl) {
                     URL.revokeObjectURL(cvModal.modalCVPreviewUrl);
                     cvModal.setModalCVPreviewUrl(null);
                   }
                 }}
-                className="text-neutral-400 hover:text-neutral-600 transition-colors"
+                className="p-1.5 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
+            {/* Content */}
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">
+              {/* File Input */}
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">Chọn file CV (PDF)</label>
+                <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                  Chọn file CV (PDF)
+                </label>
+                <div className="relative">
                 <input
                   type="file"
                   accept=".pdf"
                   onChange={cvModal.handleModalFileChange}
-                  className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full px-4 py-2.5 text-sm border-2 border-dashed border-neutral-300 rounded-lg bg-neutral-50 hover:border-primary-400 hover:bg-primary-50/50 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-primary-100 file:text-primary-700 hover:file:bg-primary-200 cursor-pointer"
                 />
+                </div>
               </div>
 
-              {cvModal.modalCVPreviewUrl && (
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">Preview CV</label>
-                  <iframe src={cvModal.modalCVPreviewUrl} className="w-full h-96 border border-neutral-300 rounded-lg" />
+              {/* File Info */}
+              {cvModal.modalCVFile && (
+                <div className="flex items-center gap-3 p-3 bg-white border border-neutral-200 rounded-lg">
+                  <div className="p-2 bg-primary-50 rounded-lg">
+                    <FileText className="w-4 h-4 text-primary-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-neutral-700 truncate">
+                      {cvModal.modalCVFile.name}
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      {(cvModal.modalCVFile.size / 1024).toFixed(2)} KB
+                    </p>
+                  </div>
                 </div>
               )}
 
-              <div>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={cvModal.createCVFromExtract}
-                    onChange={(e) => cvModal.setCreateCVFromExtract(e.target.checked)}
-                    className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
-                  />
-                  <span className="text-sm font-medium text-neutral-700">Tạo CV luôn (upload lên Firebase)</span>
-                </label>
+              {/* CV Preview - Collapsible */}
+              {cvModal.modalCVPreviewUrl && (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowModalCVPreview(!showModalCVPreview)}
+                    className="flex items-center gap-2 text-sm font-semibold text-neutral-700 hover:text-primary-600 transition-colors"
+                  >
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showModalCVPreview ? 'rotate-180' : ''}`} />
+                    <span>{showModalCVPreview ? 'Ẩn xem trước CV' : 'Xem trước CV'}</span>
+                  </button>
+                  {showModalCVPreview && (
+                    <div className="border border-neutral-200 rounded-lg overflow-hidden bg-neutral-50">
+                      <iframe
+                        src={cvModal.modalCVPreviewUrl}
+                        className="w-full h-80"
+                        title="CV Preview"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
               </div>
 
-              <div className="flex gap-3">
+            {/* Footer */}
+            <div className="p-4 border-t border-neutral-200 flex gap-3 bg-neutral-50">
                 <button
                   type="button"
                   onClick={cvModal.handleExtractCVFromModal}
                   disabled={!cvModal.modalCVFile || cvExtraction.extractingCV || cvModal.isExtracting}
-                  className="flex-1 bg-primary-600 text-white py-2.5 px-4 rounded-lg hover:bg-primary-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {cvExtraction.extractingCV || cvModal.isExtracting ? 'Đang trích xuất...' : 'Trích xuất thông tin'}
+                className="flex-1 bg-gradient-to-r from-primary-600 to-blue-600 text-white py-2.5 px-4 rounded-lg hover:from-primary-700 hover:to-blue-700 font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+              >
+                {cvExtraction.extractingCV || cvModal.isExtracting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <span>Đang trích xuất...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4" />
+                    <span>Trích xuất thông tin</span>
+                  </>
+                )}
                 </button>
                 <button
                   type="button"
@@ -1130,16 +1437,16 @@ export default function CreateTalent() {
                     cvModal.setShowExtractCVModal(false);
                     cvModal.setUseExtractCV(false);
                     cvModal.setModalCVFile(null);
+                  setShowModalCVPreview(false);
                     if (cvModal.modalCVPreviewUrl) {
                       URL.revokeObjectURL(cvModal.modalCVPreviewUrl);
                       cvModal.setModalCVPreviewUrl(null);
                     }
                   }}
-                  className="px-4 py-2.5 border border-neutral-300 text-neutral-700 rounded-lg hover:bg-neutral-50 font-medium transition-colors"
+                className="px-4 py-2.5 border border-neutral-300 rounded-lg hover:bg-neutral-100 font-medium transition-colors text-neutral-700"
                 >
                   Hủy
                 </button>
-              </div>
             </div>
           </div>
         </div>

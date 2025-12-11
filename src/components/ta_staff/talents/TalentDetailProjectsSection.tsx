@@ -1,4 +1,4 @@
-import { Plus, Trash2, Briefcase, X, Save } from 'lucide-react';
+import { Plus, Trash2, Briefcase, X, Save, Target, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../ui/button';
 import { SectionPagination } from './SectionPagination';
@@ -14,6 +14,15 @@ interface TalentDetailProjectsSectionProps {
   pageProjects: number;
   setPageProjects: (page: number) => void;
   itemsPerPage: number;
+
+  // Project positions
+  projectPositions: string[];
+
+  // Position selection
+  projectPositionSearch: string;
+  setProjectPositionSearch: (search: string) => void;
+  isProjectPositionDropdownOpen: boolean;
+  setIsProjectPositionDropdownOpen: (open: boolean) => void;
 
   // Inline form
   showInlineForm: boolean;
@@ -42,6 +51,11 @@ export function TalentDetailProjectsSection({
   pageProjects,
   setPageProjects,
   itemsPerPage,
+  projectPositions,
+  projectPositionSearch,
+  setProjectPositionSearch,
+  isProjectPositionDropdownOpen,
+  setIsProjectPositionDropdownOpen,
   showInlineForm,
   inlineProjectForm,
   setInlineProjectForm,
@@ -55,8 +69,59 @@ export function TalentDetailProjectsSection({
 }: TalentDetailProjectsSectionProps) {
   const navigate = useNavigate();
 
+  // Filter positions
+  const filteredProjectPositions = projectPositions.filter((position) => {
+    if (!projectPositionSearch) return true;
+    return position.toLowerCase().includes(projectPositionSearch.toLowerCase());
+  });
+
   return (
     <div className="space-y-6">
+      {/* CV Analysis Suggestions */}
+      {analysisResult &&
+        (analysisResult.projects.newEntries.length > 0 || analysisResult.projects.potentialDuplicates.length > 0) && (
+          <div className="mb-4 rounded-xl border border-purple-200 bg-purple-50/80 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-purple-900 uppercase tracking-wide">Gợi ý từ CV mới</h3>
+              <span className="text-xs text-purple-700">
+                {analysisResult.projects.newEntries.length} dự án mới · {analysisResult.projects.potentialDuplicates.length}{' '}
+                dự án có thể trùng
+              </span>
+            </div>
+            {analysisResult.projects.newEntries.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-purple-700 font-medium">Đề xuất thêm dự án:</p>
+                {analysisResult.projects.newEntries.map((project, index) => (
+                  <div
+                    key={`suggested-project-${index}`}
+                    className="rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm text-purple-900 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold">{project.projectName}</span>
+                      {project.position && <span className="text-xs text-purple-700">Vai trò: {project.position}</span>}
+                    </div>
+                    {project.technologies && (
+                      <p className="mt-1 text-xs text-purple-600">Công nghệ: {project.technologies}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {analysisResult.projects.potentialDuplicates.length > 0 && (
+              <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
+                <p className="font-medium mb-1">Kiểm tra trùng lặp:</p>
+                <ul className="space-y-1">
+                  {analysisResult.projects.potentialDuplicates.map((dup, index) => (
+                    <li key={`dup-project-${index}`}>
+                      - {dup.fromCV.projectName} · Khuyến nghị: <span className="font-semibold">{dup.recommendation}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
       {/* Inline Project Form */}
       {showInlineForm && (
         <div className="bg-white rounded-xl border-2 border-primary-200 p-6 mb-6 shadow-lg">
@@ -85,13 +150,67 @@ export function TalentDetailProjectsSection({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-neutral-700 mb-2">Vị trí</label>
-                <input
-                  type="text"
-                  value={inlineProjectForm.position || ''}
-                  onChange={(e) => setInlineProjectForm({ ...inlineProjectForm, position: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg bg-white border-neutral-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
-                  placeholder="Nhập vị trí"
-                />
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsProjectPositionDropdownOpen(!isProjectPositionDropdownOpen)}
+                    className="w-full flex items-center justify-between px-4 py-2 border rounded-lg bg-white text-left focus:ring-2 focus:ring-primary-500/20 transition-all border-neutral-300 focus:border-primary-500"
+                  >
+                    <div className="flex items-center gap-2 text-sm text-neutral-700">
+                      <Target className="w-4 h-4 text-neutral-400" />
+                      <span className={inlineProjectForm.position ? 'text-neutral-800' : 'text-neutral-500'}>
+                        {inlineProjectForm.position || 'Chọn vị trí'}
+                      </span>
+                    </div>
+                  </button>
+                  {isProjectPositionDropdownOpen && (
+                    <div
+                      className="absolute z-20 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl"
+                      onMouseLeave={() => {
+                        setIsProjectPositionDropdownOpen(false);
+                        setProjectPositionSearch('');
+                      }}
+                    >
+                      <div className="p-3 border-b border-neutral-100">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
+                          <input
+                            type="text"
+                            value={projectPositionSearch}
+                            onChange={(e) => setProjectPositionSearch(e.target.value)}
+                            placeholder="Tìm vị trí..."
+                            className="w-full pl-9 pr-3 py-2.5 text-sm border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                      </div>
+                      <div className="max-h-56 overflow-y-auto">
+                        {filteredProjectPositions.length === 0 ? (
+                          <p className="px-4 py-3 text-sm text-neutral-500">Không tìm thấy vị trí nào</p>
+                        ) : (
+                          filteredProjectPositions.map((position) => (
+                            <button
+                              type="button"
+                              key={position}
+                              onClick={() => {
+                                setInlineProjectForm({ ...inlineProjectForm, position: position });
+                                setIsProjectPositionDropdownOpen(false);
+                                setProjectPositionSearch('');
+                              }}
+                              className={`w-full text-left px-4 py-2.5 text-sm ${
+                                inlineProjectForm.position === position
+                                  ? 'bg-primary-50 text-primary-700'
+                                  : 'hover:bg-neutral-50 text-neutral-700'
+                              }`}
+                            >
+                              {position}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-neutral-700 mb-2">Công nghệ sử dụng</label>
@@ -144,51 +263,6 @@ export function TalentDetailProjectsSection({
           </div>
         </div>
       )}
-
-      {/* CV Analysis Suggestions */}
-      {analysisResult &&
-        (analysisResult.projects.newEntries.length > 0 || analysisResult.projects.potentialDuplicates.length > 0) && (
-          <div className="mb-4 rounded-xl border border-purple-200 bg-purple-50/80 p-4">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-purple-900 uppercase tracking-wide">Gợi ý từ CV mới</h3>
-              <span className="text-xs text-purple-700">
-                {analysisResult.projects.newEntries.length} dự án mới · {analysisResult.projects.potentialDuplicates.length}{' '}
-                dự án có thể trùng
-              </span>
-            </div>
-            {analysisResult.projects.newEntries.length > 0 && (
-              <div className="mt-3 space-y-2">
-                <p className="text-xs text-purple-700 font-medium">Đề xuất thêm dự án:</p>
-                {analysisResult.projects.newEntries.map((project, index) => (
-                  <div
-                    key={`suggested-project-${index}`}
-                    className="rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm text-purple-900 shadow-sm"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold">{project.projectName}</span>
-                      {project.position && <span className="text-xs text-purple-700">Vai trò: {project.position}</span>}
-                    </div>
-                    {project.technologies && (
-                      <p className="mt-1 text-xs text-purple-600">Công nghệ: {project.technologies}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-            {analysisResult.projects.potentialDuplicates.length > 0 && (
-              <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
-                <p className="font-medium mb-1">Kiểm tra trùng lặp:</p>
-                <ul className="space-y-1">
-                  {analysisResult.projects.potentialDuplicates.map((dup, index) => (
-                    <li key={`dup-project-${index}`}>
-                      - {dup.fromCV.projectName} · Khuyến nghị: <span className="font-semibold">{dup.recommendation}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
 
       {/* Header with actions */}
       <div className="flex items-center justify-between mb-4">

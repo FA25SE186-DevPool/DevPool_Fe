@@ -15,10 +15,7 @@ interface TalentJobRoleLevelsSectionProps {
   setJobRoleLevelNameSearch: (search: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => void;
   isJobRoleLevelNameDropdownOpen: Record<number, boolean>;
   setIsJobRoleLevelNameDropdownOpen: (open: Record<number, boolean> | ((prev: Record<number, boolean>) => Record<number, boolean>)) => void;
-  isLevelDropdownOpen: Record<number, boolean>;
-  setIsLevelDropdownOpen: (open: Record<number, boolean> | ((prev: Record<number, boolean>) => Record<number, boolean>)) => void;
   errors: Record<string, string>;
-  getLevelText: (level: number) => string;
   onRemove: (index: number) => void;
   onUpdate: (index: number, field: keyof TalentJobRoleLevelCreateModel, value: string | number | undefined) => void;
   onSetErrors?: (errors: Record<string, string>) => void;
@@ -32,17 +29,13 @@ export function TalentJobRoleLevelsSection({
   talentJobRoleLevels,
   jobRoleLevels,
   selectedJobRoleFilterId,
-  setSelectedJobRoleFilterId,
   selectedJobRoleLevelName,
   setSelectedJobRoleLevelName,
   jobRoleLevelNameSearch,
   setJobRoleLevelNameSearch,
   isJobRoleLevelNameDropdownOpen,
   setIsJobRoleLevelNameDropdownOpen,
-  isLevelDropdownOpen,
-  setIsLevelDropdownOpen,
   errors,
-  getLevelText,
   onRemove,
   onUpdate,
   onSetErrors,
@@ -97,18 +90,7 @@ export function TalentJobRoleLevelsSection({
       </div>
 
       <div className="p-6 space-y-4">
-        {talentJobRoleLevels.map((jrl, index) => {
-          const selectedJRL = jobRoleLevels.find((l) => l.id === jrl.jobRoleLevelId);
-          const availableLevels = selectedJobRoleLevelName[index]
-            ? jobRoleLevels
-                .filter((jrl) => jrl.name === selectedJobRoleLevelName[index])
-                .map((jrl) => jrl.level)
-                .filter((level, idx, self) => self.indexOf(level) === idx)
-            : [];
-          const selectedJobRoleLevelIds = talentJobRoleLevels
-            .filter((_, i) => i !== index)
-            .map((jrl) => jrl.jobRoleLevelId)
-            .filter((id) => id > 0);
+        {talentJobRoleLevels.map((_jrl, index) => {
 
           return (
             <div key={index} className="p-4 bg-neutral-50 rounded-lg border border-neutral-200">
@@ -132,7 +114,7 @@ export function TalentJobRoleLevelsSection({
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 {/* Job Role Level Name Selection */}
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-neutral-700">
@@ -252,7 +234,7 @@ export function TalentJobRoleLevelsSection({
                                     ...prev,
                                     [index]: '',
                                   }));
-                                  onUpdate(index, 'jobRoleLevelId', 0);
+                                  onUpdate(index, 'jobRoleLevelId', undefined);
                                   if (onSetErrors) {
                                     const newErrors = { ...errors };
                                     delete newErrors[`jobrolelevel_${index}`];
@@ -273,134 +255,6 @@ export function TalentJobRoleLevelsSection({
                       </div>
                     )}
                   </div>
-                </div>
-
-                {/* Level Selection */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-neutral-700">
-                    Cấp độ <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (selectedJobRoleLevelName[index]) {
-                          setIsLevelDropdownOpen((prev) => ({
-                            ...prev,
-                            [index]: !prev[index],
-                          }));
-                        }
-                      }}
-                      disabled={!selectedJobRoleLevelName[index]}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 border rounded-lg bg-white text-left focus:ring-2 focus:ring-primary-500/20 transition-all ${
-                        errors[`jobrolelevel_${index}`]
-                          ? 'border-red-500 bg-red-50'
-                          : 'border-neutral-300 focus:border-primary-500 hover:border-primary-300'
-                      } ${
-                        !selectedJobRoleLevelName[index]
-                          ? 'opacity-50 cursor-not-allowed bg-neutral-50'
-                          : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 text-sm text-neutral-700">
-                        <Target className="w-4 h-4 text-neutral-500" />
-                        <span
-                          className={
-                            !selectedJobRoleLevelName[index]
-                              ? 'text-neutral-400'
-                              : selectedJRL
-                                ? 'font-medium text-neutral-900'
-                                : 'text-neutral-500'
-                          }
-                        >
-                          {!selectedJobRoleLevelName[index]
-                            ? 'Chọn vị trí trước'
-                            : selectedJRL
-                              ? getLevelText(selectedJRL.level)
-                              : 'Chọn cấp độ'}
-                        </span>
-                      </div>
-                      <ChevronDown
-                        className={`w-4 h-4 text-neutral-400 transition-transform ${
-                          isLevelDropdownOpen[index] ? 'rotate-180' : ''
-                        }`}
-                      />
-                    </button>
-                    {isLevelDropdownOpen[index] && selectedJobRoleLevelName[index] && (
-                      <div
-                        className="absolute z-[60] mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
-                        onMouseLeave={() => {
-                          setIsLevelDropdownOpen((prev) => ({
-                            ...prev,
-                            [index]: false,
-                          }));
-                        }}
-                      >
-                        <div className="max-h-56 overflow-y-auto">
-                          {availableLevels.length === 0 ? (
-                            <p className="px-4 py-3 text-sm text-neutral-500">
-                              Không có cấp độ nào cho vị trí này
-                            </p>
-                          ) : (
-                            availableLevels.map((level) => {
-                              const matchingJRL = availableJobRoleLevels.find(
-                                (jrl) =>
-                                  jrl.name === selectedJobRoleLevelName[index] &&
-                                  jrl.level === level
-                              );
-                              const isDisabled = matchingJRL
-                                ? selectedJobRoleLevelIds.includes(matchingJRL.id)
-                                : false;
-
-                              return (
-                                <button
-                                  type="button"
-                                  key={level}
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    if (matchingJRL && !isDisabled) {
-                                      onUpdate(index, 'jobRoleLevelId', matchingJRL.id);
-                                      setIsLevelDropdownOpen((prev) => ({
-                                        ...prev,
-                                        [index]: false,
-                                      }));
-                                      if (onSetErrors) {
-                                        const newErrors = { ...errors };
-                                        delete newErrors[`jobrolelevel_${index}`];
-                                        onSetErrors(newErrors);
-                                      }
-                                      setSelectedJobRoleFilterId((prev) => ({
-                                        ...prev,
-                                        [index]: matchingJRL.jobRoleId,
-                                      }));
-                                    }
-                                  }}
-                                  disabled={isDisabled || !matchingJRL}
-                                  className={`w-full text-left px-4 py-2.5 text-sm ${
-                                    matchingJRL && jrl.jobRoleLevelId === matchingJRL.id
-                                      ? 'bg-primary-50 text-primary-700'
-                                      : isDisabled
-                                        ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed italic'
-                                        : 'hover:bg-neutral-50 text-neutral-700'
-                                  }`}
-                                >
-                                  {getLevelText(level)}
-                                  {isDisabled ? ' (đã chọn)' : ''}
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {!selectedJobRoleLevelName[index] && (
-                    <p className="text-xs text-neutral-400 mt-1">Vui lòng chọn vị trí trước</p>
-                  )}
-                  {errors[`jobrolelevel_${index}`] && (
-                    <p className="text-xs text-red-500 mt-1">{errors[`jobrolelevel_${index}`]}</p>
-                  )}
                 </div>
               </div>
 
