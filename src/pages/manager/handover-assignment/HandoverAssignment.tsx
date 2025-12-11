@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import Sidebar from "../../../components/common/Sidebar";
 import Breadcrumb from "../../../components/common/Breadcrumb";
-import { sidebarItems } from "../../../components/manager/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/manager";
 import { talentService, type Talent, type HandoverTalentRequest } from "../../../services/Talent";
 import { userService, type User } from "../../../services/User";
 import { talentStaffAssignmentService, type TalentStaffAssignment, AssignmentResponsibility } from "../../../services/TalentStaffAssignment";

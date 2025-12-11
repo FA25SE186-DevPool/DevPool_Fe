@@ -6,7 +6,7 @@ import {
   Code, Target, Star, Edit, Upload, ChevronDown, ChevronUp, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import Sidebar from '../../components/common/Sidebar';
-import { sidebarItems } from '../../components/developer/SidebarItems';
+import { sidebarItems } from '../../components/sidebar/developer';
 import { useAuth } from '../../context/AuthContext';
 import { userService, type User as UserType } from '../../services/User';
 import { decodeJWT } from '../../services/Auth';

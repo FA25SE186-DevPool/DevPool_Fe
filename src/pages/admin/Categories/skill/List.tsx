@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Sidebar from "../../../../components/common/Sidebar";
 import Breadcrumb from "../../../../components/common/Breadcrumb";
-import { sidebarItems } from "../../../../components/admin/SidebarItems";
+import { sidebarItems } from "../../../../components/sidebar/admin";
 import { Link } from "react-router-dom";
 import { Button } from "../../../../components/ui/button";
 import { skillService, type Skill } from "../../../../services/Skill";

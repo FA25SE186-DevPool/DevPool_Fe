@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { X, User, Star, Briefcase, FolderOpen, Award } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
-import { sidebarItems } from '../../../components/hr_staff/SidebarItems';
+import { sidebarItems } from '../../../components/sidebar/ta_staff';
 import { useTalentCreate } from '../../../hooks/useTalentCreate';
 import { useFileUpload } from '../../../hooks/useFileUpload';
 import { useCVExtraction } from '../../../hooks/useCVExtraction';
@@ -10,13 +10,13 @@ import { useTalentCreateHandlers } from '../../../hooks/useTalentCreateHandlers'
 import { useTalentCreateCVModal } from '../../../hooks/useTalentCreateCVModal';
 import { useTalentCreateFilters } from '../../../hooks/useTalentCreateFilters';
 import { useTalentCreateEffects } from '../../../hooks/useTalentCreateEffects';
-import { TalentBasicInfoForm } from '../../../components/hr_staff/talents/TalentBasicInfoForm';
-import { TalentSkillsSection } from '../../../components/hr_staff/talents/TalentSkillsSection';
-import { TalentWorkExperienceSection } from '../../../components/hr_staff/talents/TalentWorkExperienceSection';
-import { TalentProjectsSection } from '../../../components/hr_staff/talents/TalentProjectsSection';
-import { TalentCertificatesSection } from '../../../components/hr_staff/talents/TalentCertificatesSection';
-import { TalentJobRoleLevelsSection } from '../../../components/hr_staff/talents/TalentJobRoleLevelsSection';
-import { TalentCVSection } from '../../../components/hr_staff/talents/TalentCVSection';
+import { TalentBasicInfoForm } from '../../../components/ta_staff/talents/TalentBasicInfoForm';
+import { TalentSkillsSection } from '../../../components/ta_staff/talents/TalentSkillsSection';
+import { TalentWorkExperienceSection } from '../../../components/ta_staff/talents/TalentWorkExperienceSection';
+import { TalentProjectsSection } from '../../../components/ta_staff/talents/TalentProjectsSection';
+import { TalentCertificatesSection } from '../../../components/ta_staff/talents/TalentCertificatesSection';
+import { TalentJobRoleLevelsSection } from '../../../components/ta_staff/talents/TalentJobRoleLevelsSection';
+import { TalentCVSection } from '../../../components/ta_staff/talents/TalentCVSection';
 import { type TalentCVCreate } from '../../../services/TalentCV';
 // import { notificationService, NotificationPriority, NotificationType } from '../../../services/Notification'; // Tạm thời comment vì Extracted Data Sidebar đã bị ẩn
 // import { userService } from '../../../services/User'; // Tạm thời comment vì Extracted Data Sidebar đã bị ẩn

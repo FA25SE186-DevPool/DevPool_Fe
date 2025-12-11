@@ -22,7 +22,7 @@ import {
   DollarSign,
   TrendingUp
 } from 'lucide-react';
-import { sidebarItems } from '../../components/developer/SidebarItems';
+import { sidebarItems } from '../../components/sidebar/developer';
 import Sidebar from '../../components/common/Sidebar';
 import { useAuth } from '../../context/AuthContext';
 import { decodeJWT } from '../../services/Auth';

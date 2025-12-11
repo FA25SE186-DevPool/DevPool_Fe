@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Sidebar from "../../../components/common/Sidebar";
 import Breadcrumb from "../../../components/common/Breadcrumb";
-import { sidebarItems } from "../../../components/sales_staff/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/sales";
 import { Link } from "react-router-dom";
 import { Button } from "../../../components/ui/button";
 import { clientCompanyService, type ClientCompany } from "../../../services/ClientCompany";

@@ -16,7 +16,7 @@ export const ROUTES = {
   // =======================================
   // TA_STAFF - Nhân viên TA
   // =======================================
-  HR_STAFF: {
+  TA_STAFF: {
     DASHBOARD: '/ta/dashboard',
     PROFILE: '/ta/profile',
 
@@ -328,7 +328,7 @@ export type UserRole =
 export const getDashboardRoute = (role: string): string => {
   switch (role) {
     case 'Staff TA':
-      return ROUTES.HR_STAFF.DASHBOARD;
+      return ROUTES.TA_STAFF.DASHBOARD;
     case 'Staff Accountant':
       return ROUTES.ACCOUNTANT_STAFF.DASHBOARD;
     case 'Staff Sales':
@@ -347,7 +347,7 @@ export const getDashboardRoute = (role: string): string => {
 export const getRoleBasedRoutes = (role: UserRole) => {
   switch (role) {
     case 'Staff TA':
-      return ROUTES.HR_STAFF;
+      return ROUTES.TA_STAFF;
     case 'Manager':
       return ROUTES.MANAGER;
     case 'Admin':

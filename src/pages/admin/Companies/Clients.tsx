@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Search, Mail, Phone } from "lucide-react";
 import Sidebar from "../../../components/common/Sidebar";
-import { sidebarItems } from "../../../components/admin/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/admin";
 
 type ClientCompany = {
   id: string;

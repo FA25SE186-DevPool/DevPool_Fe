@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
 import Breadcrumb from "../../../components/common/Breadcrumb";
-import { sidebarItems } from "../../../components/hr_staff/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/ta_staff";
 import { talentProjectService, type TalentProjectCreate } from "../../../services/TalentProject";
 import { talentCVService, type TalentCV } from "../../../services/TalentCV";
 import { type ExtractedProject } from "../../../services/TalentCV";

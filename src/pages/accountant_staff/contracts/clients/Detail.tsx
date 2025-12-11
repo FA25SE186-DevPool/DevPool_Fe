@@ -24,7 +24,7 @@ import {
   Download,
 } from "lucide-react";
 import Sidebar from "../../../../components/common/Sidebar";
-import { sidebarItems } from "../../../../components/accountant_staff/SidebarItems";
+import { sidebarItems } from "../../../../components/sidebar/accountant";
 import {
   clientContractPaymentService,
   type ClientContractPaymentModel,

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
 import Breadcrumb from "../../../components/common/Breadcrumb";
-import { sidebarItems } from "../../../components/hr_staff/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/ta_staff";
 import { partnerService, type Partner, type PartnerPayload, PartnerType } from "../../../services/Partner";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
@@ -196,7 +196,7 @@ export default function PartnerEditPage() {
     try {
       await partnerService.update(Number(id), formData);
       alert("✅ Cập nhật đối tác thành công!");
-      navigate(`${ROUTES.HR_STAFF.PARTNERS.LIST}/${id}`);
+      navigate(`${ROUTES.TA_STAFF.PARTNERS.LIST}/${id}`);
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật đối tác:", err);
       alert("Không thể cập nhật đối tác!");
@@ -228,7 +228,7 @@ export default function PartnerEditPage() {
             </div>
             <p className="text-red-500 text-lg font-medium">Không tìm thấy đối tác</p>
             <Link 
-              to={ROUTES.HR_STAFF.PARTNERS.LIST}
+              to={ROUTES.TA_STAFF.PARTNERS.LIST}
               className="text-primary-600 hover:text-primary-800 text-sm mt-2 inline-block"
             >
               ← Quay lại danh sách
@@ -247,8 +247,8 @@ export default function PartnerEditPage() {
         <div className="mb-8 animate-slide-up">
           <Breadcrumb
             items={[
-              { label: "Đối tác", to: ROUTES.HR_STAFF.PARTNERS.LIST },
-              { label: partner ? partner.companyName || "Chi tiết đối tác" : "Chi tiết đối tác", to: `${ROUTES.HR_STAFF.PARTNERS.LIST}/${id}` },
+              { label: "Đối tác", to: ROUTES.TA_STAFF.PARTNERS.LIST },
+              { label: partner ? partner.companyName || "Chi tiết đối tác" : "Chi tiết đối tác", to: `${ROUTES.TA_STAFF.PARTNERS.LIST}/${id}` },
               { label: "Chỉnh sửa" }
             ]}
           />
@@ -429,7 +429,7 @@ export default function PartnerEditPage() {
           {/* Action Buttons */}
           <div className="flex justify-end gap-4">
             <Link
-              to={`${ROUTES.HR_STAFF.PARTNERS.LIST}/${id}`}
+              to={`${ROUTES.TA_STAFF.PARTNERS.LIST}/${id}`}
               className="px-6 py-3 bg-neutral-100 text-neutral-700 rounded-xl hover:bg-neutral-200 font-medium transition-all duration-300"
             >
               Hủy

@@ -7,7 +7,7 @@ import {
   CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
 import Sidebar from '../../../components/common/Sidebar';
-import { sidebarItems } from '../../../components/hr_staff/SidebarItems';
+import { sidebarItems } from '../../../components/sidebar/ta_staff';
 import { talentService, type Talent } from '../../../services/Talent';
 import { applyService, type Apply } from '../../../services/Apply';
 import { applyActivityService, type ApplyActivity, ApplyActivityType } from '../../../services/ApplyActivity';

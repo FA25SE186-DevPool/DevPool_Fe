@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
-import { sidebarItems } from "../../../components/sales_staff/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/sales";
 import { jobRequestService, type JobRequestPayload } from "../../../services/JobRequest";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";

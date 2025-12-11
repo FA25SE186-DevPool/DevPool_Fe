@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Sidebar from "../../../components/common/Sidebar";
 import Breadcrumb from "../../../components/common/Breadcrumb";
-import { sidebarItems } from "../../../components/accountant_staff/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/accountant";
 import { clientDocumentService, type ClientDocument } from "../../../services/ClientDocument";
 import { partnerDocumentService, type PartnerDocument } from "../../../services/PartnerDocument";
 import { documentTypeService, type DocumentType } from "../../../services/DocumentType";

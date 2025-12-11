@@ -2,7 +2,7 @@ import { useState, useEffect, type ReactNode } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, FileText, Calendar, Building2, DollarSign, CheckCircle, AlertCircle, Clock as ClockIcon } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
-import { sidebarItems } from '../../../components/developer/SidebarItems';
+import { sidebarItems } from '../../../components/sidebar/developer';
 import { partnerContractPaymentService, type PartnerContractPaymentModel } from '../../../services/PartnerContractPayment';
 import { partnerService, type Partner } from '../../../services/Partner';
 import { talentService, type Talent } from '../../../services/Talent';

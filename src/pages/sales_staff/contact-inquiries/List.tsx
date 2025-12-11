@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
 import Breadcrumb from '../../../components/common/Breadcrumb';
-import { sidebarItems } from '../../../components/sales_staff/SidebarItems';
+import { sidebarItems } from '../../../components/sidebar/sales';
 import { 
   contactInquiryService, 
   type ContactInquiryModel,

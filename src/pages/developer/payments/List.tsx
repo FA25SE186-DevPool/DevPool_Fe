@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Search, Filter, Calendar, Building2, CheckCircle, Clock, AlertCircle, ChevronLeft, ChevronRight, CreditCard, Eye } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
 import Breadcrumb from '../../../components/common/Breadcrumb';
-import { sidebarItems } from '../../../components/developer/SidebarItems';
+import { sidebarItems } from '../../../components/sidebar/developer';
 import { partnerContractPaymentService, type PartnerContractPaymentModel } from '../../../services/PartnerContractPayment';
 import { partnerService, type Partner } from '../../../services/Partner';
 import { talentService, type Talent } from '../../../services/Talent';

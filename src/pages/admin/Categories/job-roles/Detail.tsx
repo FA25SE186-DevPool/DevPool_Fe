@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Sidebar from "../../../../components/common/Sidebar";
-import { sidebarItems } from "../../../../components/admin/SidebarItems";
+import { sidebarItems } from "../../../../components/sidebar/admin";
 import { jobRoleService, type JobRole } from "../../../../services/JobRole";
 import { jobRoleLevelService, type JobRoleLevel } from "../../../../services/JobRoleLevel";
 import { 

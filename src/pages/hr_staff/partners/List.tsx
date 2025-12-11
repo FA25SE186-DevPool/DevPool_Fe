@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Building2, Plus, Users, Phone, ChevronLeft, ChevronRight, Eye, User, Briefcase } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
 import Breadcrumb from '../../../components/common/Breadcrumb';
-import { sidebarItems } from '../../../components/hr_staff/SidebarItems';
+import { sidebarItems } from '../../../components/sidebar/ta_staff';
 import { Button } from '../../../components/ui/button';
 import { partnerService, type Partner, PartnerType } from '../../../services/Partner';
 import { ROUTES } from '../../../router/routes'; 
@@ -135,7 +135,7 @@ export default function ListPartner() {
               <p className="text-neutral-600 mt-1">Quản lý và theo dõi thông tin các công ty đối tác</p>
             </div>
             <Button 
-              onClick={() => navigate(ROUTES.HR_STAFF.PARTNERS.CREATE)}
+              onClick={() => navigate(ROUTES.TA_STAFF.PARTNERS.CREATE)}
               className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105"
             >
               <Plus className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform duration-300" />
@@ -360,7 +360,7 @@ export default function ListPartner() {
                       </td>
                       <td className="py-4 px-6 text-center">
                         <button
-                          onClick={() => navigate(`${ROUTES.HR_STAFF.PARTNERS.LIST}/${p.id}`)}
+                          onClick={() => navigate(`${ROUTES.TA_STAFF.PARTNERS.LIST}/${p.id}`)}
                           className="group inline-flex items-center gap-2 px-3 py-2 text-primary-600 hover:text-primary-800 hover:bg-primary-50 rounded-lg transition-all duration-300 hover:scale-105 transform"
                         >
                           <Eye className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />

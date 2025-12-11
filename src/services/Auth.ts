@@ -9,10 +9,10 @@ import {
 } from "../config/firebase";
 import { db } from "../config/firebase";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
-import { BackendRole, type FrontendRole, type LoginPayload, type RegisterPayload, type UserProvisionPayload, type UserProvisionResponse, type LoginResponse, type JwtPayload } from "../types/auth.types";
+import { BackendRole, type FrontendRole, type LoginPayload, type RegisterPayload, type UserProvisionPayload, type UserProvisionResponse, type LoginResponse, type JwtPayload, type ForgotPasswordPayload, type ResetPasswordByOtpPayload, type MessageResponse } from "../types/auth.types";
 
 export { BackendRole };
-export type { FrontendRole, LoginPayload, RegisterPayload, UserProvisionPayload, UserProvisionResponse, LoginResponse, JwtPayload };
+export type { FrontendRole, LoginPayload, RegisterPayload, UserProvisionPayload, UserProvisionResponse, LoginResponse, JwtPayload, ForgotPasswordPayload, ResetPasswordByOtpPayload, MessageResponse };
 
 // Hàm decode JWT token để lấy payload
 export function decodeJWT(token: string): JwtPayload | null {
@@ -54,7 +54,7 @@ export function getRoleFromToken(token: string): FrontendRole | null {
     case 'Manager':
       return 'Manager';
     case 'HR':
-    case 'TA': // Hỗ trợ cả HR (backend cũ) và TA (backend mới)
+    case 'TA': 
       return 'Staff TA';
     case 'Accountant':
       return 'Staff Accountant';
@@ -367,6 +367,40 @@ export const authService = {
       if (error instanceof AxiosError)
         throw error.response?.data || { message: "Không thể đăng ký FaceID" };
       throw { message: "Lỗi không xác định khi đăng ký FaceID" };
+    }
+  },
+
+  /**
+   * Gửi OTP quên mật khẩu đến email
+   * @param email - Email của user
+   * @returns Promise<MessageResponse>
+   */
+  async forgotPassword(email: string): Promise<MessageResponse> {
+    try {
+      const response = await apiClient.post<MessageResponse>("/auth/forgot-password", null, {
+        params: { email },
+      });
+      return response.data;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError)
+        throw error.response?.data || { message: "Không thể gửi OTP quên mật khẩu" };
+      throw { message: "Lỗi không xác định khi gửi OTP quên mật khẩu" };
+    }
+  },
+
+  /**
+   * Reset mật khẩu bằng OTP
+   * @param payload - ResetPasswordByOtpPayload (email, otp, newPassword)
+   * @returns Promise<MessageResponse>
+   */
+  async resetPasswordByOtp(payload: ResetPasswordByOtpPayload): Promise<MessageResponse> {
+    try {
+      const response = await apiClient.post<MessageResponse>("/auth/reset-password-by-otp", payload);
+      return response.data;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError)
+        throw error.response?.data || { message: "Không thể reset mật khẩu. OTP không hợp lệ hoặc đã hết hạn." };
+      throw { message: "Lỗi không xác định khi reset mật khẩu" };
     }
   },
 };
