@@ -4,14 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import UnauthorizedRedirectListener from '../components/common/UnauthorizedRedirectListener';
 import PageLoader from '../components/common/PageLoader';
 
-// Layouts - Giữ nguyên vì cần thiết ngay
+// Layouts
 import PublicLayout from '../components/layouts/PublicLayout';
-import AdminLayout from '../components/layouts/AdminLayout';
-import HrLayout from '../components/layouts/HrLayout';
-import SalesLayout from '../components/layouts/SalesLayout';
-import ManagerLayout from '../components/layouts/ManagerLayout';
-import DeveloperLayout from '../components/layouts/DeveloperLayout';
-import AccountantLayout from '../components/layouts/AccountantLayout';
+import PrivateLayout from '../components/layouts/PrivateLayout';
 import ProtectedRoute from './ProtectedRoute';
 import { ROUTES, getDashboardRoute, NOTIFICATION_CENTER_ROUTE } from './routes';
 
@@ -289,64 +284,64 @@ const AppRouter: React.FC = () => {
           </Route>
 
           {/* ======================================== */}
-          {/* TA STAFF ROUTES (với HrLayout) */}
+          {/* TA STAFF ROUTES (với PrivateLayout) */}
           {/* ======================================== */}
-          <Route element={<HrLayout />}>
+          <Route element={<PrivateLayout />}>
             <Route element={<ProtectedRoute requiredRole="Staff TA"><Outlet /></ProtectedRoute>}>
-              <Route path={ROUTES.HR_STAFF.DASHBOARD} element={<HRDashboard />} />
-              <Route path={ROUTES.HR_STAFF.PROFILE} element={<HRStaffProfile />} />
+              <Route path={ROUTES.TA_STAFF.DASHBOARD} element={<HRDashboard />} />
+              <Route path={ROUTES.TA_STAFF.PROFILE} element={<HRStaffProfile />} />
 
               {/* Talents */}
-              <Route path={ROUTES.HR_STAFF.DEVELOPERS.LIST} element={<ListDev />} />
-              <Route path={ROUTES.HR_STAFF.DEVELOPERS.DETAIL} element={<TalentDetailPage />} />
-              <Route path={ROUTES.HR_STAFF.DEVELOPERS.EDIT} element={<TalentEditPage />} />
-              <Route path={ROUTES.HR_STAFF.DEVELOPERS.CREATE} element={<CreateTalent />} />
+              <Route path={ROUTES.TA_STAFF.DEVELOPERS.LIST} element={<ListDev />} />
+              <Route path={ROUTES.TA_STAFF.DEVELOPERS.DETAIL} element={<TalentDetailPage />} />
+              <Route path={ROUTES.TA_STAFF.DEVELOPERS.EDIT} element={<TalentEditPage />} />
+              <Route path={ROUTES.TA_STAFF.DEVELOPERS.CREATE} element={<CreateTalent />} />
 
               {/* Talent Sub-entities */}
-              <Route path={ROUTES.HR_STAFF.TALENT_AVAILABLE_TIMES.CREATE} element={<TalentAvailableTimeCreatePage />} />
-              <Route path={ROUTES.HR_STAFF.TALENT_AVAILABLE_TIMES.EDIT} element={<TalentAvailableTimeEditPage />} />
-              <Route path={ROUTES.HR_STAFF.TALENT_CERTIFICATES.CREATE} element={<TalentCertificateCreatePage />} />
-              <Route path={ROUTES.HR_STAFF.TALENT_CERTIFICATES.EDIT} element={<TalentCertificateEditPage />} />
-              <Route path={ROUTES.HR_STAFF.TALENT_CVS.CREATE} element={<TalentCVCreatePage />} />
-              <Route path={ROUTES.HR_STAFF.TALENT_CVS.EDIT} element={<TalentCVEditPage />} />
-              <Route path={ROUTES.HR_STAFF.TALENT_JOB_ROLE_LEVELS.CREATE} element={<TalentJobRoleLevelCreatePage />} />
-              <Route path={ROUTES.HR_STAFF.TALENT_JOB_ROLE_LEVELS.EDIT} element={<TalentJobRoleLevelEditPage />} />
-              <Route path={ROUTES.HR_STAFF.TALENT_PROJECTS.CREATE} element={<TalentProjectCreatePage />} />
-              <Route path={ROUTES.HR_STAFF.TALENT_PROJECTS.EDIT} element={<TalentProjectEditPage />} />
-              <Route path={ROUTES.HR_STAFF.TALENT_SKILLS.CREATE} element={<TalentSkillCreatePage />} />
-              <Route path={ROUTES.HR_STAFF.TALENT_SKILLS.EDIT} element={<TalentSkillEditPage />} />
-              <Route path={ROUTES.HR_STAFF.TALENT_WORK_EXPERIENCES.CREATE} element={<TalentWorkExperienceCreatePage />} />
-              <Route path={ROUTES.HR_STAFF.TALENT_WORK_EXPERIENCES.EDIT} element={<TalentWorkExperienceEditPage />} />
+              <Route path={ROUTES.TA_STAFF.TALENT_AVAILABLE_TIMES.CREATE} element={<TalentAvailableTimeCreatePage />} />
+              <Route path={ROUTES.TA_STAFF.TALENT_AVAILABLE_TIMES.EDIT} element={<TalentAvailableTimeEditPage />} />
+              <Route path={ROUTES.TA_STAFF.TALENT_CERTIFICATES.CREATE} element={<TalentCertificateCreatePage />} />
+              <Route path={ROUTES.TA_STAFF.TALENT_CERTIFICATES.EDIT} element={<TalentCertificateEditPage />} />
+              <Route path={ROUTES.TA_STAFF.TALENT_CVS.CREATE} element={<TalentCVCreatePage />} />
+              <Route path={ROUTES.TA_STAFF.TALENT_CVS.EDIT} element={<TalentCVEditPage />} />
+              <Route path={ROUTES.TA_STAFF.TALENT_JOB_ROLE_LEVELS.CREATE} element={<TalentJobRoleLevelCreatePage />} />
+              <Route path={ROUTES.TA_STAFF.TALENT_JOB_ROLE_LEVELS.EDIT} element={<TalentJobRoleLevelEditPage />} />
+              <Route path={ROUTES.TA_STAFF.TALENT_PROJECTS.CREATE} element={<TalentProjectCreatePage />} />
+              <Route path={ROUTES.TA_STAFF.TALENT_PROJECTS.EDIT} element={<TalentProjectEditPage />} />
+              <Route path={ROUTES.TA_STAFF.TALENT_SKILLS.CREATE} element={<TalentSkillCreatePage />} />
+              <Route path={ROUTES.TA_STAFF.TALENT_SKILLS.EDIT} element={<TalentSkillEditPage />} />
+              <Route path={ROUTES.TA_STAFF.TALENT_WORK_EXPERIENCES.CREATE} element={<TalentWorkExperienceCreatePage />} />
+              <Route path={ROUTES.TA_STAFF.TALENT_WORK_EXPERIENCES.EDIT} element={<TalentWorkExperienceEditPage />} />
 
               {/* Partners */}
-              <Route path={ROUTES.HR_STAFF.PARTNERS.LIST} element={<ListPartner />} />
-              <Route path={ROUTES.HR_STAFF.PARTNERS.DETAIL} element={<PartnerDetailPage />} />
-              <Route path={ROUTES.HR_STAFF.PARTNERS.EDIT} element={<PartnerEditPage />} />
-              <Route path={ROUTES.HR_STAFF.PARTNERS.CREATE} element={<CreatePartner />} />
+              <Route path={ROUTES.TA_STAFF.PARTNERS.LIST} element={<ListPartner />} />
+              <Route path={ROUTES.TA_STAFF.PARTNERS.DETAIL} element={<PartnerDetailPage />} />
+              <Route path={ROUTES.TA_STAFF.PARTNERS.EDIT} element={<PartnerEditPage />} />
+              <Route path={ROUTES.TA_STAFF.PARTNERS.CREATE} element={<CreatePartner />} />
 
               {/* Job Requests */}
-              <Route path={ROUTES.HR_STAFF.JOB_REQUESTS.LIST} element={<ListRequest />} />
-              <Route path={ROUTES.HR_STAFF.JOB_REQUESTS.DETAIL} element={<JobRequestDetailHRPage />} />
-              <Route path={ROUTES.HR_STAFF.JOB_REQUESTS.MATCHING} element={<MatchingCVPage />} />
+              <Route path={ROUTES.TA_STAFF.JOB_REQUESTS.LIST} element={<ListRequest />} />
+              <Route path={ROUTES.TA_STAFF.JOB_REQUESTS.DETAIL} element={<JobRequestDetailHRPage />} />
+              <Route path={ROUTES.TA_STAFF.JOB_REQUESTS.MATCHING} element={<MatchingCVPage />} />
 
               {/* Applications */}
-              <Route path={ROUTES.HR_STAFF.APPLICATIONS.LIST} element={<TalentCVApplicationPage />} />
-              <Route path={ROUTES.HR_STAFF.APPLICATIONS.DETAIL} element={<TalentCVApplicationDetailPage />} />
+              <Route path={ROUTES.TA_STAFF.APPLICATIONS.LIST} element={<TalentCVApplicationPage />} />
+              <Route path={ROUTES.TA_STAFF.APPLICATIONS.DETAIL} element={<TalentCVApplicationDetailPage />} />
 
               {/* Apply Activities */}
-              <Route path={ROUTES.HR_STAFF.APPLY_ACTIVITIES.CREATE} element={<ApplyActivityCreatePage />} />
-              <Route path={ROUTES.HR_STAFF.APPLY_ACTIVITIES.DETAIL} element={<ApplyActivityDetailPage />} />
-              <Route path={ROUTES.HR_STAFF.APPLY_ACTIVITIES.EDIT} element={<ApplyActivityEditPage />} />
+              <Route path={ROUTES.TA_STAFF.APPLY_ACTIVITIES.CREATE} element={<ApplyActivityCreatePage />} />
+              <Route path={ROUTES.TA_STAFF.APPLY_ACTIVITIES.DETAIL} element={<ApplyActivityDetailPage />} />
+              <Route path={ROUTES.TA_STAFF.APPLY_ACTIVITIES.EDIT} element={<ApplyActivityEditPage />} />
 
               {/* Assignments */}
-              <Route path={ROUTES.HR_STAFF.ASSIGNMENTS} element={<Assignments />} />
+              <Route path={ROUTES.TA_STAFF.ASSIGNMENTS} element={<Assignments />} />
             </Route>
           </Route>
 
           {/* ======================================== */}
-          {/* SALES STAFF ROUTES (với SalesLayout) */}
+          {/* SALES STAFF ROUTES (với PrivateLayout) */}
           {/* ======================================== */}
-          <Route element={<SalesLayout />}>
+          <Route element={<PrivateLayout />}>
             <Route element={<ProtectedRoute requiredRole="Staff Sales"><Outlet /></ProtectedRoute>}>
               <Route path={ROUTES.SALES_STAFF.DASHBOARD} element={<SalesStaffDashboard />} />
               <Route path={ROUTES.SALES_STAFF.PROFILE} element={<SalesStaffProfile />} />
@@ -396,9 +391,9 @@ const AppRouter: React.FC = () => {
           </Route>
 
           {/* ======================================== */}
-          {/* ACCOUNTANT STAFF ROUTES (với AccountantLayout) */}
+          {/* ACCOUNTANT STAFF ROUTES (với PrivateLayout) */}
           {/* ======================================== */}
-          <Route element={<AccountantLayout />}>
+          <Route element={<PrivateLayout />}>
             <Route element={<ProtectedRoute requiredRole="Staff Accountant"><Outlet /></ProtectedRoute>}>
               <Route path={ROUTES.ACCOUNTANT_STAFF.DASHBOARD} element={<AccountantDashboard />} />
               <Route path={ROUTES.ACCOUNTANT_STAFF.PROFILE} element={<AccountantStaffProfile />} />
@@ -411,9 +406,9 @@ const AppRouter: React.FC = () => {
           </Route>
 
           {/* ======================================== */}
-          {/* DEVELOPER ROUTES (với DeveloperLayout) */}
+          {/* DEVELOPER ROUTES (với PrivateLayout) */}
           {/* ======================================== */}
-          <Route element={<DeveloperLayout />}>
+          <Route element={<PrivateLayout />}>
             <Route element={<ProtectedRoute requiredRole="Developer"><Outlet /></ProtectedRoute>}>
               <Route path={ROUTES.DEVELOPER.DASHBOARD} element={<DeveloperDashboard />} />
               <Route path={ROUTES.DEVELOPER.PROFILE} element={<DeveloperProfile />} />
@@ -426,9 +421,9 @@ const AppRouter: React.FC = () => {
           </Route>
 
           {/* ======================================== */}
-          {/* MANAGER ROUTES (với ManagerLayout) */}
+          {/* MANAGER ROUTES (với PrivateLayout) */}
           {/* ======================================== */}
-          <Route element={<ManagerLayout />}>
+          <Route element={<PrivateLayout />}>
             <Route element={<ProtectedRoute requiredRole="Manager"><Outlet /></ProtectedRoute>}>
               <Route path={ROUTES.MANAGER.DASHBOARD} element={<ManagerDashboard />} />
               <Route path={ROUTES.MANAGER.PROFILE} element={<ManagerProfile />} />
@@ -452,9 +447,9 @@ const AppRouter: React.FC = () => {
           </Route>
 
           {/* ======================================== */}
-          {/* ADMIN ROUTES (với AdminLayout) */}
+          {/* ADMIN ROUTES (với PrivateLayout) */}
           {/* ======================================== */}
-          <Route element={<AdminLayout />}>
+          <Route element={<PrivateLayout />}>
             <Route element={<ProtectedRoute requiredRole="Admin"><Outlet /></ProtectedRoute>}>
               <Route path={ROUTES.ADMIN.DASHBOARD} element={<AdminDashboard />} />
               <Route path={ROUTES.ADMIN.PROFILE} element={<AdminProfile />} />

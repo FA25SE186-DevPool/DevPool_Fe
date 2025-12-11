@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, Users, DollarSign, Briefcase, Building2, UserCheck, Loader2, AlertCircle, BarChart3, TrendingDown, Minus, Calendar, CheckCircle, FileText } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
-import { sidebarItems } from '../../../components/manager/SidebarItems';
+import { sidebarItems } from '../../../components/sidebar/manager';
 import { dashboardService, type ExecutiveDashboardModel, type AnalyticsReportsModel, type ProjectAssignmentDashboardModel, type TalentManagementDashboardModel, type FinancialDashboardModel } from '../../../services/Dashboard';
 
 type DashboardTab = 'executive' | 'analytics' | 'project-assignment' | 'talent-management' | 'financial';

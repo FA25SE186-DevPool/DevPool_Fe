@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Sidebar from "../../../components/common/Sidebar";
-import { sidebarItems } from "../../../components/admin/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/admin";
 import { useNavigate } from "react-router-dom";
 import { 
   Search, 

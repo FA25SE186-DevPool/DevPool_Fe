@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate, useParams, Link, useLocation } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
 import Breadcrumb from "../../../components/common/Breadcrumb";
-import { sidebarItems } from "../../../components/sales_staff/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/sales";
 import {
   talentApplicationService,
   type TalentApplicationDetailed,

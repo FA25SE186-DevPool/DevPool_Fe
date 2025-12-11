@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Search, Filter, Plus, Shield, ShieldCheck, MoreVertical, UserRound, Trash2, Mail, Phone, CheckCircle2, XCircle } from "lucide-react";
-import { sidebarItems } from "../../../components/admin/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/admin";
 import Sidebar from "../../../components/common/Sidebar";
 import Breadcrumb from "../../../components/common/Breadcrumb";
 import { userService, type User, type UserFilter, type PagedResult } from "../../../services/User";

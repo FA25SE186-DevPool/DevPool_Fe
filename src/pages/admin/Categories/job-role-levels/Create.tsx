@@ -13,7 +13,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import Sidebar from "../../../../components/common/Sidebar";
-import { sidebarItems } from "../../../../components/admin/SidebarItems";
+import { sidebarItems } from "../../../../components/sidebar/admin";
 import { jobRoleLevelService, type JobRoleLevelPayload } from "../../../../services/JobRoleLevel";
 import { type JobRole, jobRoleService } from "../../../../services/JobRole";
 

@@ -8,7 +8,7 @@ import {
   TrendingUp, Clock, Briefcase, AlertCircle, XCircle, Loader2, Calendar, CheckCircle
 } from "lucide-react";
 import Sidebar from "../../components/common/Sidebar";
-import { sidebarItems } from "../../components/sales_staff/SidebarItems";
+import { sidebarItems } from "../../components/sidebar/sales";
 import { jobRequestService, type JobRequest, JobRequestStatus } from "../../services/JobRequest";
 import { talentApplicationService, type TalentApplication } from "../../services/TalentApplication";
 import { clientCompanyService, type ClientCompany } from "../../services/ClientCompany";

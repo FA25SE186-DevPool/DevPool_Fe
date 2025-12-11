@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
-import { sidebarItems } from "../../../components/sales_staff/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/sales";
 import {
   applyProcessStepService,
   type ApplyProcessStep,

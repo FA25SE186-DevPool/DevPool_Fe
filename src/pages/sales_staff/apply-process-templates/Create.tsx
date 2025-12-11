@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
-import { sidebarItems } from "../../../components/sales_staff/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/sales";
 import { applyProcessTemplateService } from "../../../services/ApplyProcessTemplate";
 import { Input } from "../../../components/ui/input";
 import { Textarea } from "../../../components/ui/textarea";

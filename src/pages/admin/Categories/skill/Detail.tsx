@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Sidebar from "../../../../components/common/Sidebar";
-import { sidebarItems } from "../../../../components/admin/SidebarItems";
+import { sidebarItems } from "../../../../components/sidebar/admin";
 import { skillService, type Skill } from "../../../../services/Skill";
 import { skillGroupService, type SkillGroup } from "../../../../services/SkillGroup";
 import { 

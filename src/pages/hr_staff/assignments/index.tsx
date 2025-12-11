@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Search, Filter, Plus, Users } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
 import Breadcrumb from '../../../components/common/Breadcrumb';
-import { sidebarItems } from '../../../components/hr_staff/SidebarItems';
+import { sidebarItems } from '../../../components/sidebar/ta_staff';
 
 interface Assignment {
     id: string;

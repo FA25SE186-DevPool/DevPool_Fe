@@ -1,7 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
 import Breadcrumb from "../../../components/common/Breadcrumb";
-import { sidebarItems } from "../../../components/hr_staff/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/ta_staff";
 import { WorkingMode } from "../../../constants/WORKING_MODE";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";

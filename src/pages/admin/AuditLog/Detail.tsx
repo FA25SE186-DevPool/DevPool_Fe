@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
-import { sidebarItems } from "../../../components/admin/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/admin";
 import { 
   ArrowLeft,
   History,

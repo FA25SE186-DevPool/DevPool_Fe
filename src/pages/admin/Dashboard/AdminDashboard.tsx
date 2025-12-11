@@ -1,4 +1,4 @@
-import { sidebarItems } from '../../../components/admin/SidebarItems';
+import { sidebarItems } from '../../../components/sidebar/admin';
 import Sidebar from '../../../components/common/Sidebar';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';

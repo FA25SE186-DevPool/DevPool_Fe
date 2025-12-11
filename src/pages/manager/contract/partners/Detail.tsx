@@ -20,7 +20,7 @@ import {
   Download,
 } from "lucide-react";
 import Sidebar from "../../../../components/common/Sidebar";
-import { sidebarItems } from "../../../../components/manager/SidebarItems";
+import { sidebarItems } from "../../../../components/sidebar/manager";
 import {
   partnerContractPaymentService,
   type PartnerContractPaymentModel,

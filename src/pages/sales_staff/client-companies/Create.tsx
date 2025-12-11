@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Sidebar from "../../../components/common/Sidebar";
 import Breadcrumb from "../../../components/common/Breadcrumb";
-import { sidebarItems } from "../../../components/sales_staff/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/sales";
 import { clientCompanyService, type ClientCompanyPayload } from "../../../services/ClientCompany";
 import { clientCompanyCVTemplateService } from "../../../services/ClientCompanyTemplate";
 import { cvTemplateService } from "../../../services/CVTemplate";

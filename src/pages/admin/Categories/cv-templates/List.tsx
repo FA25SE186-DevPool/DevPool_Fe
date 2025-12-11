@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Sidebar from "../../../../components/common/Sidebar";
 import Breadcrumb from "../../../../components/common/Breadcrumb";
-import { sidebarItems } from "../../../../components/admin/SidebarItems";
+import { sidebarItems } from "../../../../components/sidebar/admin";
 import { Button } from "../../../../components/ui/button";
 import { cvTemplateService, type CVTemplate } from "../../../../services/CVTemplate";
 import { 

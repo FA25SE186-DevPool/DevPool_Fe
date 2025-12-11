@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, Mail, Phone, MapPin, User, FileText, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
-import { sidebarItems } from '../../../components/hr_staff/SidebarItems';
+import { sidebarItems } from '../../../components/sidebar/ta_staff';
 import { partnerService, type Partner, type PartnerPayload, PartnerType } from '../../../services/Partner';
 import { ROUTES } from '../../../router/routes';
 
@@ -264,7 +264,7 @@ export default function CreatePartner() {
     try {
       await partnerService.create(formData);
       alert('✅ Tạo đối tác thành công!');
-      navigate(ROUTES.HR_STAFF.PARTNERS.LIST);
+      navigate(ROUTES.TA_STAFF.PARTNERS.LIST);
     } catch (error) {
       console.error(error);
       alert('❌ Lỗi khi tạo đối tác!');

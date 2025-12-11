@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User, Mail, Phone, Save, AlertCircle, CheckCircle } from 'lucide-react';
 import Sidebar from '../../components/common/Sidebar';
-import { sidebarItems } from '../../components/accountant_staff/SidebarItems';
+import { sidebarItems } from '../../components/sidebar/accountant';
 import { useAuth } from '../../context/AuthContext';
 import { userService, type User as UserType } from '../../services/User';
 import { decodeJWT } from '../../services/Auth';

@@ -21,7 +21,7 @@ import {
   Loader2,
   AlertCircle
 } from 'lucide-react';
-import { sidebarItems } from '../../components/accountant_staff/SidebarItems';
+import { sidebarItems } from '../../components/sidebar/accountant';
 import Sidebar from '../../components/common/Sidebar';
 import { dashboardService, type FinancialDashboardModel } from '../../services/Dashboard';
 

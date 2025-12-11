@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
 import Breadcrumb from "../../../components/common/Breadcrumb";
-import { sidebarItems } from "../../../components/hr_staff/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/ta_staff";
 import { partnerService, type PartnerDetailedModel, type PartnerTalentModel, PartnerType } from "../../../services/Partner";
 import { talentService, type Talent } from "../../../services/Talent";
 import { partnerContractPaymentService, type PartnerContractPaymentModel } from "../../../services/PartnerContractPayment";
@@ -183,7 +183,7 @@ export default function PartnerDetailPage() {
     try {
       await partnerService.deleteById(Number(id));
       alert("✅ Xóa đối tác thành công!");
-      navigate(ROUTES.HR_STAFF.PARTNERS.LIST);
+      navigate(ROUTES.TA_STAFF.PARTNERS.LIST);
     } catch (err) {
       console.error("❌ Lỗi khi xóa đối tác:", err);
       alert("Không thể xóa đối tác!");
@@ -191,7 +191,7 @@ export default function PartnerDetailPage() {
   };
 
   const handleEdit = () => {
-    navigate(`${ROUTES.HR_STAFF.PARTNERS.LIST}/edit/${id}`);
+    navigate(`${ROUTES.TA_STAFF.PARTNERS.LIST}/edit/${id}`);
   };
 
   // Helper functions để chuyển đổi trạng thái hợp đồng sang tiếng Việt
@@ -282,7 +282,7 @@ export default function PartnerDetailPage() {
             </div>
             <p className="text-red-500 text-lg font-medium">Không tìm thấy đối tác</p>
             <Link 
-              to={ROUTES.HR_STAFF.PARTNERS.LIST}
+              to={ROUTES.TA_STAFF.PARTNERS.LIST}
               className="text-primary-600 hover:text-primary-800 text-sm mt-2 inline-block"
             >
               ← Quay lại danh sách
@@ -301,7 +301,7 @@ export default function PartnerDetailPage() {
         <div className="mb-8 animate-slide-up">
           <Breadcrumb
             items={[
-              { label: "Đối tác", to: ROUTES.HR_STAFF.PARTNERS.LIST },
+              { label: "Đối tác", to: ROUTES.TA_STAFF.PARTNERS.LIST },
               { label: partner ? partner.companyName || "Chi tiết đối tác" : "Chi tiết đối tác" }
             ]}
           />

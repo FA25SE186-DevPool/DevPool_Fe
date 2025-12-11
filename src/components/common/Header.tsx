@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Menu,
   X,
@@ -83,7 +83,11 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
   const [replyMessage, setReplyMessage] = useState('');
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { unread, items, setUnread, setItems, updateItemById } = useNotification();
+  
+  // Kiểm tra xem có đang ở trang login hoặc register không
+  const isAuthPage = location.pathname === ROUTES.GUEST.LOGIN || location.pathname === ROUTES.REGISTER;
 
   const resolvedUserId = useMemo(() => {
     if (!user) return null;
@@ -870,7 +874,7 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
                         Dashboard
                       </Link>
                       <Link
-                        to={user ? (user.role === 'Staff TA' ? ROUTES.HR_STAFF.PROFILE :
+                        to={user ? (user.role === 'Staff TA' ? ROUTES.TA_STAFF.PROFILE :
                                    user.role === 'Staff Sales' ? ROUTES.SALES_STAFF.PROFILE :
                                    user.role === 'Staff Accountant' ? ROUTES.ACCOUNTANT_STAFF.PROFILE :
                                    user.role === 'Developer' ? ROUTES.DEVELOPER.PROFILE :
@@ -894,14 +898,16 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center space-x-3">
-                <Link
-                  to="/login"
-                  className="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-4 py-2 rounded-xl hover:from-primary-700 hover:to-primary-800 font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105"
-                >
-                  Đăng Nhập
-                </Link>
-              </div>
+              !isAuthPage && (
+                <div className="flex items-center space-x-3">
+                  <Link
+                    to="/login"
+                    className="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-4 py-2 rounded-xl hover:from-primary-700 hover:to-primary-800 font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105"
+                  >
+                    Đăng Nhập
+                  </Link>
+                </div>
+              )
             )}
           </div>
 

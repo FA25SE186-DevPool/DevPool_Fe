@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Sidebar from "../../../../components/common/Sidebar";
-import { sidebarItems } from "../../../../components/admin/SidebarItems";
+import { sidebarItems } from "../../../../components/sidebar/admin";
 import { certificateTypeService, type CertificateType } from "../../../../services/CertificateType";
 import { skillGroupService } from "../../../../services/SkillGroup";
 import { Button } from "../../../../components/ui/button";

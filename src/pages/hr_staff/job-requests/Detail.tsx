@@ -16,7 +16,7 @@ import { clientCompanyCVTemplateService } from "../../../services/ClientCompanyT
 import { talentApplicationService } from "../../../services/TalentApplication";
 import { talentCVService, type TalentCV } from "../../../services/TalentCV";
 import { talentService, type Talent } from "../../../services/Talent";
-import { sidebarItems } from "../../../components/hr_staff/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/ta_staff";
 import { 
   CheckCircle, 
   XCircle, 

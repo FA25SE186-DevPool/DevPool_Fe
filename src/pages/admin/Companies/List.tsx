@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Plus, Search, Mail, Phone } from "lucide-react";
 import Sidebar from "../../../components/common/Sidebar";
 import Breadcrumb from "../../../components/common/Breadcrumb";
-import { sidebarItems } from "../../../components/admin/SidebarItems";
+import { sidebarItems } from "../../../components/sidebar/admin";
 
 type CompanyRow = {
   id: string;

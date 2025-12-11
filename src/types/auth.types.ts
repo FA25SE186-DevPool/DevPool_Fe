@@ -68,3 +68,20 @@ export interface JwtPayload {
   [key: string]: any;
 }
 
+// Payload cho Forgot Password
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+// Payload cho Reset Password bằng OTP
+export interface ResetPasswordByOtpPayload {
+  email: string;
+  otp: string;
+  newPassword: string;
+}
+
+// Response cho các API trả về message
+export interface MessageResponse {
+  message: string;
+}
+
