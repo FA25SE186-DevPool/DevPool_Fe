@@ -553,7 +553,7 @@ export default function ClientContractDetailPage() {
         // Không throw error để không ảnh hưởng đến flow chính
       }
       
-      alert("Gửi hợp đồng thành công!");
+      alert("Ghi nhận thông tin thành công!");
       await refreshContractPayment();
       
       // Reload documents để hiển thị đúng
@@ -587,7 +587,7 @@ export default function ClientContractDetailPage() {
       setExchangeRateData(null);
       setExchangeRateError(null);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Lỗi khi gửi hợp đồng");
+      alert(err instanceof Error ? err.message : "Lỗi khi ghi nhận thông tin");
     } finally {
       setIsProcessing(false);
     }
