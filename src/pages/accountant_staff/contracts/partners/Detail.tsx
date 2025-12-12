@@ -32,6 +32,7 @@ import {
   type PartnerContractPaymentCalculateModel,
   type PartnerContractPaymentMarkAsPaidModel,
   type PartnerContractPaymentVerifyModel,
+  type ClientSowFileResponse,
 } from "../../../../services/PartnerContractPayment";
 import {
   clientContractPaymentService,
@@ -225,6 +226,30 @@ const formatNumberVi = (num: number): string => {
   return formatted.replace(/\.?0+$/, '');
 };
 
+// Helper function to map document type name to display name
+const getDocumentTypeDisplayName = (typeName: string): string => {
+  const normalizedName = typeName.toLowerCase().trim();
+  switch (normalizedName) {
+    case "statementofwork":
+    case "statement of work":
+      return "SOW";
+    case "receipt":
+      return "Biên lai";
+    case "invoice":
+      return "Hóa đơn";
+    case "purchase order":
+      return "PO";
+    case "payment order":
+      return "UNC";
+    case "contract":
+      return "Hợp đồng";
+    case "timesheet":
+      return "Timesheet";
+    default:
+      return typeName; // Return original if no mapping found
+  }
+};
+
 export default function PartnerContractDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -278,8 +303,13 @@ export default function PartnerContractDetailPage() {
   
   // File states
   const [worksheetFile, setWorksheetFile] = useState<File | null>(null);
-  const [sowFile, setSowFile] = useState<File | null>(null);
+  const [poFile, setPoFile] = useState<File | null>(null);
   const [contractFile, setContractFile] = useState<File | null>(null);
+  
+  // Client SOW file state
+  const [clientSowFileData, setClientSowFileData] = useState<ClientSowFileResponse | null>(null);
+  const [loadingClientSowFile, setLoadingClientSowFile] = useState(false);
+  const [clientSowFileError, setClientSowFileError] = useState<string | null>(null);
   
   const [markAsPaidForm, setMarkAsPaidForm] = useState<PartnerContractPaymentMarkAsPaidModel>({
     paidAmount: 0,
@@ -627,9 +657,9 @@ export default function PartnerContractDetailPage() {
       }
     }
 
-    // Validate SOW file
-    if (!sowFile) {
-      alert("Vui lòng upload file SOW");
+    // Validate PO file
+    if (!poFile) {
+      alert("Vui lòng upload file PO (Purchase Order)");
       return;
     }
 
@@ -639,37 +669,37 @@ export default function PartnerContractDetailPage() {
       return;
     }
 
-    // Find SOWExcel document type
-    const sowType = Array.from(documentTypes.values()).find(
-      (type) => type.typeName.toLowerCase() === "sowexcel"
+    // Find Purchase Order document type
+    const poType = Array.from(documentTypes.values()).find(
+      (type) => type.typeName.toLowerCase() === "purchase order"
     );
 
-    if (!sowType) {
-      alert("Không tìm thấy loại tài liệu SOWExcel. Vui lòng liên hệ quản trị viên.");
+    if (!poType) {
+      alert("Không tìm thấy loại tài liệu PO. Vui lòng liên hệ quản trị viên.");
       return;
     }
 
     try {
       setIsProcessing(true);
       
-      // Upload SOW file
+      // Upload PO file
       const userId = getCurrentUserId();
       if (!userId) {
         alert("Không thể lấy thông tin người dùng");
         return;
       }
 
-      const filePath = `partner-sow/${contractPayment.id}/sow_${Date.now()}.${sowFile.name.split('.').pop()}`;
-      const fileUrl = await uploadFile(sowFile, filePath);
+      const filePath = `partner-po/${contractPayment.id}/po_${Date.now()}.${poFile.name.split('.').pop()}`;
+      const fileUrl = await uploadFile(poFile, filePath);
 
-      // Create PartnerDocument for SOW
+      // Create PartnerDocument for PO
       const documentPayload: PartnerDocumentCreate = {
         partnerContractPaymentId: Number(id),
-        documentTypeId: sowType.id,
-        fileName: sowFile.name,
+        documentTypeId: poType.id,
+        fileName: poFile.name,
         filePath: fileUrl,
         uploadedByUserId: userId,
-        description: "Statement of Work (SOW)",
+        description: "Purchase Order (PO)",
         source: "Accountant",
       };
       await partnerDocumentService.create(documentPayload);
@@ -681,7 +711,7 @@ export default function PartnerContractDetailPage() {
       );
 
       if (!contractType) {
-        alert("Không tìm thấy loại tài liệu Contract. Vui lòng liên hệ quản trị viên.");
+        alert("Không tìm thấy loại tài liệu Hợp đồng. Vui lòng liên hệ quản trị viên.");
         return;
       }
 
@@ -723,8 +753,10 @@ export default function PartnerContractDetailPage() {
         standardHours: contractPayment.standardHours || 160,
         notes: null,
       });
-      setSowFile(null);
+      setPoFile(null);
       setContractFile(null);
+      setClientSowFileData(null);
+      setClientSowFileError(null);
       setExchangeRateData(null);
       setExchangeRateError(null);
       alert("Xác minh hợp đồng thành công!");
@@ -745,19 +777,24 @@ export default function PartnerContractDetailPage() {
       return;
     }
     
-    // Validate worksheet file
-    if (!worksheetFile) {
-      alert("Vui lòng upload file Worksheet (bắt buộc)");
-      return;
-    }
-    
-    // Find Worksheet document type
-    const worksheetType = Array.from(documentTypes.values()).find(
-      (type) => type.typeName.toLowerCase() === "worksheet"
+    // Find Timesheet document type
+    const timesheetType = Array.from(documentTypes.values()).find(
+      (type) => type.typeName.toLowerCase() === "timesheet"
     );
     
-    if (!worksheetType) {
-      alert("Không tìm thấy loại tài liệu Worksheet. Vui lòng liên hệ quản trị viên.");
+    if (!timesheetType) {
+      alert("Không tìm thấy loại tài liệu Timesheet. Vui lòng liên hệ quản trị viên.");
+      return;
+    }
+
+    // Check if timesheet already exists (synced from client contract)
+    const existingTimesheet = partnerDocuments.find(
+      (doc) => doc.documentTypeId === timesheetType.id
+    );
+
+    // Validate timesheet file only if not already synced from client contract
+    if (!existingTimesheet && !worksheetFile) {
+      alert("Vui lòng upload file Timesheet (bắt buộc)");
       return;
     }
 
@@ -767,36 +804,38 @@ export default function PartnerContractDetailPage() {
       // Start billing
       await partnerContractPaymentService.startBilling(Number(id), billingForm);
       
-      // Upload worksheet file and create document
-      const userId = getCurrentUserId();
-      if (!userId) {
-        alert("Không thể lấy thông tin người dùng");
-        return;
+      // Upload timesheet file and create document only if not already synced
+      if (!existingTimesheet && worksheetFile) {
+        const userId = getCurrentUserId();
+        if (!userId) {
+          alert("Không thể lấy thông tin người dùng");
+          return;
+        }
+        
+        const filePath = `partner-contracts/${contractPayment.id}/timesheet_${Date.now()}.${worksheetFile.name.split('.').pop()}`;
+        const fileUrl = await uploadFile(worksheetFile, filePath);
+        
+        // Create timesheet document
+        const documentData: PartnerDocumentCreate = {
+          partnerContractPaymentId: Number(id),
+          documentTypeId: timesheetType.id,
+          fileName: worksheetFile.name,
+          filePath: fileUrl,
+          uploadedByUserId: userId,
+          description: `Timesheet cho tính toán thanh toán - ${new Date().toLocaleDateString("vi-VN")}`,
+          source: "Accountant",
+        };
+        await partnerDocumentService.create(documentData);
       }
-      
-      const filePath = `partner-contracts/${contractPayment.id}/worksheet_${Date.now()}.${worksheetFile.name.split('.').pop()}`;
-      const fileUrl = await uploadFile(worksheetFile, filePath);
-      
-      // Create worksheet document
-      const documentData: PartnerDocumentCreate = {
-        partnerContractPaymentId: Number(id),
-        documentTypeId: worksheetType.id,
-        fileName: worksheetFile.name,
-        filePath: fileUrl,
-        uploadedByUserId: userId,
-        description: `Worksheet cho tính toán thanh toán - ${new Date().toLocaleDateString("vi-VN")}`,
-        source: "Accountant",
-      };
-      await partnerDocumentService.create(documentData);
       
       await fetchData();
       setShowStartBillingModal(false);
       setBillingForm({ actualWorkHours: 0, notes: null });
       setWorksheetFile(null);
-      alert("Bắt đầu tính toán thành công!");
+      alert("Ghi nhận giờ làm việc thành công!");
     } catch (err: unknown) {
-      console.error("❌ Lỗi bắt đầu tính toán:", err);
-      const errorMessage = err instanceof Error ? err.message : "Không thể bắt đầu tính toán";
+      console.error("❌ Lỗi bắt đầu ghi nhận giờ làm việc:", err);
+      const errorMessage = err instanceof Error ? err.message : "Không thể Ghi nhận giờ làm việc";
       alert(errorMessage);
     } finally {
       setIsProcessing(false);
@@ -808,7 +847,7 @@ export default function PartnerContractDetailPage() {
 
     // Validation: Số tiền đã thanh toán phải = số tiền thực tế
     if (!contractPayment.actualAmountVND || contractPayment.actualAmountVND <= 0) {
-      alert("Hợp đồng chưa có số tiền thực tế. Vui lòng bắt đầu tính toán trước.");
+      alert("Hợp đồng chưa có số tiền thực tế. Vui lòng ghi nhận giờ làm việc trước.");
       return;
     }
 
@@ -863,17 +902,69 @@ export default function PartnerContractDetailPage() {
 
       // Format paymentDate to ISO string if it's in YYYY-MM-DD format
       // Đảm bảo paidAmount = actualAmountVND
+      // Không gửi paymentProofFileUrl và partnerReceiptFileUrl vì không required ở BE
+      // Thay vào đó sẽ tạo PartnerDocument riêng
       const paymentPayload: PartnerContractPaymentMarkAsPaidModel = {
         paidAmount: contractPayment.actualAmountVND!,
         paymentDate: markAsPaidForm.paymentDate.includes('T')
           ? markAsPaidForm.paymentDate
           : new Date(markAsPaidForm.paymentDate + 'T00:00:00').toISOString(),
         notes: markAsPaidForm.notes || null,
-        paymentProofFileUrl: paymentProofFileUrl,
-        partnerReceiptFileUrl: partnerReceiptFileUrl,
       };
 
       await partnerContractPaymentService.markAsPaid(Number(id), paymentPayload);
+      
+      // Create documents after marking as paid
+      const userId = getCurrentUserId();
+      if (!userId) {
+        alert("Không thể lấy thông tin người dùng");
+        return;
+      }
+
+      // Find Payment Order document type
+      const paymentOrderType = Array.from(documentTypes.values()).find(
+        (type) => type.typeName.toLowerCase() === "payment order"
+      );
+
+      if (!paymentOrderType) {
+        alert("Không tìm thấy loại tài liệu UNC. Vui lòng liên hệ quản trị viên.");
+        return;
+      }
+
+      // Find Receipt document type
+      const receiptType = Array.from(documentTypes.values()).find(
+        (type) => type.typeName.toLowerCase() === "receipt"
+      );
+
+      if (!receiptType) {
+        alert("Không tìm thấy loại tài liệu Biên lai. Vui lòng liên hệ quản trị viên.");
+        return;
+      }
+
+      // Create Payment Order document
+      const paymentOrderDocument: PartnerDocumentCreate = {
+        partnerContractPaymentId: Number(id),
+        documentTypeId: paymentOrderType.id,
+        fileName: paymentProofFile.name,
+        filePath: paymentProofFileUrl,
+        uploadedByUserId: userId,
+        description: `Chứng từ thanh toán - ${new Date().toLocaleDateString("vi-VN")}`,
+        source: "Accountant",
+      };
+      await partnerDocumentService.create(paymentOrderDocument);
+
+      // Create Receipt document
+      const receiptDocument: PartnerDocumentCreate = {
+        partnerContractPaymentId: Number(id),
+        documentTypeId: receiptType.id,
+        fileName: partnerReceiptFile.name,
+        filePath: partnerReceiptFileUrl,
+        uploadedByUserId: userId,
+        description: `Biên lai đối tác - ${new Date().toLocaleDateString("vi-VN")}`,
+        source: "Accountant",
+      };
+      await partnerDocumentService.create(receiptDocument);
+      
       await fetchData();
       setShowMarkAsPaidModal(false);
       setMarkAsPaidForm({
@@ -988,7 +1079,7 @@ export default function PartnerContractDetailPage() {
                clientContractPayment && 
                (clientContractPayment.contractStatus === "Submitted" || clientContractPayment.contractStatus === "Verified") && (
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     // Pre-fill form with contract payment data
                     const method = contractPayment.calculationMethod || "Percentage";
                     setVerifyForm({
@@ -1001,6 +1092,32 @@ export default function PartnerContractDetailPage() {
                       standardHours: contractPayment.standardHours || 160,
                       notes: contractPayment.notes ?? null,
                     });
+                    
+                    // Load client SOW file
+                    setLoadingClientSowFile(true);
+                    setClientSowFileError(null);
+                    setClientSowFileData(null);
+                    try {
+                      const sowFileData = await partnerContractPaymentService.getClientSowFile(Number(id));
+                      console.log("✅ File SOW data:", sowFileData);
+                      if (sowFileData && sowFileData.sowFileUrl) {
+                        setClientSowFileData(sowFileData);
+                      } else {
+                        setClientSowFileError("File SOW không có dữ liệu hợp lệ");
+                      }
+                    } catch (err: unknown) {
+                      console.error("❌ Lỗi khi lấy file SOW từ client contract:", err);
+                      let errorMessage = "Không thể lấy file SOW từ client contract";
+                      if (err && typeof err === 'object' && 'message' in err) {
+                        errorMessage = (err as any).message || errorMessage;
+                      } else if (err instanceof Error) {
+                        errorMessage = err.message;
+                      }
+                      setClientSowFileError(errorMessage);
+                    } finally {
+                      setLoadingClientSowFile(false);
+                    }
+                    
                     setShowVerifyContractModal(true);
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
@@ -1034,7 +1151,7 @@ export default function PartnerContractDetailPage() {
                   className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
                 >
                   <CreditCard className="w-4 h-4" />
-                  Xác nhận đã thanh toán
+                  Ghi nhận đã thanh toán
                 </button>
               )}
             </div>
@@ -1365,7 +1482,7 @@ export default function PartnerContractDetailPage() {
                                     : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
                                 }`}
                               >
-                                {type.typeName}
+                                {getDocumentTypeDisplayName(type.typeName)}
                                 <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-neutral-200 text-neutral-700">
                                   {count}
                                 </span>
@@ -1390,7 +1507,7 @@ export default function PartnerContractDetailPage() {
                                   <div className="flex items-center gap-3 mt-1">
                                     {docType && (
                                       <span className="text-xs text-gray-500">
-                                        Loại: {docType.typeName}
+                                        Loại: {getDocumentTypeDisplayName(docType.typeName)}
                                       </span>
                                     )}
                                     <span className="text-xs text-gray-500">
@@ -1457,6 +1574,8 @@ export default function PartnerContractDetailPage() {
                   setShowVerifyContractModal(false);
                   setExchangeRateData(null);
                   setExchangeRateError(null);
+                  setClientSowFileData(null);
+                  setClientSowFileError(null);
                 }} 
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -1512,7 +1631,13 @@ export default function PartnerContractDetailPage() {
                   <select
                     value={verifyForm.currencyCode}
                     onChange={(e) => {
-                      setVerifyForm({ ...verifyForm, currencyCode: e.target.value });
+                      const newCurrencyCode = e.target.value;
+                      // Nếu chọn VND, tự động set exchange rate = 1
+                      if (newCurrencyCode === "VND") {
+                        setVerifyForm({ ...verifyForm, currencyCode: newCurrencyCode, exchangeRate: 1 });
+                      } else {
+                        setVerifyForm({ ...verifyForm, currencyCode: newCurrencyCode });
+                      }
                       // Reset exchange rate data khi đổi currency
                       setExchangeRateData(null);
                       setExchangeRateError(null);
@@ -1586,10 +1711,14 @@ export default function PartnerContractDetailPage() {
                     inputMode="numeric"
                     value={formatNumberInput(verifyForm.exchangeRate)}
                     onChange={(e) => {
+                      // Không cho phép chỉnh sửa nếu currency code là VND
+                      if (verifyForm.currencyCode === "VND") return;
                       const value = parseNumberInput(e.target.value);
                       setVerifyForm({ ...verifyForm, exchangeRate: value || 0 });
                     }}
                     onBlur={(e) => {
+                      // Không cho phép chỉnh sửa nếu currency code là VND
+                      if (verifyForm.currencyCode === "VND") return;
                       // Format lại khi blur
                       const value = parseNumberInput(e.target.value);
                       if (value !== verifyForm.exchangeRate) {
@@ -1597,10 +1726,16 @@ export default function PartnerContractDetailPage() {
                       }
                     }}
                     maxLength={20}
-                    className="w-full border rounded-lg p-2"
+                    className={`w-full border rounded-lg p-2 ${verifyForm.currencyCode === "VND" ? "bg-gray-50 cursor-not-allowed" : ""}`}
                     placeholder="Ví dụ: 30.000.000"
+                    disabled={verifyForm.currencyCode === "VND"}
                     required
                   />
+                  {verifyForm.currencyCode === "VND" && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Tỷ giá tự động là 1 khi mã tiền tệ là VND
+                    </p>
+                  )}
                   {exchangeRateData && (
                     <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                       <div className="flex items-start gap-2">
@@ -1741,19 +1876,77 @@ export default function PartnerContractDetailPage() {
                   </p>
                 </div>
               </div>
+              
+              {/* Client SOW File Section - Chỉ để xem và đối chiếu */}
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <label className="block text-sm font-medium mb-2">
+                  File SOW từ hợp đồng khách hàng (để đối chiếu)
+                </label>
+                {loadingClientSowFile ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Đang tải file SOW...
+                  </div>
+                ) : clientSowFileError ? (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-700">{clientSowFileError}</p>
+                  </div>
+                ) : clientSowFileData ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-3 bg-white border border-gray-300 rounded-lg">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900">{clientSowFileData.fileName}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Hợp đồng khách hàng: {clientSowFileData.clientContractNumber}
+                        </p>
+                        {clientSowFileData.uploadedAt && (
+                          <p className="text-xs text-gray-500">
+                            Upload: {new Date(clientSowFileData.uploadedAt).toLocaleString("vi-VN")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={clientSowFileData.sowFileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Xem
+                        </a>
+                        <a
+                          href={clientSowFileData.sowFileUrl}
+                          download
+                          className="flex items-center gap-1 px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors"
+                        >
+                          <Download className="w-4 h-4" />
+                          Tải xuống
+                        </a>
+                      </div>
+                    </div>
+                    {clientSowFileData.description && (
+                      <p className="text-xs text-gray-600 italic">{clientSowFileData.description}</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">Không có file SOW từ hợp đồng khách hàng</p>
+                )}
+              </div>
+              
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  File Excel SOW <span className="text-red-500">*</span>
+                  File PO (Purchase Order) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="file"
-                  accept=".xlsx,.xls"
-                  onChange={(e) => setSowFile(e.target.files?.[0] || null)}
+                  accept=".pdf,.xlsx,.xls"
+                  onChange={(e) => setPoFile(e.target.files?.[0] || null)}
                   className="w-full border rounded-lg p-2"
                   required
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Vui lòng upload file Excel SOW (.xlsx, .xls)
+                  Vui lòng upload file PO (Purchase Order) (.pdf, .xlsx, .xls)
                 </p>
               </div>
               <div>
@@ -1825,9 +2018,12 @@ export default function PartnerContractDetailPage() {
                     standardHours: contractPayment?.standardHours || 160,
                     notes: null,
                   });
-                  setSowFile(null);
+                  setPoFile(null);
+                  setContractFile(null);
                   setExchangeRateData(null);
                   setExchangeRateError(null);
+                  setClientSowFileData(null);
+                  setClientSowFileError(null);
                 }}
                 className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
               >
@@ -1837,7 +2033,7 @@ export default function PartnerContractDetailPage() {
                 onClick={handleVerifyContract}
                 disabled={
                   isProcessing || 
-                  !sowFile ||
+                  !poFile ||
                   !contractFile ||
                   !verifyForm.unitPriceForeignCurrency || 
                   !verifyForm.exchangeRate || 
@@ -1860,7 +2056,7 @@ export default function PartnerContractDetailPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Bắt đầu tính toán</h3>
+              <h3 className="text-lg font-semibold">Ghi nhận giờ làm việc</h3>
               <button 
                 onClick={() => {
                   setShowStartBillingModal(false);
@@ -1911,21 +2107,73 @@ export default function PartnerContractDetailPage() {
                   placeholder="Ví dụ: Timesheet: 160h đúng như dự kiến"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  File Worksheet <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="file"
-                  onChange={(e) => setWorksheetFile(e.target.files?.[0] || null)}
-                  className="w-full border rounded-lg p-2"
-                  accept=".xlsx,.xls,.csv"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Vui lòng upload file Worksheet (Excel/CSV) cho việc tính toán thanh toán
-                </p>
-              </div>
+              {(() => {
+                // Check if timesheet already exists (synced from client contract)
+                const timesheetType = Array.from(documentTypes.values()).find(
+                  (type) => type.typeName.toLowerCase() === "timesheet"
+                );
+                const existingTimesheet = timesheetType 
+                  ? partnerDocuments.find((doc) => doc.documentTypeId === timesheetType.id)
+                  : null;
+
+                if (existingTimesheet) {
+                  return (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <label className="block text-sm font-medium mb-2 text-green-900">
+                        File Timesheet (đã được đồng bộ từ hợp đồng khách hàng)
+                      </label>
+                      <div className="flex items-center justify-between p-3 bg-white border border-green-300 rounded-lg">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{existingTimesheet.fileName}</p>
+                          {existingTimesheet.description && (
+                            <p className="text-xs text-gray-500 mt-1">{existingTimesheet.description}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <a
+                            href={existingTimesheet.filePath}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+                          >
+                            <Eye className="w-4 h-4" />
+                            Xem
+                          </a>
+                          <a
+                            href={existingTimesheet.filePath}
+                            download
+                            className="flex items-center gap-1 px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors"
+                          >
+                            <Download className="w-4 h-4" />
+                            Tải xuống
+                          </a>
+                        </div>
+                      </div>
+                      <p className="text-xs text-green-700 mt-2">
+                        File timesheet đã được đồng bộ tự động từ hợp đồng khách hàng. Bạn không cần upload file mới.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      File Timesheet <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="file"
+                      onChange={(e) => setWorksheetFile(e.target.files?.[0] || null)}
+                      className="w-full border rounded-lg p-2"
+                      accept=".xlsx,.xls,.csv"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Vui lòng upload file Timesheet (Excel/CSV) cho việc tính toán thanh toán
+                    </p>
+                  </div>
+                );
+              })()}
 
               {/* Preview tính toán */}
               {billingForm.actualWorkHours > 0 && calculateBillingPreview() && (() => {
@@ -2028,10 +2276,26 @@ export default function PartnerContractDetailPage() {
               </button>
               <button
                 onClick={handleStartBilling}
-                disabled={isProcessing || !billingForm.actualWorkHours || billingForm.actualWorkHours <= 0 || !worksheetFile}
+                disabled={(() => {
+                  // Check if timesheet already exists
+                  const timesheetType = Array.from(documentTypes.values()).find(
+                    (type) => type.typeName.toLowerCase() === "timesheet"
+                  );
+                  const existingTimesheet = timesheetType 
+                    ? partnerDocuments.find((doc) => doc.documentTypeId === timesheetType.id)
+                    : null;
+                  
+                  // File timesheet is required only if not already synced
+                  const timesheetRequired = !existingTimesheet && !worksheetFile;
+                  
+                  return isProcessing || 
+                         !billingForm.actualWorkHours || 
+                         billingForm.actualWorkHours <= 0 || 
+                         timesheetRequired;
+                })()}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Tính toán"}
+                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ghi nhận"}
               </button>
             </div>
           </div>
@@ -2043,7 +2307,7 @@ export default function PartnerContractDetailPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Xác nhận đã thanh toán</h3>
+              <h3 className="text-lg font-semibold">Ghi nhận đã thanh toán</h3>
               <button onClick={() => setShowMarkAsPaidModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>

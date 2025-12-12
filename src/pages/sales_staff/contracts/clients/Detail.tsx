@@ -35,14 +35,12 @@ import { projectService } from "../../../../services/Project";
 import { clientCompanyService } from "../../../../services/ClientCompany";
 import { partnerService } from "../../../../services/Partner";
 import { talentService } from "../../../../services/Talent";
-import { clientDocumentService, type ClientDocument, type ClientDocumentCreate } from "../../../../services/ClientDocument";
+import { clientDocumentService, type ClientDocument } from "../../../../services/ClientDocument";
 import { documentTypeService, type DocumentType } from "../../../../services/DocumentType";
 import { exchangeRateService, AVAILABLE_CURRENCIES, type CurrencyCode } from "../../../../services/ExchangeRate";
 import { uploadFile } from "../../../../utils/firebaseStorage";
 import { formatNumberInput, parseNumberInput } from "../../../../utils/formatters";
 import { useAuth } from "../../../../context/AuthContext";
-import { decodeJWT } from "../../../../services/Auth";
-import { getAccessToken } from "../../../../utils/storage";
 
 const formatDate = (value?: string | null): string => {
   if (!value) return "—";
@@ -168,6 +166,30 @@ const getPaymentStatusConfig = (status: string) => {
   );
 };
 
+// Helper function to map document type name to display name
+const getDocumentTypeDisplayName = (typeName: string): string => {
+  const normalizedName = typeName.toLowerCase().trim();
+  switch (normalizedName) {
+    case "statementofwork":
+    case "statement of work":
+      return "SOW";
+    case "receipt":
+      return "Biên lai";
+    case "invoice":
+      return "Hóa đơn";
+    case "purchase order":
+      return "PO";
+    case "payment order":
+      return "UNC";
+    case "contract":
+      return "Hợp đồng";
+    case "timesheet":
+      return "Timesheet";
+    default:
+      return typeName; // Return original if no mapping found
+  }
+};
+
 export default function ClientContractDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -223,20 +245,6 @@ export default function ClientContractDetailPage() {
   // Get current user
   const authContext = useAuth();
   const user = authContext?.user || null;
-
-  // Helper to get current user ID from JWT
-  const getCurrentUserId = (): string | null => {
-    const token = getAccessToken();
-    if (!token) {
-      // Fallback to user.id from context if token not available
-      return user?.id || null;
-    }
-    const payload = decodeJWT(token);
-    // Try multiple possible fields in JWT payload
-    const userId = payload?.nameid || payload?.sub || payload?.userId || payload?.uid;
-    // Fallback to user.id from context if JWT doesn't have userId
-    return userId || user?.id || null;
-  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -412,7 +420,7 @@ export default function ClientContractDetailPage() {
   // Handler: Submit Contract
   const handleSubmitContract = async () => {
     if (!id || !contractPayment || !sowExcelFile) {
-      alert("Vui lòng upload file Excel SOW");
+      alert("Vui lòng upload file Statement of Work");
       return;
     }
     if (!submitForm.unitPriceForeignCurrency || !submitForm.exchangeRate) {
@@ -440,13 +448,8 @@ export default function ClientContractDetailPage() {
     }
     try {
       setIsProcessing(true);
-      const userId = getCurrentUserId();
-      if (!userId) {
-        alert("Không thể lấy thông tin người dùng");
-        return;
-      }
 
-      // Upload SOW Excel file first
+      // Upload Statement of Work file first
       const filePath = `client-sow/${contractPayment.id}/sow_${Date.now()}.${sowExcelFile.name.split('.').pop()}`;
       const fileUrl = await uploadFile(sowExcelFile, filePath);
 
@@ -465,93 +468,9 @@ export default function ClientContractDetailPage() {
         notes: submitForm.notes ?? "",
       };
 
-      // Tìm documentTypeId cho "SOWExcel"
-      const sowExcelType = Array.from(documentTypes.values()).find(
-        (type) => type.typeName === "SOWExcel" || type.typeName === "SOW Excel"
-      );
-      
-      if (!sowExcelType) {
-        alert("Không tìm thấy loại tài liệu SOWExcel. Vui lòng liên hệ quản trị viên.");
-        return;
-      }
-
-      // Xóa các document SOWExcel cũ trước khi tạo mới để tránh duplicate
-      try {
-        const existingDocs = await clientDocumentService.getAll({
-          clientContractPaymentId: Number(id),
-          excludeDeleted: true,
-        });
-        const existingDocsArray = Array.isArray(existingDocs) ? existingDocs : (existingDocs?.items || []);
-        const oldSowExcelDocs = existingDocsArray.filter(
-          (doc: ClientDocument) => doc.documentTypeId === sowExcelType.id
-        );
-        
-        // Xóa các document SOWExcel cũ
-        for (const oldDoc of oldSowExcelDocs) {
-          try {
-            await clientDocumentService.delete(oldDoc.id);
-          } catch (deleteErr) {
-            console.error(`❌ Lỗi khi xóa document SOWExcel cũ ${oldDoc.id}:`, deleteErr);
-            // Tiếp tục dù có lỗi
-          }
-        }
-      } catch (err) {
-        console.error("❌ Lỗi khi kiểm tra/xóa document SOWExcel cũ:", err);
-        // Tiếp tục tạo document mới dù có lỗi
-      }
-
-      // Create ClientDocument for SOWExcel
-      const documentPayload: ClientDocumentCreate = {
-        clientContractPaymentId: Number(id),
-        documentTypeId: sowExcelType.id,
-        fileName: sowExcelFile.name,
-        filePath: fileUrl,
-        uploadedByUserId: userId,
-        description: submitForm.sowDescription || "SOW Excel file submitted with contract",
-        source: "Sales",
-      };
-      await clientDocumentService.create(documentPayload);
-
-      // Submit contract
+      // Submit contract với sowExcelFileUrl
+      // Backend sẽ tự động tạo document từ sowExcelFileUrl, không cần tạo thủ công
       await clientContractPaymentService.submitContract(Number(id), submitPayload);
-      
-      // Sau khi submit, backend có thể tự động tạo document từ sowExcelFileUrl
-      // Cần xóa các document SOWExcel không phải tên file gốc (chỉ giữ file đầu tiên với tên gốc)
-      try {
-        // Đợi một chút để backend xử lý xong
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Lấy lại danh sách documents sau khi submit
-        const updatedDocs = await clientDocumentService.getAll({
-          clientContractPaymentId: Number(id),
-          excludeDeleted: true,
-        });
-        const updatedDocsArray = Array.isArray(updatedDocs) ? updatedDocs : (updatedDocs?.items || []);
-        const sowExcelDocs = updatedDocsArray.filter(
-          (doc: ClientDocument) => doc.documentTypeId === sowExcelType.id
-        );
-        
-        // Tìm document có tên file gốc (tên file user upload)
-        const originalFileName = sowExcelFile.name;
-        const originalDoc = sowExcelDocs.find(
-          (doc: ClientDocument) => doc.fileName === originalFileName
-        );
-        
-        // Xóa các document SOWExcel không phải tên file gốc (file được backend tự động tạo)
-        for (const doc of sowExcelDocs) {
-          // Giữ lại document có tên file gốc, xóa các document khác
-          if (doc.id !== originalDoc?.id) {
-            try {
-              await clientDocumentService.delete(doc.id);
-            } catch (deleteErr) {
-              console.error(`❌ Lỗi khi xóa document SOWExcel ${doc.id}:`, deleteErr);
-            }
-          }
-        }
-      } catch (cleanupErr) {
-        console.error("❌ Lỗi khi dọn dẹp documents sau submit:", cleanupErr);
-        // Không throw error để không ảnh hưởng đến flow chính
-      }
       
       alert("Ghi nhận thông tin thành công!");
       await refreshContractPayment();
@@ -1098,7 +1017,7 @@ export default function ClientContractDetailPage() {
                                     : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
                                 }`}
                               >
-                                {type.typeName}
+                                {getDocumentTypeDisplayName(type.typeName)}
                                 <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-neutral-200 text-neutral-700">
                                   {count}
                                 </span>
@@ -1123,7 +1042,7 @@ export default function ClientContractDetailPage() {
                                   <div className="flex items-center gap-3 mt-1">
                                     {docType && (
                                       <span className="text-xs text-gray-500">
-                                        Loại: {docType.typeName}
+                                        Loại: {getDocumentTypeDisplayName(docType.typeName)}
                                       </span>
                                     )}
                                     <span className="text-xs text-gray-500">
@@ -1244,7 +1163,13 @@ export default function ClientContractDetailPage() {
                   <select
                     value={submitForm.currencyCode}
                     onChange={(e) => {
-                      setSubmitForm({ ...submitForm, currencyCode: e.target.value });
+                      const newCurrencyCode = e.target.value;
+                      // Nếu chọn VND, tự động set exchange rate = 1
+                      if (newCurrencyCode === "VND") {
+                        setSubmitForm({ ...submitForm, currencyCode: newCurrencyCode, exchangeRate: 1 });
+                      } else {
+                        setSubmitForm({ ...submitForm, currencyCode: newCurrencyCode });
+                      }
                       // Reset exchange rate data khi đổi currency
                       setExchangeRateData(null);
                       setExchangeRateError(null);
@@ -1318,10 +1243,14 @@ export default function ClientContractDetailPage() {
                     inputMode="numeric"
                     value={formatNumberInput(submitForm.exchangeRate)}
                     onChange={(e) => {
+                      // Không cho phép chỉnh sửa nếu currency code là VND
+                      if (submitForm.currencyCode === "VND") return;
                       const value = parseNumberInput(e.target.value);
                       setSubmitForm({ ...submitForm, exchangeRate: value || 0 });
                     }}
                     onBlur={(e) => {
+                      // Không cho phép chỉnh sửa nếu currency code là VND
+                      if (submitForm.currencyCode === "VND") return;
                       // Format lại khi blur
                       const value = parseNumberInput(e.target.value);
                       if (value !== submitForm.exchangeRate) {
@@ -1329,10 +1258,16 @@ export default function ClientContractDetailPage() {
                       }
                     }}
                     maxLength={20}
-                    className="w-full border rounded-lg p-2"
+                    className={`w-full border rounded-lg p-2 ${submitForm.currencyCode === "VND" ? "bg-gray-50 cursor-not-allowed" : ""}`}
                     placeholder="Ví dụ: 30.000.000"
+                    disabled={submitForm.currencyCode === "VND"}
                     required
                   />
+                  {submitForm.currencyCode === "VND" && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Tỷ giá tự động là 1 khi mã tiền tệ là VND
+                    </p>
+                  )}
                   {exchangeRateData && (
                     <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                       <div className="flex items-start gap-2">
@@ -1474,7 +1409,7 @@ export default function ClientContractDetailPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">File Excel SOW <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium mb-2">File Statement of Work <span className="text-red-500">*</span></label>
                 <input
                   type="file"
                   accept=".xlsx,.xls"

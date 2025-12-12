@@ -116,6 +116,8 @@ export interface ClientContractPaymentFilter {
 // Interface cho ClientContractPaymentCalculateModel (Payload để tính toán)
 export interface ClientContractPaymentCalculateModel {
   billableHours: number;
+  timesheetFileUrl?: string | null;
+  autoSyncToPartner?: boolean;
   notes?: string | null;
 }
 

@@ -8,7 +8,8 @@ import type {
   PartnerContractPaymentMarkAsPaidModel,
   PartnerContractPaymentVerifyModel,
   PartnerContractPaymentApproveModel,
-  PartnerContractPaymentRejectModel
+  PartnerContractPaymentRejectModel,
+  ClientSowFileResponse
 } from "../types/partnercontractpayment.types";
 
 export type {
@@ -19,7 +20,8 @@ export type {
   PartnerContractPaymentMarkAsPaidModel,
   PartnerContractPaymentVerifyModel,
   PartnerContractPaymentApproveModel,
-  PartnerContractPaymentRejectModel
+  PartnerContractPaymentRejectModel,
+  ClientSowFileResponse
 };
 
 export const partnerContractPaymentService = {
@@ -148,6 +150,23 @@ export const partnerContractPaymentService = {
       if (error instanceof AxiosError)
         throw error.response?.data || { message: "Không thể đánh dấu đã thanh toán" };
       throw { message: "Lỗi không xác định khi đánh dấu đã thanh toán" };
+    }
+  },
+
+  // Get client SOW file - Lấy file SOW từ client contract tương ứng
+  async getClientSowFile(id: number) {
+    try {
+      const response = await apiClient.get(`/partnercontractpayment/${id}/client-sow-file`);
+      // API trả về structure: { success, message, data: { sowFileUrl, fileName, ... } }
+      if (response.data && response.data.data) {
+        return response.data.data as ClientSowFileResponse;
+      }
+      // Fallback: nếu không có nested data, trả về trực tiếp
+      return response.data as ClientSowFileResponse;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError)
+        throw error.response?.data || { message: "Không thể lấy file SOW từ client contract" };
+      throw { message: "Lỗi không xác định khi lấy file SOW từ client contract" };
     }
   },
 };

@@ -274,6 +274,30 @@ const formatNumberVi = (num: number): string => {
   return formatted.replace(/\.?0+$/, '');
 };
 
+// Helper function to map document type name to display name
+const getDocumentTypeDisplayName = (typeName: string): string => {
+  const normalizedName = typeName.toLowerCase().trim();
+  switch (normalizedName) {
+    case "statementofwork":
+    case "statement of work":
+      return "SOW";
+    case "receipt":
+      return "Biên lai";
+    case "invoice":
+      return "Hóa đơn";
+    case "purchase order":
+      return "PO";
+    case "payment order":
+      return "UNC";
+    case "contract":
+      return "Hợp đồng";
+    case "timesheet":
+      return "Timesheet";
+    default:
+      return typeName; // Return original if no mapping found
+  }
+};
+
 export default function ClientContractDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -305,7 +329,7 @@ export default function ClientContractDetailPage() {
   const [verifyForm, setVerifyForm] = useState<VerifyContractModel>({ notes: null });
   const [rejectForm, setRejectForm] = useState<RejectContractModel>({ rejectionReason: "" });
   const [requestMoreInfoForm, setRequestMoreInfoForm] = useState<RequestMoreInformationModel>({ notes: null });
-  const [billingForm, setBillingForm] = useState<ClientContractPaymentCalculateModel>({ billableHours: 0, notes: null });
+  const [billingForm, setBillingForm] = useState<ClientContractPaymentCalculateModel>({ billableHours: 0, autoSyncToPartner: true, notes: null });
   const [invoiceForm, setInvoiceForm] = useState<CreateInvoiceModel>({ invoiceNumber: "", invoiceDate: new Date().toISOString().split('T')[0], notes: null });
   const [paymentForm, setPaymentForm] = useState<RecordPaymentModel>({ receivedAmount: 0, paymentDate: new Date().toISOString().split('T')[0], notes: null });
   const [paymentDateError, setPaymentDateError] = useState<string | null>(null);
@@ -542,10 +566,20 @@ export default function ClientContractDetailPage() {
       const filePath = `client-contracts/${contractPayment.id}/verified-contract_${Date.now()}.${verifyContractFile.name.split('.').pop()}`;
       const fileUrl = await uploadFile(verifyContractFile, filePath);
 
+      // Find Contract document type
+      const contractType = Array.from(documentTypes.values()).find(
+        (type) => type.typeName.toLowerCase() === "contract"
+      );
+
+      if (!contractType) {
+        alert("Không tìm thấy loại tài liệu Hợp đồng. Vui lòng liên hệ quản trị viên.");
+        return;
+      }
+
       // Create ClientDocument for verified contract
       const documentPayload: ClientDocumentCreate = {
         clientContractPaymentId: Number(id),
-        documentTypeId: 2, // Assuming 2 is for "Verified Contract" type
+        documentTypeId: contractType.id,
         fileName: verifyContractFile.name,
         filePath: fileUrl,
         uploadedByUserId: userId,
@@ -815,55 +849,59 @@ export default function ClientContractDetailPage() {
     
     // Validate worksheet file
     if (!worksheetFile) {
-      alert("Vui lòng upload file Worksheet (bắt buộc)");
+      alert("Vui lòng upload file Timesheet (bắt buộc)");
       return;
     }
     
-    // Find Worksheet document type
-    const worksheetType = Array.from(documentTypes.values()).find(
-      (type) => type.typeName.toLowerCase() === "worksheet"
+    // Find Timesheet document type
+    const timesheetType = Array.from(documentTypes.values()).find(
+      (type) => type.typeName.toLowerCase() === "timesheet"
     );
     
-    if (!worksheetType) {
-      alert("Không tìm thấy loại tài liệu Worksheet. Vui lòng liên hệ quản trị viên.");
+    if (!timesheetType) {
+      alert("Không tìm thấy loại tài liệu Timesheet. Vui lòng liên hệ quản trị viên.");
       return;
     }
     
     try {
       setIsProcessing(true);
       
-      // Start billing
-      await clientContractPaymentService.startBilling(Number(id), billingForm);
-      
-      // Upload worksheet file and create document
+      // Upload timesheet file first to get URL
       const userId = getCurrentUserId();
       if (!userId) {
         alert("Không thể lấy thông tin người dùng");
         return;
       }
       
-      const filePath = `client-contracts/${contractPayment.id}/worksheet_${Date.now()}.${worksheetFile.name.split('.').pop()}`;
+      const filePath = `client-contracts/${contractPayment.id}/timesheet_${Date.now()}.${worksheetFile.name.split('.').pop()}`;
       const fileUrl = await uploadFile(worksheetFile, filePath);
       
-      // Create worksheet document
+      // Start billing with timesheetFileUrl
+      const billingPayload = {
+        ...billingForm,
+        timesheetFileUrl: fileUrl,
+      };
+      await clientContractPaymentService.startBilling(Number(id), billingPayload);
+      
+      // Create Timesheet document
       const documentData: ClientDocumentCreate = {
         clientContractPaymentId: Number(id),
-        documentTypeId: worksheetType.id,
+        documentTypeId: timesheetType.id,
         fileName: worksheetFile.name,
         filePath: fileUrl,
         uploadedByUserId: userId,
-        description: `Worksheet cho tính toán thanh toán - ${new Date().toLocaleDateString("vi-VN")}`,
+        description: `Timesheet cho ghi nhận giờ làm việc - ${new Date().toLocaleDateString("vi-VN")}`,
         source: "Accountant",
       };
       await clientDocumentService.create(documentData);
       
-      alert("Bắt đầu tính toán thành công!");
+      alert("Ghi nhận giờ làm việc thành công!");
       await refreshContractPayment();
       setShowStartBillingModal(false);
-      setBillingForm({ billableHours: 0, notes: null });
+      setBillingForm({ billableHours: 0, autoSyncToPartner: true, notes: null });
       setWorksheetFile(null);
     } catch (err: any) {
-      alert(err?.message || "Lỗi khi bắt đầu tính toán");
+      alert(err?.message || "Lỗi khi ghi nhận giờ làm việc");
     } finally {
       setIsProcessing(false);
     }
@@ -937,9 +975,19 @@ export default function ClientContractDetailPage() {
       }
 
       // Sau khi tạo invoice thành công, mới tạo document
+      // Find Invoice document type
+      const invoiceType = Array.from(documentTypes.values()).find(
+        (type) => type.typeName.toLowerCase() === "invoice"
+      );
+
+      if (!invoiceType) {
+        alert("Không tìm thấy loại tài liệu Hóa đơn. Vui lòng liên hệ quản trị viên.");
+        return;
+      }
+
       const documentPayload: ClientDocumentCreate = {
         clientContractPaymentId: Number(id),
-        documentTypeId: 3, // Assuming 3 is for "Invoice" type
+        documentTypeId: invoiceType.id,
         fileName: invoiceFile.name,
         filePath: fileUrl,
         uploadedByUserId: userId,
@@ -1019,16 +1067,46 @@ export default function ClientContractDetailPage() {
       const receiptFileUrl = await uploadFile(receiptFile, filePath);
 
       // Format paymentDate to ISO string if it's in YYYY-MM-DD format
+      // Không gửi clientReceiptFileUrl vì không required ở BE
+      // Thay vào đó sẽ tạo ClientDocument riêng với document type Receipt
       const paymentPayload: RecordPaymentModel = {
         receivedAmount: paymentForm.receivedAmount,
         paymentDate: paymentForm.paymentDate.includes('T') 
           ? paymentForm.paymentDate 
           : new Date(paymentForm.paymentDate + 'T00:00:00').toISOString(),
         notes: paymentForm.notes || null,
-        clientReceiptFileUrl: receiptFileUrl
       };
 
       await clientContractPaymentService.recordPayment(Number(id), paymentPayload);
+      
+      // Create Receipt document after recording payment
+      const userId = getCurrentUserId();
+      if (!userId) {
+        alert("Không thể lấy thông tin người dùng");
+        return;
+      }
+
+      // Find Receipt document type
+      const receiptType = Array.from(documentTypes.values()).find(
+        (type) => type.typeName.toLowerCase() === "receipt"
+      );
+
+      if (!receiptType) {
+        alert("Không tìm thấy loại tài liệu Biên lai. Vui lòng liên hệ quản trị viên.");
+        return;
+      }
+
+      const documentPayload: ClientDocumentCreate = {
+        clientContractPaymentId: Number(id),
+        documentTypeId: receiptType.id,
+        fileName: receiptFile.name,
+        filePath: receiptFileUrl,
+        uploadedByUserId: userId,
+        description: `Biên lai thanh toán - ${new Date().toLocaleDateString("vi-VN")}`,
+        source: "Accountant",
+      };
+      await clientDocumentService.create(documentPayload);
+      
       alert("Ghi nhận thanh toán thành công!");
       await refreshContractPayment();
       setShowRecordPaymentModal(false);
@@ -1595,7 +1673,7 @@ export default function ClientContractDetailPage() {
                                     : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
                                 }`}
                               >
-                                {type.typeName}
+                                {getDocumentTypeDisplayName(type.typeName)}
                                 <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-neutral-200 text-neutral-700">
                                   {count}
                                 </span>
@@ -1620,7 +1698,7 @@ export default function ClientContractDetailPage() {
                                   <div className="flex items-center gap-3 mt-1">
                                     {docType && (
                                       <span className="text-xs text-gray-500">
-                                        Loại: {docType.typeName}
+                                        Loại: {getDocumentTypeDisplayName(docType.typeName)}
                                       </span>
                                     )}
                                     <span className="text-xs text-gray-500">
@@ -1823,7 +1901,7 @@ export default function ClientContractDetailPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Bắt đầu tính toán</h3>
+              <h3 className="text-lg font-semibold">Ghi nhận giờ làm việc</h3>
               <button 
                 onClick={() => {
                   setShowStartBillingModal(false);
@@ -1873,8 +1951,22 @@ export default function ClientContractDetailPage() {
                 />
               </div>
               <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={billingForm.autoSyncToPartner ?? true}
+                    onChange={(e) => setBillingForm({ ...billingForm, autoSyncToPartner: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm font-medium">Tự động đồng bộ đến hợp đồng đối tác</span>
+                </label>
+                <p className="text-xs text-gray-500 mt-1 ml-6">
+                  Khi bật, file timesheet sẽ được upload tự động đến hợp đồng đối tác tương ứng
+                </p>
+              </div>
+              <div>
                 <label className="block text-sm font-medium mb-2">
-                  File Worksheet <span className="text-red-500">*</span>
+                  File Timesheet <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="file"
@@ -1884,7 +1976,7 @@ export default function ClientContractDetailPage() {
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Vui lòng upload file Worksheet (Excel/CSV) cho việc tính toán thanh toán
+                  Vui lòng upload file Timesheet (Excel/CSV) cho việc tính toán thanh toán
                 </p>
               </div>
 
@@ -1979,7 +2071,7 @@ export default function ClientContractDetailPage() {
               <button
                 onClick={() => {
                   setShowStartBillingModal(false);
-                  setBillingForm({ billableHours: 0, notes: null });
+                  setBillingForm({ billableHours: 0, autoSyncToPartner: true, notes: null });
                   setWorksheetFile(null);
                   setShowCalculationDetails(false);
                 }}
@@ -1992,7 +2084,7 @@ export default function ClientContractDetailPage() {
                 disabled={isProcessing || billingForm.billableHours <= 0 || !worksheetFile}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Bắt đầu tính toán"}
+                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ghi nhận giờ làm việc"}
               </button>
             </div>
           </div>
@@ -2125,8 +2217,31 @@ export default function ClientContractDetailPage() {
                   onChange={(e) => {
                     const parsedValue = parseNumberInput(e.target.value);
                     setPaymentForm({ ...paymentForm, receivedAmount: parsedValue });
-                    // Clear error when user changes value
-                    if (paymentAmountError) {
+                    
+                    // Validate real-time khi người dùng nhập
+                    if (contractPayment && parsedValue > 0) {
+                      const actualAmountVND = contractPayment.actualAmountVND || 0;
+                      const totalPaidAmount = contractPayment.totalPaidAmount || 0;
+                      
+                      if (contractPayment.paymentStatus === "Invoiced") {
+                        // Invoiced: số tiền không được vượt quá actualAmountVND
+                        if (parsedValue > actualAmountVND) {
+                          setPaymentAmountError(`Số tiền nhận được không được vượt quá số tiền thực tế (${formatCurrency(actualAmountVND)})`);
+                        } else {
+                          setPaymentAmountError(null);
+                        }
+                      } else if (contractPayment.paymentStatus === "PartiallyPaid") {
+                        // PartiallyPaid: số tiền nhận được phải <= (actualAmountVND - totalPaidAmount)
+                        const remainingAmount = actualAmountVND - totalPaidAmount;
+                        if (parsedValue > remainingAmount) {
+                          setPaymentAmountError(`Số tiền nhận được không được vượt quá số tiền còn lại (${formatCurrency(remainingAmount)})`);
+                        } else {
+                          setPaymentAmountError(null);
+                        }
+                      } else {
+                        setPaymentAmountError(null);
+                      }
+                    } else {
                       setPaymentAmountError(null);
                     }
                   }}
@@ -2136,9 +2251,30 @@ export default function ClientContractDetailPage() {
                     if (parsedValue !== paymentForm.receivedAmount) {
                       setPaymentForm({ ...paymentForm, receivedAmount: parsedValue });
                     }
+                    
+                    // Validate lại khi blur
+                    if (contractPayment && parsedValue > 0) {
+                      const actualAmountVND = contractPayment.actualAmountVND || 0;
+                      const totalPaidAmount = contractPayment.totalPaidAmount || 0;
+                      
+                      if (contractPayment.paymentStatus === "Invoiced") {
+                        if (parsedValue > actualAmountVND) {
+                          setPaymentAmountError(`Số tiền nhận được không được vượt quá số tiền thực tế (${formatCurrency(actualAmountVND)})`);
+                        } else {
+                          setPaymentAmountError(null);
+                        }
+                      } else if (contractPayment.paymentStatus === "PartiallyPaid") {
+                        const remainingAmount = actualAmountVND - totalPaidAmount;
+                        if (parsedValue > remainingAmount) {
+                          setPaymentAmountError(`Số tiền nhận được không được vượt quá số tiền còn lại (${formatCurrency(remainingAmount)})`);
+                        } else {
+                          setPaymentAmountError(null);
+                        }
+                      }
+                    }
                   }}
                   maxLength={20}
-                  className={`w-full border rounded-lg p-2 ${paymentAmountError ? 'border-red-500' : ''}`}
+                  className={`w-full border rounded-lg p-2 ${paymentAmountError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                   placeholder="Ví dụ: 30.000.000"
                   required
                 />

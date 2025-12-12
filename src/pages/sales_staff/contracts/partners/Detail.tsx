@@ -126,6 +126,30 @@ const getPaymentStatusConfig = (status: string) => {
   );
 };
 
+// Helper function to map document type name to display name
+const getDocumentTypeDisplayName = (typeName: string): string => {
+  const normalizedName = typeName.toLowerCase().trim();
+  switch (normalizedName) {
+    case "statementofwork":
+    case "statement of work":
+      return "SOW";
+    case "receipt":
+      return "Biên lai";
+    case "invoice":
+      return "Hóa đơn";
+    case "purchase order":
+      return "PO";
+    case "payment order":
+      return "UNC";
+    case "contract":
+      return "Hợp đồng";
+    case "timesheet":
+      return "Timesheet";
+    default:
+      return typeName; // Return original if no mapping found
+  }
+};
+
 export default function PartnerContractDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -669,7 +693,7 @@ export default function PartnerContractDetailPage() {
                                     : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
                                 }`}
                               >
-                                {type.typeName}
+                                {getDocumentTypeDisplayName(type.typeName)}
                                 <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-neutral-200 text-neutral-700">
                                   {count}
                                 </span>
@@ -694,7 +718,7 @@ export default function PartnerContractDetailPage() {
                                   <div className="flex items-center gap-3 mt-1">
                                     {docType && (
                                       <span className="text-xs text-gray-500">
-                                        Loại: {docType.typeName}
+                                        Loại: {getDocumentTypeDisplayName(docType.typeName)}
                                       </span>
                                     )}
                                     <span className="text-xs text-gray-500">

@@ -106,3 +106,14 @@ export interface PartnerContractPaymentRejectModel {
   rejectionReason: string;
 }
 
+// Interface cho ClientSowFileResponse (Response từ API client-sow-file)
+export interface ClientSowFileResponse {
+  sowFileUrl: string;
+  fileName: string;
+  uploadedAt: string; // ISO string
+  description: string;
+  clientContractNumber: string;
+  periodMonth?: number | null;
+  periodYear?: number | null;
+}
+
