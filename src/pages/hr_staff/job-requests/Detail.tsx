@@ -13,7 +13,7 @@ import { applyProcessTemplateService } from "../../../services/ApplyProcessTempl
 import { Button } from "../../../components/ui/button";
 import { jobSkillService, type JobSkill } from "../../../services/JobSkill";
 import { clientCompanyCVTemplateService } from "../../../services/ClientCompanyTemplate";
-import { talentApplicationService } from "../../../services/TalentApplication";
+import { talentApplicationService, type TalentApplication } from "../../../services/TalentApplication";
 import { talentCVService, type TalentCV } from "../../../services/TalentCV";
 import { talentService, type Talent } from "../../../services/Talent";
 import { sidebarItems } from "../../../components/sidebar/ta_staff";
@@ -216,7 +216,7 @@ export default function JobRequestDetailHRPage() {
                     jobRequestId: Number(id),
                     excludeDeleted: true
                 });
-                const appsArray: any[] = Array.isArray(allApplications) ? allApplications : [];
+                const appsArray = ensureArray<TalentApplication>(allApplications);
                 const qualifyingStatuses = new Set<string>(["Submitted", "Interviewing", "Hired"]);
                 const totalQualifying = appsArray.filter((app) => qualifyingStatuses.has(app.status)).length;
                 setEffectiveSubmittedCount(totalQualifying);

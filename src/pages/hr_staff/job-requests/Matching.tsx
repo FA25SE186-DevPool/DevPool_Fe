@@ -90,14 +90,28 @@ const calculateMatchScore = async (
     jobReq: JobRequest,
     jobRoleLevel: JobRoleLevel | null
 ): Promise<EnrichedMatchResult> => {
+    // Helper function to ensure data is an array
+    const ensureArray = <T,>(data: unknown): T[] => {
+        if (Array.isArray(data)) return data as T[];
+        if (data && typeof data === "object") {
+            const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+            if (Array.isArray(obj.Items)) return obj.Items as T[];
+            if (Array.isArray(obj.items)) return obj.items as T[];
+            if (Array.isArray(obj.data)) return obj.data as T[];
+        }
+        return [];
+    };
+
     // Lấy skills của talent
-    const talentSkills = await talentSkillService.getAll({
+    const talentSkillsData = await talentSkillService.getAll({
         talentId: talent.id,
         excludeDeleted: true,
-    }) as TalentSkill[];
+    });
+    const talentSkills = ensureArray<TalentSkill>(talentSkillsData);
     
     // Lấy tất cả skills để map skillId -> skillName
-    const allSkills = await skillService.getAll({ excludeDeleted: true }) as Skill[];
+    const allSkillsData = await skillService.getAll({ excludeDeleted: true });
+    const allSkills = ensureArray<Skill>(allSkillsData);
     const skillMap = new Map<number, string>();
     allSkills.forEach(skill => {
         skillMap.set(skill.id, skill.name);
@@ -193,6 +207,19 @@ export default function CVMatchingPage() {
     const [jobLocation, setJobLocation] = useState<Location | null>(null);
     const [loading, setLoading] = useState(true);
     const [showFilters, setShowFilters] = useState(false);
+
+    // Helper function to ensure data is an array
+    const ensureArray = <T,>(data: unknown): T[] => {
+        if (Array.isArray(data)) return data as T[];
+        if (data && typeof data === "object") {
+            // Handle PagedResult with Items (C# convention) or items (JS convention)
+            const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+            if (Array.isArray(obj.Items)) return obj.Items as T[];
+            if (Array.isArray(obj.items)) return obj.items as T[];
+            if (Array.isArray(obj.data)) return obj.data as T[];
+        }
+        return [];
+    };
     
     // Filter states
     const [minScore, setMinScore] = useState(0);
@@ -258,10 +285,11 @@ export default function CVMatchingPage() {
                 }
 
                 // Lấy danh sách đơn ứng tuyển đã tồn tại cho job request này để loại bỏ các CV đã nộp
-                const existingApplications = await talentApplicationService.getAll({
+                const existingApplicationsData = await talentApplicationService.getAll({
                     jobRequestId: Number(jobRequestId),
                     excludeDeleted: true,
-                }) as TalentApplication[];
+                });
+                const existingApplications = ensureArray<TalentApplication>(existingApplicationsData);
                 const excludedStatuses = new Set<string>([
                     TalentApplicationStatusConstants.Hired,
                 ]);
@@ -272,10 +300,11 @@ export default function CVMatchingPage() {
                 );
 
                 // Fetch toàn bộ CV trong hệ thống (không filter theo jobRoleId)
-                const allCVsData = await talentCVService.getAll({
+                const allCVsDataRaw = await talentCVService.getAll({
                     isActive: true,
                     excludeDeleted: true,
-                }) as TalentCV[];
+                });
+                const allCVsData = ensureArray<TalentCV>(allCVsDataRaw);
 
                 // Lọc bỏ CV đã ứng tuyển ở trạng thái Hired và CV của talents bị blacklist
                 const availableCVs = allCVsData.filter(cv => {
@@ -301,14 +330,16 @@ export default function CVMatchingPage() {
                 });
 
                 // Fetch skillMap một lần để dùng cho tất cả CV
-                const allSkills = await skillService.getAll({ excludeDeleted: true }) as Skill[];
+                const allSkillsData = await skillService.getAll({ excludeDeleted: true });
+                const allSkills = ensureArray<Skill>(allSkillsData);
                 const skillMap = new Map<number, string>();
                 allSkills.forEach(skill => {
                     skillMap.set(skill.id, skill.name);
                 });
 
                 // Fetch jobRoleLevelMap một lần để dùng cho tất cả CV
-                const allJobRoleLevels = await jobRoleLevelService.getAll({ excludeDeleted: true }) as JobRoleLevel[];
+                const allJobRoleLevelsData = await jobRoleLevelService.getAll({ excludeDeleted: true });
+                const allJobRoleLevels = ensureArray<JobRoleLevel>(allJobRoleLevelsData);
                 const jobRoleLevelMap = new Map<number, string>();
                 allJobRoleLevels.forEach(jrl => {
                     jobRoleLevelMap.set(jrl.id, jrl.name);
@@ -347,13 +378,15 @@ export default function CVMatchingPage() {
                                     // Không có skill yêu cầu, không cần kiểm tra verification
                                 } else {
                                     // Lấy skills của talent
-                                    const talentSkills = await talentSkillService.getAll({
+                                    const talentSkillsData = await talentSkillService.getAll({
                                         talentId: talent.id,
                                         excludeDeleted: true,
-                                    }) as TalentSkill[];
+                                    });
+                                    const talentSkills = ensureArray<TalentSkill>(talentSkillsData);
                                     
                                     // Lấy tất cả skills để map skillId -> skillGroupId
-                                    const allSkills = await skillService.getAll({ excludeDeleted: true }) as Skill[];
+                                    const allSkillsData = await skillService.getAll({ excludeDeleted: true });
+                                    const allSkills = ensureArray<Skill>(allSkillsData);
                                     const skillGroupMap = new Map<number, number | undefined>();
                                     allSkills.forEach(skill => {
                                         skillGroupMap.set(skill.id, skill.skillGroupId);

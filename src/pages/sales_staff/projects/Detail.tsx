@@ -10,7 +10,7 @@ import { talentAssignmentService, type TalentAssignmentModel, type TalentAssignm
 import { clientContractPaymentService, type ClientContractPaymentModel } from "../../../services/ClientContractPayment";
 import { partnerContractPaymentService } from "../../../services/PartnerContractPayment";
 import { talentApplicationService, type TalentApplication } from "../../../services/TalentApplication";
-import { applyActivityService, ApplyActivityStatus } from "../../../services/ApplyActivity";
+import { applyActivityService, ApplyActivityStatus, type ApplyActivity } from "../../../services/ApplyActivity";
 import { talentService, type Talent } from "../../../services/Talent";
 import { talentCVService, type TalentCV } from "../../../services/TalentCV";
 import { partnerService, type Partner } from "../../../services/Partner";
@@ -149,6 +149,19 @@ export default function ProjectDetailPage() {
   const [extendErrors, setExtendErrors] = useState<{ endDate?: string }>({});
   const [submittingExtend, setSubmittingExtend] = useState(false);
   
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+  
   // Form state for updating/extending assignment
   const [updateForm, setUpdateForm] = useState<{
     startDate: string;
@@ -194,7 +207,8 @@ export default function ProjectDetailPage() {
 
         // Lấy danh sách TalentAssignment cho project
         try {
-          const assignments = await talentAssignmentService.getAll({ projectId: Number(id) });
+          const assignmentsData = await talentAssignmentService.getAll({ projectId: Number(id) });
+          const assignments = ensureArray<TalentAssignmentModel>(assignmentsData);
           // Filter client-side để đảm bảo chỉ lấy assignments của dự án này
           const filteredAssignments = assignments.filter(a => a.projectId === Number(id));
           setTalentAssignments(filteredAssignments);
@@ -204,7 +218,8 @@ export default function ProjectDetailPage() {
 
         // Lấy danh sách ProjectPeriods cho project
         try {
-          const periodsData = await projectPeriodService.getAll({ projectId: Number(id), excludeDeleted: true });
+          const periodsDataRaw = await projectPeriodService.getAll({ projectId: Number(id), excludeDeleted: true });
+          const periodsData = ensureArray<ProjectPeriodModel>(periodsDataRaw);
           const filteredByProject = periodsData.filter(p => p.projectId === Number(id));
           const sortedPeriods = [...filteredByProject].sort((a, b) => {
             if (a.periodYear !== b.periodYear) {
@@ -239,12 +254,16 @@ export default function ProjectDetailPage() {
 
         // Lấy danh sách talents, partners, jobRoleLevels và locations để hiển thị
         try {
-          const [allTalents, allPartners, allJobRoleLevels, allLocations] = await Promise.all([
+          const [allTalentsData, allPartnersData, allJobRoleLevelsData, allLocationsData] = await Promise.all([
             talentService.getAll({ excludeDeleted: true }),
             partnerService.getAll(),
             jobRoleLevelService.getAll({ excludeDeleted: true }),
             locationService.getAll({ excludeDeleted: true })
           ]);
+          const allTalents = ensureArray<Talent>(allTalentsData);
+          const allPartners = ensureArray<Partner>(allPartnersData);
+          const allJobRoleLevels = ensureArray<JobRoleLevel>(allJobRoleLevelsData);
+          const allLocations = ensureArray<Location>(allLocationsData);
           setTalents(allTalents);
           setPartners(allPartners);
           setJobRoleLevels(allJobRoleLevels);
@@ -270,7 +289,8 @@ export default function ProjectDetailPage() {
         setLoadingAssignments(true);
         
         // Lấy danh sách applications có status = "Hired" và thuộc project này
-        const allApplications = await talentApplicationService.getAll({ excludeDeleted: true });
+        const allApplicationsData = await talentApplicationService.getAll({ excludeDeleted: true });
+        const allApplications = ensureArray<TalentApplication>(allApplicationsData);
         const projectJobRequestIds = (project?.jobRequests as JobRequest[] | undefined)?.map((jr) => jr.id) || [];
         const hiredApps = allApplications.filter((app: TalentApplication) => 
           app.status === "Hired" && projectJobRequestIds.includes(app.jobRequestId)
@@ -286,10 +306,12 @@ export default function ProjectDetailPage() {
         const talentIdsFromApps = [...new Set(validCvs.map(cv => cv.talentId))];
 
         // Lấy tất cả talents và partners
-        const [allTalents, allPartners] = await Promise.all([
+        const [allTalentsData, allPartnersData] = await Promise.all([
           talentService.getAll({ excludeDeleted: true }),
           partnerService.getAll()
         ]);
+        const allTalents = ensureArray<Talent>(allTalentsData);
+        const allPartners = ensureArray<Partner>(allPartnersData);
         
         // Ưu tiên hiển thị talents từ applications đã hired, sau đó là tất cả
         const talentsFromApps = allTalents.filter((t: Talent) => talentIdsFromApps.includes(t.id));
@@ -316,10 +338,11 @@ export default function ProjectDetailPage() {
 
       try {
         // Lấy tất cả activities của application này
-        const activities = await applyActivityService.getAll({ 
+        const activitiesData = await applyActivityService.getAll({ 
           applyId: assignmentForm.talentApplicationId,
           excludeDeleted: true 
         });
+        const activities = ensureArray<ApplyActivity>(activitiesData);
         
         // Tìm activity có status Completed với scheduledDate gần nhất (activity cuối cùng đã hoàn thành)
         const completedActivities = activities
@@ -373,10 +396,11 @@ export default function ProjectDetailPage() {
       }
 
       try {
-        const activities = await applyActivityService.getAll({
+        const activitiesData = await applyActivityService.getAll({
           applyId: selectedAssignment.talentApplicationId,
           excludeDeleted: true,
         });
+        const activities = ensureArray<ApplyActivity>(activitiesData);
         const activitiesWithDate = activities.filter(a => a.scheduledDate);
         if (activitiesWithDate.length > 0) {
           const lastActivity = activitiesWithDate.reduce((latest, current) => {
@@ -528,7 +552,8 @@ export default function ProjectDetailPage() {
       const newAssignment = await talentAssignmentService.create(payload);
 
       // Refresh assignments list
-      const assignments = await talentAssignmentService.getAll({ projectId: Number(id) });
+      const assignmentsData = await talentAssignmentService.getAll({ projectId: Number(id) });
+      const assignments = ensureArray<TalentAssignmentModel>(assignmentsData);
       // Filter client-side để đảm bảo chỉ lấy assignments của dự án này
       const filteredAssignments = assignments.filter(a => a.projectId === Number(id));
       setTalentAssignments(filteredAssignments);
@@ -537,10 +562,11 @@ export default function ProjectDetailPage() {
       if (newAssignment && newAssignment.status === "Active" && newAssignment.startDate) {
         try {
           // Lấy danh sách project periods đang mở
-          const periods = await projectPeriodService.getAll({ 
+          const periodsData = await projectPeriodService.getAll({ 
             projectId: Number(id), 
             excludeDeleted: true 
           });
+          const periods = ensureArray<ProjectPeriodModel>(periodsData);
           const openPeriods = periods.filter(p => p.projectId === Number(id) && p.status === "Open");
 
           if (openPeriods.length > 0) {
@@ -802,7 +828,8 @@ export default function ProjectDetailPage() {
       }
 
       // Refresh assignments list
-      const assignments = await talentAssignmentService.getAll({ projectId: Number(id) });
+      const assignmentsData = await talentAssignmentService.getAll({ projectId: Number(id) });
+      const assignments = ensureArray<TalentAssignmentModel>(assignmentsData);
       // Filter client-side để đảm bảo chỉ lấy assignments của dự án này
       const filteredAssignments = assignments.filter(a => a.projectId === Number(id));
       setTalentAssignments(filteredAssignments);
@@ -1029,7 +1056,8 @@ export default function ProjectDetailPage() {
       await talentAssignmentService.extend(selectedAssignment.id, payload);
 
       // Refresh assignments list
-      const assignments = await talentAssignmentService.getAll({ projectId: Number(id) });
+      const assignmentsData = await talentAssignmentService.getAll({ projectId: Number(id) });
+      const assignments = ensureArray<TalentAssignmentModel>(assignmentsData);
       const filteredAssignments = assignments.filter(a => a.projectId === Number(id));
       setTalentAssignments(filteredAssignments);
 
@@ -3058,10 +3086,11 @@ export default function ProjectDetailPage() {
                       let lastActivityDate: string | null = null;
                       if (selectedAssignment.talentApplicationId) {
                         try {
-                          const activities = await applyActivityService.getAll({
+                          const activitiesData = await applyActivityService.getAll({
                             applyId: selectedAssignment.talentApplicationId,
                             excludeDeleted: true,
                           });
+                          const activities = ensureArray<ApplyActivity>(activitiesData);
                           const activitiesWithDate = activities.filter(a => a.scheduledDate);
                           if (activitiesWithDate.length > 0) {
                             const lastActivity = activitiesWithDate.reduce((latest, current) => {

@@ -212,8 +212,14 @@ export default function JobRequestEditPage() {
   // 🧭 Load danh sách Skills
   useEffect(() => {
     const fetchSkills = async () => {
-      const skills = await skillService.getAll() as Skill[];
-      setAllSkills(skills); // Save all skills
+      try {
+        const skillsData = await skillService.getAll();
+        const skills = ensureArray<Skill>(skillsData);
+        setAllSkills(skills);
+      } catch (err) {
+        console.error("❌ Lỗi tải kỹ năng:", err);
+        setAllSkills([]);
+      }
     };
     fetchSkills();
   }, []);
@@ -222,13 +228,7 @@ export default function JobRequestEditPage() {
     const fetchSkillGroups = async () => {
       try {
         const response = await skillGroupService.getAll({ excludeDeleted: true });
-        const groups = Array.isArray(response)
-          ? response
-          : Array.isArray((response as any)?.items)
-            ? (response as any).items
-            : Array.isArray((response as any)?.data)
-              ? (response as any).data
-              : [];
+        const groups = ensureArray<SkillGroup>(response);
         setSkillGroups(groups);
       } catch (err) {
         console.error("❌ Lỗi tải nhóm kỹ năng:", err);
@@ -299,14 +299,8 @@ export default function JobRequestEditPage() {
       }
       try {
         const result = await clientJobRoleLevelService.getAll({ clientCompanyId: selectedClientId, excludeDeleted: true });
-        const list = Array.isArray(result)
-          ? result
-          : Array.isArray((result as any)?.items)
-            ? (result as any).items
-            : Array.isArray((result as any)?.data)
-              ? (result as any).data
-              : [];
-        setClientJobRoleLevels(list as ClientJobRoleLevel[]);
+        const list = ensureArray<ClientJobRoleLevel>(result);
+        setClientJobRoleLevels(list);
         
         // Tự động điền thông tin từ ClientJobRoleLevel nếu đã có jobRoleLevelId
         if (formData.jobRoleLevelId && selectedClientId) {
