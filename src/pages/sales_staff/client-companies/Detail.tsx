@@ -187,6 +187,19 @@ export default function ClientCompanyDetailPage() {
   const { user } = useAuth();
   const isManager = user?.role === "Manager" || user?.role === "Admin";
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   useEffect(() => {
     const fetchCompany = async () => {
       try {
@@ -216,21 +229,8 @@ export default function ClientCompanyDetailPage() {
           jobRoleService.getAll({ excludeDeleted: true }),
         ]);
 
-        const jobRoleLevelsArray = Array.isArray(jobRoleLevels)
-          ? jobRoleLevels
-          : (Array.isArray((jobRoleLevels as any)?.items)
-            ? (jobRoleLevels as any).items
-            : (Array.isArray((jobRoleLevels as any)?.data)
-              ? (jobRoleLevels as any).data
-              : []));
-
-        const jobRolesArray = Array.isArray(jobRolesData)
-          ? jobRolesData
-          : (Array.isArray((jobRolesData as any)?.items)
-            ? (jobRolesData as any).items
-            : (Array.isArray((jobRolesData as any)?.data)
-              ? (jobRolesData as any).data
-              : []));
+        const jobRoleLevelsArray = ensureArray<JobRoleLevel>(jobRoleLevels);
+        const jobRolesArray = ensureArray<JobRole>(jobRolesData);
 
         setAllJobRoleLevels(jobRoleLevelsArray);
         setJobRoles(jobRolesArray);
@@ -270,7 +270,7 @@ export default function ClientCompanyDetailPage() {
       
       try {
         const talentsData = await talentService.getAll({ excludeDeleted: true });
-        const talentsArray = Array.isArray(talentsData) ? talentsData : talentsData?.data || [];
+        const talentsArray = ensureArray<Talent>(talentsData);
         setAllTalents(talentsArray);
         setFilteredTalents(talentsArray);
       } catch (err) {
@@ -306,13 +306,7 @@ export default function ClientCompanyDetailPage() {
       
       try {
         const templates = await cvTemplateService.getAll({ excludeDeleted: true });
-        const templatesArray = Array.isArray(templates)
-          ? (templates as CVTemplate[])
-          : (Array.isArray((templates as any)?.items)
-            ? (templates as any).items
-            : (Array.isArray((templates as any)?.data)
-              ? (templates as any).data
-              : [])) as CVTemplate[];
+        const templatesArray = ensureArray<CVTemplate>(templates);
         
         // Filter out already assigned templates
         const assignedTemplateIds = company?.assignedCVTemplates?.map(t => t.templateId) || [];
@@ -367,13 +361,7 @@ export default function ClientCompanyDetailPage() {
       
       try {
         const jobRoleLevels = await jobRoleLevelService.getAll({ excludeDeleted: true, distinctByName: true });
-        const jobRoleLevelsArray = Array.isArray(jobRoleLevels)
-          ? jobRoleLevels
-          : (Array.isArray((jobRoleLevels as any)?.items)
-            ? (jobRoleLevels as any).items
-            : (Array.isArray((jobRoleLevels as any)?.data)
-              ? (jobRoleLevels as any).data
-              : []));
+        const jobRoleLevelsArray = ensureArray<JobRoleLevel>(jobRoleLevels);
         
         // Không filter ra, hiển thị tất cả (các vị trí đã chọn sẽ bị disable trong dropdown)
         setAvailableJobRoleLevels(jobRoleLevelsArray);
