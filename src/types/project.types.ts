@@ -35,6 +35,14 @@ export interface ProjectFilter {
   startDateFrom?: string;
   startDateTo?: string;
   excludeDeleted?: boolean;
+  /**
+   * Page number (1-based)
+   */
+  pageNumber?: number;
+  /**
+   * Number of items per page
+   */
+  pageSize?: number;
 }
 
 export interface ProjectStatusUpdateModel {

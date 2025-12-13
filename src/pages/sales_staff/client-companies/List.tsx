@@ -63,14 +63,30 @@ export default function ClientCompanyListPage() {
     }
   ];
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
         setLoading(true);
         const res = await clientCompanyService.getAll();
         
+        // Ensure data is an array - handle PagedResult with Items/items or direct array
+        const companiesArray = ensureArray<ClientCompany>(res);
+        
         // Sắp xếp công ty: mới nhất lên đầu (theo createdAt hoặc id)
-        const sortedCompanies = [...res].sort((a, b) => {
+        const sortedCompanies = [...companiesArray].sort((a, b) => {
           const dateA = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
           const dateB = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
           if (dateA !== 0 || dateB !== 0) {
@@ -83,6 +99,8 @@ export default function ClientCompanyListPage() {
         setFilteredCompanies(sortedCompanies);
       } catch (err) {
         console.error("❌ Lỗi khi load danh sách công ty:", err);
+        setCompanies([]);
+        setFilteredCompanies([]);
       } finally {
         setLoading(false);
       }

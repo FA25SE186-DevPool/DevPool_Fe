@@ -14,7 +14,6 @@ import { jobRoleService, type JobRole } from "../../../services/JobRole";
 import { useAuth } from "../../../context/AuthContext";
 import { Button } from "../../../components/ui/button";
 import {
-  ArrowLeft,
   Edit,
   Trash2,
   Building2,
@@ -711,12 +710,6 @@ export default function ClientCompanyDetailPage() {
               <XCircle className="w-8 h-8 text-red-500" />
             </div>
             <p className="text-red-500 text-lg font-medium">Không tìm thấy công ty</p>
-            <Link
-              to="/sales/clients"
-              className="text-primary-600 hover:text-primary-800 text-sm mt-2 inline-block"
-            >
-              ← Quay lại danh sách
-            </Link>
           </div>
         </div>
       </div>
@@ -736,15 +729,6 @@ export default function ClientCompanyDetailPage() {
               { label: company.name }
             ]}
           />
-          <div className="flex items-center gap-4 mb-6">
-            <Link
-              to="/sales/clients"
-              className="group flex items-center gap-2 text-neutral-600 hover:text-primary-600 transition-colors duration-300"
-            >
-              <ArrowLeft className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-              <span className="font-medium">Quay lại danh sách</span>
-            </Link>
-          </div>
 
           <div className="flex justify-between items-start">
             <div className="flex-1">

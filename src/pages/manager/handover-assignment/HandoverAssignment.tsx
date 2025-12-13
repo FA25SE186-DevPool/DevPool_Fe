@@ -36,6 +36,19 @@ export default function HandoverAssignmentPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -52,15 +65,20 @@ export default function HandoverAssignmentPage() {
           }),
         ]);
 
+        // Ensure all data are arrays - handle PagedResult with Items/items or direct array
+        const talentsArray = ensureArray<Talent>(talentsData);
+        const usersArray = ensureArray<User>(usersData);
+        const assignmentsArray = ensureArray<TalentStaffAssignment>(assignmentsData);
+
         // Filter TA staff (role = "TA" - HR đã chuyển sang TA)
-        const taStaffList = usersData.items.filter(
+        const taStaffList = usersArray.filter(
           (user: User) => user.roles.includes("TA")
         );
 
-        setTalents(talentsData);
+        setTalents(talentsArray);
         setTaStaff(taStaffList);
-        setAssignments(Array.isArray(assignmentsData) ? assignmentsData : (assignmentsData?.items || []));
-        setFilteredTalents(talentsData);
+        setAssignments(assignmentsArray);
+        setFilteredTalents(talentsArray);
       } catch (err: any) {
         console.error("❌ Lỗi khi tải dữ liệu:", err);
         setErrorMessage(err.message || "Không thể tải dữ liệu");
@@ -157,9 +175,13 @@ export default function HandoverAssignmentPage() {
         }),
       ]);
       
-      setTalents(talentsData);
-      setFilteredTalents(talentsData);
-      setAssignments(Array.isArray(assignmentsData) ? assignmentsData : (assignmentsData?.items || []));
+      // Ensure all data are arrays - handle PagedResult with Items/items or direct array
+      const talentsArray = ensureArray<Talent>(talentsData);
+      const assignmentsArray = ensureArray<TalentStaffAssignment>(assignmentsData);
+      
+      setTalents(talentsArray);
+      setFilteredTalents(talentsArray);
+      setAssignments(assignmentsArray);
     } catch (err: any) {
       console.error("❌ Lỗi khi chuyển nhượng:", err);
       setErrorMessage(err.message || "Không thể chuyển nhượng quản lý Talent");

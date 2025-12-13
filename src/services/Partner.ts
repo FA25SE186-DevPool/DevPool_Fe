@@ -1,18 +1,20 @@
 // src/services/partnerService.ts
 import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
-import { PartnerType, type Partner, type PartnerPayload, type PartnerContractModel, type PartnerTalentModel, type PartnerPaymentPeriodModel, type PartnerDetailedModel, type SuggestCodeResponse, type CheckCodeUniqueResponse } from "../types/partner.types";
+import { PartnerType, type Partner, type PartnerPayload, type PartnerContractModel, type PartnerTalentModel, type PartnerPaymentPeriodModel, type PartnerDetailedModel, type SuggestCodeResponse, type CheckCodeUniqueResponse, type PartnerFilter } from "../types/partner.types";
 
 export { PartnerType };
-export type { Partner, PartnerPayload, PartnerContractModel, PartnerTalentModel, PartnerPaymentPeriodModel, PartnerDetailedModel, SuggestCodeResponse, CheckCodeUniqueResponse };
+export type { Partner, PartnerPayload, PartnerContractModel, PartnerTalentModel, PartnerPaymentPeriodModel, PartnerDetailedModel, SuggestCodeResponse, CheckCodeUniqueResponse, PartnerFilter };
 
 export const partnerService = {
-  async getAll(filter?: { companyName?: string; taxCode?: string; contactPerson?: string }) {
+  async getAll(filter?: PartnerFilter) {
     try {
       const params = new URLSearchParams();
       if (filter?.companyName) params.append("CompanyName", filter.companyName);
-      if (filter?.taxCode) params.append("TaxCode", filter.taxCode);
       if (filter?.contactPerson) params.append("ContactPerson", filter.contactPerson);
+      if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
+      if (filter?.pageNumber !== undefined) params.append("PageNumber", filter.pageNumber.toString());
+      if (filter?.pageSize !== undefined) params.append("PageSize", filter.pageSize.toString());
       const url = `/partner${params.toString() ? `?${params}` : ""}`;
       const response = await apiClient.get(url);
       return response.data;

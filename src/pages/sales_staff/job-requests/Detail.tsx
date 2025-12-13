@@ -103,6 +103,19 @@ export default function JobRequestDetailPage() {
     Withdrawn: "bg-gray-100 text-gray-800",
   };
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -110,17 +123,23 @@ export default function JobRequestDetailPage() {
 
         const [
           jobReqData,
-          allProjects,
-          allCompanies,
-          allPositions,
-          allSkills,
+          allProjectsRes,
+          allCompaniesRes,
+          allPositionsRes,
+          allSkillsRes,
         ] = await Promise.all([
           jobRequestService.getById(Number(id)),
-          projectService.getAll() as Promise<Project[]>,
-          clientCompanyService.getAll() as Promise<ClientCompany[]>,
-          jobRoleLevelService.getAll() as Promise<JobRoleLevel[]>,
-          skillService.getAll() as Promise<Skill[]>,
+          projectService.getAll(),
+          clientCompanyService.getAll(),
+          jobRoleLevelService.getAll(),
+          skillService.getAll(),
         ]);
+
+        // Ensure all data are arrays - handle PagedResult with Items/items or direct array
+        const allProjects = ensureArray<Project>(allProjectsRes);
+        const allCompanies = ensureArray<ClientCompany>(allCompaniesRes);
+        const allPositions = ensureArray<JobRoleLevel>(allPositionsRes);
+        const allSkills = ensureArray<Skill>(allSkillsRes);
 
         const project = allProjects.find((p) => p.id === jobReqData.projectId);
         const clientCompany = project

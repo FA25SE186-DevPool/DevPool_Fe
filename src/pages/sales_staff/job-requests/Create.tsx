@@ -193,6 +193,19 @@ export default function JobRequestCreatePage() {
     }
   }, [searchParams, companies]);
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -205,20 +218,13 @@ export default function JobRequestCreatePage() {
           applyProcessTemplateService.getAll(),
           skillGroupService.getAll({ excludeDeleted: true }),
         ]);
-        setAllSkills(skills);
-        setProjects(projectsData);
-        setJobRoleLevels(jobRoleLevelsData);
-        setJobRoles(jobRolesData);
-        setLocations(locs);
-        setApplyTemplates(apts);
-        const groups = Array.isArray(skillGroupsData)
-          ? skillGroupsData
-          : Array.isArray((skillGroupsData as any)?.items)
-            ? (skillGroupsData as any).items
-            : Array.isArray((skillGroupsData as any)?.data)
-              ? (skillGroupsData as any).data
-              : [];
-        setSkillGroups(groups);
+        setAllSkills(ensureArray(skills));
+        setProjects(ensureArray(projectsData));
+        setJobRoleLevels(ensureArray(jobRoleLevelsData));
+        setJobRoles(ensureArray(jobRolesData));
+        setLocations(ensureArray(locs));
+        setApplyTemplates(ensureArray(apts));
+        setSkillGroups(ensureArray(skillGroupsData));
       } catch (error) {
         console.error("❌ Error loading data", error);
       }
@@ -230,14 +236,8 @@ export default function JobRequestCreatePage() {
     const fetchCompanies = async () => {
       try {
         const result = await clientCompanyService.getAll({ excludeDeleted: true });
-        const list = Array.isArray(result)
-          ? result
-          : Array.isArray((result as any)?.items)
-            ? (result as any).items
-            : Array.isArray((result as any)?.data)
-              ? (result as any).data
-              : [];
-        setCompanies(list as ClientCompany[]);
+        const list = ensureArray<ClientCompany>(result);
+        setCompanies(list);
       } catch (err) {
         console.error("❌ Lỗi tải công ty khách hàng:", err);
         setCompanies([]);

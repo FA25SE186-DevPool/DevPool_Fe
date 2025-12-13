@@ -41,6 +41,19 @@ export default function ListDev() {
   const itemsPerPage = 10;
   const statsPageSize = 4;
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   // ========== Load lookup data ==========
   useEffect(() => {
     const fetchLookupData = async () => {
@@ -49,10 +62,12 @@ export default function ListDev() {
           locationService.getAll({ excludeDeleted: true }),
           partnerService.getAll(),
         ]);
-        setLocations(locationData);
-        setPartners(partnerData);
+        setLocations(ensureArray<Location>(locationData));
+        setPartners(ensureArray<Partner>(partnerData));
       } catch (err) {
         console.error("❌ Không thể tải dữ liệu lookup:", err);
+        setLocations([]);
+        setPartners([]);
       }
     };
     fetchLookupData();

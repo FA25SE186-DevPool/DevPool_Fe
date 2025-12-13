@@ -66,6 +66,19 @@ export default function HRDashboard() {
   const [errorTalentManagement, setErrorTalentManagement] = useState<string | null>(null);
   const [talentManagementData, setTalentManagementData] = useState<TalentManagementDashboardModel | null>(null);
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -82,14 +95,23 @@ export default function HRDashboard() {
           clientCompanyService.getAll({ excludeDeleted: true })
         ]);
 
-        setTalents(talentsData);
-        setApplications(applicationsData);
-        setActivities(activitiesData);
-        setJobRequests(jobRequestsData);
-        setPartners(partnersData);
+        // Ensure all data are arrays
+        const talentsArray = ensureArray<Talent>(talentsData);
+        const applicationsArray = ensureArray<Apply>(applicationsData);
+        const activitiesArray = ensureArray<ApplyActivity>(activitiesData);
+        const jobRequestsArray = ensureArray<JobRequest>(jobRequestsData);
+        const partnersArray = ensureArray<Partner>(partnersData);
+        const projectsArray = ensureArray<Project>(projectsData);
+        const clientCompaniesArray = ensureArray<ClientCompany>(clientCompaniesData);
+
+        setTalents(talentsArray);
+        setApplications(applicationsArray);
+        setActivities(activitiesArray);
+        setJobRequests(jobRequestsArray);
+        setPartners(partnersArray);
 
         // Get recent applications with talent names
-        const recentApps = applicationsData
+        const recentApps = applicationsArray
           .sort((a: Apply, b: Apply) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .slice(0, 5);
         const recentAppsWithDetails = await Promise.all(
@@ -100,7 +122,7 @@ export default function HRDashboard() {
                 jobRequestService.getById(app.jobRequestId)
               ]);
 
-              const talent = talentsData.find((t: Talent) => t.id === cv.talentId);
+              const talent = talentsArray.find((t: Talent) => t.id === cv.talentId);
 
               return {
                 id: app.id,
@@ -123,7 +145,7 @@ export default function HRDashboard() {
         setRecentApplications(recentAppsWithDetails);
 
         // Get recent activities
-        const recentActivitiesData = activitiesData
+        const recentActivitiesData = activitiesArray
           .filter((activity: ApplyActivity) => activity.scheduledDate) // Chỉ lấy những activity có scheduledDate
           .sort((a: ApplyActivity, b: ApplyActivity) => {
             // Sort by scheduledDate (newest first)
@@ -159,12 +181,12 @@ export default function HRDashboard() {
 
         // Get recent job requests
         const companyDict: Record<number, ClientCompany> = {};
-        clientCompaniesData.forEach((c: ClientCompany) => (companyDict[c.id] = c));
+        clientCompaniesArray.forEach((c: ClientCompany) => (companyDict[c.id] = c));
 
         const projectDict: Record<number, Project> = {};
-        projectsData.forEach((p: Project) => (projectDict[p.id] = p));
+        projectsArray.forEach((p: Project) => (projectDict[p.id] = p));
 
-        const recentJobReqs = jobRequestsData
+        const recentJobReqs = jobRequestsArray
           .sort((a: JobRequest, b: JobRequest) => b.id - a.id)
           .slice(0, 5)
           .map((jr: JobRequest) => {

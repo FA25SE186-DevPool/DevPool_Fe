@@ -40,9 +40,19 @@ export default function CreatePartner() {
 
   const checkDuplicateTaxCode = async (taxCode: string): Promise<boolean> => {
     try {
-      const partners = await partnerService.getAll();
+      const partnersData = await partnerService.getAll();
+      // Ensure data is an array - handle PagedResult with Items/items or direct array
+      let partnersArray: Partner[] = [];
+      if (Array.isArray(partnersData)) {
+        partnersArray = partnersData;
+      } else if (partnersData && typeof partnersData === "object") {
+        const obj = partnersData as { Items?: unknown; items?: unknown; data?: unknown };
+        if (Array.isArray(obj.Items)) partnersArray = obj.Items as Partner[];
+        else if (Array.isArray(obj.items)) partnersArray = obj.items as Partner[];
+        else if (Array.isArray(obj.data)) partnersArray = obj.data as Partner[];
+      }
       const cleanedTaxCode = taxCode.replace(/\D/g, '');
-      return partners.some((partner: Partner) => {
+      return partnersArray.some((partner: Partner) => {
         const partnerTaxCode = partner.taxCode?.replace(/\D/g, '') || '';
         return partnerTaxCode === cleanedTaxCode;
       });

@@ -65,5 +65,13 @@ export interface JobRequestFilter {
   workingMode?: WorkingMode;
   status?: JobRequestStatus;
   excludeDeleted?: boolean;
+  /**
+   * Page number (1-based)
+   */
+  pageNumber?: number;
+  /**
+   * Number of items per page
+   */
+  pageSize?: number;
 }
 

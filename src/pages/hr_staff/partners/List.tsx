@@ -22,18 +22,32 @@ export default function ListPartner() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 30;
 
-  // Stats data
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
+  // Stats data - ensure partners is always an array
+  const partnersArray = Array.isArray(partners) ? partners : [];
   const stats = [
     {
       title: 'Tổng Đối Tác',
-      value: partners.length.toString(),
+      value: partnersArray.length.toString(),
       color: 'blue',
       icon: <Building2 className="w-6 h-6" />,
       onClick: () => setFilterPartnerType(null)
     },
     {
       title: 'Đối Tác',
-      value: partners.filter(p => p.partnerType === PartnerType.Partner).length.toString(),
+      value: partnersArray.filter(p => p.partnerType === PartnerType.Partner).length.toString(),
       color: 'green',
       icon: <Briefcase className="w-6 h-6" />,
       partnerType: PartnerType.Partner,
@@ -41,7 +55,7 @@ export default function ListPartner() {
     },
     {
       title: 'Cá Nhân',
-      value: partners.filter(p => p.partnerType === PartnerType.Individual).length.toString(),
+      value: partnersArray.filter(p => p.partnerType === PartnerType.Individual).length.toString(),
       color: 'orange',
       icon: <User className="w-6 h-6" />,
       partnerType: PartnerType.Individual,
@@ -49,7 +63,7 @@ export default function ListPartner() {
     },
     {
       title: 'Công Ty Mình',
-      value: partners.filter(p => p.partnerType === PartnerType.OwnCompany).length.toString(),
+      value: partnersArray.filter(p => p.partnerType === PartnerType.OwnCompany).length.toString(),
       color: 'purple',
       icon: <Building2 className="w-6 h-6" />,
       partnerType: PartnerType.OwnCompany,
@@ -65,14 +79,16 @@ export default function ListPartner() {
     try {
       setLoading(true);
       const data = await partnerService.getAll();
+      // Ensure data is an array - handle PagedResult with Items/items or direct array
+      const dataArray = ensureArray<Partner>(data);
       // Sắp xếp theo id giảm dần (mới nhất trước) - đối tác mới tạo sẽ có id lớn hơn
-      const sortedData = Array.isArray(data) 
-        ? [...data].sort((a, b) => b.id - a.id)
-        : data;
+      const sortedData = [...dataArray].sort((a, b) => b.id - a.id);
       setPartners(sortedData);
       setFilteredPartners(sortedData);
     } catch (err) {
       console.error("❌ Failed to fetch partners:", err);
+      setPartners([]);
+      setFilteredPartners([]);
     } finally {
       setLoading(false);
     }
@@ -80,7 +96,9 @@ export default function ListPartner() {
 
   // Filter partners based on search and filters
   useEffect(() => {
-    let filtered = [...partners];
+    // Ensure partners is an array
+    const partnersArray = Array.isArray(partners) ? partners : [];
+    let filtered = [...partnersArray];
     if (searchTerm) filtered = filtered.filter((p) => p.companyName?.toLowerCase().includes(searchTerm.toLowerCase()));
     if (filterTaxCode) filtered = filtered.filter((p) => p.taxCode?.includes(filterTaxCode));
     if (filterPartnerType !== null) filtered = filtered.filter((p) => p.partnerType === filterPartnerType);

@@ -29,14 +29,30 @@ export function useTalents(options: UseTalentsOptions = { autoFetch: true }): Us
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   const fetchTalents = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await talentService.getAll(options.filter);
       
+      // Ensure data is an array
+      const dataArray = ensureArray<Talent>(data);
+      
       // Sort by createdAt desc, then by id desc
-      const sorted = [...data].sort((a, b) => {
+      const sorted = [...dataArray].sort((a, b) => {
         const createdAtA = (a as { createdAt?: string }).createdAt;
         const createdAtB = (b as { createdAt?: string }).createdAt;
         const timeA = createdAtA ? new Date(createdAtA).getTime() : 0;
@@ -60,8 +76,11 @@ export function useTalents(options: UseTalentsOptions = { autoFetch: true }): Us
       setError(null);
       const data = await talentService.getMyManagedTalents();
       
+      // Ensure data is an array
+      const dataArray = ensureArray<Talent>(data);
+      
       // Sort by createdAt desc, then by id desc
-      const sorted = [...data].sort((a, b) => {
+      const sorted = [...dataArray].sort((a, b) => {
         const createdAtA = (a as { createdAt?: string }).createdAt;
         const createdAtB = (b as { createdAt?: string }).createdAt;
         const timeA = createdAtA ? new Date(createdAtA).getTime() : 0;
