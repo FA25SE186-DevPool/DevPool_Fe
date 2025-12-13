@@ -54,7 +54,9 @@ export function TalentTable({
 
   const getPartnerName = (partnerId?: number): string => {
     if (!partnerId) return '—';
-    const partner = partners.find(p => p.id === partnerId);
+    // Ensure partners is an array before calling find
+    const partnersArray = Array.isArray(partners) ? partners : [];
+    const partner = partnersArray.find(p => p.id === partnerId);
     return partner?.companyName || '—';
   };
 

@@ -238,6 +238,19 @@ export default function JobRequestEditPage() {
     fetchSkillGroups();
   }, []);
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   // 🧭 Load danh sách Projects, Job Role Levels, Locations, Apply Templates, Job Roles
   useEffect(() => {
     const fetchRefs = async () => {
@@ -249,11 +262,11 @@ export default function JobRequestEditPage() {
           applyProcessTemplateService.getAll(),
           jobRoleService.getAll(),
         ]);
-        setProjects(projectsData);
-        setJobRoleLevels(jobPosData);
-        setLocations(locs);
-        setApplyTemplates(apts);
-        setJobRoles(roles);
+        setProjects(ensureArray(projectsData));
+        setJobRoleLevels(ensureArray(jobPosData));
+        setLocations(ensureArray(locs));
+        setApplyTemplates(ensureArray(apts));
+        setJobRoles(ensureArray(roles));
       } catch (err) {
         console.error("❌ Lỗi tải dữ liệu tham chiếu:", err);
       }
@@ -266,14 +279,8 @@ export default function JobRequestEditPage() {
     const fetchCompanies = async () => {
       try {
         const result = await clientCompanyService.getAll({ excludeDeleted: true });
-        const list = Array.isArray(result)
-          ? result
-          : Array.isArray((result as any)?.items)
-            ? (result as any).items
-            : Array.isArray((result as any)?.data)
-              ? (result as any).data
-              : [];
-        setCompanies(list as ClientCompany[]);
+        const list = ensureArray<ClientCompany>(result);
+        setCompanies(list);
       } catch (err) {
         console.error("❌ Lỗi tải công ty khách hàng:", err);
         setCompanies([]);

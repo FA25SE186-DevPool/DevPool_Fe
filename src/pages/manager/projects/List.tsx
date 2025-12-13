@@ -71,6 +71,19 @@ export default function ManagerProjectListPage() {
     }
   ];
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -80,8 +93,12 @@ export default function ManagerProjectListPage() {
           clientCompanyService.getAll({ excludeDeleted: true }),
         ]);
 
+        // Ensure all data are arrays - handle PagedResult with Items/items or direct array
+        const projectsArray = ensureArray<Project>(projectRes);
+        const companiesArray = ensureArray<ClientCompany>(companyRes);
+
         // Sắp xếp dự án: mới nhất lên đầu (theo createdAt hoặc id)
-        const sortedProjects = [...projectRes].sort((a, b) => {
+        const sortedProjects = [...projectsArray].sort((a, b) => {
           const dateA = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
           const dateB = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
           if (dateA !== 0 || dateB !== 0) {
@@ -92,9 +109,12 @@ export default function ManagerProjectListPage() {
 
         setProjects(sortedProjects);
         setFilteredProjects(sortedProjects);
-        setCompanies(companyRes);
+        setCompanies(companiesArray);
       } catch (err) {
         console.error("❌ Lỗi tải danh sách dự án:", err);
+        setProjects([]);
+        setFilteredProjects([]);
+        setCompanies([]);
       } finally {
         setLoading(false);
       }

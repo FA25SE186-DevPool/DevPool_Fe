@@ -34,8 +34,12 @@ export default function SalesDashboard() {
 
   const ensureArray = <T,>(data: unknown): T[] => {
     if (Array.isArray(data)) return data as T[];
-    if (data && typeof data === "object" && Array.isArray((data as { data?: unknown }).data)) {
-      return (data as { data: T[] }).data;
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
     }
     return [];
   };

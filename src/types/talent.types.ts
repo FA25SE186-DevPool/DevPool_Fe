@@ -32,6 +32,14 @@ export interface TalentFilter {
   workingMode?: WorkingMode;
   status?: string;
   excludeDeleted?: boolean;
+  /**
+   * Page number (1-based)
+   */
+  pageNumber?: number;
+  /**
+   * Number of items per page
+   */
+  pageSize?: number;
 }
 
 export interface TalentCreate {

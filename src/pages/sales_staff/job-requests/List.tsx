@@ -116,34 +116,51 @@ export default function JobRequestListPage() {
     );
   };
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         const [reqRes, companyRes, projectRes, applicationsRes] = await Promise.all([
-          jobRequestService.getAll() as Promise<JobRequest[]>,
-          clientCompanyService.getAll() as Promise<ClientCompany[]>,
-          projectService.getAll() as Promise<Project[]>,
-          talentApplicationService.getAll({ excludeDeleted: true }) as Promise<TalentApplication[]>,
+          jobRequestService.getAll(),
+          clientCompanyService.getAll(),
+          projectService.getAll(),
+          talentApplicationService.getAll({ excludeDeleted: true }),
         ]);
 
+        // Ensure all data are arrays - handle PagedResult with Items/items or direct array
+        const reqArray = ensureArray<JobRequest>(reqRes);
+        const companyArray = ensureArray<ClientCompany>(companyRes);
+        const projectArray = ensureArray<Project>(projectRes);
+        const applicationsArray = ensureArray<TalentApplication>(applicationsRes);
+
         const companyDict: Record<number, string> = {};
-        companyRes.forEach((c) => (companyDict[c.id] = c.name));
+        companyArray.forEach((c) => (companyDict[c.id] = c.name));
 
         const projectDict: Record<number, { name: string; clientCompanyId: number }> = {};
-        projectRes.forEach((p) => {
+        projectArray.forEach((p) => {
           projectDict[p.id] = { name: p.name, clientCompanyId: p.clientCompanyId };
         });
 
         const applicationCountMap: Record<number, number> = {};
-        if (Array.isArray(applicationsRes)) {
-          applicationsRes.forEach((app) => {
-            const key = app.jobRequestId;
-            applicationCountMap[key] = (applicationCountMap[key] ?? 0) + 1;
-          });
-        }
+        applicationsArray.forEach((app) => {
+          const key = app.jobRequestId;
+          applicationCountMap[key] = (applicationCountMap[key] ?? 0) + 1;
+        });
 
-        const merged: AugmentedJobRequest[] = reqRes
+        const merged: AugmentedJobRequest[] = reqArray
           .map((r) => {
             const projectInfo = projectDict[r.projectId];
             const clientCompanyName = projectInfo ? companyDict[projectInfo.clientCompanyId] ?? "—" : "—";

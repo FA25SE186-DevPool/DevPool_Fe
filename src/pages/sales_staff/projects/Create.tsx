@@ -52,6 +52,19 @@ export default function ProjectCreatePage() {
   const [isMarketDropdownOpen, setIsMarketDropdownOpen] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -60,9 +73,9 @@ export default function ProjectCreatePage() {
           marketService.getAll({ excludeDeleted: true }),
           industryService.getAll({ excludeDeleted: true }),
         ]);
-        setClients(clientData);
-        setMarkets(marketData);
-        setIndustries(industryData);
+        setClients(ensureArray(clientData));
+        setMarkets(ensureArray(marketData));
+        setIndustries(ensureArray(industryData));
       } catch (err) {
         console.error("❌ Lỗi tải dữ liệu:", err);
         setError("Không thể tải dữ liệu. Vui lòng thử lại sau.");

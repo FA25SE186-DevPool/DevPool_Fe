@@ -109,6 +109,8 @@ export const talentCVService = {
       if (filter?.isActive !== undefined) params.append("IsActive", filter.isActive.toString());
       if (filter?.isGeneratedFromTemplate !== undefined) params.append("IsGeneratedFromTemplate", filter.isGeneratedFromTemplate.toString());
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
+      if (filter?.pageNumber !== undefined) params.append("PageNumber", filter.pageNumber.toString());
+      if (filter?.pageSize !== undefined) params.append("PageSize", filter.pageSize.toString());
       const url = `/talentcv${params.toString() ? `?${params}` : ""}`;
       const response = await apiClient.get(url);
       return response.data;

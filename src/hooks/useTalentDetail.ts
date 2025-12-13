@@ -23,6 +23,19 @@ import { clientTalentBlacklistService, type ClientTalentBlacklist } from '../ser
 export function useTalentDetail() {
   const { id } = useParams<{ id: string }>();
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   // Main data
   const [talent, setTalent] = useState<Talent | null>(null);
   const [locationName, setLocationName] = useState<string>('—');
@@ -88,14 +101,21 @@ export function useTalentDetail() {
         ]);
 
         setTalent(talentData);
-        setMyManagedTalents(myManagedData);
+        
+        // Ensure myManagedData is an array
+        const myManagedArray = ensureArray<Talent>(myManagedData);
+        setMyManagedTalents(myManagedArray);
+        
         setJobRoles(allJobRoles);
 
         // Resolve location and partner
         const locationPromise = talentData.locationId
           ? locationService.getById(talentData.locationId).catch(() => null)
           : Promise.resolve(null);
-        const talentPartner = partners.find((p: Partner) => p.id === talentData.currentPartnerId);
+        
+        // Ensure partners is an array
+        const partnersArray = ensureArray<Partner>(partners);
+        const talentPartner = partnersArray.find((p: Partner) => p.id === talentData.currentPartnerId);
         setPartnerName(talentPartner?.companyName ?? '—');
 
         // Fetch related talent data in parallel
@@ -145,13 +165,14 @@ export function useTalentDetail() {
           setBlacklists(Array.isArray(blacklistData) ? blacklistData : blacklistData?.data || []);
         }
 
-        // Set related data
-        setTalentProjects(Array.isArray(projects) ? projects : []);
-        setWorkExperiences(Array.isArray(experiences) ? experiences : []);
-        setAvailableTimes(Array.isArray(availableTimesData) ? availableTimesData : []);
+        // Set related data - ensure all are arrays
+        setTalentProjects(ensureArray<TalentProject>(projects));
+        setWorkExperiences(ensureArray<TalentWorkExperience>(experiences));
+        setAvailableTimes(ensureArray<TalentAvailableTime>(availableTimesData));
 
-        // Map CVs with job role level names
-        const cvsWithJobRoleLevelNames = (Array.isArray(cvs) ? cvs : []).map((cv: TalentCV) => {
+        // Map CVs with job role level names - ensure cvs is an array
+        const cvsArray = ensureArray<TalentCV>(cvs);
+        const cvsWithJobRoleLevelNames = cvsArray.map((cv: TalentCV) => {
           const jobRoleLevelInfo = jobRoleLevelsArray.find((jrl: JobRoleLevel) => jrl.id === cv.jobRoleLevelId);
           return { ...cv, jobRoleLevelName: jobRoleLevelInfo?.name ?? 'Chưa xác định' };
         });
@@ -172,8 +193,9 @@ export function useTalentDetail() {
         );
         setTalentCVs(sortedCVs);
 
-        // Map skills with names
-        const skillsWithNames = (Array.isArray(skills) ? skills : []).map((skill: TalentSkill) => {
+        // Map skills with names - ensure skills is an array
+        const skillsArray = ensureArray<TalentSkill>(skills);
+        const skillsWithNames = skillsArray.map((skill: TalentSkill) => {
           const skillInfo = allSkills.find((s: Skill) => s.id === skill.skillId);
           return {
             ...skill,
@@ -183,8 +205,9 @@ export function useTalentDetail() {
         });
         setTalentSkills(skillsWithNames);
 
-        // Map job role levels with names
-        const jobRoleLevelsWithNames = (Array.isArray(jobRoleLevelsData) ? jobRoleLevelsData : []).map(
+        // Map job role levels with names - ensure jobRoleLevelsData is an array
+        const talentJobRoleLevelsArray = ensureArray<TalentJobRoleLevel>(jobRoleLevelsData);
+        const jobRoleLevelsWithNames = talentJobRoleLevelsArray.map(
           (jrl: TalentJobRoleLevel) => {
             const jobRoleLevelInfo = allJobRoleLevelsForTalent.find((j: JobRoleLevel) => j.id === jrl.jobRoleLevelId);
             if (!jobRoleLevelInfo) {
@@ -200,8 +223,9 @@ export function useTalentDetail() {
         );
         setJobRoleLevels(jobRoleLevelsWithNames);
 
-        // Map certificates with names
-        const certificatesWithNames = (Array.isArray(certificatesData) ? certificatesData : []).map(
+        // Map certificates with names - ensure certificatesData is an array
+        const certificatesArray = ensureArray<TalentCertificate>(certificatesData);
+        const certificatesWithNames = certificatesArray.map(
           (cert: TalentCertificate) => {
             const certTypeInfo = allCertificateTypes.find((c: CertificateType) => c.id === cert.certificateTypeId);
             return { ...cert, certificateTypeName: certTypeInfo?.name ?? 'Unknown Certificate' };
@@ -221,7 +245,9 @@ export function useTalentDetail() {
   // Check edit permission
   const canEdit = useMemo(() => {
     if (!talent || !id) return false;
-    return myManagedTalents.some((t) => t.id === Number(id));
+    // Ensure myManagedTalents is an array
+    const myManagedArray = Array.isArray(myManagedTalents) ? myManagedTalents : [];
+    return myManagedArray.some((t) => t.id === Number(id));
   }, [myManagedTalents, talent, id]);
 
   // Helper function to get level text

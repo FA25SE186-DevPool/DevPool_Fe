@@ -53,6 +53,8 @@ export const talentService = {
       if (filter?.workingMode !== undefined) params.append("WorkingMode", filter.workingMode.toString());
       if (filter?.status) params.append("Status", filter.status);
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
+      if (filter?.pageNumber !== undefined) params.append("PageNumber", filter.pageNumber.toString());
+      if (filter?.pageSize !== undefined) params.append("PageSize", filter.pageSize.toString());
       const url = `/talent${params.toString() ? `?${params}` : ""}`;
       const response = await apiClient.get(url);
       return response.data;
@@ -207,6 +209,8 @@ export const talentService = {
       if (filter?.workingMode !== undefined) params.append("WorkingMode", filter.workingMode.toString());
       if (filter?.status) params.append("Status", filter.status);
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
+      if (filter?.pageNumber !== undefined) params.append("PageNumber", filter.pageNumber.toString());
+      if (filter?.pageSize !== undefined) params.append("PageSize", filter.pageSize.toString());
       
       const url = `/talent/detailed${params.toString() ? `?${params}` : ""}`;
       const response = await apiClient.get(url);

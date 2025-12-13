@@ -28,6 +28,8 @@ export const projectService = {
         params.append("StartDateTo", filter.startDateTo);
       if (filter?.excludeDeleted !== undefined)
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
+      if (filter?.pageNumber !== undefined) params.append("PageNumber", filter.pageNumber.toString());
+      if (filter?.pageSize !== undefined) params.append("PageSize", filter.pageSize.toString());
 
       const url = `/project${params.toString() ? `?${params}` : ""}`;
       const response = await apiClient.get(url);

@@ -122,6 +122,12 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
+        // Kiểm tra error có tồn tại không
+        if (!error) {
+            console.error('⚠️ Unexpected error: error object is undefined');
+            return Promise.reject(new Error('Đã xảy ra lỗi không xác định'));
+        }
+        
         const status = error.response?.status;
         // Gắn normalizedMessage để màn FE có thể đọc thống nhất
         const normalized = extractServerMessage(error.response?.data);

@@ -80,6 +80,19 @@ export default function HRJobRequestList() {
     const statsPageSize = 4;
     const [statsStartIndex, setStatsStartIndex] = useState(0);
 
+    // Helper function to ensure data is an array
+    const ensureArray = <T,>(data: unknown): T[] => {
+        if (Array.isArray(data)) return data as T[];
+        if (data && typeof data === "object") {
+            // Handle PagedResult with Items (C# convention) or items (JS convention)
+            const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+            if (Array.isArray(obj.Items)) return obj.Items as T[];
+            if (Array.isArray(obj.items)) return obj.items as T[];
+            if (Array.isArray(obj.data)) return obj.data as T[];
+        }
+        return [];
+    };
+
     // Stats data
 const stats = [
         {
@@ -125,17 +138,26 @@ const stats = [
                 setLoading(true);
                 const [jobReqs, companies, projects, positions, jobSkills, skills, applications] =
                     await Promise.all([
-                        jobRequestService.getAll() as Promise<JobRequest[]>,
-                        clientCompanyService.getAll() as Promise<ClientCompany[]>,
-                        projectService.getAll() as Promise<Project[]>,
-                        jobRoleLevelService.getAll() as Promise<JobRoleLevel[]>,
-                        jobSkillService.getAll() as Promise<JobSkill[]>,
-                        skillService.getAll() as Promise<Skill[]>,
-                        talentApplicationService.getAll({ excludeDeleted: true }) as Promise<TalentApplication[]>,
+                        jobRequestService.getAll(),
+                        clientCompanyService.getAll(),
+                        projectService.getAll(),
+                        jobRoleLevelService.getAll(),
+                        jobSkillService.getAll(),
+                        skillService.getAll(),
+                        talentApplicationService.getAll({ excludeDeleted: true }),
                     ]);
 
+                // Ensure all data are arrays
+                const jobReqsArray = ensureArray<JobRequest>(jobReqs);
+                const companiesArray = ensureArray<ClientCompany>(companies);
+                const projectsArray = ensureArray<Project>(projects);
+                const positionsArray = ensureArray<JobRoleLevel>(positions);
+                const jobSkillsArray = ensureArray<JobSkill>(jobSkills);
+                const skillsArray = ensureArray<Skill>(skills);
+                const applicationsArray = ensureArray<TalentApplication>(applications);
+
                 // Lấy tất cả yêu cầu
-                const filteredReqs = [...jobReqs].sort((a, b) => {
+                const filteredReqs = [...jobReqsArray].sort((a, b) => {
                     const metaA = a as { createdAt?: string };
                     const metaB = b as { createdAt?: string };
                     const timeA = metaA.createdAt ? new Date(metaA.createdAt).getTime() : 0;
@@ -149,19 +171,19 @@ const stats = [
                 });
 
                 const projectDict: Record<number, Project> = {};
-                projects.forEach((p) => (projectDict[p.id] = p));
+                projectsArray.forEach((p) => (projectDict[p.id] = p));
 
                 const companyDict: Record<number, ClientCompany> = {};
-                companies.forEach((c) => (companyDict[c.id] = c));
+                companiesArray.forEach((c) => (companyDict[c.id] = c));
 
                 const positionDict: Record<number, JobRoleLevel> = {};
-                positions.forEach((p) => (positionDict[p.id] = p));
+                positionsArray.forEach((p) => (positionDict[p.id] = p));
 
                 const skillDict: Record<number, string> = {};
-                skills.forEach((s) => (skillDict[s.id] = s.name));
+                skillsArray.forEach((s) => (skillDict[s.id] = s.name));
 
                 const groupedJobSkills: Record<number, string[]> = {};
-                jobSkills.forEach((js) => {
+                jobSkillsArray.forEach((js) => {
                     if (!groupedJobSkills[js.jobRequestId])
                         groupedJobSkills[js.jobRequestId] = [];
                     groupedJobSkills[js.jobRequestId].push(skillDict[js.skillsId] || "—");
@@ -169,14 +191,12 @@ const stats = [
 
                 // Đếm số lượng hồ sơ ứng tuyển cho mỗi job request
                 const applicationCountMap: Record<number, number> = {};
-                if (Array.isArray(applications)) {
-                    applications.forEach((app: TalentApplication) => {
-                        if (!applicationCountMap[app.jobRequestId]) {
-                            applicationCountMap[app.jobRequestId] = 0;
-                        }
-                        applicationCountMap[app.jobRequestId]++;
-                    });
-                }
+                applicationsArray.forEach((app: TalentApplication) => {
+                    if (!applicationCountMap[app.jobRequestId]) {
+                        applicationCountMap[app.jobRequestId] = 0;
+                    }
+                    applicationCountMap[app.jobRequestId]++;
+                });
 
                 const mapped: HRJobRequest[] = filteredReqs.map((r) => {
                     const project = projectDict[r.projectId];

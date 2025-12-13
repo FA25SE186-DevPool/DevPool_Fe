@@ -118,23 +118,42 @@ export default function JobRequestDetailHRPage() {
         Withdrawn: "bg-gray-100 text-gray-800",
     };
 
+    // Helper function to ensure data is an array
+    const ensureArray = <T,>(data: unknown): T[] => {
+        if (Array.isArray(data)) return data as T[];
+        if (data && typeof data === "object") {
+            // Handle PagedResult with Items (C# convention) or items (JS convention)
+            const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+            if (Array.isArray(obj.Items)) return obj.Items as T[];
+            if (Array.isArray(obj.items)) return obj.items as T[];
+            if (Array.isArray(obj.data)) return obj.data as T[];
+        }
+        return [];
+    };
+
     const fetchData = async () => {
         try {
             setLoading(true);
             const [jobReqData, allProjects, allCompanies, allPositions, allSkills] =
                 await Promise.all([
                     jobRequestService.getById(Number(id)),
-                    projectService.getAll() as Promise<Project[]>,
-                    clientCompanyService.getAll() as Promise<ClientCompany[]>,
-                    jobRoleLevelService.getAll() as Promise<JobRoleLevel[]>,
-                    skillService.getAll() as Promise<Skill[]>,
+                    projectService.getAll(),
+                    clientCompanyService.getAll(),
+                    jobRoleLevelService.getAll(),
+                    skillService.getAll(),
                 ]);
 
-            const project = allProjects.find((p) => p.id === jobReqData.projectId);
+            // Ensure all data are arrays
+            const projectsArray = ensureArray<Project>(allProjects);
+            const companiesArray = ensureArray<ClientCompany>(allCompanies);
+            const positionsArray = ensureArray<JobRoleLevel>(allPositions);
+            const skillsArray = ensureArray<Skill>(allSkills);
+
+            const project = projectsArray.find((p) => p.id === jobReqData.projectId);
             const clientCompany = project
-                ? allCompanies.find((c) => c.id === project.clientCompanyId)
+                ? companiesArray.find((c) => c.id === project.clientCompanyId)
                 : null;
-            const position = allPositions.find(
+            const position = positionsArray.find(
                 (pos) => pos.id === jobReqData.jobRoleLevelId
             );
 
@@ -184,7 +203,7 @@ export default function JobRequestDetailHRPage() {
             })) as JobSkill[];
 
             const skills = jobSkillData.map((js) => {
-                const found = allSkills.find((s) => s.id === js.skillsId);
+                const found = skillsArray.find((s) => s.id === js.skillsId);
                 return { id: js.skillsId, name: found?.name || "Không xác định" };
             });
 

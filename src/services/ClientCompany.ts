@@ -14,6 +14,8 @@ export const clientCompanyService = {
       if (filter?.contactPerson) params.append("ContactPerson", filter.contactPerson);
       if (filter?.excludeDeleted !== undefined)
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
+      if (filter?.pageNumber !== undefined) params.append("PageNumber", filter.pageNumber.toString());
+      if (filter?.pageSize !== undefined) params.append("PageSize", filter.pageSize.toString());
 
       const url = `/clientcompany${params.toString() ? `?${params}` : ""}`;
       const response = await apiClient.get(url);

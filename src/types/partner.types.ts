@@ -90,3 +90,17 @@ export interface CheckCodeUniqueResponse {
   message?: string;
 }
 
+export interface PartnerFilter {
+  companyName?: string;
+  contactPerson?: string;
+  excludeDeleted?: boolean;
+  /**
+   * Page number (1-based)
+   */
+  pageNumber?: number;
+  /**
+   * Number of items per page
+   */
+  pageSize?: number;
+}
+

@@ -22,6 +22,8 @@ export const jobRequestService = {
       if (filter?.status !== undefined) params.append("Status", filter.status.toString());
       if (filter?.excludeDeleted !== undefined)
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
+      if (filter?.pageNumber !== undefined) params.append("PageNumber", filter.pageNumber.toString());
+      if (filter?.pageSize !== undefined) params.append("PageSize", filter.pageSize.toString());
 
       const url = `/jobrequest${params.toString() ? `?${params}` : ""}`;
       const response = await apiClient.get(url);

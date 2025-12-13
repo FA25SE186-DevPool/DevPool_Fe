@@ -48,6 +48,7 @@ export default function CreateTalent() {
     setActiveTab,
     errors,
     performSubmit, // Hàm submit không có confirm dialog
+    handleChange,
     updateBasicField,
     setTalentSkills,
     setTalentWorkExperiences,
@@ -856,9 +857,9 @@ export default function CreateTalent() {
                         partners={partners}
                         locations={locations}
                         errors={errors}
-                        onChange={(e) => updateBasicField('currentPartnerId', e.target.value)}
+                        onChange={handleChange}
                         onPartnerChange={(partnerId) => {
-                          updateBasicField('currentPartnerId', partnerId || '');
+                          updateBasicField('currentPartnerId', partnerId);
                         }}
                       />
                     )}
