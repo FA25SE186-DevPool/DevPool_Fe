@@ -339,7 +339,7 @@ export default function ClientContractDetailPage() {
   const [verifyContractFile, setVerifyContractFile] = useState<File | null>(null);
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [worksheetFile, setWorksheetFile] = useState<File | null>(null);
+  const [timesheetFile, setTimesheetFile] = useState<File | null>(null);
 
   // Loading states for actions
   const [isProcessing, setIsProcessing] = useState(false);
@@ -847,8 +847,8 @@ export default function ClientContractDetailPage() {
       return;
     }
     
-    // Validate worksheet file
-    if (!worksheetFile) {
+    // Validate timesheet file
+    if (!timesheetFile) {
       alert("Vui lòng upload file Timesheet (bắt buộc)");
       return;
     }
@@ -873,8 +873,8 @@ export default function ClientContractDetailPage() {
         return;
       }
       
-      const filePath = `client-contracts/${contractPayment.id}/timesheet_${Date.now()}.${worksheetFile.name.split('.').pop()}`;
-      const fileUrl = await uploadFile(worksheetFile, filePath);
+      const filePath = `client-contracts/${contractPayment.id}/timesheet_${Date.now()}.${timesheetFile.name.split('.').pop()}`;
+      const fileUrl = await uploadFile(timesheetFile, filePath);
       
       // Start billing with timesheetFileUrl
       const billingPayload = {
@@ -887,7 +887,7 @@ export default function ClientContractDetailPage() {
       const documentData: ClientDocumentCreate = {
         clientContractPaymentId: Number(id),
         documentTypeId: timesheetType.id,
-        fileName: worksheetFile.name,
+        fileName: timesheetFile.name,
         filePath: fileUrl,
         uploadedByUserId: userId,
         description: `Timesheet cho ghi nhận giờ làm việc - ${new Date().toLocaleDateString("vi-VN")}`,
@@ -899,7 +899,7 @@ export default function ClientContractDetailPage() {
       await refreshContractPayment();
       setShowStartBillingModal(false);
       setBillingForm({ billableHours: 0, autoSyncToPartner: true, notes: null });
-      setWorksheetFile(null);
+      setTimesheetFile(null);
     } catch (err: any) {
       alert(err?.message || "Lỗi khi ghi nhận giờ làm việc");
     } finally {
@@ -1970,7 +1970,7 @@ export default function ClientContractDetailPage() {
                 </label>
                 <input
                   type="file"
-                  onChange={(e) => setWorksheetFile(e.target.files?.[0] || null)}
+                  onChange={(e) => setTimesheetFile(e.target.files?.[0] || null)}
                   className="w-full border rounded-lg p-2"
                   accept=".xlsx,.xls,.csv"
                   required
@@ -2072,7 +2072,7 @@ export default function ClientContractDetailPage() {
                 onClick={() => {
                   setShowStartBillingModal(false);
                   setBillingForm({ billableHours: 0, autoSyncToPartner: true, notes: null });
-                  setWorksheetFile(null);
+                  setTimesheetFile(null);
                   setShowCalculationDetails(false);
                 }}
                 className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
@@ -2081,7 +2081,7 @@ export default function ClientContractDetailPage() {
               </button>
               <button
                 onClick={handleStartBilling}
-                disabled={isProcessing || billingForm.billableHours <= 0 || !worksheetFile}
+                disabled={isProcessing || billingForm.billableHours <= 0 || !timesheetFile}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ghi nhận giờ làm việc"}

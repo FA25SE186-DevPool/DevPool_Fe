@@ -302,7 +302,7 @@ export default function PartnerContractDetailPage() {
   });
   
   // File states
-  const [worksheetFile, setWorksheetFile] = useState<File | null>(null);
+  const [timesheetFile, setTimesheetFile] = useState<File | null>(null);
   const [poFile, setPoFile] = useState<File | null>(null);
   const [contractFile, setContractFile] = useState<File | null>(null);
   
@@ -793,7 +793,7 @@ export default function PartnerContractDetailPage() {
     );
 
     // Validate timesheet file only if not already synced from client contract
-    if (!existingTimesheet && !worksheetFile) {
+    if (!existingTimesheet && !timesheetFile) {
       alert("Vui lòng upload file Timesheet (bắt buộc)");
       return;
     }
@@ -805,21 +805,21 @@ export default function PartnerContractDetailPage() {
       await partnerContractPaymentService.startBilling(Number(id), billingForm);
       
       // Upload timesheet file and create document only if not already synced
-      if (!existingTimesheet && worksheetFile) {
+      if (!existingTimesheet && timesheetFile) {
         const userId = getCurrentUserId();
         if (!userId) {
           alert("Không thể lấy thông tin người dùng");
           return;
         }
         
-        const filePath = `partner-contracts/${contractPayment.id}/timesheet_${Date.now()}.${worksheetFile.name.split('.').pop()}`;
-        const fileUrl = await uploadFile(worksheetFile, filePath);
+        const filePath = `partner-contracts/${contractPayment.id}/timesheet_${Date.now()}.${timesheetFile.name.split('.').pop()}`;
+        const fileUrl = await uploadFile(timesheetFile, filePath);
         
         // Create timesheet document
         const documentData: PartnerDocumentCreate = {
           partnerContractPaymentId: Number(id),
           documentTypeId: timesheetType.id,
-          fileName: worksheetFile.name,
+          fileName: timesheetFile.name,
           filePath: fileUrl,
           uploadedByUserId: userId,
           description: `Timesheet cho tính toán thanh toán - ${new Date().toLocaleDateString("vi-VN")}`,
@@ -831,7 +831,7 @@ export default function PartnerContractDetailPage() {
       await fetchData();
       setShowStartBillingModal(false);
       setBillingForm({ actualWorkHours: 0, notes: null });
-      setWorksheetFile(null);
+      setTimesheetFile(null);
       alert("Ghi nhận giờ làm việc thành công!");
     } catch (err: unknown) {
       console.error("❌ Lỗi bắt đầu ghi nhận giờ làm việc:", err);
@@ -2163,7 +2163,7 @@ export default function PartnerContractDetailPage() {
                     </label>
                     <input
                       type="file"
-                      onChange={(e) => setWorksheetFile(e.target.files?.[0] || null)}
+                      onChange={(e) => setTimesheetFile(e.target.files?.[0] || null)}
                       className="w-full border rounded-lg p-2"
                       accept=".xlsx,.xls,.csv"
                       required
@@ -2267,7 +2267,7 @@ export default function PartnerContractDetailPage() {
                 onClick={() => {
                   setShowStartBillingModal(false);
                   setBillingForm({ actualWorkHours: 0, notes: null });
-                  setWorksheetFile(null);
+                  setTimesheetFile(null);
                   setShowCalculationDetails(false);
                 }}
                 className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
@@ -2286,7 +2286,7 @@ export default function PartnerContractDetailPage() {
                     : null;
                   
                   // File timesheet is required only if not already synced
-                  const timesheetRequired = !existingTimesheet && !worksheetFile;
+                  const timesheetRequired = !existingTimesheet && !timesheetFile;
                   
                   return isProcessing || 
                          !billingForm.actualWorkHours || 
