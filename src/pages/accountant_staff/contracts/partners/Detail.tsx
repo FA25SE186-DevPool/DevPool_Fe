@@ -671,7 +671,7 @@ export default function PartnerContractDetailPage() {
 
     // Find Purchase Order document type
     const poType = Array.from(documentTypes.values()).find(
-      (type) => type.typeName.toLowerCase() === "purchase order"
+      (type) => type.typeName.toLowerCase() === "purchaseorder"
     );
 
     if (!poType) {
