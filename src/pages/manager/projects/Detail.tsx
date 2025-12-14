@@ -67,6 +67,19 @@ export default function ManagerProjectDetailPage() {
   const [showDetailAssignmentModal, setShowDetailAssignmentModal] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<TalentAssignmentModel | null>(null);
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       if (!id) return;
@@ -108,24 +121,14 @@ export default function ManagerProjectDetailPage() {
 
         // Fetch talents and partners for display
         try {
-          const [allTalents, allPartners] = await Promise.all([
+          const [allTalentsData, allPartnersData] = await Promise.all([
             talentService.getAll({ excludeDeleted: true }),
             partnerService.getAll()
           ]);
-          // Ensure talents is an array
-          const talentsArray = Array.isArray(allTalents) 
-            ? allTalents 
-            : (allTalents?.data && Array.isArray(allTalents.data) 
-              ? allTalents.data 
-              : []);
-          // Ensure partners is an array
-          const partnersArray = Array.isArray(allPartners) 
-            ? allPartners 
-            : (allPartners?.data && Array.isArray(allPartners.data) 
-              ? allPartners.data 
-              : []);
-          setTalents(talentsArray);
-          setPartners(partnersArray);
+          const allTalents = ensureArray<Talent>(allTalentsData);
+          const allPartners = ensureArray<Partner>(allPartnersData);
+          setTalents(allTalents);
+          setPartners(allPartners);
         } catch (err) {
           console.error("❌ Lỗi tải danh sách talents/partners:", err);
           // Set empty arrays on error to prevent find() errors
@@ -779,10 +782,24 @@ export default function ManagerProjectDetailPage() {
                                 </div>
                               ) : (
                                 <div className="space-y-4">
-                                  {/* Nhóm theo talentAssignmentId */}
-                                  {Array.from(new Set(clientContractPayments.map(p => p.talentAssignmentId))).map((talentAssignmentId) => {
-                                    const clientPayments = clientContractPayments.filter(p => p.talentAssignmentId === talentAssignmentId);
-                                    return (
+                                  {/* Nhóm theo talentAssignmentId - Sắp xếp để đảm bảo thứ tự giống nhau giữa client và partner */}
+                                  {(() => {
+                                    // Lấy tất cả unique talentAssignmentIds từ cả client và partner
+                                    const allTalentAssignmentIds = Array.from(new Set([
+                                      ...clientContractPayments.map(p => p.talentAssignmentId),
+                                      ...partnerContractPayments.map(p => p.talentAssignmentId)
+                                    ]));
+                                    
+                                    // Sắp xếp theo tên nhân sự (nếu có) hoặc theo ID
+                                    const sortedTalentAssignmentIds = allTalentAssignmentIds.sort((a, b) => {
+                                      const nameA = talentNamesMap[a] || `Talent Assignment ${a}`;
+                                      const nameB = talentNamesMap[b] || `Talent Assignment ${b}`;
+                                      return nameA.localeCompare(nameB, 'vi', { numeric: true });
+                                    });
+                                    
+                                    return sortedTalentAssignmentIds.map((talentAssignmentId) => {
+                                      const clientPayments = clientContractPayments.filter(p => p.talentAssignmentId === talentAssignmentId);
+                                      return (
                                       <div key={talentAssignmentId} className="border border-neutral-200 rounded-lg p-4">
                                         <div className="mb-3 pb-3 border-b border-neutral-200">
                                           <p className="text-sm font-medium text-neutral-600">
@@ -834,8 +851,9 @@ export default function ManagerProjectDetailPage() {
                                           </div>
                                         ))}
                                       </div>
-                                    );
-                                  })}
+                                      );
+                                    });
+                                  })()}
                                 </div>
                               )}
                             </div>
@@ -858,10 +876,24 @@ export default function ManagerProjectDetailPage() {
                                 </div>
                               ) : (
                                 <div className="space-y-4">
-                                  {/* Nhóm theo talentAssignmentId */}
-                                  {Array.from(new Set(partnerContractPayments.map(p => p.talentAssignmentId))).map((talentAssignmentId) => {
-                                    const partnerPaymentsForTalent = partnerContractPayments.filter(p => p.talentAssignmentId === talentAssignmentId);
-                                    return (
+                                  {/* Nhóm theo talentAssignmentId - Sắp xếp để đảm bảo thứ tự giống nhau giữa client và partner */}
+                                  {(() => {
+                                    // Lấy tất cả unique talentAssignmentIds từ cả client và partner
+                                    const allTalentAssignmentIds = Array.from(new Set([
+                                      ...clientContractPayments.map(p => p.talentAssignmentId),
+                                      ...partnerContractPayments.map(p => p.talentAssignmentId)
+                                    ]));
+                                    
+                                    // Sắp xếp theo tên nhân sự (nếu có) hoặc theo ID
+                                    const sortedTalentAssignmentIds = allTalentAssignmentIds.sort((a, b) => {
+                                      const nameA = talentNamesMap[a] || `Talent Assignment ${a}`;
+                                      const nameB = talentNamesMap[b] || `Talent Assignment ${b}`;
+                                      return nameA.localeCompare(nameB, 'vi', { numeric: true });
+                                    });
+                                    
+                                    return sortedTalentAssignmentIds.map((talentAssignmentId) => {
+                                      const partnerPaymentsForTalent = partnerContractPayments.filter(p => p.talentAssignmentId === talentAssignmentId);
+                                      return (
                                       <div key={talentAssignmentId} className="border border-neutral-200 rounded-lg p-4">
                                         <div className="mb-3 pb-3 border-b border-neutral-200">
                                           <p className="text-sm font-medium text-neutral-600">
@@ -925,8 +957,9 @@ export default function ManagerProjectDetailPage() {
                                           </div>
                                         ))}
                                       </div>
-                                    );
-                                  })}
+                                      );
+                                    });
+                                  })()}
                                 </div>
                               )}
                             </div>

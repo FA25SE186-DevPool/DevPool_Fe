@@ -68,6 +68,19 @@ export default function AccountantProjectDetailPage() {
   const [showDetailAssignmentModal, setShowDetailAssignmentModal] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<TalentAssignmentModel | null>(null);
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       if (!id) return;
@@ -109,24 +122,14 @@ export default function AccountantProjectDetailPage() {
 
         // Fetch talents and partners for display
         try {
-          const [allTalents, allPartners] = await Promise.all([
+          const [allTalentsData, allPartnersData] = await Promise.all([
             talentService.getAll({ excludeDeleted: true }),
             partnerService.getAll()
           ]);
-          // Ensure talents is an array
-          const talentsArray = Array.isArray(allTalents) 
-            ? allTalents 
-            : (allTalents?.data && Array.isArray(allTalents.data) 
-              ? allTalents.data 
-              : []);
-          // Ensure partners is an array
-          const partnersArray = Array.isArray(allPartners) 
-            ? allPartners 
-            : (allPartners?.data && Array.isArray(allPartners.data) 
-              ? allPartners.data 
-              : []);
-          setTalents(talentsArray);
-          setPartners(partnersArray);
+          const allTalents = ensureArray<Talent>(allTalentsData);
+          const allPartners = ensureArray<Partner>(allPartnersData);
+          setTalents(allTalents);
+          setPartners(allPartners);
         } catch (err) {
           console.error("❌ Lỗi tải danh sách talents/partners:", err);
           // Set empty arrays on error to prevent find() errors
@@ -689,7 +692,7 @@ export default function AccountantProjectDetailPage() {
 
       if (existingPeriod) {
         // Chu kỳ đã tồn tại, chỉ cần thông báo thành công (đã tạo contract payments ở bước 1)
-        alert(`Chu kỳ thanh toán của tháng ${currentPeriod.month}/${currentPeriod.year} đã tồn tại.\n\nĐã kiểm tra và tạo contract payments cho các talent assignment còn thiếu trong chu kỳ này.`);
+        alert(`Chu kỳ thanh toán của tháng ${currentPeriod.month}/${currentPeriod.year} đã tồn tại.\n\nĐã kiểm tra và tạo hợp đồng cho các nhân sự tham gia còn thiếu trong chu kỳ này.`);
         setSelectedPeriodId(existingPeriod.id);
         setCreatingPeriod(false);
         return;
@@ -763,7 +766,7 @@ export default function AccountantProjectDetailPage() {
         
         // Kiểm tra xem có phải lỗi duplicate không
         if (errorMessage.includes("duplicate") || errorMessage.includes("already exists") || errorMessage.includes("unique constraint")) {
-          alert(`Chu kỳ thanh toán của tháng ${period.month}/${period.year} đã tồn tại trong database.\n\nBackend chỉ cho phép tạo 1 chu kỳ trong 1 tháng và chỉ có thể tạo chu kỳ của tháng hiện tại.`);
+          alert(`Chu kỳ thanh toán của tháng ${period.month}/${period.year} đã tồn tại.\n\nBackend chỉ cho phép tạo 1 chu kỳ trong 1 tháng và chỉ có thể tạo chu kỳ của tháng hiện tại.`);
         } else {
           throw err; // Re-throw để xử lý ở catch bên ngoài
         }
@@ -1289,12 +1292,24 @@ export default function AccountantProjectDetailPage() {
                                 </div>
                               ) : (
                                 <div className="space-y-4">
-                                  {/* Nhóm theo talentAssignmentId */}
-                                  {Array.from(new Set(clientContractPayments.map(p => p.talentAssignmentId))).map((talentAssignmentId) => {
-                                    const clientPayments = clientContractPayments.filter(p => p.talentAssignmentId === talentAssignmentId);
-                                    // Removed unused variable partnerPayments
-                                    partnerContractPayments.filter(p => p.talentAssignmentId === talentAssignmentId);
-                                    return (
+                                  {/* Nhóm theo talentAssignmentId - Sắp xếp để đảm bảo thứ tự giống nhau giữa client và partner */}
+                                  {(() => {
+                                    // Lấy tất cả unique talentAssignmentIds từ cả client và partner
+                                    const allTalentAssignmentIds = Array.from(new Set([
+                                      ...clientContractPayments.map(p => p.talentAssignmentId),
+                                      ...partnerContractPayments.map(p => p.talentAssignmentId)
+                                    ]));
+                                    
+                                    // Sắp xếp theo tên nhân sự (nếu có) hoặc theo ID
+                                    const sortedTalentAssignmentIds = allTalentAssignmentIds.sort((a, b) => {
+                                      const nameA = talentNamesMap[a] || `Talent Assignment ${a}`;
+                                      const nameB = talentNamesMap[b] || `Talent Assignment ${b}`;
+                                      return nameA.localeCompare(nameB, 'vi', { numeric: true });
+                                    });
+                                    
+                                    return sortedTalentAssignmentIds.map((talentAssignmentId) => {
+                                      const clientPayments = clientContractPayments.filter(p => p.talentAssignmentId === talentAssignmentId);
+                                      return (
                                       <div key={talentAssignmentId} className="border border-neutral-200 rounded-lg p-4">
                                         <div className="mb-3 pb-3 border-b border-neutral-200">
                                           <p className="text-sm font-medium text-neutral-600">
@@ -1346,8 +1361,9 @@ export default function AccountantProjectDetailPage() {
                                           </div>
                                         ))}
                                       </div>
-                                    );
-                                  })}
+                                      );
+                                    });
+                                  })()}
                                 </div>
                               )}
                             </div>
@@ -1370,10 +1386,24 @@ export default function AccountantProjectDetailPage() {
                                 </div>
                               ) : (
                                 <div className="space-y-4">
-                                  {/* Nhóm theo talentAssignmentId */}
-                                  {Array.from(new Set(partnerContractPayments.map(p => p.talentAssignmentId))).map((talentAssignmentId) => {
-                                    const partnerPaymentsForTalent = partnerContractPayments.filter(p => p.talentAssignmentId === talentAssignmentId);
-                                    return (
+                                  {/* Nhóm theo talentAssignmentId - Sắp xếp để đảm bảo thứ tự giống nhau giữa client và partner */}
+                                  {(() => {
+                                    // Lấy tất cả unique talentAssignmentIds từ cả client và partner
+                                    const allTalentAssignmentIds = Array.from(new Set([
+                                      ...clientContractPayments.map(p => p.talentAssignmentId),
+                                      ...partnerContractPayments.map(p => p.talentAssignmentId)
+                                    ]));
+                                    
+                                    // Sắp xếp theo tên nhân sự (nếu có) hoặc theo ID
+                                    const sortedTalentAssignmentIds = allTalentAssignmentIds.sort((a, b) => {
+                                      const nameA = talentNamesMap[a] || `Talent Assignment ${a}`;
+                                      const nameB = talentNamesMap[b] || `Talent Assignment ${b}`;
+                                      return nameA.localeCompare(nameB, 'vi', { numeric: true });
+                                    });
+                                    
+                                    return sortedTalentAssignmentIds.map((talentAssignmentId) => {
+                                      const partnerPaymentsForTalent = partnerContractPayments.filter(p => p.talentAssignmentId === talentAssignmentId);
+                                      return (
                                       <div key={talentAssignmentId} className="border border-neutral-200 rounded-lg p-4">
                                         <div className="mb-3 pb-3 border-b border-neutral-200">
                                           <p className="text-sm font-medium text-neutral-600">
@@ -1437,8 +1467,9 @@ export default function AccountantProjectDetailPage() {
                                           </div>
                                         ))}
                                       </div>
-                                    );
-                                  })}
+                                      );
+                                    });
+                                  })()}
                                 </div>
                               )}
                             </div>
