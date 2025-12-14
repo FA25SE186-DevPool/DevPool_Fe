@@ -189,16 +189,16 @@ const getDocumentTypeDisplayName = (typeName: string): string => {
       return "Biên lai";
     case "invoice":
       return "Hóa đơn";
-    case "purchase order":
+    case "purchaseorder":
       return "PO";
-    case "payment order":
+    case "paymentproof":
       return "UNC";
     case "contract":
       return "Hợp đồng";
     case "timesheet":
       return "Timesheet";
     default:
-      return typeName; // Return original if no mapping found
+      return typeName;
   }
 };
 

@@ -177,9 +177,9 @@ const getDocumentTypeDisplayName = (typeName: string): string => {
       return "Biên lai";
     case "invoice":
       return "Hóa đơn";
-    case "purchase order":
+    case "purchaseorder":
       return "PO";
-    case "payment order":
+    case "paymentproof":
       return "UNC";
     case "contract":
       return "Hợp đồng";
