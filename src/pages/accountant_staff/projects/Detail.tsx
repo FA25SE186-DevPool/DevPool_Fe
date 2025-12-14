@@ -113,10 +113,25 @@ export default function AccountantProjectDetailPage() {
             talentService.getAll({ excludeDeleted: true }),
             partnerService.getAll()
           ]);
-          setTalents(allTalents);
-          setPartners(allPartners);
+          // Ensure talents is an array
+          const talentsArray = Array.isArray(allTalents) 
+            ? allTalents 
+            : (allTalents?.data && Array.isArray(allTalents.data) 
+              ? allTalents.data 
+              : []);
+          // Ensure partners is an array
+          const partnersArray = Array.isArray(allPartners) 
+            ? allPartners 
+            : (allPartners?.data && Array.isArray(allPartners.data) 
+              ? allPartners.data 
+              : []);
+          setTalents(talentsArray);
+          setPartners(partnersArray);
         } catch (err) {
           console.error("❌ Lỗi tải danh sách talents/partners:", err);
+          // Set empty arrays on error to prevent find() errors
+          setTalents([]);
+          setPartners([]);
         }
         
         // Filter client-side để đảm bảo chỉ lấy periods của dự án này
