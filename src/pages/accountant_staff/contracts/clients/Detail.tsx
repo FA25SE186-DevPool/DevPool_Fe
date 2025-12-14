@@ -2195,7 +2195,7 @@ export default function ClientContractDetailPage() {
                 <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
                   <div className="space-y-1 text-sm">
                     <p className="text-gray-700">
-                      <span className="font-medium">Số tiền thực tế (ActualAmountVND):</span> {formatCurrency(contractPayment.actualAmountVND)}
+                      <span className="font-medium">Số tiền thực tế:</span> {formatCurrency(contractPayment.actualAmountVND)}
                     </p>
                     <p className="text-gray-700">
                       <span className="font-medium">Tổng đã thanh toán:</span> {formatCurrency(contractPayment.totalPaidAmount)}
