@@ -35,6 +35,19 @@ export default function PartnerEditPage() {
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   // 🧭 Load dữ liệu đối tác
   useEffect(() => {
     const fetchPartner = async () => {
@@ -42,7 +55,8 @@ export default function PartnerEditPage() {
       try {
         setLoading(true);
         const data = await partnerService.getAll();
-        const foundPartner = data.find((p: Partner) => p.id === Number(id));
+        const partnersArray = ensureArray<Partner>(data);
+        const foundPartner = partnersArray.find((p: Partner) => p.id === Number(id));
         if (foundPartner) {
           setPartner(foundPartner);
           setFormData({
@@ -75,7 +89,8 @@ export default function PartnerEditPage() {
   // Check duplicate tax code (excluding current partner)
   const checkDuplicateTaxCode = async (taxCode: string): Promise<boolean> => {
     try {
-      const partners = await partnerService.getAll();
+      const data = await partnerService.getAll();
+      const partners = ensureArray<Partner>(data);
       const cleanedTaxCode = taxCode.replace(/\D/g, '');
       return partners.some((p: Partner) => {
         // Exclude current partner
