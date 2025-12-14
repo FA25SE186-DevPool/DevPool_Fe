@@ -86,7 +86,8 @@ export function useTalentEdit() {
     const fetchLocations = async () => {
       try {
         const locationsData = await locationService.getAll({ excludeDeleted: true });
-        setLocations(locationsData);
+        const locationsArray = ensureArray<Location>(locationsData);
+        setLocations(locationsArray);
       } catch (err) {
         console.error('❌ Lỗi tải danh sách địa điểm:', err);
       }
@@ -94,12 +95,26 @@ export function useTalentEdit() {
     fetchLocations();
   }, []);
 
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === "object") {
+      // Handle PagedResult with Items (C# convention) or items (JS convention)
+      const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+      if (Array.isArray(obj.Items)) return obj.Items as T[];
+      if (Array.isArray(obj.items)) return obj.items as T[];
+      if (Array.isArray(obj.data)) return obj.data as T[];
+    }
+    return [];
+  };
+
   // Load partners
   useEffect(() => {
     const fetchPartners = async () => {
       try {
         const partnersData = await partnerService.getAll();
-        setPartners(partnersData);
+        const partnersArray = ensureArray<Partner>(partnersData);
+        setPartners(partnersArray);
       } catch (err) {
         console.error('❌ Lỗi tải danh sách công ty:', err);
       }

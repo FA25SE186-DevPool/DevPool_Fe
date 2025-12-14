@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams, Link, useLocation } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
 import Breadcrumb from "../../../components/common/Breadcrumb";
 import { sidebarItems } from "../../../components/sidebar/ta_staff";
@@ -18,7 +18,6 @@ import { projectService } from "../../../services/Project";
 import { decodeJWT } from "../../../services/Auth";
 import { useAuth } from "../../../context/AuthContext";
 import {
-    ArrowLeft,
     Sparkles,
     Target,
     CheckCircle2,
@@ -721,15 +720,6 @@ export default function CVMatchingPage() {
                             { label: "Matching CV" }
                         ]}
                     />
-                    <div className="flex items_center gap-4 mb-6">
-                        <Link
-                            to={`/ta/job-requests/${jobRequestId}`}
-                            className="group flex items-center gap-2 text-neutral-600 hover:text-primary-600 transition-colors duration-300"
-                        >
-                            <ArrowLeft className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                            <span className="font-medium">Quay lại chi tiết yêu cầu</span>
-                        </Link>
-                    </div>
 
                     <div className="flex justify-between items-start">
                         <div className="flex-1">
@@ -737,7 +727,7 @@ export default function CVMatchingPage() {
                                 <div className="p-2 bg-purple-100 rounded-lg">
                                     <Sparkles className="w-6 h-6 text-purple-600" />
                                 </div>
-                                <h1 className="text-3xl font-bold text-gray-900">AI CV Matching Results</h1>
+                                <h1 className="text-3xl font-bold text-gray-900">CV Matching Results</h1>
                             </div>
                             <p className="text-neutral-600 mb-4">
                                 {jobRequest?.title || "Đang tải..."}

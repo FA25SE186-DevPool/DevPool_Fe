@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
+import Breadcrumb from "../../../components/common/Breadcrumb";
 import { sidebarItems } from "../../../components/sidebar/sales";
 import { jobRequestService, JobRequestStatus } from "../../../services/JobRequest";
 import { skillService, type Skill } from "../../../services/Skill";
@@ -11,7 +12,6 @@ import { jobRoleService, type JobRole } from "../../../services/JobRole";
 import { locationService, type Location } from "../../../services/location";
 import { applyProcessTemplateService, type ApplyProcessTemplate } from "../../../services/ApplyProcessTemplate";
 import {
-  ArrowLeft,
   Plus,
   Save,
   Briefcase,
@@ -434,15 +434,12 @@ export default function JobRequestCreatePage() {
       <div className="flex-1 p-8">
         {/* Header */}
         <div className="mb-8 animate-slide-up">
-          <div className="flex items-center gap-4 mb-6">
-            <Link
-              to="/sales/job-requests"
-              className="group flex items-center gap-2 text-neutral-600 hover:text-primary-600 transition-colors duration-300"
-            >
-              <ArrowLeft className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-              <span className="font-medium">Quay lại danh sách</span>
-            </Link>
-          </div>
+          <Breadcrumb
+            items={[
+              { label: "Yêu cầu tuyển dụng", to: "/sales/job-requests" },
+              { label: "Tạo mới" }
+            ]}
+          />
 
           <div className="flex justify-between items-start">
             <div className="flex-1">

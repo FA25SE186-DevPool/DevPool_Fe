@@ -54,6 +54,19 @@ export default function ProjectEditPage() {
     const [originalStatus, setOriginalStatus] = useState<string>("");
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+    // Helper function to ensure data is an array
+    const ensureArray = <T,>(data: unknown): T[] => {
+        if (Array.isArray(data)) return data as T[];
+        if (data && typeof data === "object") {
+            // Handle PagedResult with Items (C# convention) or items (JS convention)
+            const obj = data as { Items?: unknown; items?: unknown; data?: unknown };
+            if (Array.isArray(obj.Items)) return obj.Items as T[];
+            if (Array.isArray(obj.items)) return obj.items as T[];
+            if (Array.isArray(obj.data)) return obj.data as T[];
+        }
+        return [];
+    };
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -72,8 +85,8 @@ export default function ProjectEditPage() {
                     marketService.getAll({ excludeDeleted: true }),
                     industryService.getAll({ excludeDeleted: true }),
                 ]);
-                setMarkets(mkList);
-                setIndustries(indList);
+                setMarkets(ensureArray<Market>(mkList));
+                setIndustries(ensureArray<Industry>(indList));
 
                 // Gán giá trị mặc định cho form
                 setFormData({
