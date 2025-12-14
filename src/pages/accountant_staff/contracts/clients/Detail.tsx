@@ -853,47 +853,19 @@ export default function ClientContractDetailPage() {
       return;
     }
     
-    // Find Timesheet document type
-    const timesheetType = Array.from(documentTypes.values()).find(
-      (type) => type.typeName.toLowerCase() === "timesheet"
-    );
-    
-    if (!timesheetType) {
-      alert("Không tìm thấy loại tài liệu Timesheet. Vui lòng liên hệ quản trị viên.");
-      return;
-    }
-    
     try {
       setIsProcessing(true);
       
       // Upload timesheet file first to get URL
-      const userId = getCurrentUserId();
-      if (!userId) {
-        alert("Không thể lấy thông tin người dùng");
-        return;
-      }
-      
       const filePath = `client-contracts/${contractPayment.id}/timesheet_${Date.now()}.${timesheetFile.name.split('.').pop()}`;
       const fileUrl = await uploadFile(timesheetFile, filePath);
       
-      // Start billing with timesheetFileUrl
+      // Start billing with timesheetFileUrl - API will automatically create timesheet document
       const billingPayload = {
         ...billingForm,
         timesheetFileUrl: fileUrl,
       };
       await clientContractPaymentService.startBilling(Number(id), billingPayload);
-      
-      // Create Timesheet document
-      const documentData: ClientDocumentCreate = {
-        clientContractPaymentId: Number(id),
-        documentTypeId: timesheetType.id,
-        fileName: timesheetFile.name,
-        filePath: fileUrl,
-        uploadedByUserId: userId,
-        description: `Timesheet cho ghi nhận giờ làm việc - ${new Date().toLocaleDateString("vi-VN")}`,
-        source: "Accountant",
-      };
-      await clientDocumentService.create(documentData);
       
       alert("Ghi nhận giờ làm việc thành công!");
       await refreshContractPayment();
