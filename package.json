@@ -19,6 +19,7 @@
     "@tiptap/react": "^3.10.7",
     "@tiptap/starter-kit": "^3.10.7",
     "axios": "^1.12.2",
+    "face-api.js": "^0.22.2",
     "firebase": "^12.4.0",
     "lucide-react": "^0.543.0",
     "react": "^19.1.1",

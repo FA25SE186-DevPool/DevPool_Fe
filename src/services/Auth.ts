@@ -54,7 +54,7 @@ export function getRoleFromToken(token: string): FrontendRole | null {
     case 'Manager':
       return 'Manager';
     case 'HR':
-    case 'TA': 
+    case 'TA':
       return 'Staff TA';
     case 'Accountant':
       return 'Staff Accountant';
@@ -168,9 +168,9 @@ export async function authenticateWithFirebase(
       } catch (error: any) {
         const errorCode = error?.code || '';
         const errorMessage = error?.message || '';
-        
+
         console.log('Firebase sign-in error:', { errorCode, errorMessage });
-        
+
         // Xử lý các trường hợp lỗi khác nhau
         if (errorCode === 'auth/user-not-found') {
           // User chưa tồn tại trong Firebase, tạo user mới
@@ -184,7 +184,7 @@ export async function authenticateWithFirebase(
             return;
           }
         } else if (
-          errorCode === 'auth/invalid-credential' || 
+          errorCode === 'auth/invalid-credential' ||
           errorCode === 'auth/wrong-password' ||
           errorCode === 'auth/invalid-email' ||
           errorMessage.includes('INVALID_PASSWORD') ||
@@ -197,7 +197,7 @@ export async function authenticateWithFirebase(
             errorCode,
             errorMessage
           });
-          
+
           // Thử tạo user mới với mật khẩu hiện tại (nếu user chưa tồn tại)
           // Nếu user đã tồn tại với mật khẩu cũ, sẽ fail nhưng không sao vì đã có try-catch
           try {
@@ -420,9 +420,30 @@ export const authService = {
       });
       return response.data;
     } catch (error: unknown) {
-      if (error instanceof AxiosError)
-        throw error.response?.data || { message: "Không thể đăng ký FaceID" };
+      if (error instanceof AxiosError) {
+        const errorData = error.response?.data;
+        const errorMessage = errorData?.message || "Không thể đăng ký FaceID";
+        throw { message: errorMessage, response: error.response };
+      }
       throw { message: "Lỗi không xác định khi đăng ký FaceID" };
+    }
+  },
+
+  /**
+   * Xóa FaceID của user hiện tại
+   * @returns Promise<void>
+   */
+  async removeFaceID(): Promise<void> {
+    try {
+      const response = await apiClient.delete("/auth/faceid/remove");
+      return response.data;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        const errorData = error.response?.data;
+        const errorMessage = errorData?.message || "Không thể xóa FaceID";
+        throw { message: errorMessage, response: error.response };
+      }
+      throw { message: "Lỗi không xác định khi xóa FaceID" };
     }
   },
 
@@ -452,15 +473,15 @@ export const authService = {
   async resetPasswordByOtp(payload: ResetPasswordByOtpPayload): Promise<MessageResponse> {
     try {
       const response = await apiClient.post<MessageResponse>("/auth/reset-password-by-otp", payload);
-      
+
       // Sau khi đổi mật khẩu thành công, thử yêu cầu backend sync Firebase password
       // Backend có thể có endpoint này hoặc tự động sync
       try {
         // Gọi API để yêu cầu backend sync Firebase password (nếu có endpoint này)
         // Nếu không có endpoint, backend nên tự động sync khi đổi mật khẩu
-        await apiClient.post("/auth/sync-firebase-password", { 
+        await apiClient.post("/auth/sync-firebase-password", {
           email: payload.email,
-          newPassword: payload.newPassword 
+          newPassword: payload.newPassword
         }).catch(() => {
           // Nếu endpoint không tồn tại, không sao - backend có thể tự động sync
           console.log('Backend sync Firebase password endpoint không tồn tại hoặc đã được tự động sync');
@@ -469,7 +490,7 @@ export const authService = {
         // Không throw error vì sync Firebase password là optional
         console.log('Không thể sync Firebase password - backend có thể tự động sync:', syncError);
       }
-      
+
       return response.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError)

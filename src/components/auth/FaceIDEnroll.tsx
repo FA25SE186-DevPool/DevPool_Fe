@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Camera, AlertCircle, CheckCircle, Loader2, User, ArrowLeft, ArrowRight, ArrowUp, ArrowDown } from 'lucide-react';
 import { useFaceDetection } from '../../hooks/useFaceDetection';
-import { faceDetectionService } from '../../services/FaceDetectionService';
+import { faceApiService } from '../../services/FaceApiService';
 import { authService } from '../../services/Auth';
 
 interface FaceIDEnrollProps {
@@ -17,10 +17,13 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
     const [cameraStarted, setCameraStarted] = useState(false);
     const [captureStep, setCaptureStep] = useState<'idle' | 'center' | 'left' | 'right' | 'up' | 'down' | 'complete'>('idle');
     const [isCapturing, setIsCapturing] = useState(false);
+    const [captureProgress, setCaptureProgress] = useState(0);
 
     const {
         videoRef,
         isDetecting,
+        isModelsLoading,
+        modelsLoaded,
         error: detectionError,
         hasCamera,
         checkCamera,
@@ -85,14 +88,18 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
     };
 
     // Hàm capture với hướng dẫn di chuyển khuôn mặt (như iPhone FaceID setup)
+    // Sử dụng face-api.js để tạo REAL face embedding
     const captureWithFaceMovement = async (): Promise<number[]> => {
         if (!videoRef.current) {
             throw new Error('Camera chưa được khởi động');
         }
 
         setIsCapturing(true);
+        setCaptureProgress(0);
         const vectors: number[][] = [];
         const steps: Array<'center' | 'left' | 'right' | 'up' | 'down'> = ['center', 'left', 'right', 'up', 'down'];
+        const totalSteps = steps.length * 2; // 2 captures per step
+        let currentStep = 0;
         
         for (const step of steps) {
             setCaptureStep(step);
@@ -103,19 +110,22 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
             // Capture 2 lần ở mỗi góc độ để có nhiều dữ liệu
             for (let i = 0; i < 2; i++) {
                 try {
-                    const imageData = faceDetectionService.captureFrameFromVideo(videoRef.current);
-                    const result = await faceDetectionService.detectFace(imageData);
+                    const result = await faceApiService.detectFaceFromVideo(videoRef.current);
                     
                     if (result.confidence >= 0.5) {
                         vectors.push(result.faceVector);
+                        console.log(`[FaceIDEnroll] Captured at ${step}, confidence: ${result.confidence.toFixed(3)}`);
                     }
+                    
+                    currentStep++;
+                    setCaptureProgress(Math.round((currentStep / totalSteps) * 100));
                     
                     // Đợi một chút giữa các lần capture
                     if (i < 1) {
                         await new Promise((resolve) => setTimeout(resolve, 300));
                     }
                 } catch (error) {
-                    console.warn(`Failed to capture at ${step} step:`, error);
+                    console.warn(`[FaceIDEnroll] Failed to capture at ${step} step:`, error);
                 }
             }
         }
@@ -126,6 +136,8 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
         if (vectors.length === 0) {
             throw new Error('Không thể phát hiện khuôn mặt trong bất kỳ góc độ nào');
         }
+
+        console.log(`[FaceIDEnroll] Captured ${vectors.length} vectors`);
         
         // Tính trung bình các vectors và normalize
         const averageVector = vectors.reduce(
@@ -135,7 +147,11 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
         
         // L2 normalize
         const magnitude = Math.sqrt(averageVector.reduce((sum, val) => sum + val * val, 0));
-        return magnitude > 0 ? averageVector.map(val => val / magnitude) : averageVector;
+        const normalizedVector = magnitude > 0 ? averageVector.map(val => val / magnitude) : averageVector;
+        
+        console.log(`[FaceIDEnroll] Final vector length: ${normalizedVector.length}`);
+        
+        return normalizedVector;
     };
 
     const handleEnroll = async () => {
@@ -157,23 +173,22 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
             setTimeout(() => {
                 onSuccess?.();
             }, 2000);
-    } catch (err: any) {
-      setIsProcessing(false);
-      setIsCapturing(false);
-      setCaptureStep('idle');
-      let errorMessage = err.message || err.response?.data?.message || 'Đăng ký FaceID thất bại';
-      
-      // Hiển thị thông báo rõ ràng hơn cho lỗi billing
-      if (errorMessage.includes('billing') || errorMessage.includes('Billing')) {
-        errorMessage = 'Google Vision API yêu cầu bật billing. Vui lòng liên hệ admin để bật billing trong Google Cloud Console.';
-      }
-      
-      setError(errorMessage);
-    }
+        } catch (err: any) {
+            setIsProcessing(false);
+            setIsCapturing(false);
+            setCaptureStep('idle');
+            setCaptureProgress(0);
+            let errorMessage = err.message || err.response?.data?.message || 'Đăng ký FaceID thất bại';
+            
+            setError(errorMessage);
+        }
     };
 
     const handleCancel = () => {
         stopCamera();
+        setCameraStarted(false);
+        setCaptureStep('idle');
+        setCaptureProgress(0);
         onCancel?.();
     };
 
@@ -186,6 +201,14 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
                 <h2 className="text-2xl font-bold text-gray-900">Đăng Ký FaceID</h2>
                 <p className="text-neutral-600 mt-2">Chụp nhiều góc để tăng độ chính xác</p>
             </div>
+
+            {/* Models Loading Indicator */}
+            {isModelsLoading && (
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center space-x-3">
+                    <Loader2 className="w-5 h-5 text-blue-500 animate-spin flex-shrink-0" />
+                    <span className="text-blue-700 text-sm font-medium">Đang tải AI models...</span>
+                </div>
+            )}
 
             {error && (
                 <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-3">
@@ -219,6 +242,9 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
                                 playsInline
                                 muted
                                 className="w-full h-full object-cover"
+                                style={{
+                                    transform: 'scaleX(-1)', // Mirror effect for better UX
+                                }}
                             />
                             {/* Face detection overlay */}
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
@@ -274,11 +300,22 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
                                                 <p className="text-white/80 text-sm">Từ từ cúi đầu...</p>
                                             </>
                                         )}
+                                        
+                                        {/* Progress bar */}
+                                        <div className="mt-4">
+                                            <div className="w-full bg-white/20 rounded-full h-2">
+                                                <div 
+                                                    className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                                                    style={{ width: `${captureProgress}%` }}
+                                                ></div>
+                                            </div>
+                                            <p className="text-white/60 text-xs mt-1">{captureProgress}%</p>
+                                        </div>
                                     </div>
                                 </div>
                             )}
                             
-                            {/* Capture progress */}
+                            {/* Capture complete */}
                             {isCapturing && captureStep === 'complete' && (
                                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-lg z-20">
                                     <p className="text-sm">Đang xử lý và lưu dữ liệu...</p>
@@ -317,10 +354,22 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
                     {!cameraStarted ? (
                         <button
                             onClick={handleStartCamera}
-                            disabled={hasCamera === false || isProcessing}
-                            className="w-full bg-gradient-to-r from-primary-600 to-indigo-600 text-white py-3.5 px-6 rounded-xl hover:from-primary-700 hover:to-indigo-700 font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={hasCamera === false || isProcessing || isModelsLoading || !modelsLoaded}
+                            className="w-full bg-gradient-to-r from-primary-600 to-indigo-600 text-white py-3.5 px-6 rounded-xl hover:from-primary-700 hover:to-indigo-700 font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
-                            {hasCamera === false ? 'Camera không khả dụng' : 'Khởi Động Camera'}
+                            {isModelsLoading ? (
+                                <>
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    <span>Đang tải AI models...</span>
+                                </>
+                            ) : hasCamera === false ? (
+                                'Camera không khả dụng'
+                            ) : (
+                                <>
+                                    <Camera className="w-5 h-5" />
+                                    <span>Khởi Động Camera</span>
+                                </>
+                            )}
                         </button>
                     ) : (
                         <button
@@ -347,7 +396,7 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
                         </button>
                     )}
 
-                    {cameraStarted && (
+                    {cameraStarted && !isCapturing && (
                         <button
                             onClick={handleCancel}
                             disabled={isProcessing}
@@ -361,4 +410,3 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
         </div>
     );
 }
-

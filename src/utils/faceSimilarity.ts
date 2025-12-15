@@ -1,22 +1,24 @@
 /**
- * Utility functions để tính similarity giữa các face vectors
- * Dùng để debug và test
+ * ⚠️ FILE NÀY CHỈ ĐỂ LƯU TRỮ - KHÔNG CÒN ĐƯỢC SỬ DỤNG
+ * Backend đã xử lý face comparison
+ * 
+ * Utility functions để tính toán face similarity
  */
 
 /**
  * Tính Cosine Similarity giữa 2 vectors
- * @param vectorA - Vector đầu tiên
+ * @param vectorA - Vector thứ nhất
  * @param vectorB - Vector thứ hai
- * @returns Cosine similarity (0-1, càng gần 1 càng giống nhau)
+ * @returns Giá trị từ -1 đến 1, với 1 là giống nhất
  */
 export function calculateCosineSimilarity(vectorA: number[], vectorB: number[]): number {
     if (vectorA.length !== vectorB.length) {
         throw new Error(`Vector length mismatch: ${vectorA.length} vs ${vectorB.length}`);
     }
 
-    let dotProduct = 0.0;
-    let magnitudeA = 0.0;
-    let magnitudeB = 0.0;
+    let dotProduct = 0;
+    let magnitudeA = 0;
+    let magnitudeB = 0;
 
     for (let i = 0; i < vectorA.length; i++) {
         dotProduct += vectorA[i] * vectorB[i];
@@ -28,7 +30,7 @@ export function calculateCosineSimilarity(vectorA: number[], vectorB: number[]):
     magnitudeB = Math.sqrt(magnitudeB);
 
     if (magnitudeA === 0 || magnitudeB === 0) {
-        return 0.0;
+        return 0;
     }
 
     return dotProduct / (magnitudeA * magnitudeB);
@@ -36,16 +38,16 @@ export function calculateCosineSimilarity(vectorA: number[], vectorB: number[]):
 
 /**
  * Tính Euclidean Distance giữa 2 vectors
- * @param vectorA - Vector đầu tiên
+ * @param vectorA - Vector thứ nhất
  * @param vectorB - Vector thứ hai
- * @returns Euclidean distance (càng nhỏ càng giống nhau)
+ * @returns Khoảng cách (giá trị nhỏ hơn = giống hơn)
  */
 export function calculateEuclideanDistance(vectorA: number[], vectorB: number[]): number {
     if (vectorA.length !== vectorB.length) {
         throw new Error(`Vector length mismatch: ${vectorA.length} vs ${vectorB.length}`);
     }
 
-    let sum = 0.0;
+    let sum = 0;
     for (let i = 0; i < vectorA.length; i++) {
         const diff = vectorA[i] - vectorB[i];
         sum += diff * diff;
