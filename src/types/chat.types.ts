@@ -46,6 +46,7 @@ export interface MessageModel {
     conversationId: string;
     senderId: string;
     senderName: string;
+    senderEmail?: string;
     senderRole?: string;
     content: string;
     createdAt: string;

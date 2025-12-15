@@ -227,6 +227,9 @@ export default function ChatConversation({
                         {!isOwnMessage && conversation.isGroup && (
                           <p className="text-xs text-neutral-500 mb-1 ml-1">
                             {message.senderName}
+                            {message.senderEmail && (
+                              <span className="ml-1 text-neutral-400">({message.senderEmail})</span>
+                            )}
                             {message.senderRole && (
                               <span className="ml-1 text-neutral-400">• {message.senderRole}</span>
                             )}
@@ -250,7 +253,8 @@ export default function ChatConversation({
                             }`}
                         >
                           {formatTime(message.createdAt)}
-                          {isOwnMessage && message.readBy.length > 0 && (
+                          {/* Chỉ hiển thị tick đã đọc cho chat 1-1 (không phải group) */}
+                          {isOwnMessage && !conversation.isGroup && message.readBy.length > 0 && (
                             <span className="ml-1 text-primary-500">✓✓</span>
                           )}
                         </p>

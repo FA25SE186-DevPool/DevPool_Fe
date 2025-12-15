@@ -8,6 +8,7 @@ import type {
     UserOnlineEvent,
     SendMessageModel,
     MarkAsReadModel,
+    ConversationModel,
 } from "../types/chat.types";
 
 // Get base URL without /api suffix for SignalR hub
@@ -22,6 +23,7 @@ interface UseChatConnectionOptions {
     onMessagesRead?: (event: MessagesReadEvent) => void;
     onUserOnline?: (event: UserOnlineEvent) => void;
     onUserOffline?: (event: UserOnlineEvent) => void;
+    onNewConversation?: (conversation: ConversationModel) => void;
     onConnectionStateChange?: (state: signalR.HubConnectionState) => void;
 }
 
@@ -118,6 +120,14 @@ export function useChatConnection(options: UseChatConnectionOptions = {}) {
                 callbacksRef.current.onUserOffline?.(event);
             });
 
+            // Handle new conversation (when someone starts chatting with you)
+            connection.on("NewConversation", (conversation: ConversationModel) => {
+                console.log("[ChatHub] New conversation received:", conversation);
+                callbacksRef.current.onNewConversation?.(conversation);
+                // Auto-join the new conversation group
+                connection.invoke("JoinConversation", conversation.id).catch(console.error);
+            });
+
             // Connection state handlers
             connection.onreconnecting((err) => {
                 console.log("[ChatHub] Reconnecting...", err);
@@ -207,6 +217,15 @@ export function useChatConnection(options: UseChatConnectionOptions = {}) {
         await connectionRef.current.invoke("MarkAsRead", model);
     }, []);
 
+    // Start direct conversation via SignalR (creates conversation and sends first message)
+    const startDirectConversationViaSignalR = useCallback(async (targetUserId: string, firstMessage: string): Promise<void> => {
+        if (connectionRef.current?.state !== signalR.HubConnectionState.Connected) {
+            throw new Error("Chat connection not established");
+        }
+
+        await connectionRef.current.invoke("StartDirectConversation", targetUserId, firstMessage);
+    }, []);
+
     // Auto-connect on mount (only once)
     useEffect(() => {
         isMountedRef.current = true;
@@ -231,6 +250,7 @@ export function useChatConnection(options: UseChatConnectionOptions = {}) {
         joinConversation,
         sendTypingIndicator,
         markAsRead,
+        startDirectConversationViaSignalR,
         reconnect: startConnection,
     };
 }
