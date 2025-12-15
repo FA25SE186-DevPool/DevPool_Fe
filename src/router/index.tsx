@@ -8,7 +8,7 @@ import PageLoader from '../components/common/PageLoader';
 import PublicLayout from '../components/layouts/PublicLayout';
 import PrivateLayout from '../components/layouts/PrivateLayout';
 import ProtectedRoute from './ProtectedRoute';
-import { ROUTES, getDashboardRoute, NOTIFICATION_CENTER_ROUTE } from './routes';
+import { ROUTES, getDashboardRoute, NOTIFICATION_CENTER_ROUTE, CHAT_ROUTE } from './routes';
 
 // ========================================
 // PUBLIC PAGES (Client) - Lazy Loading
@@ -24,6 +24,7 @@ const ForgotPasswordPage = React.lazy(() => import('../pages/client/forgot-passw
 // COMMON PAGES - Lazy Loading
 // ========================================
 const NotificationCenterPage = React.lazy(() => import('../pages/common/notifications/List'));
+const ChatPage = React.lazy(() => import('../pages/common/chat/ChatPage'));
 
 // ========================================
 // ADMIN PAGES - Lazy Loading
@@ -285,6 +286,16 @@ const AppRouter: React.FC = () => {
             {/* Thông báo chung cho tất cả vai trò */}
             <Route element={<ProtectedRoute><Outlet /></ProtectedRoute>}>
               <Route path={NOTIFICATION_CENTER_ROUTE} element={<NotificationCenterPage />} />
+            </Route>
+          </Route>
+
+          {/* ======================================== */}
+          {/* COMMON PRIVATE ROUTES (với PrivateLayout) */}
+          {/* ======================================== */}
+          <Route element={<PrivateLayout />}>
+            {/* Chat - chỉ dành cho internal staff */}
+            <Route element={<ProtectedRoute requiredRoles={["Admin", "Manager", "Staff TA", "Staff Sales", "Staff Accountant"]}><Outlet /></ProtectedRoute>}>
+              <Route path={CHAT_ROUTE} element={<ChatPage />} />
             </Route>
           </Route>
 

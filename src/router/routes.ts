@@ -233,7 +233,7 @@ export const ROUTES = {
   MANAGER: {
     DASHBOARD: '/manager/dashboard',
     PROFILE: '/manager/profile',
-    
+
     CLIENT_COMPANY: {
       LIST: '/manager/client-companies',
       DETAIL: '/manager/client-companies/:id',
@@ -317,6 +317,7 @@ export const ROUTES = {
 } as const;
 
 export const NOTIFICATION_CENTER_ROUTE = '/notifications' as const;
+export const CHAT_ROUTE = '/chat' as const;
 
 export type UserRole =
   | 'Staff TA'
