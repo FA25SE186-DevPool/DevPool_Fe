@@ -27,6 +27,8 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
   const {
     videoRef,
     isDetecting,
+    isModelsLoading,
+    modelsLoaded,
     hasCamera,
     checkCamera,
     startCamera,
@@ -166,12 +168,11 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
       setError('');
       setSuccess(false);
 
-      // Capture nhiều lần ở góc thẳng (5 lần) để có nhiều cơ hội khớp
-      // Đơn giản hơn - không cần di chuyển khuôn mặt khi login
+      // Capture nhiều lần (5 lần) để có nhiều cơ hội khớp
+      // face-api.js tạo ra REAL face embedding 128 chiều
       const results = await captureMultipleWithResults(5);
 
       // Thử login với từng vector riêng lẻ (từ confidence cao nhất xuống thấp nhất)
-      // Điều này giúp tăng khả năng khớp vì mỗi lần capture có thể có điều kiện khác nhau
       let lastError: any = null;
 
       for (const result of results) {
@@ -217,9 +218,7 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
       let errorMessage = err.message || err.response?.data?.message || err.normalizedMessage || 'Đăng nhập bằng FaceID thất bại';
 
       // Hiển thị thông báo rõ ràng hơn cho các lỗi phổ biến
-      if (errorMessage.includes('billing') || errorMessage.includes('Billing')) {
-        errorMessage = 'Google Vision API yêu cầu bật billing. Vui lòng liên hệ admin để bật billing trong Google Cloud Console.';
-      } else if (errorMessage.includes('No matching face found') || errorMessage.includes('not found') || errorMessage.includes('not match') || errorMessage.includes('similarity')) {
+      if (errorMessage.includes('No matching face found') || errorMessage.includes('not found') || errorMessage.includes('not match') || errorMessage.includes('similarity')) {
         errorMessage = 'Không tìm thấy khuôn mặt khớp với dữ liệu đã đăng ký.\n\nVui lòng:\n• Đảm bảo ánh sáng đủ sáng và đều\n• Nhìn thẳng vào camera, không nghiêng đầu\n• Giữ khoảng cách vừa phải với camera\n• Thử lại hoặc đăng nhập bằng Email/Password';
       } else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
         errorMessage = 'Không thể xác thực khuôn mặt. Vui lòng thử lại hoặc đăng nhập bằng Email/Password.';
@@ -244,10 +243,7 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
     window.dispatchEvent(new Event('storage'));
 
     // Authenticate với Firebase
-    // Note: Với FaceID login, chúng ta không có password
-    // Có thể cần xử lý khác hoặc bỏ qua Firebase auth
     try {
-      // Thử authenticate với Firebase nếu có custom token
       if (response.firebaseCustomToken) {
         await authenticateWithFirebase(response, response.email, '', frontendRole);
       }
@@ -355,10 +351,18 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
         <p className="text-neutral-600 mt-2">Đặt khuôn mặt của bạn vào khung hình</p>
       </div>
 
+      {/* Models Loading Indicator */}
+      {isModelsLoading && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl flex items-center space-x-3 animate-slide-down shadow-soft">
+          <Loader2 className="w-5 h-5 text-blue-500 animate-spin flex-shrink-0" />
+          <span className="text-blue-700 text-sm font-medium">Đang tải AI models...</span>
+        </div>
+      )}
+
       {error && (
         <div className="mb-6 p-4 bg-gradient-to-r from-error-50 to-error-100 border border-error-200 rounded-xl flex items-center space-x-3 animate-slide-down shadow-soft">
           <AlertCircle className="w-5 h-5 text-error-500 flex-shrink-0" />
-          <span className="text-error-700 text-sm font-medium">{error}</span>
+          <span className="text-error-700 text-sm font-medium whitespace-pre-line">{error}</span>
         </div>
       )}
 
@@ -438,11 +442,16 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
           {!cameraStarted ? (
             <button
               onClick={handleStartCamera}
-              disabled={hasCamera === false || isStartingCamera || isProcessing}
+              disabled={hasCamera === false || isStartingCamera || isProcessing || isModelsLoading || !modelsLoaded}
               className="w-full bg-gradient-to-r from-primary-600 to-indigo-600 text-white py-3.5 px-6 rounded-xl hover:from-primary-700 hover:to-indigo-700 font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-glow hover:shadow-glow-lg transform hover:scale-102 active:scale-98 disabled:transform-none flex items-center justify-center gap-2"
               type="button"
             >
-              {isStartingCamera ? (
+              {isModelsLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Đang tải AI models...</span>
+                </>
+              ) : isStartingCamera ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span>Đang khởi động camera...</span>
@@ -502,4 +511,3 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
     </div>
   );
 }
-

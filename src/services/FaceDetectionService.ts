@@ -1,5 +1,49 @@
+/**
+ * ⚠️ FILE NÀY CHỈ ĐỂ LƯU TRỮ - KHÔNG CÒN ĐƯỢC SỬ DỤNG
+ * Hệ thống đã chuyển sang sử dụng face-api.js (FaceApiService.ts)
+ * 
+ * Service cũ sử dụng Google Vision API để face detection
+ */
+
 import { GOOGLE_VISION_API_KEY, GOOGLE_VISION_API_URL, FACE_DETECTION_CONFIG } from '../config/vision.config';
 import type { FaceDetectionResult, FaceCaptureOptions } from '../types/face.types';
+
+// Interface cho Google Vision API response
+interface Vertex {
+    x?: number;
+    y?: number;
+}
+
+interface BoundingPoly {
+    vertices?: Vertex[];
+}
+
+interface Landmark {
+    type?: string;
+    position?: {
+        x?: number;
+        y?: number;
+        z?: number;
+    };
+}
+
+interface FaceAnnotation {
+    boundingPoly?: BoundingPoly;
+    fdBoundingPoly?: BoundingPoly;
+    landmarks?: Landmark[];
+    rollAngle?: number;
+    panAngle?: number;
+    tiltAngle?: number;
+    detectionConfidence?: number;
+    landmarkingConfidence?: number;
+    joyLikelihood?: string;
+    sorrowLikelihood?: string;
+    angerLikelihood?: string;
+    surpriseLikelihood?: string;
+    underExposedLikelihood?: string;
+    blurredLikelihood?: string;
+    headwearLikelihood?: string;
+}
 
 /**
  * Service để xử lý face detection và extraction sử dụng Google Vision API
@@ -76,7 +120,7 @@ class FaceDetectionService {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                const errorMessage = errorData.error?.message || `Google Vision API error: ${response.statusText}`;
+                const errorMessage = (errorData as { error?: { message?: string } }).error?.message || `Google Vision API error: ${response.statusText}`;
 
                 // Xử lý lỗi billing cụ thể
                 if (errorMessage.includes('billing') || errorMessage.includes('Billing')) {
@@ -88,7 +132,7 @@ class FaceDetectionService {
                 throw new Error(errorMessage);
             }
 
-            const data = await response.json();
+            const data = await response.json() as { responses?: Array<{ faceAnnotations?: FaceAnnotation[] }> };
 
             // Kiểm tra response
             if (!data.responses || data.responses.length === 0) {
@@ -112,7 +156,7 @@ class FaceDetectionService {
             return {
                 faceVector,
                 confidence: face.detectionConfidence || 0.5,
-                boundingBox: face.boundingPoly
+                boundingBox: face.boundingPoly?.vertices
                     ? {
                         x: face.boundingPoly.vertices[0]?.x || 0,
                         y: face.boundingPoly.vertices[0]?.y || 0,
@@ -125,16 +169,17 @@ class FaceDetectionService {
                     }
                     : undefined,
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Face detection error:', error);
-            throw new Error(error.message || 'Lỗi khi phát hiện khuôn mặt');
+            const err = error as { message?: string };
+            throw new Error(err.message || 'Lỗi khi phát hiện khuôn mặt');
         }
     }
 
     /**
      * Chọn khuôn mặt tốt nhất từ danh sách (khuôn mặt lớn nhất hoặc confidence cao nhất)
      */
-    private selectBestFace(faceAnnotations: any[]): any {
+    private selectBestFace(faceAnnotations: FaceAnnotation[]): FaceAnnotation {
         if (faceAnnotations.length === 1) {
             return faceAnnotations[0];
         }
@@ -148,98 +193,87 @@ class FaceDetectionService {
 
     /**
      * Extract face vector từ face annotations
-     * Google Vision API không trả về embedding trực tiếp,
-     * nên chúng ta sẽ tạo vector từ landmarks và các features
      * 
-     * QUAN TRỌNG: Giữ nguyên cách normalize dựa trên bounding box
-     * để tương thích với dữ liệu đã có trong DB
+     * ⚠️ CẢNH BÁO QUAN TRỌNG ⚠️
+     * Google Vision API KHÔNG trả về face embedding thực sự!
+     * Vector này được tạo từ landmarks (vị trí các điểm trên mặt),
+     * KHÔNG PHẢI từ deep learning embedding như FaceNet/ArcFace.
+     * 
+     * Đây chỉ là giải pháp TẠM THỜI. Để face recognition hoạt động chính xác,
+     * cần chuyển sang sử dụng:
+     * - face-api.js (client-side, miễn phí)
+     * - Azure Face API (có real embedding)
+     * - Amazon Rekognition
+     * - Self-hosted DeepFace/FaceNet
      */
-    private extractFaceVector(face: any): number[] {
+    private extractFaceVector(face: FaceAnnotation): number[] {
         const vector: number[] = [];
+        const landmarks = face.landmarks;
+        const boundingPoly = face.boundingPoly;
 
-        // Sử dụng landmarks để tạo embedding
-        // Vector trong DB có giá trị lớn (0.35, 3.25, 8.40...)
-        // Có thể được tạo từ landmarks không normalize hoàn toàn
-        // Thử normalize theo bounding box như cách cũ nhất
-        if (face.landmarks && face.landmarks.length > 0) {
-            const boundingBox = face.boundingPoly;
-            if (boundingBox && boundingBox.vertices && boundingBox.vertices.length >= 4) {
+        // Sử dụng landmarks để tạo pseudo-embedding
+        // Chỉ hoạt động tốt khi cùng một người với cùng tư thế
+        if (landmarks && landmarks.length > 0) {
+            if (boundingPoly?.vertices && boundingPoly.vertices.length >= 4) {
                 const width =
-                    (boundingBox.vertices[1].x || 0) - (boundingBox.vertices[0].x || 0);
+                    (boundingPoly.vertices[1]?.x || 0) - (boundingPoly.vertices[0]?.x || 0);
                 const height =
-                    (boundingBox.vertices[2].y || 0) - (boundingBox.vertices[0].y || 0);
+                    (boundingPoly.vertices[2]?.y || 0) - (boundingPoly.vertices[0]?.y || 0);
 
-                // Normalize landmarks dựa trên bounding box (cách cũ)
-                // Giá trị sẽ từ 0-1 cho X, Y và giá trị Z raw
-                face.landmarks.forEach((landmark: any) => {
-                    const pos = landmark.position || landmark;
-                    const normalizedX = width > 0
-                        ? ((pos.x || 0) - (boundingBox.vertices[0].x || 0)) / width
+                // Tính center của bounding box để normalize tốt hơn
+                const centerX = (boundingPoly.vertices[0]?.x || 0) + width / 2;
+                const centerY = (boundingPoly.vertices[0]?.y || 0) + height / 2;
+                const maxDim = Math.max(width, height);
+
+                // Normalize landmarks về -0.5 đến 0.5 dựa trên center và maxDim
+                // Điều này giúp vector ít phụ thuộc vào vị trí face trong frame
+                landmarks.forEach((landmark) => {
+                    const pos = landmark.position;
+                    const normalizedX = maxDim > 0
+                        ? ((pos?.x || 0) - centerX) / maxDim
                         : 0;
-                    const normalizedY = height > 0
-                        ? ((pos.y || 0) - (boundingBox.vertices[0].y || 0)) / height
+                    const normalizedY = maxDim > 0
+                        ? ((pos?.y || 0) - centerY) / maxDim
                         : 0;
-                    // Z coordinate không normalize, dùng giá trị raw (có thể âm hoặc dương lớn)
-                    const normalizedZ = pos.z || 0;
+                    // Z coordinate normalize theo maxDim để nhất quán
+                    const normalizedZ = maxDim > 0 
+                        ? (pos?.z || 0) / maxDim 
+                        : 0;
 
                     vector.push(normalizedX, normalizedY, normalizedZ);
                 });
             } else {
                 // Fallback nếu không có bounding box
-                face.landmarks.forEach((landmark: any) => {
-                    const pos = landmark.position || landmark;
-                    vector.push(pos.x || 0, pos.y || 0, pos.z || 0);
+                landmarks.forEach((landmark) => {
+                    const pos = landmark.position;
+                    vector.push(pos?.x || 0, pos?.y || 0, pos?.z || 0);
                 });
             }
         }
 
-        // Thêm các features khác
-        if (face.detectionConfidence !== undefined) {
-            vector.push(face.detectionConfidence);
-        }
-        if (face.landmarkingConfidence !== undefined) {
-            vector.push(face.landmarkingConfidence);
-        }
-        if (face.joyLikelihood) {
-            vector.push(this.likelihoodToNumber(face.joyLikelihood));
-        }
-        if (face.sorrowLikelihood) {
-            vector.push(this.likelihoodToNumber(face.sorrowLikelihood));
-        }
-        if (face.angerLikelihood) {
-            vector.push(this.likelihoodToNumber(face.angerLikelihood));
-        }
-        if (face.surpriseLikelihood) {
-            vector.push(this.likelihoodToNumber(face.surpriseLikelihood));
-        }
+        // KHÔNG thêm confidence và emotion vì chúng thay đổi theo từng lần capture
+        // Điều này gây ra sự không nhất quán giữa enroll và login
 
         // Normalize vector về 128 dimensions (hoặc padding/truncate)
-        const sizedVector = this.normalizeVector(vector, FACE_DETECTION_CONFIG.embeddingDimensions);
+        const sizedVector = this.resizeVector(vector, FACE_DETECTION_CONFIG.embeddingDimensions);
 
-        // KHÔNG L2 normalize để tương thích với dữ liệu trong DB
-        // Vector trong DB có giá trị lớn, không được L2 normalize
-        return sizedVector;
+        // L2 normalize để đảm bảo cosine similarity hoạt động đúng
+        return this.l2Normalize(sizedVector);
     }
 
     /**
-     * Convert likelihood string thành number
+     * L2 Normalize vector
      */
-    private likelihoodToNumber(likelihood: string): number {
-        const map: Record<string, number> = {
-            UNKNOWN: 0,
-            VERY_UNLIKELY: 0.1,
-            UNLIKELY: 0.3,
-            POSSIBLE: 0.5,
-            LIKELY: 0.7,
-            VERY_LIKELY: 0.9,
-        };
-        return map[likelihood] || 0;
+    private l2Normalize(vector: number[]): number[] {
+        const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
+        if (magnitude === 0) return vector;
+        return vector.map(val => val / magnitude);
     }
 
     /**
-     * Normalize vector về kích thước cố định
+     * Resize vector về kích thước cố định
      */
-    private normalizeVector(vector: number[], targetSize: number): number[] {
+    private resizeVector(vector: number[], targetSize: number): number[] {
         if (vector.length === targetSize) {
             return vector;
         }
@@ -262,6 +296,8 @@ class FaceDetectionService {
     }
 
 
+
+
     /**
      * Capture nhiều ảnh và tính trung bình face vector (cho enrollment)
      */
@@ -272,14 +308,12 @@ class FaceDetectionService {
         const { minConfidence = 0.5 } = options;
 
         const vectors: number[][] = [];
-        const results: Array<{ vector: number[]; confidence: number }> = [];
 
         for (const image of images) {
             try {
                 const result = await this.detectFace(image);
                 if (result.confidence >= minConfidence) {
                     vectors.push(result.faceVector);
-                    results.push({ vector: result.faceVector, confidence: result.confidence });
                 }
             } catch (error) {
                 console.warn('Failed to detect face in one image:', error);
@@ -344,9 +378,8 @@ class FaceDetectionService {
             result[i] /= vectors.length;
         }
 
-        // KHÔNG L2 normalize để tương thích với dữ liệu trong DB
-        // Vector trong DB có giá trị lớn, không được L2 normalize
-        return result;
+        // L2 normalize để đảm bảo cosine similarity hoạt động đúng
+        return this.l2Normalize(result);
     }
 
     /**
@@ -379,4 +412,3 @@ class FaceDetectionService {
 }
 
 export const faceDetectionService = new FaceDetectionService();
-
