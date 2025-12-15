@@ -294,7 +294,7 @@ const AppRouter: React.FC = () => {
           {/* ======================================== */}
           <Route element={<PrivateLayout />}>
             {/* Chat - chỉ dành cho internal staff */}
-            <Route element={<ProtectedRoute requiredRoles={["Admin", "Manager", "Staff TA", "Staff Sales", "Staff Accountant"]}><Outlet /></ProtectedRoute>}>
+            <Route element={<ProtectedRoute requiredRoles={["Admin", "Manager", "TA", "Accountant", "Sale", "Staff TA", "Staff Sales", "Staff Accountant"]}><Outlet /></ProtectedRoute>}>
               <Route path={CHAT_ROUTE} element={<ChatPage />} />
             </Route>
           </Route>

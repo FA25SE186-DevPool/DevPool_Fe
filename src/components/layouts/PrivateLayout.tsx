@@ -4,8 +4,8 @@ import Header from '../common/Header';
 import { FloatingChat } from '../chat';
 import { useAuth } from '../../context/AuthContext';
 
-// Roles that can use chat
-const CHAT_ENABLED_ROLES = ['Admin', 'Manager', 'Staff TA', 'Staff Sales', 'Staff Accountant'];
+// Roles that can use chat (support both enum names and display names)
+const CHAT_ENABLED_ROLES = ['Admin', 'Manager', 'TA', 'Accountant', 'Sale', 'Staff TA', 'Staff Sales', 'Staff Accountant'];
 
 const PrivateLayout: React.FC = () => {
   const { user } = useAuth();

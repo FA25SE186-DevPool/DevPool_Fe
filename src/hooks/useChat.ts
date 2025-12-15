@@ -24,6 +24,26 @@ export function useChat() {
     const [isSearching, setIsSearching] = useState(false);
 
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const activeConversationRef = useRef<ConversationModel | null>(null);
+
+    // Keep ref in sync with state
+    useEffect(() => {
+        activeConversationRef.current = activeConversation;
+    }, [activeConversation]);
+
+    // Helper function to sort conversations: default group first, then by last message time
+    const sortConversations = (convs: ConversationModel[]) => {
+        return [...convs].sort((a, b) => {
+            // Default group always first
+            if (a.isDefault && !b.isDefault) return -1;
+            if (!a.isDefault && b.isDefault) return 1;
+
+            // Then sort by last message time (newest first)
+            const dateA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+            const dateB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+            return dateB - dateA;
+        });
+    };
 
     // SignalR connection
     const {
@@ -34,15 +54,38 @@ export function useChat() {
         sendTypingIndicator,
         markAsRead: markAsReadViaSignalR,
     } = useChatConnection({
-        onReceiveMessage: (message) => {
+        onReceiveMessage: async (message) => {
+            const currentConversation = activeConversationRef.current;
+
             // Add new message to messages list if it's for active conversation
-            if (activeConversation && message.conversationId === activeConversation.id) {
+            if (currentConversation && message.conversationId === currentConversation.id) {
                 setMessages((prev) => [...prev, message]);
+                // Don't increment unread count - we're viewing this conversation
             }
 
-            // Update conversation preview
-            setConversations((prev) =>
-                prev.map((conv) =>
+            // Update conversation preview and re-sort
+            setConversations((prev) => {
+                // Check if conversation exists in our list
+                const conversationExists = prev.some((conv) => conv.id === message.conversationId);
+
+                if (!conversationExists) {
+                    // New conversation from someone else - fetch it from API
+                    chatService.getConversation(message.conversationId).then((newConv) => {
+                        if (newConv) {
+                            setConversations((current) => {
+                                const exists = current.some((c) => c.id === newConv.id);
+                                if (exists) return current;
+                                return sortConversations([
+                                    { ...newConv, unreadCount: 1, lastMessagePreview: message.content },
+                                    ...current
+                                ]);
+                            });
+                        }
+                    }).catch(console.error);
+                    return prev; // Return unchanged for now, will update when API returns
+                }
+
+                const updated = prev.map((conv) =>
                     conv.id === message.conversationId
                         ? {
                             ...conv,
@@ -50,17 +93,23 @@ export function useChat() {
                             lastMessagePreview: message.content.length > 100
                                 ? message.content.substring(0, 100) + "..."
                                 : message.content,
-                            unreadCount: conv.id === activeConversation?.id
-                                ? conv.unreadCount
+                            // Only increment unread if NOT viewing this conversation
+                            unreadCount: currentConversation?.id === conv.id
+                                ? 0  // Keep at 0 since we're viewing it
                                 : conv.unreadCount + 1,
                         }
                         : conv
-                ).sort((a, b) => {
-                    const dateA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
-                    const dateB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
-                    return dateB - dateA;
-                })
-            );
+                );
+                return sortConversations(updated);
+            });
+        },
+        onNewConversation: (conversation) => {
+            // Add new conversation to list if not already exists
+            setConversations((prev) => {
+                const exists = prev.some((c) => c.id === conversation.id);
+                if (exists) return prev;
+                return sortConversations([conversation, ...prev]);
+            });
         },
         onUserTyping: (indicator) => {
             if (indicator.userId === user?.id) return;
@@ -116,7 +165,7 @@ export function useChat() {
         try {
             setIsLoading(true);
             const data = await chatService.getConversations();
-            setConversations(data);
+            setConversations(sortConversations(data));
         } catch (err: unknown) {
             const error = err as { message?: string };
             setError(error.message || "Không thể tải cuộc trò chuyện");
@@ -212,7 +261,7 @@ export function useChat() {
                 if (exists) {
                     return prev;
                 }
-                return [conversation, ...prev];
+                return sortConversations([conversation, ...prev]);
             });
 
             await selectConversation(conversation);
@@ -236,7 +285,7 @@ export function useChat() {
                 isGroup: true,
             });
 
-            setConversations((prev) => [conversation, ...prev]);
+            setConversations((prev) => sortConversations([conversation, ...prev]));
             await selectConversation(conversation);
             return conversation;
         } catch (err: unknown) {
@@ -324,6 +373,19 @@ export function useChat() {
         };
         loadOnlineUsers();
     }, []);
+
+    // Auto mark as read when receiving new messages in active conversation
+    useEffect(() => {
+        if (!activeConversation || !isConnected || messages.length === 0) return;
+
+        // Get the last message
+        const lastMessage = messages[messages.length - 1];
+
+        // If the last message is from someone else, mark as read
+        if (lastMessage && lastMessage.senderId !== user?.id) {
+            markAsReadViaSignalR({ conversationId: activeConversation.id, lastMessageId: lastMessage.id });
+        }
+    }, [messages, activeConversation, isConnected, user?.id, markAsReadViaSignalR]);
 
     return {
         // State
