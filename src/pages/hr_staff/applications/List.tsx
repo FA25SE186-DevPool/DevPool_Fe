@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
-import Breadcrumb from "../../../components/common/Breadcrumb";
 import { sidebarItems } from "../../../components/sidebar/ta_staff";
 import { talentApplicationService, type TalentApplication } from "../../../services/TalentApplication";
 import { jobRequestService, type JobRequest } from "../../../services/JobRequest";
@@ -20,6 +19,8 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   UserStar,
   FileUser,
   AlertTriangle
@@ -65,6 +66,7 @@ export default function TalentCVApplicationPage() {
   const [applications, setApplications] = useState<AugmentedTalentApplication[]>([]);
   const [filteredApplications, setFilteredApplications] = useState<AugmentedTalentApplication[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterJobRequestId, setFilterJobRequestId] = useState<string>(jobRequestIdFromQuery || "");
@@ -312,15 +314,19 @@ export default function TalentCVApplicationPage() {
       <div className="flex-1 p-8">
         {/* Header */}
         <div className="mb-8 animate-slide-up">
-          <Breadcrumb
-            items={[
-              { label: "Hồ sơ ứng tuyển" }
-            ]}
-          />
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Quản lý hồ sơ ứng tuyển</h1>
-              <p className="text-neutral-600 mt-1">Danh sách các hồ sơ ứng viên đã nộp</p>
+              <div className="flex items-center gap-3 mt-1">
+                <p className="text-neutral-600">Danh sách các hồ sơ ứng viên đã nộp</p>
+                <button
+                  onClick={() => setShowStats(!showStats)}
+                  className="flex items-center justify-center w-7 h-7 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors duration-300"
+                  title={showStats ? "Ẩn thống kê" : "Hiện thống kê"}
+                >
+                  {showStats ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -350,6 +356,7 @@ export default function TalentCVApplicationPage() {
           )}
 
           {/* Stats Cards */}
+          {showStats && (
           <div className="mb-8 animate-fade-in">
             <div className="relative">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -454,6 +461,7 @@ export default function TalentCVApplicationPage() {
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* Search & Filters */}

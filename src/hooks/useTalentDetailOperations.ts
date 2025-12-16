@@ -93,15 +93,28 @@ export function useTalentDetailOperations() {
   // Extract Firebase path from URL
   const extractFirebasePath = useCallback((url: string): string | null => {
     try {
-      const urlObj = new URL(url);
-      const pathMatch = urlObj.pathname.match(/\/o\/(.+)\?/);
-      if (pathMatch) {
-        return decodeURIComponent(pathMatch[1]);
+      // Check if it's a Firebase Storage URL
+      if (!url.includes('firebasestorage.googleapis.com') && !url.includes('firebaseapp.com')) {
+        console.warn('URL không phải là Firebase Storage URL:', url);
+        return null;
       }
-    } catch {
+
+      const urlObj = new URL(url);
+      // Match pattern: /o/{path}? or /o/{path}
+      // Firebase Storage URLs: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{path}?...
+      const pathMatch = urlObj.pathname.match(/\/o\/(.+)/);
+      if (pathMatch && pathMatch[1]) {
+        // Decode the path (Firebase encodes spaces and special chars)
+        const decodedPath = decodeURIComponent(pathMatch[1].split('?')[0]); // Remove query params if any
+        console.log('✅ Extracted Firebase path:', decodedPath);
+        return decodedPath;
+      }
+      console.warn('❌ Không thể extract path từ URL:', url);
+      return null;
+    } catch (e) {
+      console.error('❌ Error extracting Firebase path:', e, 'URL:', url);
       return null;
     }
-    return null;
   }, []);
 
   // Certificate file upload handlers
@@ -171,30 +184,60 @@ export function useTalentDetailOperations() {
 
   const handleDeleteCertificateImage = useCallback(async () => {
     const currentUrl = inlineCertificateForm.imageUrl;
-    if (!currentUrl) return;
-
-    const uploadedUrl = uploadedCertificateUrl;
-    if (!uploadedUrl || uploadedUrl !== currentUrl) {
-      setInlineCertificateForm((prev) => ({ ...prev, imageUrl: '' }));
+    if (!currentUrl) {
+      alert('⚠️ Không có URL ảnh để xóa.');
       return;
     }
 
-    const confirmed = window.confirm('Bạn có chắc chắn muốn xóa ảnh chứng chỉ này không? File sẽ bị xóa khỏi Firebase.');
+    // Kiểm tra xem URL có phải là Firebase URL không
+    const firebasePath = extractFirebasePath(currentUrl);
+    const isFirebaseUrl = !!firebasePath;
+    const uploadedUrl = uploadedCertificateUrl;
+
+    const confirmed = window.confirm(
+      isFirebaseUrl
+        ? '⚠️ Bạn có chắc chắn muốn xóa ảnh chứng chỉ này khỏi Firebase không?\n\nFile sẽ bị xóa vĩnh viễn và không thể hoàn tác.'
+        : '⚠️ Bạn có chắc chắn muốn xóa URL ảnh này không?'
+    );
+
     if (!confirmed) return;
 
     try {
-      const firebasePath = extractFirebasePath(currentUrl);
+      // Nếu là Firebase URL, xóa file từ Firebase Storage
       if (firebasePath) {
+        console.log('🗑️ Đang xóa file từ Firebase:', firebasePath);
+        console.log('📋 URL gốc:', currentUrl);
         const fileRef = ref(storage, firebasePath);
         await deleteObject(fileRef);
+        console.log('✅ Đã xóa file thành công từ Firebase:', firebasePath);
+      } else {
+        console.warn('⚠️ Không phải Firebase URL hoặc không extract được path:', currentUrl);
       }
 
+      // Xóa URL khỏi form
       setInlineCertificateForm((prev) => ({ ...prev, imageUrl: '' }));
-      setUploadedCertificateUrl(null);
+      
+      // Xóa URL khỏi uploadedCertificateUrl nếu match
+      if (uploadedUrl === currentUrl) {
+        setUploadedCertificateUrl(null);
+      }
+
+      // Xóa file đã chọn nếu có
+      setCertificateImageFile(null);
+      
+      // Reset input file
+      const fileInput = document.querySelector('input[type="file"][accept="image/*"]') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+
       alert('✅ Đã xóa ảnh chứng chỉ thành công!');
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Error deleting certificate image:', err);
-      alert('Không thể xóa ảnh chứng chỉ!');
+      // Vẫn xóa URL khỏi form dù không xóa được file
+      setInlineCertificateForm((prev) => ({ ...prev, imageUrl: '' }));
+      if (uploadedUrl === currentUrl) {
+        setUploadedCertificateUrl(null);
+      }
+      alert(`⚠️ Đã xóa URL khỏi form, nhưng có thể không xóa được file trong Firebase. Vui lòng kiểm tra lại.\n\nLỗi: ${err?.message || 'Không xác định'}`);
     }
   }, [inlineCertificateForm.imageUrl, uploadedCertificateUrl, extractFirebasePath, setInlineCertificateForm]);
 

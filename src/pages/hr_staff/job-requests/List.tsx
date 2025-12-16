@@ -12,10 +12,12 @@ import {
     ChevronRight,
     XCircle,
     Layers,
-    ClipboardList
+    ClipboardList,
+    ChevronDown,
+    ChevronUp,
+    X
 } from "lucide-react";
 import Sidebar from "../../../components/common/Sidebar";
-import Breadcrumb from "../../../components/common/Breadcrumb";
 import { sidebarItems } from "../../../components/sidebar/ta_staff";
 import { jobRequestService, type JobRequest } from "../../../services/JobRequest";
 import { clientCompanyService, type ClientCompany } from "../../../services/ClientCompany";
@@ -66,13 +68,28 @@ export default function HRJobRequestList() {
     const [filteredRequests, setFilteredRequests] = useState<HRJobRequest[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Lookup data for dropdowns
+    const [companies, setCompanies] = useState<ClientCompany[]>([]);
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [positions, setPositions] = useState<JobRoleLevel[]>([]);
+
     // 🔍 Search + Filters
     const [searchTerm, setSearchTerm] = useState("");
     const [showFilters, setShowFilters] = useState(false);
+    const [showStats, setShowStats] = useState(false);
     const [filterCompany, setFilterCompany] = useState("");
     const [filterProject, setFilterProject] = useState("");
     const [filterPosition, setFilterPosition] = useState("");
     const [filterStatus, setFilterStatus] = useState("");
+
+    // Dropdown states
+    const [companySearch, setCompanySearch] = useState("");
+    const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
+    const [projectSearch, setProjectSearch] = useState("");
+    const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
+    const [positionSearch, setPositionSearch] = useState("");
+    const [isPositionDropdownOpen, setIsPositionDropdownOpen] = useState(false);
+    const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -141,7 +158,7 @@ const stats = [
                         jobRequestService.getAll(),
                         clientCompanyService.getAll(),
                         projectService.getAll(),
-                        jobRoleLevelService.getAll(),
+                        jobRoleLevelService.getAll({ excludeDeleted: true, distinctByName: true }),
                         jobSkillService.getAll(),
                         skillService.getAll(),
                         talentApplicationService.getAll({ excludeDeleted: true }),
@@ -219,6 +236,9 @@ const stats = [
 
                 setRequests(mapped);
                 setFilteredRequests(mapped);
+                setCompanies(companiesArray);
+                setProjects(projectsArray);
+                setPositions(positionsArray);
             } catch (err) {
                 console.error("❌ Lỗi tải danh sách yêu cầu TA:", err);
             } finally {
@@ -236,7 +256,8 @@ const stats = [
         if (searchTerm) {
             filtered = filtered.filter(
                 (r) =>
-                    r.title.toLowerCase().includes(searchTerm.toLowerCase())
+                    r.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    r.code.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
         if (filterCompany)
@@ -291,7 +312,47 @@ const stats = [
         setFilterProject("");
         setFilterPosition("");
         setFilterStatus("");
+        setCompanySearch("");
+        setProjectSearch("");
+        setPositionSearch("");
+        setIsStatusDropdownOpen(false);
     };
+
+    // Helper functions to get display text
+    const getCompanyDisplayText = () => {
+        if (!filterCompany) return "Tất cả công ty";
+        const company = companies.find(c => c.name === filterCompany);
+        return company?.name || "Tất cả công ty";
+    };
+
+    const getProjectDisplayText = () => {
+        if (!filterProject) return "Tất cả dự án";
+        const project = projects.find(p => p.name === filterProject);
+        return project?.name || "Tất cả dự án";
+    };
+
+    const getPositionDisplayText = () => {
+        if (!filterPosition) return "Tất cả vị trí";
+        const position = positions.find(p => p.name === filterPosition);
+        return position?.name || "Tất cả vị trí";
+    };
+
+    const getStatusDisplayText = () => {
+        if (!filterStatus) return "Tất cả trạng thái";
+        return statusLabelDisplay[filterStatus] || "Tất cả trạng thái";
+    };
+
+    // Status options
+    const statusOptions = [
+        { value: "", label: "Tất cả trạng thái" },
+        { value: "Pending", label: "⏳ Chờ duyệt" },
+        { value: "Approved", label: "✅ Đã duyệt" },
+        { value: "Closed", label: "🔒 Đã đóng" },
+        { value: "Rejected", label: "❌ Từ chối" },
+    ];
+
+    // Check if there are active filters
+    const hasActiveFilters = searchTerm || filterCompany || filterProject || filterPosition || filterStatus;
 
     if (loading)
         return (
@@ -312,19 +373,24 @@ const stats = [
             <div className="flex-1 p-8">
                 {/* Header */}
                 <div className="mb-8 animate-slide-up">
-                    <Breadcrumb
-                        items={[
-                            { label: "Yêu cầu tuyển dụng" }
-                        ]}
-                    />
                     <div className="flex justify-between items-center mb-6">
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900">Quản lý yêu cầu tuyển dụng</h1>
-                            <p className="text-neutral-600 mt-1">Xem và duyệt yêu cầu tuyển dụng từ Sales</p>
+                            <div className="flex items-center gap-3 mt-1">
+                                <p className="text-neutral-600">Xem và duyệt yêu cầu tuyển dụng từ Sales</p>
+                                <button
+                                    onClick={() => setShowStats(!showStats)}
+                                    className="flex items-center justify-center w-7 h-7 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors duration-300"
+                                    title={showStats ? "Ẩn thống kê" : "Hiện thống kê"}
+                                >
+                                    {showStats ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
                     {/* Stats Cards */}
+                    {showStats && (
                     <div className="mb-8 animate-fade-in">
                         <div className="relative">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -416,6 +482,7 @@ const stats = [
                             </div>
                         )}
                     </div>
+                    )}
                 </div>
 
                 {/* Search & Filters */}
@@ -426,7 +493,7 @@ const stats = [
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 w-5 h-5" />
                                 <input
                                     type="text"
-                                    placeholder="Tìm kiếm theo tiêu đề..."
+                                    placeholder="Tìm kiếm theo mã yêu cầu, tiêu đề..."
                                     className="w-full pl-12 pr-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 bg-neutral-50 focus:bg-white"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -439,59 +506,306 @@ const stats = [
                             >
                                 <Filter className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
                                 <span className="font-medium">{showFilters ? "Ẩn bộ lọc" : "Bộ lọc"}</span>
+                                {hasActiveFilters && (
+                                    <span className="ml-1 px-2.5 py-1 rounded-full text-xs font-bold bg-neutral-700 text-white shadow-sm">
+                                        {[searchTerm, filterCompany, filterProject, filterPosition, filterStatus].filter(Boolean).length}
+                                    </span>
+                                )}
                             </button>
+                            {hasActiveFilters && (
+                                <button
+                                    onClick={handleResetFilters}
+                                    className="flex items-center gap-2 px-6 py-3 border border-neutral-200 rounded-xl hover:border-primary-500 hover:text-primary-600 hover:bg-primary-50 transition-all duration-300 bg-white"
+                                >
+                                    <X className="w-5 h-5" />
+                                    <span className="font-medium">Xóa bộ lọc</span>
+                                </button>
+                            )}
                         </div>
 
                         {showFilters && (
                             <div className="mt-6 pt-6 border-t border-neutral-200">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    {/* Company Dropdown */}
                                     <div className="relative">
-                                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
+                                        <label className="block text-sm font-medium text-neutral-700 mb-2">
+                                            Công ty khách hàng
+                                        </label>
+                                        <div className="relative">
+                                            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4 z-10" />
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
+                                                className="w-full flex items-center justify-between pl-10 pr-3 py-2 border border-neutral-200 rounded-lg bg-white text-left hover:border-primary-300 transition-colors"
+                                            >
+                                                <span className="text-sm text-neutral-700">{getCompanyDisplayText()}</span>
+                                                <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform ${isCompanyDropdownOpen ? 'rotate-180' : ''}`} />
+                                            </button>
+                                            {isCompanyDropdownOpen && (
+                                                <div
+                                                    className="absolute z-50 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
+                                                    onMouseLeave={() => {
+                                                        setIsCompanyDropdownOpen(false);
+                                                        setCompanySearch("");
+                                                    }}
+                                                >
+                                                    <div className="p-3 border-b border-neutral-100">
+                                                        <div className="relative">
+                                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
                                         <input
                                             type="text"
-                                            placeholder="Công ty khách hàng"
-                                            className="w-full pl-10 pr-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300"
-                                            value={filterCompany}
-                                            onChange={(e) => setFilterCompany(e.target.value)}
-                                        />
+                                                                value={companySearch}
+                                                                onChange={(e) => setCompanySearch(e.target.value)}
+                                                                placeholder="Tìm công ty..."
+                                                                className="w-full pl-9 pr-3 py-2 text-sm border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div className="max-h-56 overflow-y-auto">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setFilterCompany("");
+                                                                setIsCompanyDropdownOpen(false);
+                                                                setCompanySearch("");
+                                                            }}
+                                                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                                                                !filterCompany
+                                                                    ? 'bg-primary-50 text-primary-700'
+                                                                    : 'hover:bg-neutral-50 text-neutral-700'
+                                                            }`}
+                                                        >
+                                                            Tất cả công ty
+                                                        </button>
+                                                        {companies
+                                                            .filter((company) =>
+                                                                !companySearch || company.name.toLowerCase().includes(companySearch.toLowerCase())
+                                                            )
+                                                            .map((company) => (
+                                                                <button
+                                                                    type="button"
+                                                                    key={company.id}
+                                                                    onClick={() => {
+                                                                        setFilterCompany(company.name);
+                                                                        setIsCompanyDropdownOpen(false);
+                                                                        setCompanySearch("");
+                                                                    }}
+                                                                    className={`w-full text-left px-4 py-2.5 text-sm ${
+                                                                        filterCompany === company.name
+                                                                            ? 'bg-primary-50 text-primary-700'
+                                                                            : 'hover:bg-neutral-50 text-neutral-700'
+                                                                    }`}
+                                                                >
+                                                                    {company.name}
+                                                                </button>
+                                                            ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
+
+                                    {/* Project Dropdown */}
                                     <div className="relative">
-                                        <Layers className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
+                                        <label className="block text-sm font-medium text-neutral-700 mb-2">
+                                            Dự án
+                                        </label>
+                                        <div className="relative">
+                                            <Layers className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4 z-10" />
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsProjectDropdownOpen(!isProjectDropdownOpen)}
+                                                className="w-full flex items-center justify-between pl-10 pr-3 py-2 border border-neutral-200 rounded-lg bg-white text-left hover:border-primary-300 transition-colors"
+                                            >
+                                                <span className="text-sm text-neutral-700">{getProjectDisplayText()}</span>
+                                                <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform ${isProjectDropdownOpen ? 'rotate-180' : ''}`} />
+                                            </button>
+                                            {isProjectDropdownOpen && (
+                                                <div
+                                                    className="absolute z-50 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
+                                                    onMouseLeave={() => {
+                                                        setIsProjectDropdownOpen(false);
+                                                        setProjectSearch("");
+                                                    }}
+                                                >
+                                                    <div className="p-3 border-b border-neutral-100">
+                                                        <div className="relative">
+                                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
                                         <input
                                             type="text"
-                                            placeholder="Dự án"
-                                            className="w-full pl-10 pr-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300"
-                                            value={filterProject}
-                                            onChange={(e) => setFilterProject(e.target.value)}
-                                        />
+                                                                value={projectSearch}
+                                                                onChange={(e) => setProjectSearch(e.target.value)}
+                                                                placeholder="Tìm dự án..."
+                                                                className="w-full pl-9 pr-3 py-2 text-sm border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div className="max-h-56 overflow-y-auto">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setFilterProject("");
+                                                                setIsProjectDropdownOpen(false);
+                                                                setProjectSearch("");
+                                                            }}
+                                                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                                                                !filterProject
+                                                                    ? 'bg-primary-50 text-primary-700'
+                                                                    : 'hover:bg-neutral-50 text-neutral-700'
+                                                            }`}
+                                                        >
+                                                            Tất cả dự án
+                                                        </button>
+                                                        {projects
+                                                            .filter((project) =>
+                                                                !projectSearch || project.name.toLowerCase().includes(projectSearch.toLowerCase())
+                                                            )
+                                                            .map((project) => (
+                                                                <button
+                                                                    type="button"
+                                                                    key={project.id}
+                                                                    onClick={() => {
+                                                                        setFilterProject(project.name);
+                                                                        setIsProjectDropdownOpen(false);
+                                                                        setProjectSearch("");
+                                                                    }}
+                                                                    className={`w-full text-left px-4 py-2.5 text-sm ${
+                                                                        filterProject === project.name
+                                                                            ? 'bg-primary-50 text-primary-700'
+                                                                            : 'hover:bg-neutral-50 text-neutral-700'
+                                                                    }`}
+                                                                >
+                                                                    {project.name}
+                                                                </button>
+                                                            ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
+
+                                    {/* Position Dropdown */}
                                     <div className="relative">
-                                        <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
+                                        <label className="block text-sm font-medium text-neutral-700 mb-2">
+                                            Vị trí
+                                        </label>
+                                        <div className="relative">
+                                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4 z-10" />
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsPositionDropdownOpen(!isPositionDropdownOpen)}
+                                                className="w-full flex items-center justify-between pl-10 pr-3 py-2 border border-neutral-200 rounded-lg bg-white text-left hover:border-primary-300 transition-colors"
+                                            >
+                                                <span className="text-sm text-neutral-700">{getPositionDisplayText()}</span>
+                                                <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform ${isPositionDropdownOpen ? 'rotate-180' : ''}`} />
+                                            </button>
+                                            {isPositionDropdownOpen && (
+                                                <div
+                                                    className="absolute z-50 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
+                                                    onMouseLeave={() => {
+                                                        setIsPositionDropdownOpen(false);
+                                                        setPositionSearch("");
+                                                    }}
+                                                >
+                                                    <div className="p-3 border-b border-neutral-100">
+                                                        <div className="relative">
+                                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
                                         <input
                                             type="text"
-                                            placeholder="Vị trí"
-                                            className="w-full pl-10 pr-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300"
-                                            value={filterPosition}
-                                            onChange={(e) => setFilterPosition(e.target.value)}
-                                        />
+                                                                value={positionSearch}
+                                                                onChange={(e) => setPositionSearch(e.target.value)}
+                                                                placeholder="Tìm vị trí..."
+                                                                className="w-full pl-9 pr-3 py-2 text-sm border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div className="max-h-56 overflow-y-auto">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setFilterPosition("");
+                                                                setIsPositionDropdownOpen(false);
+                                                                setPositionSearch("");
+                                                            }}
+                                                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                                                                !filterPosition
+                                                                    ? 'bg-primary-50 text-primary-700'
+                                                                    : 'hover:bg-neutral-50 text-neutral-700'
+                                                            }`}
+                                                        >
+                                                            Tất cả vị trí
+                                                        </button>
+                                                        {positions
+                                                            .filter((position) =>
+                                                                !positionSearch || position.name.toLowerCase().includes(positionSearch.toLowerCase())
+                                                            )
+                                                            .map((position) => (
+                                                                <button
+                                                                    type="button"
+                                                                    key={position.id}
+                                                                    onClick={() => {
+                                                                        setFilterPosition(position.name);
+                                                                        setIsPositionDropdownOpen(false);
+                                                                        setPositionSearch("");
+                                                                    }}
+                                                                    className={`w-full text-left px-4 py-2.5 text-sm ${
+                                                                        filterPosition === position.name
+                                                                            ? 'bg-primary-50 text-primary-700'
+                                                                            : 'hover:bg-neutral-50 text-neutral-700'
+                                                                    }`}
+                                                                >
+                                                                    {position.name}
+                                                                </button>
+                                                            ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                    <select
-                                        value={filterStatus}
-                                        onChange={(e) => setFilterStatus(e.target.value)}
-                                        className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 bg-white"
-                                    >
-                                        <option value="">Tất cả trạng thái</option>
-                                        <option value="Pending">⏳ Chờ duyệt</option>
-                                        <option value="Approved">✅ Đã duyệt</option>
-                                        <option value="Closed">🔒 Đã đóng</option>
-                                        <option value="Rejected">❌ Từ chối</option>
-                                    </select>
+
+                                    {/* Status Dropdown */}
+                                    <div className="relative">
+                                        <label className="block text-sm font-medium text-neutral-700 mb-2">
+                                            Trạng thái
+                                        </label>
+                                        <div className="relative">
+                                            <Target className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4 z-10" />
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                                                className="w-full flex items-center justify-between pl-10 pr-3 py-2 border border-neutral-200 rounded-lg bg-white text-left hover:border-primary-300 transition-colors"
+                                            >
+                                                <span className="text-sm text-neutral-700">{getStatusDisplayText()}</span>
+                                                <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
+                                            </button>
+                                            {isStatusDropdownOpen && (
+                                                <div
+                                                    className="absolute z-50 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
+                                                    onMouseLeave={() => setIsStatusDropdownOpen(false)}
+                                                >
+                                                    <div className="max-h-56 overflow-y-auto">
+                                                        {statusOptions.map((opt) => (
                                     <button
-                                        onClick={handleResetFilters}
-                                        className="group flex items-center justify-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg px-4 py-2 transition-all duration-300 hover:scale-105 transform"
-                                    >
-                                        <span className="font-medium">Đặt lại</span>
+                                                                type="button"
+                                                                key={opt.value}
+                                                                onClick={() => {
+                                                                    setFilterStatus(opt.value);
+                                                                    setIsStatusDropdownOpen(false);
+                                                                }}
+                                                                className={`w-full text-left px-4 py-2.5 text-sm ${
+                                                                    filterStatus === opt.value
+                                                                        ? 'bg-primary-50 text-primary-700'
+                                                                        : 'hover:bg-neutral-50 text-neutral-700'
+                                                                }`}
+                                                            >
+                                                                {opt.label}
                                     </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -580,9 +894,15 @@ const stats = [
                                                 </div>
                                             </td>
                                             <td className="py-4 px-6">
-                                                <div className="font-semibold text-primary-700 group-hover:text-primary-800 transition-colors duration-300">
+                                                <Link
+                                                    to={`/ta/job-requests/${req.id}`}
+                                                    className="block"
+                                                    title={req.title || "(Chưa có tiêu đề)"}
+                                                >
+                                                    <div className="text-sm font-medium text-primary-700 hover:text-primary-800 transition-colors duration-300 line-clamp-3">
                                                     {req.title || "(Chưa có tiêu đề)"}
                                                 </div>
+                                                </Link>
                                             </td>
                                             <td className="py-4 px-6">
                                                 <div className="flex items-center gap-2">
@@ -605,13 +925,18 @@ const stats = [
                                             <td className="py-4 px-6 text-center">
                                                 <Link
                                                     to={`/ta/applications?jobRequestId=${req.id}`}
-                                                    className={`group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 hover:scale-105 transform ${req.applicationCount > 0
+                                                    className={`group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-300 hover:scale-105 transform ${
+                                                        req.applicationCount >= req.quantity
+                                                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                                            : req.applicationCount > 0
                                                             ? 'bg-primary-100 text-primary-700 hover:bg-primary-200'
                                                             : 'bg-neutral-100 text-neutral-500'
                                                         }`}
                                                 >
-                                                    <ClipboardList className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-                                                    <span>{req.applicationCount}</span>
+                                                    <ClipboardList className="w-3.5 h-3.5 group-hover:scale-110 transition-transform duration-300" />
+                                                    <span className="font-semibold">{req.applicationCount}</span>
+                                                    <span className="text-neutral-400">/</span>
+                                                    <span className="font-normal text-neutral-600">{req.quantity}</span>
                                                 </Link>
                                             </td>
                                             <td className="py-4 px-6 text-center">

@@ -57,8 +57,8 @@ export function SectionPagination({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            const newPage = currentPage + 1;
-            if (newPage <= totalPages) {
+            if (currentPage < totalPages) {
+              const newPage = currentPage + 1;
               onPageChange(newPage);
             }
           }}

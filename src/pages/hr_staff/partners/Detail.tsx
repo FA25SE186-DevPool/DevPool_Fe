@@ -108,7 +108,6 @@ export default function PartnerDetailPage() {
         const response = await partnerService.getDetailedById(Number(id));
         // Handle response structure: { success: true, data: {...} } or direct data
         const partnerData = response?.data || response;
-        console.log("🔍 Partner data from API:", partnerData);
         
         // Lấy thông tin cơ bản từ getAll để có code, taxCode, phone, partnerType (vì detailed API có thể thiếu)
         let basicPartnerInfo: any = null;
@@ -140,7 +139,6 @@ export default function PartnerDetailPage() {
             talents: partnerData.talents || partnerData.Talents || [],
             paymentPeriods: partnerData.paymentPeriods || partnerData.PaymentPeriods || [],
           };
-          console.log("✅ Mapped partner data:", mappedPartner);
           setPartner(mappedPartner);
           
           // Fetch talent details for each talent

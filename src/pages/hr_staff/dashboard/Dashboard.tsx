@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, Briefcase, Clock, Calendar, FileText, UserPlus, Building2, Target, Users, ClipboardList, Loader2, AlertCircle, BarChart3, Star, Activity } from 'lucide-react';
+import { TrendingUp, Briefcase, Clock, UserPlus, Building2, Target, Users, ClipboardList, Loader2, AlertCircle, BarChart3, Activity } from 'lucide-react';
 import {
   LineChart, Line,
   CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer
@@ -10,7 +10,7 @@ import Sidebar from '../../../components/common/Sidebar';
 import { sidebarItems } from '../../../components/sidebar/ta_staff';
 import { talentService, type Talent } from '../../../services/Talent';
 import { applyService, type Apply } from '../../../services/Apply';
-import { applyActivityService, type ApplyActivity, ApplyActivityType } from '../../../services/ApplyActivity';
+import { applyActivityService, type ApplyActivity } from '../../../services/ApplyActivity';
 import { jobRequestService, type JobRequest, JobRequestStatus } from '../../../services/JobRequest';
 import { talentCVService } from '../../../services/TalentCV';
 import { partnerService, type Partner } from '../../../services/Partner';
@@ -26,13 +26,6 @@ interface RecentApplication {
   jobTitle: string;
   status: string;
   createdAt: string;
-}
-
-interface RecentActivity {
-  type: string;
-  message: string;
-  time: string;
-  scheduledDate: string;
 }
 
 interface RecentJobRequest {
@@ -58,7 +51,6 @@ export default function HRDashboard() {
   const [jobRequests, setJobRequests] = useState<JobRequest[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [recentApplications, setRecentApplications] = useState<RecentApplication[]>([]);
-  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [recentJobRequests, setRecentJobRequests] = useState<RecentJobRequest[]>([]);
 
   // Talent Management Dashboard states
@@ -110,8 +102,9 @@ export default function HRDashboard() {
         setJobRequests(jobRequestsArray);
         setPartners(partnersArray);
 
-        // Get recent applications with talent names
+        // Get recent applications with talent names (only Submitted status)
         const recentApps = applicationsArray
+          .filter((app: Apply) => app.status === 'Submitted')
           .sort((a: Apply, b: Apply) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .slice(0, 5);
         const recentAppsWithDetails = await Promise.all(
@@ -144,41 +137,6 @@ export default function HRDashboard() {
         );
         setRecentApplications(recentAppsWithDetails);
 
-        // Get recent activities
-        const recentActivitiesData = activitiesArray
-          .filter((activity: ApplyActivity) => activity.scheduledDate) // Chỉ lấy những activity có scheduledDate
-          .sort((a: ApplyActivity, b: ApplyActivity) => {
-            // Sort by scheduledDate (newest first)
-            return new Date(b.scheduledDate!).getTime() - new Date(a.scheduledDate!).getTime();
-          })
-          .slice(0, 5)
-          .map((activity: ApplyActivity) => {
-            const activityTypeNames: Record<ApplyActivityType, string> = {
-              [ApplyActivityType.Online]: 'Hoạt động trực tuyến',
-              [ApplyActivityType.Offline]: 'Hoạt động trực tiếp'
-            };
-
-            // Map activityType to UI type string
-            const getActivityTypeString = (activityType: ApplyActivityType): string => {
-              switch (activityType) {
-                case ApplyActivityType.Online: return 'online';
-                case ApplyActivityType.Offline: return 'offline';
-                default: return 'online';
-              }
-            };
-
-            const activityDate = new Date(activity.scheduledDate!);
-            const timeAgo = getTimeAgo(activityDate);
-
-            return {
-              type: getActivityTypeString(activity.activityType),
-              message: `${activityTypeNames[activity.activityType] || 'Hoạt động'} được lên lịch`,
-              time: timeAgo,
-              scheduledDate: activity.scheduledDate!
-            };
-          });
-        setRecentActivities(recentActivitiesData);
-
         // Get recent job requests
         const companyDict: Record<number, ClientCompany> = {};
         clientCompaniesArray.forEach((c: ClientCompany) => (companyDict[c.id] = c));
@@ -187,6 +145,7 @@ export default function HRDashboard() {
         projectsArray.forEach((p: Project) => (projectDict[p.id] = p));
 
         const recentJobReqs = jobRequestsArray
+          .filter((jr: JobRequest) => jr.status === JobRequestStatus.Pending)
           .sort((a: JobRequest, b: JobRequest) => b.id - a.id)
           .slice(0, 5)
           .map((jr: JobRequest) => {
@@ -247,33 +206,17 @@ export default function HRDashboard() {
     }
   };
 
-  const getTimeAgo = (date: Date): string => {
-    const now = new Date();
-    const diffInMs = now.getTime() - date.getTime();
-    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
-    const diffInDays = Math.floor(diffInHours / 24);
-
-    if (diffInHours < 1) return 'Vừa xong';
-    if (diffInHours < 24) return `${diffInHours} giờ trước`;
-    if (diffInDays < 7) return `${diffInDays} ngày trước`;
-    return 'Hơn 1 tuần trước';
-  };
-
   // Calculate stats
   const totalTalents = talents.length;
   const totalApplications = applications.length;
   const totalJobRequests = jobRequests.length;
   const totalPartners = partners.length;
 
-  const hiredCount = applications.filter(app => app.status === 'Hired').length;
-
   // Job Requests stats
   const pendingJobRequests = jobRequests.filter(jr => jr.status === JobRequestStatus.Pending).length;
 
   // Applications by status
   const interviewingCount = applications.filter(app => app.status === 'Interviewing').length;
-  const rejectedCount = applications.filter(app => app.status === 'Rejected').length;
-  const withdrawnCount = applications.filter(app => app.status === 'Withdrawn').length;
 
   const stats = [
     {
@@ -282,7 +225,8 @@ export default function HRDashboard() {
       change: 'Tổng số trong hệ thống',
       trend: 'up',
       color: 'blue',
-      icon: Users
+      icon: Users,
+      route: '/ta/developers'
     },
     {
       title: 'Đối Tác',
@@ -290,7 +234,8 @@ export default function HRDashboard() {
       change: 'Tổng số trong hệ thống',
       trend: 'up',
       color: 'orange',
-      icon: Building2
+      icon: Building2,
+      route: '/ta/partners'
     },
     {
       title: 'Yêu Cầu Tuyển Dụng',
@@ -298,7 +243,8 @@ export default function HRDashboard() {
       change: `${pendingJobRequests} chờ duyệt`,
       trend: 'up',
       color: 'purple',
-      icon: Briefcase
+      icon: Briefcase,
+      route: '/ta/job-requests'
     },    
     {
       title: 'Hồ Sơ Ứng Tuyển',
@@ -306,7 +252,8 @@ export default function HRDashboard() {
       change: `${interviewingCount} đang phỏng vấn`,
       trend: 'up',
       color: 'green',
-      icon: ClipboardList
+      icon: ClipboardList,
+      route: '/ta/applications'
     },
   ];
 
@@ -351,7 +298,11 @@ export default function HRDashboard() {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-fade-in">
           {stats.map((stat, index) => (
-            <div key={index} className="group bg-white rounded-2xl shadow-soft hover:shadow-medium p-6 transition-all duration-300 transform hover:-translate-y-1 border border-neutral-100 hover:border-primary-200">
+            <div 
+              key={index} 
+              onClick={() => navigate(stat.route)}
+              className="group bg-white rounded-2xl shadow-soft hover:shadow-medium p-6 transition-all duration-300 transform hover:-translate-y-1 border border-neutral-100 hover:border-primary-200 cursor-pointer"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-neutral-600 group-hover:text-neutral-700 transition-colors duration-300">{stat.title}</p>
@@ -373,95 +324,68 @@ export default function HRDashboard() {
           ))}
         </div>
 
-        {/* Recent Job Requests */}
-        <div className="bg-white rounded-2xl shadow-soft hover:shadow-medium transition-all duration-300 border border-neutral-100 mb-8 animate-fade-in">
-          <div className="p-6 border-b border-neutral-200">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Yêu Cầu Tuyển Dụng Gần Đây</h2>
-              <button
-                onClick={() => navigate('/ta/job-requests')}
-                className="text-primary-600 hover:text-primary-800 text-sm font-medium transition-colors duration-300 hover:scale-105 transform"
-              >
-                Xem tất cả
-              </button>
-            </div>
-          </div>
-          <div className="p-6">
-            {recentJobRequests.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Target className="w-8 h-8 text-neutral-400" />
-                </div>
-                <p className="text-neutral-500 text-lg font-medium">Chưa có yêu cầu nào</p>
+        {/* Recent Job Requests and Applications */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Recent Job Requests */}
+          <div className="bg-white rounded-2xl shadow-soft hover:shadow-medium transition-all duration-300 border border-neutral-100 animate-fade-in">
+            <div className="p-6 border-b border-neutral-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">Yêu Cầu Tuyển Dụng Gần Đây</h2>
+                <button
+                  onClick={() => navigate('/ta/job-requests')}
+                  className="text-primary-600 hover:text-primary-800 text-sm font-medium transition-colors duration-300 hover:scale-105 transform"
+                >
+                  Xem tất cả
+                </button>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {recentJobRequests.map((jr) => (
-                  <div
-                    key={jr.id}
-                    onClick={() => navigate(`/ta/job-requests/${jr.id}`)}
-                    className="group flex items-center justify-between p-4 bg-gradient-to-r from-neutral-50 to-primary-50 rounded-xl hover:from-primary-50 hover:to-accent-50 transition-all duration-300 border border-neutral-200 hover:border-primary-300 cursor-pointer"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900 group-hover:text-primary-700 transition-colors duration-300">{jr.title}</h3>
-                      <div className="flex items-center space-x-4 mt-2 text-sm text-neutral-600 group-hover:text-neutral-700 transition-colors duration-300">
-                        <span className="flex items-center">
-                          <Building2 className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform duration-300" />
-                          {jr.companyName}
-                        </span>
-                        <span className="flex items-center">
-                          <Briefcase className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform duration-300" />
-                          {jr.quantity} vị trí
+            </div>
+            <div className="p-6">
+              {recentJobRequests.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Target className="w-8 h-8 text-neutral-400" />
+                  </div>
+                  <p className="text-neutral-500 text-lg font-medium">Chưa có yêu cầu nào</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentJobRequests.map((jr) => (
+                    <div
+                      key={jr.id}
+                      onClick={() => navigate(`/ta/job-requests/${jr.id}`)}
+                      className="group flex items-center justify-between p-4 bg-gradient-to-r from-neutral-50 to-primary-50 rounded-xl hover:from-primary-50 hover:to-accent-50 transition-all duration-300 border border-neutral-200 hover:border-primary-300 cursor-pointer"
+                    >
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900 group-hover:text-primary-700 transition-colors duration-300">{jr.title}</h3>
+                        <div className="flex items-center space-x-4 mt-2 text-sm text-neutral-600 group-hover:text-neutral-700 transition-colors duration-300">
+                          <span className="flex items-center">
+                            <Building2 className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform duration-300" />
+                            {jr.companyName}
+                          </span>
+                          <span className="flex items-center">
+                            <Briefcase className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform duration-300" />
+                            {jr.quantity} vị trí
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${jr.status === 'Chờ duyệt' ? 'bg-orange-100 text-orange-800' :
+                            jr.status === 'Đã duyệt' ? 'bg-green-100 text-green-800' :
+                              jr.status === 'Đã đóng' ? 'bg-gray-100 text-gray-800' :
+                                'bg-red-100 text-red-800'
+                          }`}>
+                          {jr.status}
                         </span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${jr.status === 'Chờ duyệt' ? 'bg-orange-100 text-orange-800' :
-                          jr.status === 'Đã duyệt' ? 'bg-green-100 text-green-800' :
-                            jr.status === 'Đã đóng' ? 'bg-gray-100 text-gray-800' :
-                              'bg-red-100 text-red-800'
-                        }`}>
-                        {jr.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Applications by Status */}
-        <div className="bg-white rounded-2xl shadow-soft hover:shadow-medium transition-all duration-300 border border-neutral-100 mb-8 animate-fade-in">
-          <div className="p-6 border-b border-neutral-200">
-            <h2 className="text-lg font-semibold text-gray-900">Thống Kê Ứng Tuyển Theo Trạng Thái</h2>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-blue-50 rounded-xl border border-blue-100">
-                <div className="text-2xl font-bold text-blue-700">{interviewingCount}</div>
-                <div className="text-sm text-blue-600 mt-1">Đang Phỏng Vấn</div>
-              </div>
-              <div className="text-center p-4 bg-gray-50 rounded-xl border border-gray-100">
-                <div className="text-2xl font-bold text-gray-700">{withdrawnCount}</div>
-                <div className="text-sm text-gray-600 mt-1">Đã Rút</div>
-              </div>
-              <div className="text-center p-4 bg-purple-50 rounded-xl border border-purple-100">
-                <div className="text-2xl font-bold text-purple-700">{hiredCount}</div>
-                <div className="text-sm text-purple-600 mt-1">Đã Tuyển</div>
-              </div>
-              <div className="text-center p-4 bg-red-50 rounded-xl border border-red-100">
-                <div className="text-2xl font-bold text-red-700">{rejectedCount}</div>
-                <div className="text-sm text-red-600 mt-1">Đã Từ Chối</div>
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* Recent Applications & Activities Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in mb-8">
           {/* Recent Applications */}
-          <div className="bg-white rounded-2xl shadow-soft hover:shadow-medium transition-all duration-300 border border-neutral-100">
+          <div className="bg-white rounded-2xl shadow-soft hover:shadow-medium transition-all duration-300 border border-neutral-100 animate-fade-in">
             <div className="p-6 border-b border-neutral-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">Ứng Tuyển Gần Đây</h2>
@@ -513,96 +437,8 @@ export default function HRDashboard() {
               )}
             </div>
           </div>
-
-          {/* Recent Activities */}
-          <div className="bg-white rounded-2xl shadow-soft hover:shadow-medium transition-all duration-300 border border-neutral-100">
-            <div className="p-6 border-b border-neutral-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">Hoạt Động Gần Đây</h2>
-                <button
-                  onClick={() => navigate('/ta/applications')}
-                  className="text-primary-600 hover:text-primary-800 text-sm font-medium transition-colors duration-300 hover:scale-105 transform"
-                >
-                  Xem tất cả
-                </button>
-              </div>
-            </div>
-            <div className="p-6">
-              {recentActivities.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Calendar className="w-8 h-8 text-neutral-400" />
-                  </div>
-                  <p className="text-neutral-500 text-lg font-medium">Chưa có hoạt động nào</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {recentActivities.map((activity, index) => (
-                    <div key={index} className="group flex space-x-3 hover:bg-neutral-50 p-2 rounded-lg transition-all duration-300">
-                      <div className="flex-shrink-0">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 group-hover:scale-110 ${activity.type === 'online'
-                            ? 'bg-primary-100 group-hover:bg-primary-200'
-                            : activity.type === 'offline'
-                              ? 'bg-secondary-100 group-hover:bg-secondary-200'
-                              : 'bg-neutral-100 group-hover:bg-neutral-200'
-                          }`}>
-                          {activity.type === 'online' && <Calendar className="w-4 h-4 text-primary-600" />}
-                          {activity.type === 'offline' && <Briefcase className="w-4 h-4 text-secondary-600" />}
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm text-gray-900 group-hover:text-primary-700 transition-colors duration-300">{activity.message}</p>
-                        <div className="flex items-center gap-3 mt-1">
-                          <p className="text-xs text-neutral-500 group-hover:text-neutral-600 transition-colors duration-300">
-                            {new Date(activity.scheduledDate).toLocaleDateString('vi-VN', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </p>
-                          <span className="text-xs text-neutral-400">•</span>
-                          <p className="text-xs text-neutral-500 group-hover:text-neutral-600 transition-colors duration-300">{activity.time}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="mt-8 animate-slide-up">
-          <div className="bg-white rounded-2xl shadow-soft hover:shadow-medium p-6 transition-all duration-300 border border-neutral-100">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Thao Tác Nhanh</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <button
-                onClick={() => navigate('/ta/developers/create')}
-                className="group flex items-center justify-center space-x-2 bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-3 rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105"
-              >
-                <UserPlus className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                <span>Thêm nhân sự mới</span>
-              </button>
-              <button
-                onClick={() => navigate('/ta/applications')}
-                className="group flex items-center justify-center space-x-2 bg-gradient-to-r from-secondary-600 to-secondary-700 text-white px-6 py-3 rounded-xl hover:from-secondary-700 hover:to-secondary-800 transition-all duration-300 shadow-soft hover:shadow-glow-green transform hover:scale-105"
-              >
-                <Calendar className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                <span>Xem Ứng Tuyển</span>
-              </button>
-              <button
-                onClick={() => navigate('/ta/job-requests')}
-                className="group flex items-center justify-center space-x-2 bg-gradient-to-r from-accent-600 to-accent-700 text-white px-6 py-3 rounded-xl hover:from-accent-700 hover:to-accent-800 transition-all duration-300 shadow-soft hover:shadow-glow-purple transform hover:scale-105"
-              >
-                <FileText className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                <span>Yêu Cầu Tuyển Dụng</span>
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     );
   };
@@ -659,10 +495,6 @@ export default function HRDashboard() {
 
     if (!talentManagementData) return null;
 
-    const formatPercentage = (value: number) => {
-      return `${value.toFixed(1)}%`;
-    };
-
     return (
       <div className="space-y-6">
         {/* Talent Overview Metrics */}
@@ -670,7 +502,7 @@ export default function HRDashboard() {
           <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Tổng Talents</p>
+                <p className="text-sm font-medium text-neutral-600">Tổng Nhân Sự</p>
                 <p className="text-3xl font-bold text-gray-900 mt-2">{talentManagementData.totalTalents}</p>
               </div>
               <Users className="w-8 h-8 text-primary-600" />
@@ -679,7 +511,7 @@ export default function HRDashboard() {
           <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Active Talents</p>
+                <p className="text-sm font-medium text-neutral-600">Đang hoạt động</p>
                 <p className="text-3xl font-bold text-green-600 mt-2">{talentManagementData.activeTalents}</p>
               </div>
               <Activity className="w-8 h-8 text-green-600" />
@@ -688,7 +520,7 @@ export default function HRDashboard() {
           <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Available Talents</p>
+                <p className="text-sm font-medium text-neutral-600">Sẵn sàng</p>
                 <p className="text-3xl font-bold text-blue-600 mt-2">{talentManagementData.availableTalents}</p>
               </div>
               <UserPlus className="w-8 h-8 text-blue-600" />
@@ -697,35 +529,11 @@ export default function HRDashboard() {
           <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Onboarding</p>
+                <p className="text-sm font-medium text-neutral-600">Đang Tuyển Dụng</p>
                 <p className="text-3xl font-bold text-amber-600 mt-2">{talentManagementData.onboardingTalents}</p>
               </div>
               <Clock className="w-8 h-8 text-amber-600" />
             </div>
-          </div>
-        </div>
-
-        {/* Assignment Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Total Assignments</p>
-            <p className="text-2xl font-bold text-gray-900 mt-2">{talentManagementData.totalAssignments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Active</p>
-            <p className="text-2xl font-bold text-green-600 mt-2">{talentManagementData.activeAssignments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Draft</p>
-            <p className="text-2xl font-bold text-gray-600 mt-2">{talentManagementData.draftAssignments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Completed</p>
-            <p className="text-2xl font-bold text-blue-600 mt-2">{talentManagementData.completedAssignments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Utilization Rate</p>
-            <p className="text-2xl font-bold text-purple-600 mt-2">{formatPercentage(talentManagementData.averageUtilizationRate)}</p>
           </div>
         </div>
 
@@ -748,123 +556,6 @@ export default function HRDashboard() {
           </div>
         )}
 
-        {/* Top Performing Talents */}
-        {talentManagementData.topTalents && talentManagementData.topTalents.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-soft p-6 mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Top Performing Talents</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-neutral-200">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Tên Talent</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Total Assignments</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Active</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Completed</th>
-                    {talentManagementData.topTalents.some(t => t.averageRating > 0) && (
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Rating</th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {talentManagementData.topTalents.slice(0, 10).map((talent) => (
-                    <tr key={talent.talentId} className="border-b border-neutral-100 hover:bg-gray-50">
-                      <td className="py-3 px-4">
-                        <p className="font-medium text-gray-900">{talent.talentName}</p>
-                      </td>
-                      <td className="py-3 px-4">
-                        <p className="text-sm text-neutral-600">{talent.totalAssignments}</p>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                          {talent.activeAssignments}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                          {talent.completedAssignments}
-                        </span>
-                      </td>
-                      {talentManagementData.topTalents.some(t => t.averageRating > 0) && (
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-1">
-                            <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                            <span className="text-sm font-medium">{talent.averageRating.toFixed(1)}</span>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* Talent Retention & Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Talent Retention</h3>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-neutral-600">Retention Rate</p>
-                <p className="text-3xl font-bold text-primary-600 mt-1">{formatPercentage(talentManagementData.retentionRate)}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-neutral-600">Talents tham gia tháng này</p>
-                  <p className="text-xl font-semibold text-green-600 mt-1">+{talentManagementData.talentsJoiningThisMonth}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-neutral-600">Talents rời đi tháng này</p>
-                  <p className="text-xl font-semibold text-red-600 mt-1">-{talentManagementData.talentsLeavingThisMonth}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Assignment Duration</h3>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-neutral-600">Average Duration</p>
-                <p className="text-3xl font-bold text-blue-600 mt-1">{Math.round(talentManagementData.averageAssignmentDuration)} ngày</p>
-              </div>
-              {talentManagementData.assignmentDurationDistribution && talentManagementData.assignmentDurationDistribution.length > 0 && (
-                <div className="space-y-2">
-                  {talentManagementData.assignmentDurationDistribution.slice(0, 4).map((dist, idx) => (
-                    <div key={idx} className="flex items-center justify-between">
-                      <span className="text-sm text-neutral-600">{dist.durationRange}</span>
-                      <span className="text-sm font-medium text-gray-900">{dist.assignmentCount} ({formatPercentage(dist.percentage)})</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Top Skills */}
-        {talentManagementData.topSkills && talentManagementData.topSkills.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Top Skills</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {talentManagementData.topSkills.slice(0, 9).map((skill) => (
-                <div key={skill.skillId} className="p-4 bg-gray-50 rounded-lg border border-neutral-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium text-gray-900">{skill.skillName}</p>
-                    <span className="text-sm font-semibold text-primary-600">{skill.talentCount}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-primary-600 h-2 rounded-full"
-                      style={{ width: `${skill.percentage}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-neutral-500 mt-1">{formatPercentage(skill.percentage)}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     );
   };
@@ -915,7 +606,7 @@ export default function HRDashboard() {
                   : 'border-transparent text-neutral-600 hover:text-neutral-900'
               }`}
             >
-              Talent Management
+              Quản Lý Nhân Sự
             </button>
           </div>
         </div>

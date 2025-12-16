@@ -1,7 +1,8 @@
 import { Plus, Trash2, Target, X, Save, Search, Filter, ChevronDown } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Button } from '../../ui/button';
 import { SectionPagination } from './SectionPagination';
+import { TalentJobRoleLevelEditModal } from './TalentJobRoleLevelEditModal';
 import { type TalentJobRoleLevel } from '../../../services/TalentJobRoleLevel';
 import { type TalentJobRoleLevelCreateModel } from '../../../services/Talent';
 import { type JobRole } from '../../../services/JobRole';
@@ -20,6 +21,7 @@ interface TalentDetailJobRoleLevelsSectionProps {
   // Lookup data
   jobRoles: JobRole[];
   lookupJobRoleLevelsForTalent: JobRoleLevel[];
+  talentCVs?: Array<{ jobRoleLevelId?: number }>; // CVs để kiểm tra xem có vị trí mới không
 
   // Inline form
   showInlineForm: boolean;
@@ -85,6 +87,9 @@ interface TalentDetailJobRoleLevelsSectionProps {
 
   // Helpers
   getLevelText: (level: number) => string;
+
+  // Refresh callback
+  onRefreshJobRoleLevels?: () => void;
 }
 
 /**
@@ -130,8 +135,11 @@ export function TalentDetailJobRoleLevelsSection({
   onQuickCreateUnmatchedJobRoleLevel,
   canEdit,
   getLevelText,
+  onRefreshJobRoleLevels,
 }: TalentDetailJobRoleLevelsSectionProps) {
-  const navigate = useNavigate();
+  // Modal states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingJobRoleLevelId, setEditingJobRoleLevelId] = useState<number | null>(null);
 
   // Get unique names from jobRoleLevels, filtered by jobRole if needed
   const filteredByJobRole = selectedJobRoleFilterId
@@ -154,6 +162,10 @@ export function TalentDetailJobRoleLevelsSection({
 
   // Get selected job role level IDs (excluding current form)
   const selectedJobRoleLevelIds = jobRoleLevels.map((jrl) => jrl.jobRoleLevelId).filter((id) => id > 0);
+  
+  // Kiểm tra xem có vị trí nào trong CVs nhưng chưa được tạo trong jobRoleLevels không
+  // Sử dụng matchedJobRoleLevelsNotInProfile từ CV Analysis
+  const hasNewPositionFromCVs = matchedJobRoleLevelsNotInProfile && matchedJobRoleLevelsNotInProfile.length > 0;
   
   // Get selected position names (for checking if a position name is already selected)
   const selectedPositionNames = Array.from(
@@ -237,18 +249,58 @@ export function TalentDetailJobRoleLevelsSection({
         </div>
       )}
 
-      {/* Inline JobRoleLevel Form */}
-      {showInlineForm && (
-        <div className="bg-white rounded-xl border-2 border-warning-200 p-6 mb-6 shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Thêm vị trí mới</h3>
-            <button
-              onClick={onCloseForm}
-              className="text-neutral-400 hover:text-neutral-600 transition-colors p-1 rounded hover:bg-neutral-100"
+      {/* Header with actions */}
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-900">Vị trí</h3>
+        <div className="flex gap-2">
+          {!showInlineForm && hasNewPositionFromCVs && (
+            <Button
+              onClick={onOpenForm}
+              disabled={isSubmitting || !canEdit}
+              className={`group flex items-center justify-center bg-gradient-to-r from-warning-600 to-warning-700 hover:from-warning-700 hover:to-warning-800 text-white px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${
+                isSubmitting || !canEdit ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              title={
+                !canEdit
+                  ? 'Bạn không có quyền chỉnh sửa. Chỉ TA đang quản lý nhân sự này mới được chỉnh sửa.'
+                  : isSubmitting
+                    ? 'Đang xử lý...'
+                    : 'Thêm vị trí'
+              }
             >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+              <Plus className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+            </Button>
+          )}
+          {selectedJobRoleLevels.length > 0 && (
+            <Button
+              onClick={onDelete}
+              disabled={!canEdit}
+              className={`group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white ${
+                !canEdit ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              title={!canEdit ? 'Bạn không có quyền xóa. Chỉ TA đang quản lý nhân sự này mới được xóa.' : ''}
+            >
+              <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+              Xóa vị trí ({selectedJobRoleLevels.length})
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Form and List in same row */}
+      <div className={`grid gap-6 ${showInlineForm ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+        {/* Inline JobRoleLevel Form */}
+        {showInlineForm && (
+          <div className="bg-white rounded-xl border-2 border-warning-200 p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Thêm vị trí mới</h3>
+              <button
+                onClick={onCloseForm}
+                className="text-neutral-400 hover:text-neutral-600 transition-colors p-1 rounded hover:bg-neutral-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           <div className="space-y-4">
             {/* Job Role Filter */}
             {jobRoles.length > 0 && (
@@ -271,7 +323,7 @@ export function TalentDetailJobRoleLevelsSection({
                   </button>
                   {isJobRoleFilterDropdownOpen && (
                     <div
-                      className="absolute z-30 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl"
+                      className="absolute bottom-full left-0 right-0 z-30 mb-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl"
                       onMouseLeave={() => {
                         setIsJobRoleFilterDropdownOpen(false);
                         setJobRoleFilterSearch('');
@@ -360,7 +412,7 @@ export function TalentDetailJobRoleLevelsSection({
                   </button>
                   {isJobRoleLevelNameDropdownOpen && (
                     <div
-                      className="absolute z-[60] mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl"
+                      className="absolute bottom-full left-0 right-0 z-[60] mb-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl"
                       onMouseLeave={() => {
                         setTimeout(() => setIsJobRoleLevelNameDropdownOpen(false), 200);
                         setJobRoleLevelNameSearch('');
@@ -551,51 +603,14 @@ export function TalentDetailJobRoleLevelsSection({
               </Button>
             </div>
           </div>
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* Header with actions */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Vị trí</h3>
-        <div className="flex gap-2">
-          {!showInlineForm && (
-            <Button
-              onClick={onOpenForm}
-              disabled={isSubmitting || !canEdit}
-              className={`group flex items-center justify-center bg-gradient-to-r from-warning-600 to-warning-700 hover:from-warning-700 hover:to-warning-800 text-white px-3 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${
-                isSubmitting || !canEdit ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-              title={
-                !canEdit
-                  ? 'Bạn không có quyền chỉnh sửa. Chỉ TA đang quản lý nhân sự này mới được chỉnh sửa.'
-                  : isSubmitting
-                    ? 'Đang xử lý...'
-                    : 'Thêm vị trí'
-              }
-            >
-              <Plus className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-            </Button>
-          )}
-          {selectedJobRoleLevels.length > 0 && (
-            <Button
-              onClick={onDelete}
-              disabled={!canEdit}
-              className={`group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white ${
-                !canEdit ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-              title={!canEdit ? 'Bạn không có quyền xóa. Chỉ TA đang quản lý nhân sự này mới được xóa.' : ''}
-            >
-              <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-              Xóa vị trí ({selectedJobRoleLevels.length})
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Job Role Levels List */}
-      {jobRoleLevels.length > 0 ? (
-        <>
-          <div className="overflow-x-auto">
+          {/* Job Role Levels List */}
+        <div className={showInlineForm ? '' : 'col-span-1'}>
+          {jobRoleLevels.length > 0 ? (
+            <>
+              <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-neutral-50 border-b border-neutral-200">
@@ -634,7 +649,10 @@ export function TalentDetailJobRoleLevelsSection({
                     <tr
                       key={jrl.id}
                       className="hover:bg-warning-50 transition-colors duration-200 cursor-pointer"
-                      onClick={() => navigate(`/ta/talent-job-role-levels/edit/${jrl.id}`)}
+                      onClick={() => {
+                        setEditingJobRoleLevelId(jrl.id);
+                        setIsEditModalOpen(true);
+                      }}
                     >
                       <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <input
@@ -677,7 +695,24 @@ export function TalentDetailJobRoleLevelsSection({
           <p className="text-neutral-500 text-lg font-medium">Chưa có thông tin vị trí</p>
           <p className="text-neutral-400 text-sm mt-1">Nhân sự chưa cập nhật vị trí làm việc</p>
         </div>
-      )}
+          )}
+        </div>
+
+        {/* Edit Modal */}
+        <TalentJobRoleLevelEditModal
+          isOpen={isEditModalOpen}
+          talentJobRoleLevelId={editingJobRoleLevelId}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingJobRoleLevelId(null);
+          }}
+          onSuccess={() => {
+            if (onRefreshJobRoleLevels) {
+              onRefreshJobRoleLevels();
+            }
+          }}
+        />
+      </div>
     </div>
   );
 }

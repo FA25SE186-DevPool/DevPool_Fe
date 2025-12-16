@@ -69,10 +69,30 @@ export default function TalentProjectEditPage() {
             talentId: talentId, 
             excludeDeleted: true 
           });
-          setTalentCVs(cvs);
+          // Đảm bảo cvs luôn là array - xử lý nhiều format response
+          let cvsArray: TalentCV[] = [];
+          if (Array.isArray(cvs)) {
+            cvsArray = cvs;
+          } else if (cvs && typeof cvs === 'object') {
+            // Xử lý trường hợp response có dạng { data: [...] } hoặc { items: [...] }
+            if (Array.isArray((cvs as any).data)) {
+              cvsArray = (cvs as any).data;
+            } else if (Array.isArray((cvs as any).items)) {
+              cvsArray = (cvs as any).items;
+            } else if (Array.isArray((cvs as any).Data)) {
+              cvsArray = (cvs as any).Data;
+            } else if (Array.isArray((cvs as any).Items)) {
+              cvsArray = (cvs as any).Items;
+            }
+          }
+          console.log("📋 Loaded CVs:", cvsArray.length, "items");
+          setTalentCVs(cvsArray);
+        } else {
+          setTalentCVs([]);
         }
       } catch (err) {
         console.error("❌ Lỗi tải danh sách CV:", err);
+        setTalentCVs([]);
       }
     };
     fetchCVs();
@@ -123,7 +143,7 @@ export default function TalentProjectEditPage() {
       await talentProjectService.update(Number(id), formData);
 
       alert("✅ Cập nhật dự án nhân sự thành công!");
-      navigate(`/ta/developers/${talentId}`);
+      navigate(`/ta/developers/${talentId}`, { state: { tab: 'projects' } });
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật:", err);
       alert("Không thể cập nhật dự án nhân sự!");
@@ -204,12 +224,16 @@ export default function TalentProjectEditPage() {
                     required
                   >
                     <option value="0">-- Chọn CV --</option>
-                    {talentCVs.map(cv => (
-                      <option key={cv.id} value={cv.id}>v{cv.version}</option>
-                    ))}
+                    {Array.isArray(talentCVs) && talentCVs.length > 0 ? (
+                      talentCVs.map(cv => (
+                        <option key={cv.id} value={cv.id}>v{cv.version}</option>
+                      ))
+                    ) : (
+                      <option disabled>Không có CV nào</option>
+                    )}
                   </select>
                 </div>
-                {formData.talentCVId > 0 && (
+                {formData.talentCVId > 0 && Array.isArray(talentCVs) && (
                   <p className="text-xs text-neutral-500 mt-2">
                     Tóm tắt: <span className="font-medium text-neutral-700">
                       {talentCVs.find(cv => cv.id === formData.talentCVId)?.summary || "Không có tóm tắt"}

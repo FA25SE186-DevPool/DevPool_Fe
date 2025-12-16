@@ -341,7 +341,7 @@ function TalentCertificateEditPage() {
       });
 
       alert("✅ Cập nhật chứng chỉ thành công!");
-      navigate(`/ta/developers/${talentId}`);
+      navigate(`/ta/developers/${talentId}`, { state: { tab: 'certificates' } });
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật:", err);
       alert("Không thể cập nhật chứng chỉ!");

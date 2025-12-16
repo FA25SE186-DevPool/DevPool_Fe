@@ -226,7 +226,7 @@ export default function TalentAvailableTimeEditPage() {
       await talentAvailableTimeService.update(Number(id), updateData);
 
       alert("✅ Cập nhật thời gian có sẵn thành công!");
-      navigate(`/ta/developers/${talentId}`);
+      navigate(`/ta/developers/${talentId}`, { state: { tab: 'availableTimes' } });
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật:", err);
       alert("Không thể cập nhật thời gian có sẵn!");

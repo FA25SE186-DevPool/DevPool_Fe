@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Users, Briefcase, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Users, Briefcase, MapPin, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 import Sidebar from "../../../components/common/Sidebar";
-import Breadcrumb from "../../../components/common/Breadcrumb";
 import { sidebarItems } from "../../../components/sidebar/ta_staff";
 import { Button } from "../../../components/ui/button";
 import { useTalents } from "../../../hooks/useTalents";
@@ -33,6 +32,7 @@ export default function ListDev() {
 
   // ========== State cho UI ==========
   const [showFilters, setShowFilters] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [isCreatingAccount, setIsCreatingAccount] = useState<number | null>(null);
@@ -204,13 +204,21 @@ export default function ListDev() {
       <div className="flex-1 p-8">
         {/* Header */}
         <div className="mb-8 animate-slide-up">
-          <Breadcrumb items={[{ label: "Danh sách nhân sự" }]} />
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Danh Sách Nhân Sự</h1>
-              <p className="text-neutral-600 mt-1">
-                Quản lý và theo dõi developer trong hệ thống DevPool
-              </p>
+              <div className="flex items-center gap-3 mt-1">
+                <p className="text-neutral-600">
+                  Quản lý và theo dõi developer trong hệ thống DevPool
+                </p>
+                <button
+                  onClick={() => setShowStats(!showStats)}
+                  className="flex items-center justify-center w-7 h-7 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors duration-300"
+                  title={showStats ? "Ẩn thống kê" : "Hiện thống kê"}
+                >
+                  {showStats ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <Link to="/ta/developers/create">
               <Button className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105">
@@ -254,22 +262,24 @@ export default function ListDev() {
         </div>
 
         {/* Stats - Component tái sử dụng */}
-        <TalentStats
-          stats={stats}
-          startIndex={statsStartIndex}
-          pageSize={statsPageSize}
-          onPrev={handlePrevStats}
-          onNext={handleNextStats}
-          onStatClick={(status) => {
-            if (status === undefined) {
-              // Reset filter nếu click vào "Tổng nhân sự"
-              resetFilters();
-            } else {
-              // Set filter theo status
-              setStatus(status);
-            }
-          }}
-        />
+        {showStats && (
+          <TalentStats
+            stats={stats}
+            startIndex={statsStartIndex}
+            pageSize={statsPageSize}
+            onPrev={handlePrevStats}
+            onNext={handleNextStats}
+            onStatClick={(status) => {
+              if (status === undefined) {
+                // Reset filter nếu click vào "Tổng nhân sự"
+                resetFilters();
+              } else {
+                // Set filter theo status
+                setStatus(status);
+              }
+            }}
+          />
+        )}
 
         {/* Filters - Component tái sử dụng */}
         <TalentFilters
@@ -298,25 +308,31 @@ export default function ListDev() {
               <div className="flex items-center gap-4">
                 {filteredTalents.length > 0 ? (
                   <>
-                    <Button
-                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                       disabled={currentPage === 1}
-                      variant="outline"
-                      className="flex items-center justify-center w-8 h-8 p-0"
+                      className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 ${currentPage === 1
+                          ? 'text-neutral-300 cursor-not-allowed'
+                          : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
+                        }`}
                     >
                       <ChevronLeft className="w-5 h-5" />
-                    </Button>
+                    </button>
+
                     <span className="text-sm text-neutral-600">
                       {startItem}-{endItem} trong số {filteredTalents.length}
                     </span>
-                    <Button
-                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                       disabled={currentPage === totalPages}
-                      variant="outline"
-                      className="flex items-center justify-center w-8 h-8 p-0"
+                      className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 ${currentPage === totalPages
+                          ? 'text-neutral-300 cursor-not-allowed'
+                          : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
+                        }`}
                     >
                       <ChevronRight className="w-5 h-5" />
-                    </Button>
+                    </button>
                   </>
                 ) : (
                   <span className="text-sm text-neutral-600">Tổng: 0 nhân sự</span>

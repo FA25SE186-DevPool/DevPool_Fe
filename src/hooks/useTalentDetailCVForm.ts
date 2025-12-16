@@ -11,7 +11,7 @@ import { storage } from '../config/firebase';
 import { talentCVService, type TalentCV } from '../services/TalentCV';
 import { type TalentCVCreate, type CVAnalysisComparisonResponse } from '../services/TalentCV';
 import { uploadTalentCV } from '../utils/firebaseStorage';
-import { saveFileToIndexedDB, deleteFileFromIndexedDB } from '../utils/indexedDBStorage';
+import { saveFileToIndexedDB, deleteFileFromIndexedDB, getFileFromIndexedDB } from '../utils/indexedDBStorage';
 import { type JobRoleLevel } from '../services/JobRoleLevel';
 import { normalizeJobRoleKey } from '../utils/talentHelpers';
 
@@ -48,8 +48,11 @@ const validateCVVersion = (version: number, jobRoleLevelId: number, existingCVsL
     return "";
   }
   
+  // Đảm bảo existingCVsList là một array
+  const cvList = Array.isArray(existingCVsList) ? existingCVsList : [];
+  
   // Nếu chưa có CV nào cho jobRoleLevelId này, chỉ cho phép version = 1
-  if (existingCVsList.length === 0) {
+  if (cvList.length === 0) {
     if (version !== 1) {
       return "Chưa có CV nào cho vị trí công việc này. Vui lòng tạo version 1 trước.";
     }
@@ -57,10 +60,10 @@ const validateCVVersion = (version: number, jobRoleLevelId: number, existingCVsL
   }
   
   // Tìm version cao nhất trong danh sách CV hiện có
-  const maxVersion = Math.max(...existingCVsList.map((cv: TalentCV) => cv.version || 0));
+  const maxVersion = Math.max(...cvList.map((cv: TalentCV) => cv.version || 0));
   
   // Kiểm tra trùng với các CV cùng jobRoleLevelId
-  const duplicateCV = existingCVsList.find((cv: TalentCV) => cv.version === version);
+  const duplicateCV = cvList.find((cv: TalentCV) => cv.version === version);
   
   if (duplicateCV) {
     const suggestedVersion = maxVersion + 1;
@@ -138,6 +141,7 @@ export function useTalentDetailCVForm({
   
   // Validation states
   const [existingCVsForValidation, setExistingCVsForValidation] = useState<TalentCV[]>([]);
+  const [isLoadingCVsForValidation, setIsLoadingCVsForValidation] = useState(false);
 
   // Storage keys
   const CV_FORM_STORAGE_KEY = id ? `talent-detail-cv-form-${id}` : null;
@@ -346,16 +350,28 @@ export function useTalentDetailCVForm({
         setCvVersionError("");
         return;
       }
+      setIsLoadingCVsForValidation(true);
       try {
-        const cvs = await talentCVService.getAll({ 
+        const cvsResponse = await talentCVService.getAll({ 
           talentId: Number(id), 
           jobRoleLevelId: inlineCVForm.jobRoleLevelId,
           excludeDeleted: true 
         });
-        setExistingCVsForValidation(cvs || []);
+        // Normalize response to array
+        const cvs = Array.isArray(cvsResponse) 
+          ? cvsResponse 
+          : (Array.isArray(cvsResponse?.items) 
+            ? cvsResponse.items 
+            : (Array.isArray(cvsResponse?.data) 
+              ? cvsResponse.data 
+              : []));
+        console.log(`🔍 Fetch CVs for validation - jobRoleLevelId: ${inlineCVForm.jobRoleLevelId}, count: ${cvs.length}`, cvs);
+        setExistingCVsForValidation(cvs);
       } catch (error) {
         console.error("❌ Error loading CVs for validation", error);
         setExistingCVsForValidation([]);
+      } finally {
+        setIsLoadingCVsForValidation(false);
       }
     };
     fetchCVsForValidation();
@@ -363,13 +379,18 @@ export function useTalentDetailCVForm({
 
   // Auto-set version and validate when existingCVsForValidation changes
   useEffect(() => {
+    // Không validate khi đang loading CVs
+    if (isLoadingCVsForValidation) {
+      return;
+    }
+    
     const jobRoleLevelId = inlineCVForm.jobRoleLevelId || 0;
     if (jobRoleLevelId > 0 && existingCVsForValidation.length === 0) {
       // Chưa có CV nào cho jobRoleLevelId này - chỉ cho phép version 1
       if (inlineCVForm.version !== 1) {
         setInlineCVForm(prev => ({ ...prev, version: 1 }));
       }
-      setCvVersionError("");
+      setCvVersionError("Chưa có CV nào cho vị trí công việc này. Vui lòng tạo version 1 trước.");
     } else if (inlineCVForm.version && inlineCVForm.version > 0 && jobRoleLevelId > 0 && existingCVsForValidation.length > 0) {
       // Đã có CV - validate version
       const error = validateCVVersion(inlineCVForm.version, jobRoleLevelId, existingCVsForValidation);
@@ -378,7 +399,87 @@ export function useTalentDetailCVForm({
       // Chưa chọn jobRoleLevelId - clear error
       setCvVersionError("");
     }
-  }, [existingCVsForValidation, inlineCVForm.jobRoleLevelId, inlineCVForm.version, setInlineCVForm, setCvVersionError]);
+  }, [existingCVsForValidation, inlineCVForm.jobRoleLevelId, inlineCVForm.version, isLoadingCVsForValidation, setInlineCVForm, setCvVersionError]);
+
+  // Lưu form state vào storage khi form thay đổi hoặc showCVFullForm thay đổi
+  useEffect(() => {
+    if (!CV_FORM_STORAGE_KEY) return;
+    
+    // Chỉ lưu khi form đã được mở (showCVFullForm = true) hoặc có dữ liệu trong form
+    if (showCVFullForm || (inlineCVForm.jobRoleLevelId && inlineCVForm.jobRoleLevelId > 0) || inlineCVForm.summary) {
+      try {
+        const rememberMe = localStorage.getItem('remember_me') === 'true';
+        const storage = rememberMe ? localStorage : sessionStorage;
+        const formDataToSave = {
+          inlineCVForm: {
+            jobRoleLevelId: inlineCVForm.jobRoleLevelId || 0,
+            version: inlineCVForm.version || 1,
+            cvFileUrl: inlineCVForm.cvFileUrl || '',
+            summary: inlineCVForm.summary || '',
+            isGeneratedFromTemplate: inlineCVForm.isGeneratedFromTemplate || false,
+            sourceTemplateId: inlineCVForm.sourceTemplateId,
+            generatedForJobRequestId: inlineCVForm.generatedForJobRequestId,
+          },
+          showCVFullForm,
+          // Không lưu cvPreviewUrl vì là blob URL, sẽ được restore từ file
+        };
+        storage.setItem(CV_FORM_STORAGE_KEY, JSON.stringify(formDataToSave));
+      } catch (error) {
+        console.warn("⚠️ Không thể lưu form state:", error);
+      }
+    }
+  }, [inlineCVForm, showCVFullForm, CV_FORM_STORAGE_KEY]);
+
+  // Restore form state từ storage khi component mount
+  useEffect(() => {
+    if (!CV_FORM_STORAGE_KEY) return;
+    
+    try {
+      const rememberMe = localStorage.getItem('remember_me') === 'true';
+      const storage = rememberMe ? localStorage : sessionStorage;
+      const saved = storage.getItem(CV_FORM_STORAGE_KEY);
+      if (!saved) return;
+      
+      const parsed = JSON.parse(saved) as {
+        inlineCVForm?: Partial<TalentCVCreate>;
+        showCVFullForm?: boolean;
+      };
+      
+      if (parsed.inlineCVForm) {
+        setInlineCVForm(prev => ({ ...prev, ...parsed.inlineCVForm }));
+      }
+      
+      if (parsed.showCVFullForm) {
+        setShowCVFullForm(true);
+      }
+    } catch (error) {
+      console.warn("⚠️ Không thể khôi phục form state:", error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [CV_FORM_STORAGE_KEY]);
+
+  // Restore CV file từ IndexedDB khi form được restore
+  useEffect(() => {
+    if (!CV_FILE_STORAGE_KEY || !showCVFullForm) return;
+    
+    const restoreFile = async () => {
+      try {
+        const file = await getFileFromIndexedDB(CV_FILE_STORAGE_KEY);
+        if (file) {
+          setSelectedCVFile(file);
+          const url = URL.createObjectURL(file);
+          setCvPreviewUrl(url);
+        }
+      } catch (error) {
+        console.warn("⚠️ Không thể khôi phục file từ IndexedDB:", error);
+      }
+    };
+    
+    // Chỉ restore file nếu chưa có file được chọn
+    if (!selectedCVFile) {
+      restoreFile();
+    }
+  }, [CV_FILE_STORAGE_KEY, showCVFullForm, selectedCVFile]);
 
   // Handle confirm inline CV analysis
   const handleConfirmInlineCVAnalysis = useCallback(() => {
@@ -510,13 +611,15 @@ export function useTalentDetailCVForm({
       }
     }
     
-    // Đóng modal và hiện form đầy đủ - KHÔNG đóng form, giữ nguyên để user có thể xem lại
-    // Giữ file đã chọn (selectedCVFile và cvPreviewUrl) - không cần upload lên Firebase ngay
+    // Đóng modal và hiện form đầy đủ - GIỮ NGUYÊN form để user có thể xem lại và chỉnh sửa
+    // Form sẽ chỉ mất khi:
+    // 1. Thêm CV thành công (trong handleSubmitInlineCV)
+    // 2. Hủy phân tích (trong handleCancelInlineCVAnalysis)
     setShowInlineCVAnalysisModal(false);
     setShowCVFullForm(true);
     
     // Giữ nguyên tab CV, không tự động chuyển tab
-    alert("✅ Đã áp dụng kết quả phân tích! Form tạo CV đã được tự động điền. Vui lòng xem các gợi ý ở các tab tương ứng.");
+    // Không hiển thị alert để không làm gián đoạn user
   }, [
     inlineCVAnalysisResult,
     jobRoleLevelSystemMap,
@@ -528,20 +631,69 @@ export function useTalentDetailCVForm({
   ]);
 
   // Handle cancel inline CV analysis
-  const handleCancelInlineCVAnalysis = useCallback(() => {
+  const handleCancelInlineCVAnalysis = useCallback(async () => {
     // Đóng modal
     setShowInlineCVAnalysisModal(false);
     // Xóa kết quả phân tích
     setInlineCVAnalysisResult(null);
-    // Có thể xóa file CV đã chọn nếu user muốn
-    // Nhưng để giữ file để user có thể phân tích lại sau
-  }, []);
+    // Đóng form và reset tất cả dữ liệu
+    setShowCVFullForm(false);
+    setSelectedCVFile(null);
+    setCvPreviewUrl(null);
+    if (cvPreviewUrl) {
+      URL.revokeObjectURL(cvPreviewUrl);
+    }
+    setExtractingCV(false);
+    setUploadingCV(false);
+    setCvUploadProgress(0);
+    setIsCVUploadedFromFirebase(false);
+    setUploadedCVUrl(null);
+    setCvFormErrors({});
+    setCvVersionError("");
+    setExistingCVsForValidation([]);
+    // Xóa kết quả phân tích khỏi sessionStorage
+    if (analysisResultStorageKey) {
+      try {
+        sessionStorage.removeItem(analysisResultStorageKey);
+      } catch (error) {
+        console.warn("Không thể xóa kết quả phân tích khỏi sessionStorage:", error);
+      }
+    }
+    
+    // Xóa form state khỏi storage
+    if (CV_FORM_STORAGE_KEY) {
+      try {
+        const rememberMe = localStorage.getItem('remember_me') === 'true';
+        const storage = rememberMe ? localStorage : sessionStorage;
+        storage.removeItem(CV_FORM_STORAGE_KEY);
+      } catch (error) {
+        console.warn("Không thể xóa form state khỏi storage:", error);
+      }
+    }
+    
+    // Xóa file từ IndexedDB
+    if (CV_FILE_STORAGE_KEY) {
+      try {
+        await deleteFileFromIndexedDB(CV_FILE_STORAGE_KEY);
+      } catch (error) {
+        console.warn("Không thể xóa file từ IndexedDB:", error);
+      }
+    }
+    
+    // Gọi onCloseForm để đóng form
+    onCloseForm();
+  }, [cvPreviewUrl, analysisResultStorageKey, CV_FORM_STORAGE_KEY, CV_FILE_STORAGE_KEY, onCloseForm]);
 
   // Handle submit inline CV
   const handleSubmitInlineCV = useCallback(async () => {
     if (!id || isSubmitting) return;
     
     setCvFormErrors({});
+
+    if (!selectedCVFile) {
+      setCvFormErrors({ submit: "⚠️ Vui lòng chọn file CV trước khi tạo." });
+      return;
+    }
 
     if (!inlineCVForm.jobRoleLevelId || inlineCVForm.jobRoleLevelId === 0) {
       setCvFormErrors({ jobRoleLevelId: "⚠️ Vui lòng chọn vị trí công việc trước khi tạo." });
@@ -553,27 +705,14 @@ export function useTalentDetailCVForm({
       return;
     }
 
-    const versionErrorMsg = validateCVVersion(inlineCVForm.version, inlineCVForm.jobRoleLevelId, existingCVsForValidation);
-    if (versionErrorMsg) {
-      setCvVersionError(versionErrorMsg);
-      setCvFormErrors({ version: "⚠️ " + versionErrorMsg });
-      return;
-    }
-
-    if (!isCVUploadedFromFirebase || !inlineCVForm.cvFileUrl?.trim()) {
-      setCvFormErrors({ submit: "⚠️ Vui lòng upload file CV lên Firebase trước khi tạo." });
-      return;
-    }
-
-    try {
-      const url = new URL(inlineCVForm.cvFileUrl.trim());
-      if (!["http:", "https:"].includes(url.protocol)) {
-        throw new Error("invalid protocol");
-      }
-    } catch {
-      setCvFormErrors({ submit: "⚠️ URL file CV không hợp lệ. Vui lòng nhập đường dẫn bắt đầu bằng http hoặc https." });
-      return;
-    }
+    // Bỏ qua validation ban đầu với existingCVsForValidation (có thể đã cũ)
+    // Sẽ validate lại với dữ liệu mới nhất từ API trước khi submit ở phía dưới
+    // const versionErrorMsg = validateCVVersion(inlineCVForm.version, inlineCVForm.jobRoleLevelId, existingCVsForValidation);
+    // if (versionErrorMsg) {
+    //   setCvVersionError(versionErrorMsg);
+    //   setCvFormErrors({ version: "⚠️ " + versionErrorMsg });
+    //   return;
+    // }
 
     // Kiểm tra nếu có kết quả phân tích CV và có gợi ý chưa được xử lý
     if (analysisResult) {
@@ -623,11 +762,72 @@ export function useTalentDetailCVForm({
     try {
       setIsSubmitting(true);
       
+      // Fetch lại CVs mới nhất để validate version TRƯỚC KHI upload file
+      const existingCVsResponse = await talentCVService.getAll({ 
+        talentId: Number(id), 
+        excludeDeleted: true 
+      });
+      // Normalize response to array
+      const existingCVs = Array.isArray(existingCVsResponse) 
+        ? existingCVsResponse 
+        : (Array.isArray(existingCVsResponse?.items) 
+          ? existingCVsResponse.items 
+          : (Array.isArray(existingCVsResponse?.data) 
+            ? existingCVsResponse.data 
+            : []));
+      
+      // Validate version với dữ liệu mới nhất TRƯỚC KHI upload file
+      const latestCVsForJobRoleLevel = existingCVs.filter(
+        (cv: TalentCV) => cv.jobRoleLevelId === inlineCVForm.jobRoleLevelId
+      );
+      console.log(`🔍 Submit validation - jobRoleLevelId: ${inlineCVForm.jobRoleLevelId}, version: ${inlineCVForm.version}, CVs found: ${latestCVsForJobRoleLevel.length}`, latestCVsForJobRoleLevel);
+      const versionErrorMsg = validateCVVersion(inlineCVForm.version || 1, inlineCVForm.jobRoleLevelId || 0, latestCVsForJobRoleLevel);
+      if (versionErrorMsg) {
+        setIsSubmitting(false);
+        setCvVersionError(versionErrorMsg);
+        setCvFormErrors({ version: "⚠️ " + versionErrorMsg });
+        alert("⚠️ " + versionErrorMsg);
+        return;
+      }
+      
+      // Upload CV lên Firebase sau khi đã validate
+      let cvFileUrl: string;
+      
+      // Nếu đã upload rồi và có URL, dùng URL đó
+      if (isCVUploadedFromFirebase && inlineCVForm.cvFileUrl?.trim()) {
+        cvFileUrl = inlineCVForm.cvFileUrl.trim();
+      } else {
+        // Upload file lên Firebase
+        setUploadingCV(true);
+        setCvUploadProgress(0);
+        const finalVersion = inlineCVForm.version || 1;
+        cvFileUrl = await uploadTalentCV(
+          selectedCVFile,
+          Number(id),
+          `v${finalVersion}`,
+          (progress) => setCvUploadProgress(progress)
+        );
+        setUploadingCV(false);
+        setCvUploadProgress(0);
+      }
+      
+      // Validate URL
+      try {
+        const url = new URL(cvFileUrl);
+        if (!["http:", "https:"].includes(url.protocol)) {
+          throw new Error("invalid protocol");
+        }
+      } catch {
+        setCvFormErrors({ submit: "⚠️ URL file CV không hợp lệ sau khi upload." });
+        setIsSubmitting(false);
+        return;
+      }
+      
       let finalForm: TalentCVCreate = {
         talentId: Number(id),
         jobRoleLevelId: inlineCVForm.jobRoleLevelId!,
         version: inlineCVForm.version!,
-        cvFileUrl: inlineCVForm.cvFileUrl!,
+        cvFileUrl: cvFileUrl,
         isActive: true,
         summary: inlineCVForm.summary || "",
         isGeneratedFromTemplate: inlineCVForm.isGeneratedFromTemplate || false,
@@ -635,32 +835,13 @@ export function useTalentDetailCVForm({
         generatedForJobRequestId: inlineCVForm.generatedForJobRequestId,
       };
       
-      const existingCVs = await talentCVService.getAll({ 
-        talentId: Number(id), 
-        excludeDeleted: true 
-      });
       const activeCVWithSameJobRoleLevel = existingCVs.find(
         (cv: TalentCV) => cv.isActive && cv.jobRoleLevelId === finalForm.jobRoleLevelId
       );
 
       if (activeCVWithSameJobRoleLevel) {
-        const jobRoleLevelName = lookupJobRoleLevels.find(jrl => jrl.id === finalForm.jobRoleLevelId)?.name || "vị trí này";
-        const confirmed = window.confirm(
-          `⚠️ Bạn đang có CV active với vị trí công việc "${jobRoleLevelName}".\n\n` +
-          `CV mới sẽ được set active và CV cũ sẽ bị set inactive.\n\n` +
-          `Bạn có chắc chắn muốn upload CV này không?`
-        );
-        if (!confirmed) {
-          setIsSubmitting(false);
-          return;
-        }
+        // Tự động deactivate CV cũ khi có CV active cùng jobRoleLevelId
         await talentCVService.deactivate(activeCVWithSameJobRoleLevel.id);
-      } else {
-        const confirmed = window.confirm("Bạn có chắc chắn muốn tạo CV mới cho nhân sự không?");
-        if (!confirmed) {
-          setIsSubmitting(false);
-          return;
-        }
       }
       
       await talentCVService.create(finalForm);

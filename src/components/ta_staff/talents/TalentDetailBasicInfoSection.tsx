@@ -20,6 +20,7 @@ interface TalentDetailBasicInfoSectionProps {
   blacklists: ClientTalentBlacklist[];
   workingModeLabels: Record<number, string>;
   formatLinkDisplay: (url?: string) => string;
+  onPartnerClick?: () => void;
 }
 
 /**
@@ -32,6 +33,7 @@ export function TalentDetailBasicInfoSection({
   blacklists,
   workingModeLabels,
   formatLinkDisplay,
+  onPartnerClick,
 }: TalentDetailBasicInfoSectionProps) {
   return (
     <>
@@ -58,7 +60,22 @@ export function TalentDetailBasicInfoSection({
             }
             icon={<Calendar className="w-4 h-4" />}
           />
-          <InfoItem label="Công ty" value={partnerName} icon={<Building2 className="w-4 h-4" />} />
+          <InfoItem 
+            label="Công ty" 
+            value={
+              partnerName && talent.currentPartnerId ? (
+                <button
+                  onClick={onPartnerClick}
+                  className="text-primary-600 hover:text-primary-800 cursor-pointer text-left"
+                >
+                  {partnerName}
+                </button>
+              ) : (
+                partnerName || '—'
+              )
+            } 
+            icon={<Building2 className="w-4 h-4" />} 
+          />
           <InfoItem
             label="Khu vực làm việc"
             value={locationName}
