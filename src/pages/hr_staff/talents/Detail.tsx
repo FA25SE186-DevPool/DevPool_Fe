@@ -13,6 +13,8 @@ import { TalentDetailJobRoleLevelsSection } from '../../../components/ta_staff/t
 import { TalentDetailAvailableTimesSection } from '../../../components/ta_staff/talents/TalentDetailAvailableTimesSection';
 import { SkillGroupVerificationModal } from '../../../components/ta_staff/talents/SkillGroupVerificationModal';
 import { SkillGroupHistoryModal } from '../../../components/ta_staff/talents/SkillGroupHistoryModal';
+import { PartnerInfoModal } from '../../../components/ta_staff/talents/PartnerInfoModal';
+import { partnerService, type PartnerDetailedModel } from '../../../services/Partner';
 import { useTalentDetail } from '../../../hooks/useTalentDetail';
 import { useTalentDetailOperations } from '../../../hooks/useTalentDetailOperations';
 import { useTalentDetailCVAnalysis } from '../../../hooks/useTalentDetailCVAnalysis';
@@ -22,13 +24,16 @@ import { useTalentDetailSkillActions } from '../../../hooks/useTalentDetailSkill
 import { useTalentDetailCVForm } from '../../../hooks/useTalentDetailCVForm';
 import { talentService } from '../../../services/Talent';
 import { talentCVService, type TalentCV } from '../../../services/TalentCV';
-import { jobRoleLevelService, type JobRoleLevel } from '../../../services/JobRoleLevel';
+import { jobRoleLevelService, type JobRoleLevel, TalentLevel } from '../../../services/JobRoleLevel';
+import { talentJobRoleLevelService, type TalentJobRoleLevel } from '../../../services/TalentJobRoleLevel';
+import { talentSkillService, type TalentSkill } from '../../../services/TalentSkill';
+import { skillService, type Skill } from '../../../services/Skill';
 import { WorkingMode } from '../../../constants/WORKING_MODE';
 import { formatLinkDisplay as formatLinkDisplayUtil, getLevelTextForSkills, getTalentLevelName } from '../../../utils/talentHelpers';
 import { validateIssuedDate, validateStartTime, validateEndTime } from '../../../utils/validators';
 import { getStatusConfig } from '../../../utils/talentStatus';
 import { TalentDetailHeader } from '../../../components/ta_staff/talents/TalentDetailHeader';
-import { TalentDetailTabNavigation, type TalentDetailTab } from '../../../components/ta_staff/talents/TalentDetailTabNavigation';
+import { type TalentDetailTab } from '../../../components/ta_staff/talents/TalentDetailTabNavigation';
 import { TalentDetailBasicInfoTabs } from '../../../components/ta_staff/talents/TalentDetailBasicInfoTabs';
 
 // Mapping WorkingMode values to Vietnamese names
@@ -105,7 +110,14 @@ export default function TalentDetailPage() {
   const pagination = useTalentDetailPagination();
 
   // ========== LOCAL STATES ==========
-  const [activeTab, setActiveTab] = useState<TalentDetailTab>(initialTab || 'cvs');
+  const [activeTab, setActiveTab] = useState<TalentDetailTab | null>(initialTab || null);
+  
+  // Khi có initialTab từ location state, tự động set activeTab
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const [collapsedInactiveCVGroups, setCollapsedInactiveCVGroups] = useState<Set<string>>(new Set());
 
   // Skills section states
@@ -134,6 +146,11 @@ export default function TalentDetailPage() {
   // Projects section states
   const [projectPositionSearch, setProjectPositionSearch] = useState<string>('');
   const [isProjectPositionDropdownOpen, setIsProjectPositionDropdownOpen] = useState(false);
+
+  // Partner modal states
+  const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
+  const [partnerInfo, setPartnerInfo] = useState<PartnerDetailedModel | null>(null);
+  const [partnerLoading, setPartnerLoading] = useState(false);
 
   // Tính toán danh sách vị trí từ CVs đã được tạo
   const availablePositions = useMemo(() => {
@@ -199,7 +216,16 @@ export default function TalentDetailPage() {
   const handleRefreshCVs = useCallback(async () => {
     if (!id) return;
     try {
-      const cvs = await talentCVService.getAll({ talentId: Number(id), excludeDeleted: true });
+      const cvsResponse = await talentCVService.getAll({ talentId: Number(id), excludeDeleted: true });
+      // Normalize response to array
+      const cvs = Array.isArray(cvsResponse) 
+        ? cvsResponse 
+        : (Array.isArray(cvsResponse?.items) 
+          ? cvsResponse.items 
+          : (Array.isArray(cvsResponse?.data) 
+            ? cvsResponse.data 
+            : []));
+      console.log(`🔄 Refresh CVs - count: ${cvs.length}`, cvs);
       const allJobRoleLevels = await jobRoleLevelService.getAll({ excludeDeleted: true, distinctByName: true });
       const jobRoleLevelsArray = Array.isArray(allJobRoleLevels) ? allJobRoleLevels : [];
       const cvsWithJobRoleLevelNames = cvs.map((cv: TalentCV) => {
@@ -217,6 +243,7 @@ export default function TalentDetailPage() {
         }
         return (b.version || 0) - (a.version || 0);
       });
+      console.log(`✅ Setting talentCVs - count: ${sortedCVs.length}`, sortedCVs);
       setTalentCVs(sortedCVs);
     } catch (err) {
       console.error('❌ Lỗi khi refresh CVs:', err);
@@ -311,6 +338,60 @@ export default function TalentDetailPage() {
       setJobRoleLevels(jobRoleLevels);
     });
   }, [operations, lookupJobRoleLevelsForTalent, setJobRoleLevels]);
+
+  // Refresh job role levels after edit in modal
+  const handleRefreshJobRoleLevels = useCallback(async () => {
+    if (!id) return;
+    try {
+      const jobRoleLevelsData = await talentJobRoleLevelService.getAll({
+        talentId: Number(id),
+        excludeDeleted: true,
+      });
+      const allJobRoleLevels = await jobRoleLevelService.getAll({ excludeDeleted: true });
+      const levelMap: Record<number, string> = {
+        [TalentLevel.Junior]: 'Junior',
+        [TalentLevel.Middle]: 'Middle',
+        [TalentLevel.Senior]: 'Senior',
+        [TalentLevel.Lead]: 'Lead',
+      };
+      const jobRoleLevelsWithNames = jobRoleLevelsData.map((jrl: TalentJobRoleLevel) => {
+        const jobRoleLevelInfo = allJobRoleLevels.find((j: JobRoleLevel) => j.id === jrl.jobRoleLevelId);
+        if (!jobRoleLevelInfo) {
+          return { ...jrl, jobRoleLevelName: 'Unknown Level', jobRoleLevelLevel: '—' };
+        }
+        const levelText = levelMap[jobRoleLevelInfo.level] || 'Unknown';
+        return { ...jrl, jobRoleLevelName: jobRoleLevelInfo.name || '—', jobRoleLevelLevel: levelText };
+      });
+      setJobRoleLevels(jobRoleLevelsWithNames);
+    } catch (err) {
+      console.error('❌ Lỗi khi refresh job role levels:', err);
+    }
+  }, [id, setJobRoleLevels]);
+
+  // Refresh skills after edit in modal
+  const handleRefreshSkills = useCallback(async () => {
+    if (!id) return;
+    try {
+      const skillsData = await talentSkillService.getAll({
+        talentId: Number(id),
+        excludeDeleted: true,
+      });
+      const allSkills = await skillService.getAll({ excludeDeleted: true });
+      const skillsArray = Array.isArray(skillsData) ? skillsData : [];
+      const allSkillsArray = Array.isArray(allSkills) ? allSkills : [];
+      const skillsWithNames = skillsArray.map((skill: TalentSkill) => {
+        const skillInfo = allSkillsArray.find((s: Skill) => s.id === skill.skillId);
+        return {
+          ...skill,
+          skillName: skillInfo?.name ?? 'Unknown Skill',
+          skillGroupId: skillInfo?.skillGroupId,
+        };
+      });
+      setTalentSkills(skillsWithNames);
+    } catch (err) {
+      console.error('❌ Lỗi khi refresh skills:', err);
+    }
+  }, [id, setTalentSkills]);
 
   // Quick create job role level handler
   const handleQuickCreateJobRoleLevel = useCallback(
@@ -610,7 +691,8 @@ export default function TalentDetailPage() {
 
   useEffect(() => {
     pagination.setPageJobRoleLevels(1);
-  }, [jobRoleLevels.length, pagination]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobRoleLevels.length]);
 
   useEffect(() => {
     pagination.setPageCertificates(1);
@@ -634,6 +716,26 @@ export default function TalentDetailPage() {
       setIsJobRoleFilterDropdownOpen(false);
     }
   }, [operations.showInlineForm]);
+
+  // Handler để mở modal và fetch partner info
+  const handlePartnerClick = useCallback(async () => {
+    if (!talent?.currentPartnerId) return;
+    
+    setIsPartnerModalOpen(true);
+    setPartnerLoading(true);
+    setPartnerInfo(null);
+    
+    try {
+      const response = await partnerService.getDetailedById(talent.currentPartnerId);
+      const partnerData = response?.data || response;
+      setPartnerInfo(partnerData);
+    } catch (err) {
+      console.error('❌ Lỗi tải thông tin công ty:', err);
+      setPartnerInfo(null);
+    } finally {
+      setPartnerLoading(false);
+    }
+  }, [talent?.currentPartnerId]);
 
   // ========== RENDER ==========
   if (loading) {
@@ -685,7 +787,7 @@ export default function TalentDetailPage() {
           onDelete={handleDelete}
         />
 
-        {/* Thông tin cơ bản với Tabs */}
+        {/* Main Tabs: Thông tin cơ bản và các tab con (CV, Vị trí, Kỹ năng, v.v.) - cùng hàng */}
         <TalentDetailBasicInfoTabs
           talent={talent}
           locationName={locationName}
@@ -693,14 +795,11 @@ export default function TalentDetailPage() {
           blacklists={blacklists}
           workingModeLabels={workingModeLabels}
           formatLinkDisplay={formatLinkDisplay}
-        />
-
-        {/* Tab Navigation */}
-        <TalentDetailTabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
-
-        {/* Tab Content */}
-        <div className="bg-white rounded-2xl shadow-soft border border-neutral-100 mb-8 animate-fade-in">
-          <div className="p-6">
+          onPartnerClick={handlePartnerClick}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          tabContent={
+            <>
             {/* Tab: Projects */}
             {activeTab === 'projects' && (
               <TalentDetailProjectsSection
@@ -764,6 +863,7 @@ export default function TalentDetailPage() {
                 getLevelLabel={getLevelLabel}
                 getTalentLevelName={getTalentLevelName}
                 isValueDifferent={isValueDifferent}
+                jobRoles={jobRoles}
               />
             )}
 
@@ -775,7 +875,7 @@ export default function TalentDetailPage() {
                 setSelectedJobRoleLevels={operations.setSelectedJobRoleLevels}
                 pageJobRoleLevels={pagination.pageJobRoleLevels}
                 setPageJobRoleLevels={pagination.setPageJobRoleLevels}
-                itemsPerPage={pagination.itemsPerPage}
+                itemsPerPage={4}
                 jobRoles={jobRoles}
                 lookupJobRoleLevelsForTalent={lookupJobRoleLevelsForTalent}
                 showInlineForm={operations.showInlineForm === 'jobRoleLevel'}
@@ -809,6 +909,7 @@ export default function TalentDetailPage() {
                 onQuickCreateUnmatchedJobRoleLevel={handleQuickCreateUnmatchedJobRoleLevel}
                 canEdit={canEdit}
                 getLevelText={getLevelText}
+                onRefreshJobRoleLevels={handleRefreshJobRoleLevels}
               />
             )}
 
@@ -881,6 +982,7 @@ export default function TalentDetailPage() {
                 canEdit={canEdit}
                 getLevelText={getLevelTextForSkillsWrapper}
                 getLevelLabel={getLevelLabel}
+                onRefreshSkills={handleRefreshSkills}
               />
             )}
 
@@ -975,8 +1077,9 @@ export default function TalentDetailPage() {
                 canEdit={canEdit}
               />
             )}
-          </div>
-        </div>
+            </>
+          }
+        />
       </div>
 
       {/* Skill Group Verification Modal */}
@@ -1028,6 +1131,14 @@ export default function TalentDetailPage() {
         items={skillGroupVerification.historyModal.items}
         loading={skillGroupVerification.historyModal.loading}
         onClose={skillGroupVerification.handleCloseHistoryModal}
+      />
+
+      {/* Partner Info Modal */}
+      <PartnerInfoModal
+        isOpen={isPartnerModalOpen}
+        partner={partnerInfo}
+        loading={partnerLoading}
+        onClose={() => setIsPartnerModalOpen(false)}
       />
     </div>
   );

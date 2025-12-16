@@ -6,21 +6,23 @@
 
 import {
   FileText,
-  Upload,
   Eye,
   Workflow,
   Briefcase,
-  AlertCircle,
   CheckCircle,
   Save,
-  ExternalLink,
   X,
+  Search,
+  Filter,
+  ChevronDown,
 } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '../../ui/button';
 import { type TalentCVCreate } from '../../../services/TalentCV';
 import { type TalentCV } from '../../../services/TalentCV';
 import { type CVAnalysisComparisonResponse } from '../../../services/TalentCV';
 import { type JobRoleLevel } from '../../../services/JobRoleLevel';
+import { type JobRole } from '../../../services/JobRole';
 
 interface TalentDetailCVFormProps {
   // Form data
@@ -36,9 +38,6 @@ interface TalentDetailCVFormProps {
   uploadingCV: boolean;
   cvUploadProgress: number;
   isCVUploadedFromFirebase: boolean;
-  setIsCVUploadedFromFirebase: (value: boolean) => void;
-  uploadedCVUrl: string | null;
-  setUploadedCVUrl: (url: string | null) => void;
   cvPreviewUrl: string | null;
   
   // Analysis states
@@ -49,9 +48,11 @@ interface TalentDetailCVFormProps {
   
   // Validation
   existingCVsForValidation: TalentCV[];
+  allTalentCVs?: (TalentCV & { jobRoleLevelName?: string })[]; // Tất cả CVs của talent để check vị trí đã có
   
   // Data
   lookupJobRoleLevels: JobRoleLevel[];
+  jobRoles?: JobRole[]; // Danh sách job roles để filter
   
   // States
   isSubmitting: boolean;
@@ -60,8 +61,6 @@ interface TalentDetailCVFormProps {
   // Handlers
   handleCVFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleAnalyzeCV: () => void;
-  handleDeleteCVFile: () => void;
-  handleCVFileUpload: () => void;
   handleSubmitInlineCV: () => void;
   handleConfirmInlineCVAnalysis: () => void;
   handleCancelInlineCVAnalysis: () => void;
@@ -83,28 +82,34 @@ export function TalentDetailCVForm({
   uploadingCV,
   cvUploadProgress,
   isCVUploadedFromFirebase,
-  setIsCVUploadedFromFirebase,
-  uploadedCVUrl,
-  setUploadedCVUrl,
   cvPreviewUrl,
   extractingCV,
   inlineCVAnalysisResult,
   showInlineCVAnalysisModal,
   showCVFullForm,
   existingCVsForValidation,
+  allTalentCVs,
   lookupJobRoleLevels,
+  jobRoles,
   isSubmitting,
   canEdit,
   handleCVFileSelect,
   handleAnalyzeCV,
-  handleDeleteCVFile,
-  handleCVFileUpload,
   handleSubmitInlineCV,
   handleConfirmInlineCVAnalysis,
   handleCancelInlineCVAnalysis,
   validateCVVersion,
   isValueDifferent,
 }: TalentDetailCVFormProps) {
+  // State cho filter "Loại vị trí"
+  const [selectedJobRoleFilterId, setSelectedJobRoleFilterId] = useState<number | undefined>(undefined);
+  const [jobRoleFilterSearch, setJobRoleFilterSearch] = useState<string>('');
+  const [isJobRoleFilterDropdownOpen, setIsJobRoleFilterDropdownOpen] = useState(false);
+  
+  // State cho job role level dropdown
+  const [isJobRoleLevelDropdownOpen, setIsJobRoleLevelDropdownOpen] = useState(false);
+  const [jobRoleLevelSearch, setJobRoleLevelSearch] = useState<string>('');
+
   return (
     <div className="bg-white rounded-xl border-2 border-accent-200 p-6 mb-6 shadow-lg">
       <div className="flex items-center justify-between mb-4">
@@ -201,43 +206,236 @@ export function TalentDetailCVForm({
             {cvFormErrors.jobRoleLevelId && (
               <p className="text-xs text-red-600 mb-1">{cvFormErrors.jobRoleLevelId}</p>
             )}
-            <select
-              value={inlineCVForm.jobRoleLevelId || 0}
-              onChange={(e) => {
-                const value = Number(e.target.value);
-                setInlineCVForm({ ...inlineCVForm, jobRoleLevelId: value });
-                const newErrors = { ...cvFormErrors };
-                delete newErrors.jobRoleLevelId;
-                setCvFormErrors(newErrors);
-                // Clear version error khi chọn jobRoleLevelId mới - sẽ được validate lại sau khi fetch existingCVsForValidation
-                setCvVersionError("");
-              }}
-              disabled={isCVUploadedFromFirebase}
-              className={`w-full border rounded-xl px-4 py-3 focus:ring-accent-500 bg-white ${
-                isCVUploadedFromFirebase 
-                  ? 'border-green-300 bg-green-50 cursor-not-allowed' 
-                  : cvFormErrors.jobRoleLevelId
-                  ? 'border-red-300 focus:border-red-500'
-                  : 'border-neutral-200 focus:border-accent-500'
-              }`}
-              required
-            >
-              <option value="0">-- Chọn vị trí công việc --</option>
-              {(() => {
-                // Group by name và lấy item có level thấp nhất cho mỗi name
-                const groupedByName = new Map<string, JobRoleLevel>();
-                lookupJobRoleLevels.forEach(jobRoleLevel => {
-                  const existing = groupedByName.get(jobRoleLevel.name || '');
-                  if (!existing || (jobRoleLevel.level ?? 999) < (existing.level ?? 999)) {
-                    groupedByName.set(jobRoleLevel.name || '', jobRoleLevel);
-                  }
-                });
-                return Array.from(groupedByName.values())
-                  .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-              })().map(jobRoleLevel => (
-                <option key={jobRoleLevel.id} value={jobRoleLevel.id}>{jobRoleLevel.name}</option>
-              ))}
-            </select>
+            
+            {/* Filter theo loại vị trí */}
+            {jobRoles && jobRoles.length > 0 && (
+              <div className="mb-3">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsJobRoleFilterDropdownOpen(prev => !prev)}
+                    disabled={isCVUploadedFromFirebase}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-sm border rounded-lg transition-colors ${
+                      isCVUploadedFromFirebase
+                        ? 'border-green-300 bg-green-50 cursor-not-allowed opacity-75'
+                        : 'border-neutral-300 bg-neutral-50 hover:bg-neutral-100 text-neutral-700 hover:border-neutral-400'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Filter className="w-4 h-4 text-neutral-500" />
+                      <span className="truncate">
+                        {selectedJobRoleFilterId
+                          ? jobRoles.find((r) => r.id === selectedJobRoleFilterId)?.name || 'Loại vị trí'
+                          : 'Tất cả loại vị trí'}
+                      </span>
+                    </div>
+                    <ChevronDown
+                      className={`w-4 h-4 text-neutral-400 transition-transform ${
+                        isJobRoleFilterDropdownOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                  {isJobRoleFilterDropdownOpen && !isCVUploadedFromFirebase && (
+                    <div
+                      className="absolute z-[60] mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
+                      onMouseLeave={() => {
+                        setIsJobRoleFilterDropdownOpen(false);
+                        setJobRoleFilterSearch('');
+                      }}
+                    >
+                      <div className="p-3 border-b border-neutral-100">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
+                          <input
+                            type="text"
+                            value={jobRoleFilterSearch}
+                            onChange={(e) => setJobRoleFilterSearch(e.target.value)}
+                            placeholder="Tìm loại vị trí..."
+                            className="w-full pl-9 pr-3 py-2.5 text-sm border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                      </div>
+                      <div className="max-h-56 overflow-y-auto">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedJobRoleFilterId(undefined);
+                            setJobRoleFilterSearch('');
+                            setIsJobRoleFilterDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2.5 text-sm ${
+                            !selectedJobRoleFilterId
+                              ? 'bg-primary-50 text-primary-700'
+                              : 'hover:bg-neutral-50 text-neutral-700'
+                          }`}
+                        >
+                          Tất cả loại vị trí
+                        </button>
+                        {jobRoles
+                          .filter(
+                            (role) =>
+                              !jobRoleFilterSearch ||
+                              role.name.toLowerCase().includes(jobRoleFilterSearch.toLowerCase())
+                          )
+                          .map((role) => (
+                            <button
+                              type="button"
+                              key={role.id}
+                              onClick={() => {
+                                setSelectedJobRoleFilterId(role.id);
+                                setJobRoleFilterSearch('');
+                                setIsJobRoleFilterDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-4 py-2.5 text-sm ${
+                                selectedJobRoleFilterId === role.id
+                                  ? 'bg-primary-50 text-primary-700'
+                                  : 'hover:bg-neutral-50 text-neutral-700'
+                              }`}
+                            >
+                              {role.name}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Dropdown Vị trí công việc với tìm kiếm */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsJobRoleLevelDropdownOpen(prev => !prev)}
+                disabled={isCVUploadedFromFirebase}
+                className={`w-full flex items-center justify-between px-4 py-2.5 border rounded-lg bg-white text-left focus:ring-2 focus:ring-primary-500/20 transition-all ${
+                  isCVUploadedFromFirebase
+                    ? 'border-green-300 bg-green-50 cursor-not-allowed opacity-75'
+                    : cvFormErrors.jobRoleLevelId
+                    ? 'border-red-500 bg-red-50'
+                    : 'border-neutral-300 focus:border-primary-500 hover:border-primary-300'
+                }`}
+              >
+                <div className="flex items-center gap-2 text-sm text-neutral-700">
+                  <Briefcase className="w-4 h-4 text-neutral-400" />
+                  <span className={inlineCVForm.jobRoleLevelId ? 'text-neutral-900 font-medium' : 'text-neutral-500'}>
+                    {inlineCVForm.jobRoleLevelId
+                      ? lookupJobRoleLevels.find((jrl) => jrl.id === inlineCVForm.jobRoleLevelId)?.name ||
+                        'Chọn vị trí'
+                      : '-- Chọn vị trí công việc --'}
+                  </span>
+                </div>
+                <ChevronDown
+                  className={`w-4 h-4 text-neutral-400 transition-transform ${
+                    isJobRoleLevelDropdownOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+              {isJobRoleLevelDropdownOpen && !isCVUploadedFromFirebase && (
+                <div
+                  className="absolute z-[60] mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl"
+                  onMouseLeave={() => {
+                    setIsJobRoleLevelDropdownOpen(false);
+                    setJobRoleLevelSearch('');
+                  }}
+                >
+                  <div className="p-3 border-b border-neutral-100">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
+                      <input
+                        type="text"
+                        value={jobRoleLevelSearch}
+                        onChange={(e) => setJobRoleLevelSearch(e.target.value)}
+                        placeholder="Tìm vị trí..."
+                        className="w-full pl-9 pr-3 py-2.5 text-sm border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto">
+                    {(() => {
+                      // Filter jobRoleLevels theo selectedJobRoleFilterId nếu có
+                      let filteredJobRoleLevels = lookupJobRoleLevels;
+                      if (selectedJobRoleFilterId) {
+                        filteredJobRoleLevels = lookupJobRoleLevels.filter(
+                          jrl => jrl.jobRoleId === selectedJobRoleFilterId
+                        );
+                      }
+
+                      // Group by name và lấy item có level thấp nhất cho mỗi name
+                      const groupedByName = new Map<string, JobRoleLevel>();
+                      filteredJobRoleLevels.forEach(jobRoleLevel => {
+                        const existing = groupedByName.get(jobRoleLevel.name || '');
+                        if (!existing || (jobRoleLevel.level ?? 999) < (existing.level ?? 999)) {
+                          groupedByName.set(jobRoleLevel.name || '', jobRoleLevel);
+                        }
+                      });
+                      
+                      let groupedJobRoleLevels = Array.from(groupedByName.values())
+                        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                      
+                      // Filter theo search term
+                      if (jobRoleLevelSearch) {
+                        groupedJobRoleLevels = groupedJobRoleLevels.filter(jrl =>
+                          jrl.name?.toLowerCase().includes(jobRoleLevelSearch.toLowerCase())
+                        );
+                      }
+                      
+                      if (groupedJobRoleLevels.length === 0) {
+                        return (
+                          <p className="px-4 py-3 text-sm text-neutral-500">
+                            Không tìm thấy vị trí nào
+                          </p>
+                        );
+                      }
+                      
+                      // Sử dụng allTalentCVs nếu có, nếu không thì dùng existingCVsForValidation
+                      const cvArrayForCheck = Array.isArray(allTalentCVs) && allTalentCVs.length > 0
+                        ? allTalentCVs
+                        : (Array.isArray(existingCVsForValidation) ? existingCVsForValidation : []);
+                      
+                      return groupedJobRoleLevels.map(jobRoleLevel => {
+                        // Kiểm tra xem có CV nào có cùng name với jobRoleLevel này không (chỉ để hiển thị thông báo)
+                        const hasExistingCV = cvArrayForCheck.some(cv => {
+                          // Nếu CV có jobRoleLevelName, so sánh trực tiếp theo name
+                          if ((cv as any).jobRoleLevelName) {
+                            return (cv as any).jobRoleLevelName === jobRoleLevel.name;
+                          }
+                          // Nếu không, tìm jobRoleLevel trong lookupJobRoleLevels có cùng id với CV
+                          const cvJobRoleLevel = lookupJobRoleLevels.find(jrl => jrl.id === cv.jobRoleLevelId);
+                          // So sánh theo name
+                          return cvJobRoleLevel?.name === jobRoleLevel.name;
+                        });
+                        
+                        return (
+                          <button
+                            key={jobRoleLevel.id}
+                            type="button"
+                            onClick={() => {
+                              setInlineCVForm({ ...inlineCVForm, jobRoleLevelId: jobRoleLevel.id });
+                              const newErrors = { ...cvFormErrors };
+                              delete newErrors.jobRoleLevelId;
+                              setCvFormErrors(newErrors);
+                              setCvVersionError("");
+                              setIsJobRoleLevelDropdownOpen(false);
+                              setJobRoleLevelSearch('');
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              inlineCVForm.jobRoleLevelId === jobRoleLevel.id
+                                ? 'bg-primary-50 text-primary-700 font-medium'
+                                : 'hover:bg-neutral-50 text-neutral-700'
+                            } ${hasExistingCV ? 'text-neutral-600' : ''}`}
+                          >
+                            {jobRoleLevel.name}{hasExistingCV ? ' (đã có CV)' : ''}
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Version */}
@@ -246,11 +444,8 @@ export function TalentDetailCVForm({
               <FileText className="w-4 h-4" />
               Version CV <span className="text-red-500">*</span>
             </label>
-            {cvFormErrors.version && (
-              <p className="text-xs text-red-600 mb-1">{cvFormErrors.version}</p>
-            )}
-            {cvVersionError && !isCVUploadedFromFirebase && (
-              <p className="text-xs text-red-500 mb-1">{cvVersionError}</p>
+            {(cvFormErrors.version || cvVersionError) && !isCVUploadedFromFirebase && (
+              <p className="text-xs text-red-600 mb-1">{cvFormErrors.version || cvVersionError}</p>
             )}
             <input
               type="number"
@@ -297,131 +492,6 @@ export function TalentDetailCVForm({
             )}
           </div>
 
-          {/* Upload File Section */}
-          <div className="bg-gradient-to-r from-accent-50 to-blue-50 rounded-xl p-6 border border-accent-200">
-            <label className="block text-gray-700 font-semibold mb-3 flex items-center gap-2">
-              <Upload className="w-5 h-5 text-accent-600" />
-              Upload File CV
-            </label>
-            
-            <div className="space-y-4">
-              {/* File Info - Hiện file đã chọn */}
-              {selectedCVFile && (
-                <div className="flex items-center gap-2 text-sm text-neutral-600">
-                  <FileText className="w-4 h-4" />
-                  <span>File đã chọn: <span className="font-medium">{selectedCVFile.name}</span> ({(selectedCVFile.size / 1024).toFixed(2)} KB)</span>
-                </div>
-              )}
-
-              {/* Thông báo khi reload và mất file */}
-              {!isCVUploadedFromFirebase && !selectedCVFile && showCVFullForm && (
-                <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>Vui lòng chọn lại file CV để upload (file đã chọn trước đó không thể khôi phục sau khi reload trang).</span>
-                </div>
-              )}
-
-              {/* Upload Progress */}
-              {uploadingCV && (
-                <div className="space-y-2">
-                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                    <div
-                      className="bg-gradient-to-r from-accent-500 to-blue-500 h-3 rounded-full transition-all duration-300 animate-pulse"
-                      style={{ width: `${cvUploadProgress}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-sm text-center text-accent-700 font-medium">
-                    Đang upload... {cvUploadProgress}%
-                  </p>
-                </div>
-              )}
-
-              {/* Upload Button */}
-              {!isCVUploadedFromFirebase && (
-                <button
-                  type="button"
-                  onClick={handleCVFileUpload}
-                  disabled={!selectedCVFile || uploadingCV || !inlineCVForm.version || inlineCVForm.version <= 0 || !inlineCVForm.jobRoleLevelId || inlineCVForm.jobRoleLevelId === 0 || !!cvVersionError}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-accent-600 to-blue-600 hover:from-accent-700 hover:to-blue-700 text-white px-4 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {uploadingCV ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      Đang upload...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4" />
-                      Upload lên Firebase
-                    </>
-                  )}
-                </button>
-              )}
-              {isCVUploadedFromFirebase && (
-                <div className="w-full flex items-center justify-center gap-2 bg-green-100 text-green-700 px-4 py-3 rounded-xl font-medium">
-                  <CheckCircle className="w-4 h-4" />
-                  Đã upload lên Firebase thành công
-                </div>
-              )}
-
-            </div>
-          </div>
-
-          {/* URL file CV */}
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
-              <ExternalLink className="w-4 h-4" />
-              URL file CV <span className="text-red-500">*</span> {inlineCVForm.cvFileUrl && <span className="text-green-600 text-xs">(✓ Đã có)</span>}
-            </label>
-
-            <div className="flex gap-2">
-              <input
-                value={inlineCVForm.cvFileUrl || ""}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setInlineCVForm({ ...inlineCVForm, cvFileUrl: value });
-                  if (value && uploadedCVUrl !== value) {
-                    setIsCVUploadedFromFirebase(false);
-                    setUploadedCVUrl(null);
-                  }
-                }}
-                placeholder="https://example.com/cv-file.pdf hoặc tự động từ Firebase"
-                required
-                disabled={!!(inlineCVForm.cvFileUrl && uploadedCVUrl === inlineCVForm.cvFileUrl) || uploadingCV || isCVUploadedFromFirebase}
-                className={`flex-1 border rounded-xl px-4 py-3 focus:ring-accent-500 bg-white ${
-                  inlineCVForm.cvFileUrl && uploadedCVUrl === inlineCVForm.cvFileUrl
-                    ? 'bg-gray-100 cursor-not-allowed opacity-75 border-gray-300'
-                    : isCVUploadedFromFirebase 
-                      ? 'border-green-300 bg-green-50 cursor-not-allowed' 
-                      : 'border-neutral-200 focus:border-accent-500'
-                }`}
-                readOnly={uploadingCV || isCVUploadedFromFirebase}
-              />
-              {inlineCVForm.cvFileUrl && (
-                <>
-                  <a
-                    href={inlineCVForm.cvFileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-3 bg-accent-100 text-accent-700 rounded-xl hover:bg-accent-200 transition-all"
-                  >
-                    <Eye className="w-4 h-4" />
-                    Xem
-                  </a>
-                  <button
-                    type="button"
-                    onClick={handleDeleteCVFile}
-                    disabled={uploadingCV}
-                    className="flex items-center gap-1.5 px-4 py-3 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={uploadedCVUrl === inlineCVForm.cvFileUrl ? "Xóa URL và file trong Firebase" : "Xóa URL"}
-                  >
-                    <X className="w-4 h-4" />
-                    Xóa
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
 
           {/* Tóm tắt CV */}
           <div>
@@ -446,25 +516,42 @@ export function TalentDetailCVForm({
           )}
 
           {/* Submit buttons */}
-          <div className="flex justify-end gap-2">
-            {/* Bỏ nút Hủy - chỉ đóng khi hủy phân tích CV */}
-            <Button
-              onClick={handleSubmitInlineCV}
-              disabled={isSubmitting}
-              className={`px-4 py-2 rounded-lg bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white transition-all flex items-center gap-2 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  Đang lưu...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Thêm CV
-                </>
-              )}
-            </Button>
+          <div className="flex flex-col gap-3">
+            {/* Upload Progress - Hiển thị khi đang upload */}
+            {uploadingCV && (
+              <div className="space-y-2">
+                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-accent-500 to-blue-500 h-3 rounded-full transition-all duration-300 animate-pulse"
+                    style={{ width: `${cvUploadProgress}%` }}
+                  ></div>
+                </div>
+                <p className="text-sm text-center text-accent-700 font-medium">
+                  Đang upload file CV lên Firebase... {cvUploadProgress}%
+                </p>
+              </div>
+            )}
+            
+            <div className="flex justify-end gap-2">
+              {/* Bỏ nút Hủy - chỉ đóng khi hủy phân tích CV */}
+              <Button
+                onClick={handleSubmitInlineCV}
+                disabled={isSubmitting || uploadingCV || !selectedCVFile}
+                className={`px-4 py-2 rounded-lg bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white transition-all flex items-center gap-2 ${(isSubmitting || uploadingCV || !selectedCVFile) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {(isSubmitting || uploadingCV) ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    {uploadingCV ? `Đang upload... ${cvUploadProgress}%` : 'Đang lưu...'}
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Thêm CV
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}

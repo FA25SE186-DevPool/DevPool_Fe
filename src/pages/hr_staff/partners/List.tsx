@@ -1,8 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, Building2, Plus, Users, Phone, ChevronLeft, ChevronRight, Eye, User, Briefcase } from 'lucide-react';
+import {
+  Search,
+  Filter,
+  Building2,
+  Plus,
+  Users,
+  Phone,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  User,
+  Briefcase,
+  ChevronUp,
+  ChevronDown
+} from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
-import Breadcrumb from '../../../components/common/Breadcrumb';
 import { sidebarItems } from '../../../components/sidebar/ta_staff';
 import { Button } from '../../../components/ui/button';
 import { partnerService, type Partner, PartnerType } from '../../../services/Partner';
@@ -15,6 +28,7 @@ export default function ListPartner() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const [filterTaxCode, setFilterTaxCode] = useState('');
   const [filterPartnerType, setFilterPartnerType] = useState<PartnerType | null>(null);
   
@@ -142,15 +156,21 @@ export default function ListPartner() {
       <div className="flex-1 p-8">
         {/* Header */}
         <div className="mb-8 animate-slide-up">
-          <Breadcrumb
-            items={[
-              { label: "Đối tác" }
-            ]}
-          />
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Danh sách đối tác</h1>
-              <p className="text-neutral-600 mt-1">Quản lý và theo dõi thông tin các công ty đối tác</p>
+              <div className="flex items-center gap-3 mt-1">
+                <p className="text-neutral-600">
+                  Quản lý và theo dõi thông tin các công ty đối tác
+                </p>
+                <button
+                  onClick={() => setShowStats(!showStats)}
+                  className="flex items-center justify-center w-7 h-7 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors duration-300"
+                  title={showStats ? "Ẩn thống kê" : "Hiện thống kê"}
+                >
+                  {showStats ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <Button 
               onClick={() => navigate(ROUTES.TA_STAFF.PARTNERS.CREATE)}
@@ -162,53 +182,55 @@ export default function ListPartner() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-fade-in">
-            {stats.map((stat, index) => (
-              <div 
-                key={index} 
-                onClick={stat.onClick}
-                className={`group bg-white rounded-2xl shadow-soft hover:shadow-medium p-6 transition-all duration-300 transform hover:-translate-y-1 border cursor-pointer ${
-                  filterPartnerType === stat.partnerType || (filterPartnerType === null && stat.partnerType === undefined)
-                    ? 'border-primary-500 bg-primary-50 shadow-glow'
-                    : 'border-neutral-100 hover:border-primary-200'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className={`text-sm font-medium transition-colors duration-300 ${
-                      filterPartnerType === stat.partnerType || (filterPartnerType === null && stat.partnerType === undefined)
-                        ? 'text-primary-700'
-                        : 'text-neutral-600 group-hover:text-neutral-700'
-                    }`}>{stat.title}</p>
-                    <p className={`text-3xl font-bold mt-2 transition-colors duration-300 ${
-                      filterPartnerType === stat.partnerType || (filterPartnerType === null && stat.partnerType === undefined)
-                        ? 'text-primary-700'
-                        : 'text-gray-900 group-hover:text-primary-700'
-                    }`}>{stat.value}</p>
-                  </div>
-                  <div className={`p-3 rounded-full transition-all duration-300 ${
-                    stat.color === 'blue' 
-                      ? filterPartnerType === stat.partnerType || (filterPartnerType === null && stat.partnerType === undefined)
-                        ? 'bg-primary-200 text-primary-700'
-                        : 'bg-primary-100 text-primary-600 group-hover:bg-primary-200'
-                      : stat.color === 'green'
-                        ? filterPartnerType === stat.partnerType
-                          ? 'bg-secondary-200 text-secondary-700'
-                          : 'bg-secondary-100 text-secondary-600 group-hover:bg-secondary-200'
-                        : stat.color === 'purple'
+          {showStats && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-fade-in">
+              {stats.map((stat, index) => (
+                <div 
+                  key={index} 
+                  onClick={stat.onClick}
+                  className={`group bg-white rounded-2xl shadow-soft hover:shadow-medium p-6 transition-all duration-300 transform hover:-translate-y-1 border cursor-pointer ${
+                    filterPartnerType === stat.partnerType || (filterPartnerType === null && stat.partnerType === undefined)
+                      ? 'border-primary-500 bg-primary-50 shadow-glow'
+                      : 'border-neutral-100 hover:border-primary-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className={`text-sm font-medium transition-colors duration-300 ${
+                        filterPartnerType === stat.partnerType || (filterPartnerType === null && stat.partnerType === undefined)
+                          ? 'text-primary-700'
+                          : 'text-neutral-600 group-hover:text-neutral-700'
+                      }`}>{stat.title}</p>
+                      <p className={`text-3xl font-bold mt-2 transition-colors duration-300 ${
+                        filterPartnerType === stat.partnerType || (filterPartnerType === null && stat.partnerType === undefined)
+                          ? 'text-primary-700'
+                          : 'text-gray-900 group-hover:text-primary-700'
+                      }`}>{stat.value}</p>
+                    </div>
+                    <div className={`p-3 rounded-full transition-all duration-300 ${
+                      stat.color === 'blue' 
+                        ? filterPartnerType === stat.partnerType || (filterPartnerType === null && stat.partnerType === undefined)
+                          ? 'bg-primary-200 text-primary-700'
+                          : 'bg-primary-100 text-primary-600 group-hover:bg-primary-200'
+                        : stat.color === 'green'
                           ? filterPartnerType === stat.partnerType
-                            ? 'bg-accent-200 text-accent-700'
-                            : 'bg-accent-100 text-accent-600 group-hover:bg-accent-200'
-                          : filterPartnerType === stat.partnerType
-                            ? 'bg-warning-200 text-warning-700'
-                            : 'bg-warning-100 text-warning-600 group-hover:bg-warning-200'
-                  }`}>
-                    {stat.icon}
+                            ? 'bg-secondary-200 text-secondary-700'
+                            : 'bg-secondary-100 text-secondary-600 group-hover:bg-secondary-200'
+                          : stat.color === 'purple'
+                            ? filterPartnerType === stat.partnerType
+                              ? 'bg-accent-200 text-accent-700'
+                              : 'bg-accent-100 text-accent-600 group-hover:bg-accent-200'
+                            : filterPartnerType === stat.partnerType
+                              ? 'bg-warning-200 text-warning-700'
+                              : 'bg-warning-100 text-warning-600 group-hover:bg-warning-200'
+                    }`}>
+                      {stat.icon}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Search & Filters */}

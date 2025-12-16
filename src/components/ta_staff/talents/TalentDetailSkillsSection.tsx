@@ -1,5 +1,4 @@
-import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
 import {
   Plus,
   Trash2,
@@ -12,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../ui/button';
 import { SectionPagination } from './SectionPagination';
+import { TalentSkillEditModal } from './TalentSkillEditModal';
 import { type TalentSkill } from '../../../services/TalentSkill';
 import { type Skill } from '../../../services/Skill';
 import { type SkillGroup } from '../../../services/SkillGroup';
@@ -104,6 +104,9 @@ interface TalentDetailSkillsSectionProps {
 
   // Helpers
   getLevelText: (level: string) => string;
+
+  // Refresh callback
+  onRefreshSkills?: () => void;
 }
 
 const SKILL_GROUPS_PER_PAGE = 3;
@@ -164,8 +167,11 @@ export function TalentDetailSkillsSection({
   canEdit,
   getLevelText,
   getLevelLabel,
+  onRefreshSkills,
 }: TalentDetailSkillsSectionProps) {
-  const navigate = useNavigate();
+  // Modal states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingSkillId, setEditingSkillId] = useState<number | null>(null);
 
   // Filter skills for inline form
   const filteredSkillsForForm = useMemo(() => {
@@ -847,7 +853,10 @@ export function TalentDetailSkillsSection({
                       <div
                         key={skill.id}
                         className="flex items-center justify-between px-4 py-2.5 hover:bg-secondary-50 cursor-pointer transition-colors"
-                        onClick={() => navigate(`/ta/talent-skills/edit/${skill.id}`)}
+                        onClick={() => {
+                          setEditingSkillId(skill.id);
+                          setIsEditModalOpen(true);
+                        }}
                       >
                         <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                           <input
@@ -894,6 +903,23 @@ export function TalentDetailSkillsSection({
           <p className="text-neutral-500 text-lg font-medium">Chưa có kỹ năng nào</p>
           <p className="text-neutral-400 text-sm mt-1">Nhân sự chưa cập nhật kỹ năng</p>
         </div>
+      )}
+
+      {/* Edit Modal */}
+      {isEditModalOpen && (
+        <TalentSkillEditModal
+          isOpen={isEditModalOpen}
+          talentSkillId={editingSkillId}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingSkillId(null);
+          }}
+          onSuccess={() => {
+            if (onRefreshSkills) {
+              onRefreshSkills();
+            }
+          }}
+        />
       )}
     </div>
   );
