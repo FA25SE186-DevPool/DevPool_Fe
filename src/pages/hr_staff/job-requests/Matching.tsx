@@ -660,7 +660,7 @@ export default function CVMatchingPage() {
                 throw new Error('Không xác định được người dùng (submittedBy). Vui lòng đăng nhập lại.');
             }
             
-            await applyService.create({
+            const createdApply = await applyService.create({
                 jobRequestId: Number(jobRequestId),
                 cvId: match.talentCV.id,
                 submittedBy: submittedBy,
@@ -678,7 +678,7 @@ export default function CVMatchingPage() {
       }
 
             alert("✅ Đã tạo hồ sơ ứng tuyển thành công!");
-            navigate(`/ta/applications`);
+            navigate(`/ta/applications/${createdApply.id}`);
         } catch (err) {
             console.error("❌ Lỗi tạo hồ sơ ứng tuyển:", err);
             alert("Không thể tạo hồ sơ ứng tuyển!");
@@ -1011,7 +1011,7 @@ export default function CVMatchingPage() {
                                                     </Button>
                                                     <Button
                                                         onClick={() =>
-                                                            navigate(`/ta/developers/${cv.talentCV.talentId}`, {
+                                                            navigate(`/ta/talents/${cv.talentCV.talentId}`, {
                                                                 state: { returnTo: currentMatchingPath },
                                                             })
                                                         }
@@ -1472,7 +1472,7 @@ export default function CVMatchingPage() {
                                             </Button>
                                             <Button
                                                 onClick={() =>
-                                                    navigate(`/ta/developers/${match.talentCV.talentId}`, {
+                                                    navigate(`/ta/talents/${match.talentCV.talentId}`, {
                                                         state: { returnTo: currentMatchingPath },
                                                     })
                                                 }

@@ -248,7 +248,7 @@ export default function TalentWorkExperienceEditPage() {
       await talentWorkExperienceService.update(Number(id), updateData);
 
       alert("✅ Cập nhật kinh nghiệm làm việc thành công!");
-      navigate(`/ta/developers/${talentId}`, { state: { tab: 'experiences' } });
+      navigate(`/ta/talents/${talentId}`, { state: { tab: 'experiences' } });
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật:", err);
       alert("Không thể cập nhật kinh nghiệm làm việc!");
@@ -277,8 +277,8 @@ export default function TalentWorkExperienceEditPage() {
         <div className="mb-8 animate-slide-up">
           <Breadcrumb
             items={[
-              { label: "Nhân sự", to: "/ta/developers" },
-              { label: talentId ? `Chi tiết nhân sự` : "Chi tiết", to: `/ta/developers/${talentId}` },
+              { label: "Nhân sự", to: "/ta/talents" },
+              { label: talentId ? `Chi tiết nhân sự` : "Chi tiết", to: `/ta/talents/${talentId}` },
               { label: "Chỉnh sửa kinh nghiệm" }
             ]}
           />
@@ -536,7 +536,7 @@ export default function TalentWorkExperienceEditPage() {
           {/* Action Buttons */}
           <div className="flex justify-end gap-4 pt-6">
             <Link
-              to={`/ta/developers/${talentId}`}
+              to={`/ta/talents/${talentId}`}
               className="group flex items-center gap-2 px-6 py-3 border border-neutral-300 rounded-xl text-neutral-700 hover:bg-neutral-50 hover:border-neutral-400 transition-all duration-300 hover:scale-105 transform"
             >
               <X className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />

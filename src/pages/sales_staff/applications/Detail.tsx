@@ -127,7 +127,7 @@ const talentStatusLabels: Record<string, string> = {
   Available: "Sẵn sàng làm việc",
   Working: "Đang làm việc",
   Applying: "Đang ứng tuyển",
-  Unavailable: "Không sẵn sàng",
+  Unavailable: "Tạm ngưng",
   Busy: "Đang bận",
   Interviewing: "Đang phỏng vấn",
   OfferPending: "Đang chờ offer",

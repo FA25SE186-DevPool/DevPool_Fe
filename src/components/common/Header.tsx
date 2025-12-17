@@ -361,17 +361,16 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
       originalActionUrl = originalActionUrl.replace('/hr/', '/');
     }
     
-    // Fix: Convert /ta/talents/:id thành /ta/developers/:id (route đúng)
-    // Vì backend có thể tạo actionUrl với format cũ hoặc có notification cũ
-    if (originalActionUrl.startsWith('/ta/talents/')) {
-      originalActionUrl = originalActionUrl.replace('/ta/talents/', '/ta/developers/');
+    // Fix: Convert legacy /ta/developers/:id to new /ta/talents/:id
+    if (originalActionUrl.startsWith('/ta/developers/')) {
+      originalActionUrl = originalActionUrl.replace('/ta/developers/', '/ta/talents/');
     }
     
     // Đóng notification dropdown ngay lập tức
     setIsNotificationOpen(false);
     
     // Xử lý đặc biệt cho notification về skill group - navigate với state để mở tab "skills"
-    if (notification.type === NotificationType.SkillGroupAutoInvalidated && originalActionUrl.includes('/ta/developers/')) {
+    if (notification.type === NotificationType.SkillGroupAutoInvalidated && originalActionUrl.includes('/ta/talents/')) {
       navigate(originalActionUrl, { state: { tab: 'skills' } });
     } else {
       // Navigate ngay với actionUrl đã được fix, không đợi mark as read
@@ -396,9 +395,9 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
         originalActionUrl = originalActionUrl.replace('/hr/', '/');
       }
       
-      // Fix: Convert /ta/talents/:id thành /ta/developers/:id (route đúng)
-      if (originalActionUrl && originalActionUrl.startsWith('/ta/talents/')) {
-        originalActionUrl = originalActionUrl.replace('/ta/talents/', '/ta/developers/');
+      // Fix: Convert legacy /ta/developers/:id to new /ta/talents/:id
+      if (originalActionUrl && originalActionUrl.startsWith('/ta/developers/')) {
+        originalActionUrl = originalActionUrl.replace('/ta/developers/', '/ta/talents/');
       }
       
       // Đánh dấu đã đọc trước, để UI cập nhật ngay
@@ -413,7 +412,7 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
       const finalActionUrl = originalActionUrl || notification.actionUrl || resolved?.actionUrl || null;
       
       // Xử lý đặc biệt cho notification về skill group - navigate với state để mở tab "skills"
-      if (notification.type === NotificationType.SkillGroupAutoInvalidated && finalActionUrl && finalActionUrl.includes('/ta/developers/')) {
+      if (notification.type === NotificationType.SkillGroupAutoInvalidated && finalActionUrl && finalActionUrl.includes('/ta/talents/')) {
         navigate(finalActionUrl, { state: { tab: 'skills' } });
         return; // Return early, không hiển thị modal
       }
@@ -432,8 +431,8 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
       if (fixedActionUrl && fixedActionUrl.startsWith('/hr/')) {
         fixedActionUrl = fixedActionUrl.replace('/hr/', '/');
       }
-      if (fixedActionUrl && fixedActionUrl.startsWith('/ta/talents/')) {
-        fixedActionUrl = fixedActionUrl.replace('/ta/talents/', '/ta/developers/');
+      if (fixedActionUrl && fixedActionUrl.startsWith('/ta/developers/')) {
+        fixedActionUrl = fixedActionUrl.replace('/ta/developers/', '/ta/talents/');
       }
       setIsNotificationOpen(false);
       setViewNotification({
@@ -1044,9 +1043,9 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
                       targetUrl = targetUrl.replace('/hr/', '/');
                     }
                     
-                    // Fix: Convert /ta/talents/:id thành /ta/developers/:id (route đúng)
-                    if (targetUrl && targetUrl.startsWith('/ta/talents/')) {
-                      targetUrl = targetUrl.replace('/ta/talents/', '/ta/developers/');
+                    // Fix: Convert legacy /ta/developers/:id to new /ta/talents/:id
+                    if (targetUrl && targetUrl.startsWith('/ta/developers/')) {
+                      targetUrl = targetUrl.replace('/ta/developers/', '/ta/talents/');
                     }
                     
                     handleCloseNotificationDetail();

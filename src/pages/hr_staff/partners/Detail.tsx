@@ -7,6 +7,7 @@ import { partnerService, type PartnerDetailedModel, type PartnerTalentModel, Par
 import { talentService, type Talent } from "../../../services/Talent";
 import { partnerContractPaymentService, type PartnerContractPaymentModel } from "../../../services/PartnerContractPayment";
 import { Button } from "../../../components/ui/button";
+import { InfoItem } from "../../../components/ta_staff/talents/InfoItem";
 import { 
   Edit, 
   Trash2, 
@@ -175,6 +176,12 @@ export default function PartnerDetailPage() {
 
   const handleDelete = async () => {
     if (!id || !partner) return;
+
+    // Không cho xóa nếu partner đang có nhân sự
+    if (partner.talents && partner.talents.length > 0) {
+      alert("Không thể xóa đối tác vì đối tác đang có nhân sự.");
+      return;
+    }
     const confirmDelete = window.confirm(`⚠️ Bạn có chắc muốn xóa đối tác ${partner.companyName}?`);
     if (!confirmDelete) return;
 
@@ -291,6 +298,15 @@ export default function PartnerDetailPage() {
     );
   }
 
+  const isDeleteDisabled = Boolean(partner.talents && partner.talents.length > 0);
+  const hasMeaningfulUpdatedAt = (() => {
+    if (!partner.updatedAt) return false;
+    const d = new Date(partner.updatedAt);
+    if (Number.isNaN(d.getTime())) return false;
+    // Backend hay trả default 0001-01-01 (năm 1) khi chưa từng cập nhật
+    return d.getFullYear() > 1970;
+  })();
+
   return (
     <div className="flex bg-gray-50 min-h-screen">
       <Sidebar items={sidebarItems} title="TA Staff" />
@@ -321,7 +337,17 @@ export default function PartnerDetailPage() {
               </Button>
               <Button
                 onClick={handleDelete}
-                className="group flex items-center gap-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105"
+                disabled={isDeleteDisabled}
+                title={
+                  isDeleteDisabled
+                    ? "Không thể xóa đối tác vì đối tác đang có nhân sự."
+                    : undefined
+                }
+                className={`group flex items-center gap-2 bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${
+                  isDeleteDisabled
+                    ? "opacity-60 cursor-not-allowed hover:shadow-none hover:scale-100"
+                    : "hover:from-red-700 hover:to-red-800"
+                }`}
               >
                 <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
                 Xóa
@@ -382,104 +408,90 @@ export default function PartnerDetailPage() {
             <div className="p-6">
               {/* Thông tin cơ bản */}
               {activeTab === 'basic' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-600 mb-2 flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      Mã đối tác
-                    </label>
-                    <p className="text-lg font-semibold text-gray-900">{partner.code || '—'}</p>
-                  </div>
+                <div className="animate-fade-in">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {/* Định danh */}
+                    <div className="space-y-6">
+                      <InfoItem
+                        label="Mã đối tác"
+                        value={partner.code || '—'}
+                        icon={<FileText className="w-4 h-4" />}
+                      />
+                      <InfoItem
+                        label="Loại đối tác"
+                        value={
+                          partner.partnerType === PartnerType.OwnCompany ? 'Công ty mình' :
+                          partner.partnerType === PartnerType.Partner ? 'Đối tác' :
+                          partner.partnerType === PartnerType.Individual ? 'Cá nhân/Freelancer' : '—'
+                        }
+                        icon={<Building2 className="w-4 h-4" />}
+                      />
+                      <InfoItem
+                        label="Tên công ty"
+                        value={partner.companyName || '—'}
+                        icon={<Building2 className="w-4 h-4" />}
+                      />
+                      <InfoItem
+                        label="Mã số thuế"
+                        value={partner.taxCode || '—'}
+                        icon={<FileText className="w-4 h-4" />}
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-600 mb-2 flex items-center gap-2">
-                      <Building2 className="w-4 h-4" />
-                      Loại đối tác
-                    </label>
-                    <p className="text-lg font-semibold text-gray-900">
-                      {partner.partnerType === PartnerType.OwnCompany ? 'Công ty mình' :
-                       partner.partnerType === PartnerType.Partner ? 'Đối tác' :
-                       partner.partnerType === PartnerType.Individual ? 'Cá nhân/Freelancer' : '—'}
-                    </p>
-                  </div>
+                    {/* Liên hệ */}
+                    <div className="space-y-6">
+                      <InfoItem
+                        label="Người đại diện"
+                        value={partner.contactPerson || '—'}
+                        icon={<User className="w-4 h-4" />}
+                      />
+                      <InfoItem
+                        label="Email"
+                        value={partner.email || '—'}
+                        icon={<Mail className="w-4 h-4" />}
+                      />
+                      <InfoItem
+                        label="Số điện thoại"
+                        value={partner.phoneNumber || '—'}
+                        icon={<Phone className="w-4 h-4" />}
+                      />
+                      <InfoItem
+                        label="Địa chỉ"
+                        value={partner.address || '—'}
+                        icon={<MapPin className="w-4 h-4" />}
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-600 mb-2 flex items-center gap-2">
-                      <Building2 className="w-4 h-4" />
-                      Tên công ty
-                    </label>
-                    <p className="text-lg font-semibold text-gray-900">{partner.companyName}</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-600 mb-2 flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      Mã số thuế
-                    </label>
-                    <p className="text-lg text-gray-900">{partner.taxCode || '—'}</p>
+                    {/* Hệ thống */}
+                    <div className="space-y-6">
+                      <InfoItem
+                        label="Ngày tạo"
+                        value={partner.createdAt ? new Date(partner.createdAt).toLocaleString('vi-VN') : '—'}
+                        icon={<Calendar className="w-4 h-4" />}
+                      />
+                      {hasMeaningfulUpdatedAt && (
+                        <InfoItem
+                          label="Ngày cập nhật"
+                          value={new Date(partner.updatedAt as string).toLocaleString('vi-VN')}
+                          icon={<Calendar className="w-4 h-4" />}
+                        />
+                      )}
+                    </div>
                   </div>
 
                   {partner.notes && (
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-neutral-600 mb-2 flex items-center gap-2">
-                        <FileText className="w-4 h-4" />
-                        Ghi chú
-                      </label>
-                      <p className="text-lg text-gray-900">{partner.notes}</p>
+                    <div className="mt-8 pt-6 border-t border-neutral-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="text-neutral-400">
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <p className="text-neutral-500 text-sm font-medium">Ghi chú</p>
+                      </div>
+                      <div className="text-gray-900 font-semibold break-words max-w-full overflow-hidden">
+                        {partner.notes}
+                      </div>
                     </div>
                   )}
-
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-600 mb-2 flex items-center gap-2">
-                      <User className="w-4 h-4" />
-                      Người đại diện
-                    </label>
-                    <p className="text-lg text-gray-900">{partner.contactPerson || '—'}</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-600 mb-2 flex items-center gap-2">
-                      <Mail className="w-4 h-4" />
-                      Email
-                    </label>
-                    <p className="text-lg text-gray-900">{partner.email || '—'}</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-600 mb-2 flex items-center gap-2">
-                      <Phone className="w-4 h-4" />
-                      Số điện thoại
-                    </label>
-                    <p className="text-lg text-gray-900">{partner.phoneNumber || '—'}</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-600 mb-2 flex items-center gap-2">
-                      <MapPin className="w-4 h-4" />
-                      Địa chỉ
-                    </label>
-                    <p className="text-lg text-gray-900">{partner.address || '—'}</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-600 mb-2 flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      Ngày tạo
-                    </label>
-                    <p className="text-lg text-gray-900">
-                      {partner.createdAt ? new Date(partner.createdAt).toLocaleString('vi-VN') : '—'}
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-600 mb-2 flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      Ngày cập nhật
-                    </label>
-                    <p className="text-lg text-gray-900">
-                      {partner.updatedAt ? new Date(partner.updatedAt).toLocaleString('vi-VN') : '—'}
-                    </p>
-                  </div>
                 </div>
               )}
 

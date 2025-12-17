@@ -22,6 +22,7 @@ export default function PartnerEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [partner, setPartner] = useState<Partner | null>(null);
+  const isEditMode = Boolean(id);
   const [formData, setFormData] = useState<PartnerPayload>({
     code: "",
     partnerType: PartnerType.Partner,
@@ -313,7 +314,9 @@ export default function PartnerEditPage() {
                     maxLength={50}
                     placeholder="VD: KMS, FPT, VNG"
                     required
-                    className={`w-full border-neutral-200 focus:border-primary-500 focus:ring-primary-500 rounded-xl ${errors.code ? 'border-red-500 focus:border-red-500' : ''}`}
+                    disabled={isEditMode}
+                    title={isEditMode ? "Mã đối tác bị khóa, không thể chỉnh sửa khi đang ở chế độ cập nhật." : undefined}
+                    className={`w-full border-neutral-200 focus:border-primary-500 focus:ring-primary-500 rounded-xl ${errors.code ? 'border-red-500 focus:border-red-500' : ''} ${isEditMode ? 'bg-neutral-100 text-neutral-600 cursor-not-allowed' : ''}`}
                   />
                   {errors.code && (
                     <p className="mt-1 text-sm text-red-500">{errors.code}</p>
@@ -369,7 +372,9 @@ export default function PartnerEditPage() {
                     inputMode="numeric"
                     pattern="[0-9]*"
                     placeholder="Nhập mã số thuế (10 hoặc 13 chữ số)..."
-                    className={`w-full border-neutral-200 focus:border-primary-500 focus:ring-primary-500 rounded-xl ${errors.taxCode ? 'border-red-500 focus:border-red-500' : ''}`}
+                    disabled={isEditMode}
+                    title={isEditMode ? "Mã số thuế bị khóa, không thể chỉnh sửa khi đang ở chế độ cập nhật." : undefined}
+                    className={`w-full border-neutral-200 focus:border-primary-500 focus:ring-primary-500 rounded-xl ${errors.taxCode ? 'border-red-500 focus:border-red-500' : ''} ${isEditMode ? 'bg-neutral-100 text-neutral-600 cursor-not-allowed' : ''}`}
           />
                   {errors.taxCode && (
                     <p className="mt-1 text-sm text-red-500">{errors.taxCode}</p>
@@ -403,7 +408,9 @@ export default function PartnerEditPage() {
                     value={formData.email}
             onChange={handleChange}
                     placeholder="Nhập email..."
-                    className="w-full border-neutral-200 focus:border-primary-500 focus:ring-primary-500 rounded-xl"
+                    disabled={isEditMode}
+                    title={isEditMode ? "Email bị khóa, không thể chỉnh sửa khi đang ở chế độ cập nhật." : undefined}
+                    className={`w-full border-neutral-200 focus:border-primary-500 focus:ring-primary-500 rounded-xl ${isEditMode ? 'bg-neutral-100 text-neutral-600 cursor-not-allowed' : ''}`}
           />
         </div>
 

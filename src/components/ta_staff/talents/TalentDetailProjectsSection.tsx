@@ -1,7 +1,8 @@
 import { Plus, Trash2, Briefcase, X, Save, Target, Search } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Button } from '../../ui/button';
 import { SectionPagination } from './SectionPagination';
+import { TalentProjectEditModal } from './TalentProjectEditModal';
 import { type TalentProject } from '../../../services/TalentProject';
 import { type TalentProjectCreateModel } from '../../../services/Talent';
 import { type CVAnalysisComparisonResponse } from '../../../services/TalentCV';
@@ -39,6 +40,9 @@ interface TalentDetailProjectsSectionProps {
 
   // CV Analysis suggestions
   analysisResult?: CVAnalysisComparisonResponse | null;
+
+  // Refresh callback after editing
+  onRefreshProjects?: () => void | Promise<void>;
 }
 
 /**
@@ -66,8 +70,15 @@ export function TalentDetailProjectsSection({
   onDelete,
   canEdit,
   analysisResult,
+  onRefreshProjects,
 }: TalentDetailProjectsSectionProps) {
-  const navigate = useNavigate();
+  const [isEditProjectModalOpen, setIsEditProjectModalOpen] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
+
+  const openEditProjectModal = (projectId: number) => {
+    setEditingProjectId(projectId);
+    setIsEditProjectModalOpen(true);
+  };
 
   // Filter positions
   const filteredProjectPositions = projectPositions.filter((position) => {
@@ -77,6 +88,16 @@ export function TalentDetailProjectsSection({
 
   return (
     <div className="space-y-6">
+      <TalentProjectEditModal
+        isOpen={isEditProjectModalOpen}
+        projectId={editingProjectId}
+        canEdit={canEdit}
+        onClose={() => {
+          setIsEditProjectModalOpen(false);
+          setEditingProjectId(null);
+        }}
+        onSaved={onRefreshProjects}
+      />
       {/* CV Analysis Suggestions */}
       {analysisResult &&
         (analysisResult.projects.newEntries.length > 0 || analysisResult.projects.potentialDuplicates.length > 0) && (
@@ -351,7 +372,7 @@ export function TalentDetailProjectsSection({
                     <tr
                       key={project.id}
                       className="hover:bg-primary-50 transition-colors duration-200 cursor-pointer"
-                      onClick={() => navigate(`/ta/talent-projects/edit/${project.id}`)}
+                      onClick={() => openEditProjectModal(project.id)}
                     >
                       <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <input

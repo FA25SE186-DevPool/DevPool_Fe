@@ -53,9 +53,6 @@ const validateCVVersion = (version: number, jobRoleLevelId: number, existingCVsL
   
   // Nếu chưa có CV nào cho jobRoleLevelId này, chỉ cho phép version = 1
   if (cvList.length === 0) {
-    if (version !== 1) {
-      return "Chưa có CV nào cho vị trí công việc này. Vui lòng tạo version 1 trước.";
-    }
     return "";
   }
   
@@ -390,7 +387,7 @@ export function useTalentDetailCVForm({
       if (inlineCVForm.version !== 1) {
         setInlineCVForm(prev => ({ ...prev, version: 1 }));
       }
-      setCvVersionError("Chưa có CV nào cho vị trí công việc này. Vui lòng tạo version 1 trước.");
+      setCvVersionError("");
     } else if (inlineCVForm.version && inlineCVForm.version > 0 && jobRoleLevelId > 0 && existingCVsForValidation.length > 0) {
       // Đã có CV - validate version
       const error = validateCVVersion(inlineCVForm.version, jobRoleLevelId, existingCVsForValidation);

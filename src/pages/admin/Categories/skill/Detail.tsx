@@ -4,6 +4,7 @@ import Sidebar from "../../../../components/common/Sidebar";
 import { sidebarItems } from "../../../../components/sidebar/admin";
 import { skillService, type Skill } from "../../../../services/Skill";
 import { skillGroupService, type SkillGroup } from "../../../../services/SkillGroup";
+import { masterDataService } from "../../../../services/MasterData";
 import { 
   ArrowLeft, 
   Edit, 
@@ -53,6 +54,19 @@ export default function SkillDetailPage() {
     if (!confirmDelete) return;
 
     try {
+      // Check can-delete rule from BE (Master Data)
+      try {
+        const check = await masterDataService.checkSkillCanDelete(Number(id));
+        if (check && check.canDelete === false) {
+          const details = check.usageDetails ? `\n\n${check.usageDetails}` : "";
+          alert((check.message || "Skill đang được sử dụng và không thể xóa.") + details);
+          return;
+        }
+      } catch (checkErr) {
+        // Nếu không check được thì vẫn thử delete (BE sẽ chặn nếu cần)
+        console.warn("⚠️ Không thể kiểm tra can-delete, sẽ thử xóa trực tiếp:", checkErr);
+      }
+
       await skillService.delete(Number(id));
       alert("✅ Đã xóa kỹ năng thành công!");
       // Quay về trang chi tiết skill group nếu có, nếu không thì về danh sách skills

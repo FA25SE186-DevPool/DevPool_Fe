@@ -226,7 +226,7 @@ export default function HRDashboard() {
       trend: 'up',
       color: 'blue',
       icon: Users,
-      route: '/ta/developers'
+      route: '/ta/talents'
     },
     {
       title: 'Đối Tác',

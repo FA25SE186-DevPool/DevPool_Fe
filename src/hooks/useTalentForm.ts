@@ -64,11 +64,12 @@ export function useTalentForm(initialData?: Partial<TalentCreate>) {
       newErrors.email = 'Email không hợp lệ';
     }
 
-    if (!formData.phone || !validatePhone(formData.phone)) {
+    // Optional fields: validate format only when provided
+    if (formData.phone && !validatePhone(formData.phone)) {
       newErrors.phone = 'Số điện thoại phải có đúng 10 chữ số';
     }
 
-    if (!formData.dateOfBirth || !validateDateOfBirth(formData.dateOfBirth)) {
+    if (formData.dateOfBirth && !validateDateOfBirth(formData.dateOfBirth)) {
       newErrors.dateOfBirth = 'Ngày sinh không hợp lệ (tuổi từ 18-100)';
     }
 
@@ -76,9 +77,7 @@ export function useTalentForm(initialData?: Partial<TalentCreate>) {
       newErrors.workingMode = 'Vui lòng chọn chế độ làm việc';
     }
 
-    if (!formData.locationId) {
-      newErrors.locationId = 'Vui lòng chọn khu vực làm việc';
-    }
+    // locationId is optional (when provided it will be saved)
 
     if (!formData.currentPartnerId) {
       newErrors.currentPartnerId = 'Vui lòng chọn đối tác';

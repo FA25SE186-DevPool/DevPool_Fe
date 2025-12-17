@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
     Search,
     Filter,
@@ -25,7 +25,7 @@ import { projectService, type Project } from "../../../services/Project";
 import { jobRoleLevelService, type JobRoleLevel } from "../../../services/JobRoleLevel";
 import { jobSkillService, type JobSkill } from "../../../services/JobSkill";
 import { skillService, type Skill } from "../../../services/Skill";
-import { talentApplicationService, type TalentApplication } from "../../../services/TalentApplication";
+import { talentApplicationService, type TalentApplication, type TalentApplicationDetailed } from "../../../services/TalentApplication";
 
 interface HRJobRequest {
     id: number;
@@ -64,9 +64,37 @@ const statusLabelDisplay: Record<string, string> = {
 };
 
 export default function HRJobRequestList() {
+    const navigate = useNavigate();
     const [requests, setRequests] = useState<HRJobRequest[]>([]);
     const [filteredRequests, setFilteredRequests] = useState<HRJobRequest[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // Hồ sơ ứng tuyển popup
+    const [isApplicationsOpen, setIsApplicationsOpen] = useState(false);
+    const [selectedRequest, setSelectedRequest] = useState<HRJobRequest | null>(null);
+    const [applicationsLoading, setApplicationsLoading] = useState(false);
+    const [applicationsError, setApplicationsError] = useState<string | null>(null);
+    const [applications, setApplications] = useState<TalentApplicationDetailed[]>([]);
+
+    const applicationStatusLabel: Record<string, string> = {
+        Submitted: "Đã nộp",
+        Interviewing: "Đang phỏng vấn",
+        Hired: "Đạt",
+        Rejected: "Không đạt",
+        Withdrawn: "Rút hồ sơ",
+        Pending: "Chờ xử lý",
+    };
+
+    // Đóng popup bằng phím ESC
+    useEffect(() => {
+        if (!isApplicationsOpen) return;
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") closeApplicationsPopup();
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isApplicationsOpen]);
 
     // Lookup data for dropdowns
     const [companies, setCompanies] = useState<ClientCompany[]>([]);
@@ -153,12 +181,13 @@ const stats = [
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const [jobReqs, companies, projects, positions, jobSkills, skills, applications] =
+                const [jobReqs, companies, projects, positionsAll, jobSkills, skills, applications] =
                     await Promise.all([
                         jobRequestService.getAll(),
                         clientCompanyService.getAll(),
                         projectService.getAll(),
-                        jobRoleLevelService.getAll({ excludeDeleted: true, distinctByName: true }),
+                        // ⚠️ Không dùng distinctByName ở đây vì cần map chính xác theo JobRoleLevelId của từng JobRequest
+                        jobRoleLevelService.getAll({ excludeDeleted: true }),
                         jobSkillService.getAll(),
                         skillService.getAll(),
                         talentApplicationService.getAll({ excludeDeleted: true }),
@@ -168,7 +197,7 @@ const stats = [
                 const jobReqsArray = ensureArray<JobRequest>(jobReqs);
                 const companiesArray = ensureArray<ClientCompany>(companies);
                 const projectsArray = ensureArray<Project>(projects);
-                const positionsArray = ensureArray<JobRoleLevel>(positions);
+                const positionsAllArray = ensureArray<JobRoleLevel>(positionsAll);
                 const jobSkillsArray = ensureArray<JobSkill>(jobSkills);
                 const skillsArray = ensureArray<Skill>(skills);
                 const applicationsArray = ensureArray<TalentApplication>(applications);
@@ -194,7 +223,7 @@ const stats = [
                 companiesArray.forEach((c) => (companyDict[c.id] = c));
 
                 const positionDict: Record<number, JobRoleLevel> = {};
-                positionsArray.forEach((p) => (positionDict[p.id] = p));
+                positionsAllArray.forEach((p) => (positionDict[p.id] = p));
 
                 const skillDict: Record<number, string> = {};
                 skillsArray.forEach((s) => (skillDict[s.id] = s.name));
@@ -218,7 +247,13 @@ const stats = [
                 const mapped: HRJobRequest[] = filteredReqs.map((r) => {
                     const project = projectDict[r.projectId];
                     const company = project ? companyDict[project.clientCompanyId] : undefined;
-                    const position = positionDict[r.jobRoleLevelId];
+                    // Backend đôi khi trả field PascalCase/khác casing, nên fallback an toàn
+                    const jobRoleLevelId =
+                        (r as any).jobRoleLevelId ??
+                        (r as any).JobRoleLevelId ??
+                        (r as any).jobRoleLevelID ??
+                        (r as any).JobRoleLevelID;
+                    const position = jobRoleLevelId ? positionDict[Number(jobRoleLevelId)] : undefined;
                     return {
                         id: r.id,
                         code: r.code,
@@ -238,7 +273,14 @@ const stats = [
                 setFilteredRequests(mapped);
                 setCompanies(companiesArray);
                 setProjects(projectsArray);
-                setPositions(positionsArray);
+                // Dropdown "Vị trí": hiển thị distinct theo name để gọn
+                const byName = new Map<string, JobRoleLevel>();
+                positionsAllArray.forEach((p) => {
+                    const key = (p.name ?? "").trim();
+                    if (!key) return;
+                    if (!byName.has(key)) byName.set(key, p);
+                });
+                setPositions(Array.from(byName.values()));
             } catch (err) {
                 console.error("❌ Lỗi tải danh sách yêu cầu TA:", err);
             } finally {
@@ -248,6 +290,39 @@ const stats = [
 
         fetchData();
     }, []);
+
+    const closeApplicationsPopup = () => {
+        setIsApplicationsOpen(false);
+        setSelectedRequest(null);
+        setApplications([]);
+        setApplicationsError(null);
+        setApplicationsLoading(false);
+    };
+
+    const openApplicationsPopup = async (req: HRJobRequest) => {
+        setSelectedRequest(req);
+        setIsApplicationsOpen(true);
+        setApplications([]);
+        setApplicationsError(null);
+
+        // Nếu chưa có hồ sơ thì chỉ mở popup thông báo
+        if (!req.applicationCount || req.applicationCount <= 0) return;
+
+        try {
+            setApplicationsLoading(true);
+            const res = await talentApplicationService.getByJobRequest(req.id);
+            const apps = res?.data?.applications ?? [];
+            setApplications(apps);
+        } catch (e: unknown) {
+            const msg =
+                (e && typeof e === "object" && "message" in e && typeof (e as any).message === "string")
+                    ? (e as any).message
+                    : "Không thể tải danh sách hồ sơ ứng tuyển.";
+            setApplicationsError(msg);
+        } finally {
+            setApplicationsLoading(false);
+        }
+    };
 
     // 🧮 Lọc dữ liệu theo điều kiện
     useEffect(() => {
@@ -371,6 +446,131 @@ const stats = [
         <div className="flex bg-gray-50 min-h-screen">
             <Sidebar items={sidebarItems} title="TA Staff" />
             <div className="flex-1 p-8">
+                {/* Popup danh sách hồ sơ ứng tuyển */}
+                {isApplicationsOpen && (
+                    <div
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-[2px] p-4"
+                        role="dialog"
+                        aria-modal="true"
+                        onMouseDown={(e) => {
+                            if (e.target === e.currentTarget) closeApplicationsPopup();
+                        }}
+                    >
+                        <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl border border-neutral-200 overflow-hidden animate-fade-in">
+                            <div className="flex items-start justify-between gap-4 p-5 border-b border-neutral-200 bg-gradient-to-r from-neutral-50 to-primary-50">
+                                <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <p className="text-base font-semibold text-neutral-900">Hồ sơ ứng tuyển</p>
+                                        {selectedRequest ? (
+                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border border-neutral-200 bg-white text-neutral-800">
+                                                {applications.filter((a) => a.status === "Hired").length}/{selectedRequest.quantity}
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                    <p className="text-xs text-neutral-600 mt-1 line-clamp-2">
+                                        {selectedRequest ? (selectedRequest.title || "(Chưa có tiêu đề)") : null}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={closeApplicationsPopup}
+                                    className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-neutral-600 hover:bg-neutral-100"
+                                    aria-label="Đóng"
+                                    title="Đóng"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="p-5">
+                                {selectedRequest ? (
+                                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                                        <div className="text-sm text-neutral-700">
+                                            Tổng hồ sơ:{" "}
+                                            <span className="font-semibold text-neutral-900">{selectedRequest.applicationCount}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Link
+                                                to={`/ta/applications?jobRequestId=${selectedRequest.id}`}
+                                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-primary-700 hover:text-primary-800 hover:bg-primary-50 transition-all"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                                Mở trang danh sách
+                                            </Link>
+                                        </div>
+                                    </div>
+                                ) : null}
+
+                                {applicationsLoading ? (
+                                    <div className="space-y-3">
+                                        {Array.from({ length: 5 }).map((_, idx) => (
+                                            <div
+                                                key={idx}
+                                                className="rounded-xl border border-neutral-200 bg-white p-4 shadow-soft"
+                                            >
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="h-4 w-56 bg-neutral-200 rounded animate-pulse" />
+                                                        <div className="mt-2 h-3 w-32 bg-neutral-200 rounded animate-pulse" />
+                                                    </div>
+                                                    <div className="h-8 w-20 bg-neutral-200 rounded-lg animate-pulse" />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : applicationsError ? (
+                                    <div className="py-6 rounded-xl border border-red-200 bg-red-50 text-sm text-red-700">
+                                        <div className="px-4">{applicationsError}</div>
+                                    </div>
+                                ) : selectedRequest && selectedRequest.applicationCount <= 0 ? (
+                                    <div className="py-10 text-center text-sm text-neutral-600">Chưa có hồ sơ ứng tuyển cho yêu cầu này.</div>
+                                ) : applications.length === 0 ? (
+                                    <div className="py-10 text-center text-sm text-neutral-600">Không có dữ liệu hồ sơ.</div>
+                                ) : (
+                                    <div className="max-h-[62vh] overflow-auto pr-1">
+                                        <div className="space-y-3">
+                                            {applications.map((app) => {
+                                                const talentName = app.talentName || app.talent?.fullName || `Talent #${app.talent?.id ?? "—"}`;
+                                                const submitter = app.submitterName || app.submittedBy || "—";
+                                                const createdAt = app.createdAt ? new Date(app.createdAt).toLocaleString("vi-VN") : "—";
+                                                const statusLabel = app.status ? (applicationStatusLabel[app.status] ?? app.status) : "—";
+                                                return (
+                                                    <div
+                                                        key={app.id}
+                                                        className="group rounded-xl border border-neutral-200 bg-white p-4 shadow-soft hover:shadow-medium transition-all"
+                                                    >
+                                                        <div className="flex flex-wrap items-start justify-between gap-3">
+                                                            <div className="min-w-0">
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                    <p className="text-sm font-semibold text-neutral-900">{talentName}</p>
+                                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border border-neutral-200 bg-neutral-50 text-neutral-700">
+                                                                        {statusLabel}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-600">
+                                                                    <span>Người nộp: {submitter}</span>
+                                                                    <span>Ngày nộp: {createdAt}</span>
+                                                                </div>
+                                                            </div>
+                                                            <Link
+                                                                to={`/ta/applications/${app.id}`}
+                                                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-primary-700 hover:text-primary-800 hover:bg-primary-50 transition-all"
+                                                            >
+                                                                <Eye className="w-4 h-4" />
+                                                                Xem
+                                                            </Link>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Header */}
                 <div className="mb-8 animate-slide-up">
                     <div className="flex justify-between items-center mb-6">
@@ -864,14 +1064,13 @@ const stats = [
                                     <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Dự án</th>
                                     <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Vị trí</th>
                                     <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">Hồ sơ</th>
-                                    <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">Trạng thái</th>
-                                    <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">Thao tác</th>
+                                    <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider whitespace-nowrap min-w-[110px]">Trạng thái</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200">
                                 {filteredRequests.length === 0 ? (
                                     <tr>
-                                        <td colSpan={9} className="text-center py-12">
+                                        <td colSpan={8} className="text-center py-12">
                                             <div className="flex flex-col items-center justify-center">
                                                 <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
                                                     <Briefcase className="w-8 h-8 text-neutral-400" />
@@ -885,7 +1084,16 @@ const stats = [
                                     paginatedRequests.map((req, i) => (
                                         <tr
                                             key={req.id}
-                                            className="group hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 transition-all duration-300"
+                                            className="group cursor-pointer hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 transition-all duration-300"
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={() => navigate(`/ta/job-requests/${req.id}`)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter" || e.key === " ") {
+                                                    e.preventDefault();
+                                                    navigate(`/ta/job-requests/${req.id}`);
+                                                }
+                                            }}
                                         >
                                             <td className="py-4 px-6 text-sm font-medium text-neutral-900">{startIndex + i + 1}</td>
                                             <td className="py-4 px-6">
@@ -923,8 +1131,13 @@ const stats = [
                                                 </div>
                                             </td>
                                             <td className="py-4 px-6 text-center">
-                                                <Link
-                                                    to={`/ta/applications?jobRequestId=${req.id}`}
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        openApplicationsPopup(req);
+                                                    }}
                                                     className={`group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-300 hover:scale-105 transform ${
                                                         req.applicationCount >= req.quantity
                                                             ? 'bg-green-100 text-green-700 hover:bg-green-200'
@@ -932,12 +1145,11 @@ const stats = [
                                                             ? 'bg-primary-100 text-primary-700 hover:bg-primary-200'
                                                             : 'bg-neutral-100 text-neutral-500'
                                                         }`}
+                                                    title="Xem danh sách hồ sơ ứng tuyển"
                                                 >
                                                     <ClipboardList className="w-3.5 h-3.5 group-hover:scale-110 transition-transform duration-300" />
                                                     <span className="font-semibold">{req.applicationCount}</span>
-                                                    <span className="text-neutral-400">/</span>
-                                                    <span className="font-normal text-neutral-600">{req.quantity}</span>
-                                                </Link>
+                                                </button>
                                             </td>
                                             <td className="py-4 px-6 text-center">
                                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${req.status === 'Pending' ? 'bg-warning-100 text-warning-700' :
@@ -948,17 +1160,6 @@ const stats = [
                                                     }`}>
                                                     {statusLabelDisplay[req.status] ?? req.status}
                                                 </span>
-                                            </td>
-                                            <td className="py-4 px-6 text-center">
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <Link
-                                                        to={`/ta/job-requests/${req.id}`}
-                                                        className="group inline-flex items-center gap-2 px-3 py-2 text-primary-600 hover:text-primary-800 hover:bg-primary-50 rounded-lg transition-all duration-300 hover:scale-105 transform"
-                                                    >
-                                                        <Eye className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-                                                        <span className="text-sm font-medium">Xem</span>
-                                                    </Link>
-                                                </div>
                                             </td>
                                         </tr>
                                     ))
