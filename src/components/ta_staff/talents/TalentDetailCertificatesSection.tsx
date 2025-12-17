@@ -1,11 +1,12 @@
 import { Plus, Trash2, Award, X, Save, Upload, Eye, FileText, AlertCircle, ExternalLink, Search } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Button } from '../../ui/button';
 import { SectionPagination } from './SectionPagination';
 import { type TalentCertificate } from '../../../services/TalentCertificate';
 import { type TalentCertificateCreateModel } from '../../../services/Talent';
 import { type CertificateType } from '../../../services/CertificateType';
 import { type CVAnalysisComparisonResponse } from '../../../services/TalentCV';
+import { TalentCertificateEditModal } from './TalentCertificateEditModal';
 
 interface TalentDetailCertificatesSectionProps {
   // Data
@@ -59,6 +60,9 @@ interface TalentDetailCertificatesSectionProps {
 
   // Validation
   validateIssuedDate: (date: string) => boolean;
+
+  // Refresh
+  onRefreshCertificates?: () => void | Promise<void>;
 }
 
 /**
@@ -99,8 +103,10 @@ export function TalentDetailCertificatesSection({
   certificatesUnmatched,
   canEdit,
   validateIssuedDate,
+  onRefreshCertificates,
 }: TalentDetailCertificatesSectionProps) {
-  const navigate = useNavigate();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingCertificateId, setEditingCertificateId] = useState<number | null>(null);
 
   // Filter certificate types
   const filteredCertificateTypes = lookupCertificateTypes.filter((type) => {
@@ -565,7 +571,10 @@ export function TalentDetailCertificatesSection({
                     <tr
                       key={cert.id}
                       className="hover:bg-primary-50 transition-colors duration-200 cursor-pointer"
-                      onClick={() => navigate(`/ta/talent-certificates/edit/${cert.id}`)}
+                      onClick={() => {
+                        setEditingCertificateId(cert.id);
+                        setIsEditModalOpen(true);
+                      }}
                     >
                       <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <input
@@ -635,6 +644,19 @@ export function TalentDetailCertificatesSection({
           <p className="text-neutral-500 text-lg font-medium">Chưa có chứng chỉ nào</p>
           <p className="text-neutral-400 text-sm mt-1">Nhân sự chưa upload chứng chỉ</p>
         </div>
+      )}
+
+      {isEditModalOpen && (
+        <TalentCertificateEditModal
+          isOpen={isEditModalOpen}
+          certificateId={editingCertificateId}
+          canEdit={canEdit}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingCertificateId(null);
+          }}
+          onSaved={onRefreshCertificates}
+        />
       )}
     </div>
   );

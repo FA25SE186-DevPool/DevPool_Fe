@@ -1,25 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Star, Layers } from 'lucide-react';
+import { Plus, X, Star } from 'lucide-react';
 import { Button } from '../../ui/button';
 import { SectionPagination } from './SectionPagination';
 import { type TalentSkillCreateModel } from '../../../services/Talent';
 import { type Skill } from '../../../services/Skill';
-import { type SkillGroup } from '../../../services/SkillGroup';
 
 interface TalentSkillsSectionProps {
   talentSkills: TalentSkillCreateModel[];
   skills: Skill[];
-  skillGroups: SkillGroup[];
   skillSearchQuery: Record<number, string>;
   setSkillSearchQuery: (query: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => void;
   isSkillDropdownOpen: Record<number, boolean>;
   setIsSkillDropdownOpen: (open: Record<number, boolean> | ((prev: Record<number, boolean>) => Record<number, boolean>)) => void;
-  skillGroupSearchQuery: string;
-  setSkillGroupSearchQuery: (query: string) => void;
-  isSkillGroupDropdownOpen: boolean;
-  setIsSkillGroupDropdownOpen: (open: boolean) => void;
-  selectedSkillGroupId: number | undefined;
-  setSelectedSkillGroupId: (id: number | undefined) => void;
   errors: Record<string, string>;
   onAdd: () => void;
   onRemove: (index: number) => void;
@@ -32,17 +24,10 @@ interface TalentSkillsSectionProps {
 export function TalentSkillsSection({
   talentSkills,
   skills,
-  skillGroups,
   skillSearchQuery,
   setSkillSearchQuery,
   isSkillDropdownOpen,
   setIsSkillDropdownOpen,
-  skillGroupSearchQuery,
-  setSkillGroupSearchQuery,
-  isSkillGroupDropdownOpen,
-  setIsSkillGroupDropdownOpen,
-  selectedSkillGroupId,
-  setSelectedSkillGroupId,
   errors,
   onAdd,
   onRemove,
@@ -52,10 +37,8 @@ export function TalentSkillsSection({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
 
-  // Filter skills by group
-  const filteredSkills = selectedSkillGroupId
-    ? skills.filter((s) => s.skillGroupId === selectedSkillGroupId)
-    : skills;
+  // Không lọc theo nhóm kỹ năng ở form này (hiển thị tất cả kỹ năng)
+  const filteredSkills = skills;
 
   // Calculate pagination
   const totalPages = Math.ceil(talentSkills.length / itemsPerPage);
@@ -97,91 +80,6 @@ export function TalentSkillsSection({
       </div>
 
       <div className="p-4 space-y-3">
-        {/* Skill Group Filter */}
-        <div>
-          <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-            <Layers className="w-4 h-4 inline mr-1.5" />
-            Lọc theo nhóm kỹ năng
-          </label>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsSkillGroupDropdownOpen(!isSkillGroupDropdownOpen)}
-              className="w-full flex items-center justify-between px-3 py-2 border border-neutral-300 rounded-lg bg-white text-left hover:border-primary-300 transition-colors"
-            >
-              <span className="text-sm text-neutral-700">
-                {selectedSkillGroupId
-                  ? skillGroups.find((g) => g.id === selectedSkillGroupId)?.name || 'Tất cả nhóm'
-                  : 'Tất cả nhóm'}
-              </span>
-              <X
-                className={`w-4 h-4 text-neutral-400 transition-transform ${
-                  isSkillGroupDropdownOpen ? 'rotate-90' : ''
-                }`}
-              />
-            </button>
-            {isSkillGroupDropdownOpen && (
-              <div
-                className="absolute z-20 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
-                onMouseLeave={() => {
-                  setIsSkillGroupDropdownOpen(false);
-                  setSkillGroupSearchQuery('');
-                }}
-              >
-                <div className="p-3 border-b border-neutral-100">
-                  <input
-                    type="text"
-                    value={skillGroupSearchQuery}
-                    onChange={(e) => setSkillGroupSearchQuery(e.target.value)}
-                    placeholder="Tìm nhóm kỹ năng..."
-                    className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
-                  />
-                </div>
-                <div className="max-h-56 overflow-y-auto">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedSkillGroupId(undefined);
-                      setIsSkillGroupDropdownOpen(false);
-                      setSkillGroupSearchQuery('');
-                    }}
-                    className={`w-full text-left px-4 py-2.5 text-sm ${
-                      !selectedSkillGroupId
-                        ? 'bg-primary-50 text-primary-700'
-                        : 'hover:bg-neutral-50 text-neutral-700'
-                    }`}
-                  >
-                    Tất cả nhóm
-                  </button>
-                  {skillGroups
-                    .filter((g) =>
-                      !skillGroupSearchQuery ||
-                      g.name.toLowerCase().includes(skillGroupSearchQuery.toLowerCase())
-                    )
-                    .map((group) => (
-                      <button
-                        type="button"
-                        key={group.id}
-                        onClick={() => {
-                          setSelectedSkillGroupId(group.id);
-                          setIsSkillGroupDropdownOpen(false);
-                          setSkillGroupSearchQuery('');
-                        }}
-                        className={`w-full text-left px-4 py-2.5 text-sm ${
-                          selectedSkillGroupId === group.id
-                            ? 'bg-primary-50 text-primary-700'
-                            : 'hover:bg-neutral-50 text-neutral-700'
-                        }`}
-                      >
-                        {group.name}
-                      </button>
-                    ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Skills List */}
         {talentSkills.length === 0 ? (
           <div className="text-center py-6 text-neutral-500">

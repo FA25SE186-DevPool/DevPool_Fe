@@ -309,6 +309,19 @@ export interface CVAnalysisComparisonResponse {
   certificates: CertificatesComparison;
   jobRoleLevels: JobRoleLevelsComparison;
   rawExtractedText: string;
+  ownershipVerification?: {
+    isVerified: boolean;
+    isFirstCV?: boolean;
+    method?: string;
+    confidenceScore?: number;
+    recommendation?: string;
+    reasoning?: string;
+    message?: string;
+    criticalWarnings?: string[];
+    minorWarnings?: string[];
+    suggestedFieldsToAdd?: string[];
+    missingInformation?: string[];
+  } | null;
 }
 
 export interface TalentCVExtractRequest {

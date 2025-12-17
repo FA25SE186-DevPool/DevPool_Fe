@@ -17,7 +17,7 @@ import PageLoader from "../../../components/common/PageLoader";
 export default function ListDev() {
   // ========== HOOKS - Logic được tách ra hooks ==========
   const { talents, myManagedTalents, loading, createDeveloperAccount } = useTalents();
-  const [activeTab, setActiveTab] = useState<"all" | "my">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "my">("my");
   const currentTalentsList = activeTab === "all" ? talents : myManagedTalents;
   const { 
     filters, 
@@ -220,7 +220,7 @@ export default function ListDev() {
                 </button>
               </div>
             </div>
-            <Link to="/ta/developers/create">
+            <Link to="/ta/talents/create">
               <Button className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105">
                 <Plus className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform duration-300" />
                 Tạo nhân sự mới
@@ -232,19 +232,6 @@ export default function ListDev() {
           <div className="mb-6">
             <div className="flex gap-2 border-b border-neutral-200">
               <button
-                onClick={() => setActiveTab("all")}
-                className={`px-6 py-3 font-medium text-sm transition-all duration-300 border-b-2 ${
-                  activeTab === "all"
-                    ? "border-primary-600 text-primary-600 bg-primary-50"
-                    : "border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-50"
-                }`}
-              >
-                Tất cả nhân sự
-                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-neutral-200 text-neutral-700">
-                  {talents.length}
-                </span>
-              </button>
-              <button
                 onClick={() => setActiveTab("my")}
                 className={`px-6 py-3 font-medium text-sm transition-all duration-300 border-b-2 ${
                   activeTab === "my"
@@ -255,6 +242,19 @@ export default function ListDev() {
                 Nhân sự của tôi
                 <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-neutral-200 text-neutral-700">
                   {myManagedTalents.length}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab("all")}
+                className={`px-6 py-3 font-medium text-sm transition-all duration-300 border-b-2 ${
+                  activeTab === "all"
+                    ? "border-primary-600 text-primary-600 bg-primary-50"
+                    : "border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-50"
+                }`}
+              >
+                Tất cả nhân sự
+                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-neutral-200 text-neutral-700">
+                  {talents.length}
                 </span>
               </button>
             </div>

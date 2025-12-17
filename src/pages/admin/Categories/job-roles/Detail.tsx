@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Sidebar from "../../../../components/common/Sidebar";
 import { sidebarItems } from "../../../../components/sidebar/admin";
 import { jobRoleService, type JobRole } from "../../../../services/JobRole";
 import { jobRoleLevelService, type JobRoleLevel } from "../../../../services/JobRoleLevel";
+import { jobRoleLevelSkillService } from "../../../../services/JobRoleLevelSkill";
+import { skillService, type Skill } from "../../../../services/Skill";
+import { skillGroupService, type SkillGroup } from "../../../../services/SkillGroup";
 import { 
   Layers3, 
   ArrowLeft, 
@@ -14,7 +17,9 @@ import {
   CheckCircle,
   Target,
   Plus,
-  Eye
+  Eye,
+  Search,
+  X
 } from "lucide-react";
 
 export default function JobRoleDetailPage() {
@@ -23,6 +28,47 @@ export default function JobRoleDetailPage() {
   const [jobRole, setJobRole] = useState<JobRole | null>(null);
   const [jobRoleLevels, setJobRoleLevels] = useState<JobRoleLevel[]>([]);
   const [loading, setLoading] = useState(true);
+  const levelNames = useMemo(() => ['Junior', 'Middle', 'Senior', 'Lead'] as const, []);
+
+  // Bulk create JobRoleLevelSkill for all levels in a group
+  const [isBulkSkillModalOpen, setIsBulkSkillModalOpen] = useState(false);
+  const [bulkBaseName, setBulkBaseName] = useState<string>("");
+  const [bulkSelectedSkillId, setBulkSelectedSkillId] = useState<number | null>(null);
+  const [bulkSkillSearch, setBulkSkillSearch] = useState("");
+  const [isBulkSkillDropdownOpen, setIsBulkSkillDropdownOpen] = useState(false);
+  const [skillGroups, setSkillGroups] = useState<SkillGroup[]>([]);
+  const [allSkills, setAllSkills] = useState<Skill[]>([]);
+  const [selectedSkillGroupId, setSelectedSkillGroupId] = useState<number | null>(null);
+  const [skillGroupSearch, setSkillGroupSearch] = useState("");
+  const [isSkillGroupDropdownOpen, setIsSkillGroupDropdownOpen] = useState(false);
+  const [isSavingBulk, setIsSavingBulk] = useState(false);
+
+  const groupedJobRoleLevels = useMemo(() => {
+    const groups = new Map<
+      string,
+      {
+        baseName: string;
+        levels: Partial<Record<(typeof levelNames)[number], JobRoleLevel>>;
+      }
+    >();
+
+    (jobRoleLevels || []).forEach((lvl) => {
+      const levelName = levelNames[lvl.level] || 'Unknown';
+      const baseName = (lvl.name || '').trim();
+      if (!baseName) return;
+      if (!groups.has(baseName)) {
+        groups.set(baseName, { baseName, levels: {} });
+      }
+      groups.get(baseName)!.levels[levelName] = lvl;
+    });
+
+    // sort: newest baseName group first by max id inside group
+    return Array.from(groups.values()).sort((a, b) => {
+      const maxA = Math.max(...Object.values(a.levels).map((x) => x?.id ?? 0));
+      const maxB = Math.max(...Object.values(b.levels).map((x) => x?.id ?? 0));
+      return maxB - maxA;
+    });
+  }, [jobRoleLevels, levelNames]);
 
   // Fetch dữ liệu chi tiết
   useEffect(() => {
@@ -45,6 +91,107 @@ export default function JobRoleDetailPage() {
 
     fetchData();
   }, [id]);
+
+  const openBulkSkillModal = async () => {
+    if (!groupedJobRoleLevels.length) return;
+    try {
+      setIsBulkSkillModalOpen(true);
+      setBulkBaseName(groupedJobRoleLevels[0]?.baseName || "");
+      setBulkSelectedSkillId(null);
+      setBulkSkillSearch("");
+      setIsBulkSkillDropdownOpen(false);
+      setSelectedSkillGroupId(null);
+      setSkillGroupSearch("");
+      setIsSkillGroupDropdownOpen(false);
+
+      const [groupsRes, skillsRes] = await Promise.all([
+        skillGroupService.getAll({ excludeDeleted: true }),
+        skillService.getAll({ excludeDeleted: true }),
+      ]);
+      const groups = Array.isArray(groupsRes)
+        ? groupsRes
+        : Array.isArray((groupsRes as any)?.items)
+          ? (groupsRes as any).items
+          : Array.isArray((groupsRes as any)?.data)
+            ? (groupsRes as any).data
+            : [];
+      const skills = Array.isArray(skillsRes)
+        ? skillsRes
+        : Array.isArray((skillsRes as any)?.items)
+          ? (skillsRes as any).items
+          : Array.isArray((skillsRes as any)?.data)
+            ? (skillsRes as any).data
+            : [];
+      setSkillGroups(groups);
+      setAllSkills(skills);
+    } catch (e) {
+      console.error("❌ Lỗi tải dữ liệu skill/skill group:", e);
+    }
+  };
+
+  const closeBulkSkillModal = () => {
+    setIsBulkSkillModalOpen(false);
+    setBulkSelectedSkillId(null);
+    setBulkSkillSearch("");
+    setIsBulkSkillDropdownOpen(false);
+    setSelectedSkillGroupId(null);
+    setSkillGroupSearch("");
+    setIsSkillGroupDropdownOpen(false);
+    setIsSavingBulk(false);
+  };
+
+  const handleBulkCreateSkill = async () => {
+    if (!bulkBaseName) return;
+    if (!bulkSelectedSkillId || bulkSelectedSkillId <= 0) {
+      alert("Vui lòng chọn kỹ năng.");
+      return;
+    }
+    const group = groupedJobRoleLevels.find((g) => g.baseName === bulkBaseName);
+    const levelIds = levelNames
+      .map((lvlName) => group?.levels[lvlName]?.id)
+      .filter((x): x is number => typeof x === "number" && x > 0);
+    if (levelIds.length === 0) {
+      alert("Không tìm thấy JobRoleLevel theo các level để tạo template.");
+      return;
+    }
+
+    const ok = window.confirm(
+      `Tạo kỹ năng template cho "${bulkBaseName}" trên ${levelIds.length} level (Junior/Middle/Senior/Lead) hiện có?\n\n(Không tạo trùng nếu level nào đã có skill này)`
+    );
+    if (!ok) return;
+
+    try {
+      setIsSavingBulk(true);
+      let created = 0;
+      let skipped = 0;
+
+      // Fetch existing mappings for each jobRoleLevelId then create if not exists
+      for (const jobRoleLevelId of levelIds) {
+        const res = await jobRoleLevelSkillService.getAll({ jobRoleLevelId, excludeDeleted: true });
+        const mappings = Array.isArray(res)
+          ? res
+          : Array.isArray((res as any)?.items)
+            ? (res as any).items
+            : Array.isArray((res as any)?.data)
+              ? (res as any).data
+              : [];
+        const exists = (mappings || []).some((m: any) => m?.skillId === bulkSelectedSkillId);
+        if (exists) {
+          skipped += 1;
+          continue;
+        }
+        await jobRoleLevelSkillService.create({ jobRoleLevelId, skillId: bulkSelectedSkillId });
+        created += 1;
+      }
+
+      alert(`✅ Đã tạo ${created} mapping. Bỏ qua ${skipped} level (đã có sẵn).`);
+      closeBulkSkillModal();
+    } catch (e) {
+      console.error("❌ Lỗi tạo jobRoleLevelSkill hàng loạt:", e);
+      alert("Không thể tạo kỹ năng template. Vui lòng thử lại.");
+      setIsSavingBulk(false);
+    }
+  };
 
   // Xóa position type
   const handleDelete = async () => {
@@ -195,13 +342,24 @@ export default function JobRoleDetailPage() {
                     Danh sách vị trí tuyển dụng ({jobRoleLevels.length})
                   </h2>
                 </div>
-                <Link
-                  to={`/admin/categories/job-role-levels/create?jobRoleId=${id}`}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105"
-                >
-                  <Plus className="w-4 h-4" />
-                  Thêm vị trí tuyển dụng
-                </Link>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={openBulkSkillModal}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-neutral-200 hover:border-primary-300 text-primary-700 rounded-lg font-medium transition-all duration-300"
+                    title="Thêm kỹ năng template cho tất cả level của 1 vị trí"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Thêm kỹ năng template
+                  </button>
+                  <Link
+                    to={`/admin/categories/job-role-levels/create?jobRoleId=${id}`}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Thêm vị trí tuyển dụng
+                  </Link>
+                </div>
               </div>
             </div>
             <div className="p-6">
@@ -222,38 +380,53 @@ export default function JobRoleDetailPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {jobRoleLevels
-                    .sort((a, b) => b.id - a.id) // Sắp xếp theo ID giảm dần (mới nhất trước)
-                    .map((level) => {
-                    const levelNames = ['Junior', 'Middle', 'Senior', 'Lead'];
-                    const levelName = levelNames[level.level] || 'Unknown';
+                  {groupedJobRoleLevels.map((group) => {
+                    const anyDescription =
+                      group.levels.Lead?.description ||
+                      group.levels.Senior?.description ||
+                      group.levels.Middle?.description ||
+                      group.levels.Junior?.description ||
+                      '';
                     return (
                       <div
-                        key={level.id}
-                        className="group flex items-center justify-between p-4 bg-neutral-50 hover:bg-primary-50 rounded-lg border border-neutral-200 hover:border-primary-300 transition-all duration-300"
+                        key={group.baseName}
+                        className="p-4 bg-neutral-50 hover:bg-primary-50 rounded-lg border border-neutral-200 hover:border-primary-300 transition-all duration-300"
                       >
-                        <div className="flex items-center gap-3 flex-1">
-                          <div className="p-2 bg-primary-100 rounded-lg group-hover:bg-primary-200 transition-colors duration-300">
-                            <Target className="w-4 h-4 text-primary-600" />
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-3 min-w-0 flex-1">
+                            <div className="p-2 bg-primary-100 rounded-lg">
+                              <Target className="w-4 h-4 text-primary-600" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-semibold text-gray-900 truncate">
+                                {group.baseName}
+                              </h3>
+                              {anyDescription ? (
+                                <p className="text-sm text-neutral-600 mt-1 line-clamp-1">
+                                  {anyDescription}
+                                </p>
+                              ) : null}
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-gray-900 group-hover:text-primary-700 transition-colors duration-300">
-                              {level.name} - {levelName}
-                            </h3>
-                            {level.description && (
-                              <p className="text-sm text-neutral-600 mt-1 line-clamp-1">
-                                {level.description}
-                              </p>
-                            )}
+
+                          <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
+                            {levelNames.map((lvlName) => {
+                              const lvl = group.levels[lvlName];
+                              if (!lvl) return null;
+                              return (
+                                <Link
+                                  key={lvl.id}
+                                  to={`/admin/categories/job-role-levels/${lvl.id}`}
+                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-neutral-200 bg-white text-primary-700 hover:text-primary-800 hover:bg-primary-50 transition-all duration-300"
+                                  title={`Xem ${lvlName}`}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  <span className="text-sm font-medium">{lvlName}</span>
+                                </Link>
+                              );
+                            })}
                           </div>
                         </div>
-                        <Link
-                          to={`/admin/categories/job-role-levels/${level.id}`}
-                          className="flex items-center gap-2 px-3 py-2 text-primary-600 hover:text-primary-800 hover:bg-primary-100 rounded-lg transition-all duration-300 hover:scale-105 transform"
-                        >
-                          <Eye className="w-4 h-4" />
-                          <span className="text-sm font-medium">Xem</span>
-                        </Link>
                       </div>
                     );
                   })}
@@ -263,6 +436,188 @@ export default function JobRoleDetailPage() {
           </div>
         </div>
       </div>
+
+      {isBulkSkillModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-neutral-200">
+            <div className="p-5 border-b border-neutral-200 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-neutral-900">Thêm kỹ năng template</h3>
+                <p className="text-sm text-neutral-600 mt-0.5">Tạo cho JobRoleLevel của tất cả level (nếu có)</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeBulkSkillModal}
+                className="text-neutral-500 hover:text-neutral-900"
+                aria-label="Đóng"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1.5">Vị trí</label>
+                <select
+                  value={bulkBaseName}
+                  onChange={(e) => setBulkBaseName(e.target.value)}
+                  className="w-full px-3 py-2 text-sm text-neutral-700 border border-neutral-300 rounded-lg bg-white focus:border-primary-500 focus:ring-primary-500"
+                >
+                  {groupedJobRoleLevels.map((g) => (
+                    <option key={g.baseName} value={g.baseName}>
+                      {g.baseName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Skill Group Filter */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1.5">Nhóm kỹ năng</label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsSkillGroupDropdownOpen((v) => !v)}
+                    className="w-full flex items-center justify-between px-3 py-2 border border-neutral-300 rounded-lg bg-white text-left hover:border-primary-300 transition-colors"
+                  >
+                    <span className="text-sm text-neutral-700">
+                      {selectedSkillGroupId
+                        ? skillGroups.find((g) => g.id === selectedSkillGroupId)?.name || "Tất cả nhóm"
+                        : "Tất cả nhóm"}
+                    </span>
+                    <X className={`w-4 h-4 text-neutral-400 transition-transform ${isSkillGroupDropdownOpen ? "rotate-90" : ""}`} />
+                  </button>
+                  {isSkillGroupDropdownOpen && (
+                    <div className="absolute z-50 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg">
+                      <div className="p-3 border-b border-neutral-100">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
+                          <input
+                            type="text"
+                            value={skillGroupSearch}
+                            onChange={(e) => setSkillGroupSearch(e.target.value)}
+                            placeholder="Tìm nhóm kỹ năng..."
+                            className="w-full pl-10 pr-3 py-2 text-sm border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
+                          />
+                        </div>
+                      </div>
+                      <div className="max-h-56 overflow-y-auto">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedSkillGroupId(null);
+                            setIsSkillGroupDropdownOpen(false);
+                            setSkillGroupSearch("");
+                          }}
+                          className={`w-full text-left px-4 py-2.5 text-sm ${
+                            !selectedSkillGroupId ? "bg-primary-50 text-primary-700" : "hover:bg-neutral-50 text-neutral-700"
+                          }`}
+                        >
+                          Tất cả nhóm
+                        </button>
+                        {skillGroups
+                          .filter((g) => !skillGroupSearch || g.name.toLowerCase().includes(skillGroupSearch.toLowerCase()))
+                          .map((g) => (
+                            <button
+                              type="button"
+                              key={g.id}
+                              onClick={() => {
+                                setSelectedSkillGroupId(g.id);
+                                setIsSkillGroupDropdownOpen(false);
+                                setSkillGroupSearch("");
+                              }}
+                              className={`w-full text-left px-4 py-2.5 text-sm ${
+                                selectedSkillGroupId === g.id ? "bg-primary-50 text-primary-700" : "hover:bg-neutral-50 text-neutral-700"
+                              }`}
+                            >
+                              {g.name}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Skill picker */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1.5">Kỹ năng</label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkSkillDropdownOpen((v) => !v)}
+                    className="w-full flex items-center justify-between px-3 py-2 border border-neutral-300 rounded-lg bg-white text-left hover:border-primary-300 transition-colors"
+                  >
+                    <span className="text-sm text-neutral-700">
+                      {bulkSelectedSkillId
+                        ? allSkills.find((s) => s.id === bulkSelectedSkillId)?.name || `Skill #${bulkSelectedSkillId}`
+                        : "Chọn kỹ năng"}
+                    </span>
+                    <X className={`w-4 h-4 text-neutral-400 transition-transform ${isBulkSkillDropdownOpen ? "rotate-90" : ""}`} />
+                  </button>
+                  {isBulkSkillDropdownOpen && (
+                    <div className="absolute z-50 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg">
+                      <div className="p-3 border-b border-neutral-100">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
+                          <input
+                            type="text"
+                            value={bulkSkillSearch}
+                            onChange={(e) => setBulkSkillSearch(e.target.value)}
+                            placeholder="Tìm kỹ năng..."
+                            className="w-full pl-10 pr-3 py-2 text-sm border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
+                          />
+                        </div>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                        {allSkills
+                          .filter((s) => !selectedSkillGroupId || s.skillGroupId === selectedSkillGroupId)
+                          .filter((s) => !bulkSkillSearch || s.name.toLowerCase().includes(bulkSkillSearch.toLowerCase()))
+                          .slice(0, 200)
+                          .map((s) => (
+                            <button
+                              type="button"
+                              key={s.id}
+                              onClick={() => {
+                                setBulkSelectedSkillId(s.id);
+                                setIsBulkSkillDropdownOpen(false);
+                                setBulkSkillSearch("");
+                              }}
+                              className={`w-full text-left px-4 py-2.5 text-sm ${
+                                bulkSelectedSkillId === s.id ? "bg-primary-50 text-primary-700" : "hover:bg-neutral-50 text-neutral-700"
+                              }`}
+                            >
+                              {s.name}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 border-t border-neutral-200 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeBulkSkillModal}
+                className="px-4 py-2 rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 text-sm font-medium"
+                disabled={isSavingBulk}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkCreateSkill}
+                className="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isSavingBulk}
+              >
+                {isSavingBulk ? "Đang tạo..." : "Tạo"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -170,7 +170,7 @@ export default function TalentSkillCreatePage() {
       await talentSkillService.create(form);
       clearSkillSuggestions();
       setSuccess(true);
-      setTimeout(() => navigate(`/ta/developers/${talentId}`), 1500);
+      setTimeout(() => navigate(`/ta/talents/${talentId}`), 1500);
     } catch (err) {
       console.error("❌ Error creating Talent Skill:", err);
       setError("Không thể tạo kỹ năng cho nhân sự. Vui lòng thử lại.");
@@ -188,8 +188,8 @@ export default function TalentSkillCreatePage() {
         <div className="mb-8 animate-slide-up">
           <Breadcrumb
             items={[
-              { label: "Nhân sự", to: "/ta/developers" },
-              { label: talentId ? `Chi tiết nhân sự` : "Chi tiết", to: `/ta/developers/${talentId}` },
+              { label: "Nhân sự", to: "/ta/talents" },
+              { label: talentId ? `Chi tiết nhân sự` : "Chi tiết", to: `/ta/talents/${talentId}` },
               { label: "Thêm kỹ năng" }
             ]}
           />
@@ -557,7 +557,7 @@ export default function TalentSkillCreatePage() {
           {/* Action Buttons */}
           <div className="flex justify-end gap-4 pt-6">
             <Link
-              to={`/ta/developers/${talentId}`}
+              to={`/ta/talents/${talentId}`}
               className="group flex items-center gap-2 px-6 py-3 border border-neutral-300 rounded-xl text-neutral-700 hover:bg-neutral-50 hover:border-neutral-400 transition-all duration-300 hover:scale-105 transform"
             >
               <X className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />

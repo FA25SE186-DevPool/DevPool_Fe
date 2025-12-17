@@ -15,6 +15,7 @@ export function useTalentEdit() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [originalStatus, setOriginalStatus] = useState<string>('');
+  const [originalPartnerId, setOriginalPartnerId] = useState<number | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [changingStatus, setChangingStatus] = useState(false);
 
@@ -53,6 +54,7 @@ export function useTalentEdit() {
         }
 
         const currentStatus = data.status || 'Available';
+        setOriginalPartnerId(data.currentPartnerId);
         const talentData: Partial<TalentCreate> = {
           currentPartnerId: data.currentPartnerId,
           userId: data.userId || null,
@@ -122,17 +124,22 @@ export function useTalentEdit() {
     fetchPartners();
   }, []);
 
-  // Handle status change
-  const handleStatusChange = useCallback(async () => {
+  // Handle status change (direct dropdown)
+  const handleStatusChange = useCallback(async (nextStatus: string) => {
     if (!id) return;
 
-    if (selectedStatus === originalStatus) {
-      alert('Trạng thái không thay đổi!');
+    // Không cho đổi status khi talent đang Applying/Working (tránh sai nghiệp vụ)
+    if (originalStatus === 'Applying' || originalStatus === 'Working') {
+      alert('⚠️ Không thể thay đổi trạng thái khi nhân sự đang ở trạng thái Đang ứng tuyển/Đang làm việc.');
+      setSelectedStatus(originalStatus);
       return;
     }
 
+    // Keep local state in sync immediately (UI)
+    setSelectedStatus(nextStatus);
+
     const confirmed = window.confirm(
-      `Bạn có chắc chắn muốn thay đổi trạng thái từ "${getStatusLabel(originalStatus)}" sang "${getStatusLabel(selectedStatus)}"?`
+      `Bạn có chắc chắn muốn thay đổi trạng thái từ "${getStatusLabel(originalStatus)}" sang "${getStatusLabel(nextStatus)}"?`
     );
     if (!confirmed) {
       setSelectedStatus(originalStatus);
@@ -142,12 +149,12 @@ export function useTalentEdit() {
     try {
       setChangingStatus(true);
       const statusPayload: TalentStatusUpdateModel = {
-        newStatus: selectedStatus,
+        newStatus: nextStatus,
       };
       await talentService.changeStatus(Number(id), statusPayload);
 
-      updateField('status', selectedStatus);
-      setOriginalStatus(selectedStatus);
+      updateField('status', nextStatus);
+      setOriginalStatus(nextStatus);
 
       alert('✅ Thay đổi trạng thái thành công!');
     } catch (statusErr: any) {
@@ -161,13 +168,24 @@ export function useTalentEdit() {
     } finally {
       setChangingStatus(false);
     }
-  }, [id, selectedStatus, originalStatus, updateField]);
+  }, [id, originalStatus, updateField]);
 
   // Handle submit
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
       if (!id) return;
+
+      // Chặn đổi Partner khi đang Applying/Working
+      if (
+        (originalStatus === 'Applying' || originalStatus === 'Working') &&
+        typeof originalPartnerId === 'number' &&
+        formData.currentPartnerId !== originalPartnerId
+      ) {
+        alert('⚠️ Không thể cập nhật công ty khi nhân sự đang ở trạng thái Đang ứng tuyển/Đang làm việc.');
+        updateField('currentPartnerId', originalPartnerId);
+        return;
+      }
 
       const confirmed = window.confirm('Bạn có chắc chắn muốn lưu các thay đổi không?');
       if (!confirmed) {
@@ -193,7 +211,7 @@ export function useTalentEdit() {
         await talentService.update(Number(id), payload);
 
         alert('✅ Cập nhật nhân sự thành công!');
-        navigate(`/ta/developers/${id}`);
+        navigate(`/ta/talents/${id}`);
       } catch (err: any) {
         console.error('❌ Lỗi khi cập nhật:', err);
         const data = err?.response?.data;
@@ -234,7 +252,7 @@ export function useTalentEdit() {
         alert('Không thể cập nhật nhân sự!');
       }
     },
-    [id, formData, validateForm, errors, navigate, setFormError]
+    [id, formData, validateForm, errors, navigate, setFormError, originalStatus, originalPartnerId, updateField]
   );
 
   const getStatusLabel = (status: string): string => {
@@ -256,6 +274,7 @@ export function useTalentEdit() {
     locations,
     partners,
     originalStatus,
+    originalPartnerId,
     selectedStatus,
     setSelectedStatus,
     changingStatus,

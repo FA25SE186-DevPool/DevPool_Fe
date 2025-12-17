@@ -14,6 +14,15 @@ interface PartnerInfoModalProps {
 export function PartnerInfoModal({ isOpen, partner, loading, onClose }: PartnerInfoModalProps) {
   if (!isOpen) return null;
 
+  const getPartnerTypeLabel = (partnerType: number | undefined) => {
+    if (partnerType === undefined || partnerType === null) return '—';
+    // Align with Partner screens: 0 = Công ty mình, 1 = Đối tác, 2 = Cá nhân/Freelancer
+    if (partnerType === 0) return 'Công ty mình';
+    if (partnerType === 1) return 'Đối tác';
+    if (partnerType === 2) return 'Cá nhân/Freelancer';
+    return '—';
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div 
@@ -44,90 +53,62 @@ export function PartnerInfoModal({ isOpen, partner, loading, onClose }: PartnerI
               </div>
             </div>
           ) : partner ? (
-            <div className="space-y-6">
-              {/* Tên công ty */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Building2 className="w-4 h-4 text-neutral-400" />
-                  <p className="text-sm font-medium text-neutral-500">Tên công ty</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-6">
+                <div>
+                  <p className="text-sm font-medium text-neutral-500 mb-2">Mã đối tác</p>
+                  <p className="text-gray-900 font-semibold">{partner.code || '—'}</p>
                 </div>
-                <p className="text-lg font-semibold text-gray-900">{partner.companyName || '—'}</p>
+
+                <div>
+                  <p className="text-sm font-medium text-neutral-500 mb-2">Loại đối tác</p>
+                  <p className="text-gray-900 font-semibold">{getPartnerTypeLabel(partner.partnerType as unknown as number)}</p>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Building2 className="w-4 h-4 text-neutral-400" />
+                    <p className="text-sm font-medium text-neutral-500">Tên công ty</p>
+                  </div>
+                  <p className="text-gray-900 font-semibold">{partner.companyName || '—'}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-neutral-500 mb-2">Mã số thuế</p>
+                  <p className="text-gray-900 font-semibold">{partner.taxCode || '—'}</p>
+                </div>
               </div>
 
-              {/* Mã công ty */}
-              {partner.code && (
+              <div className="space-y-6">
                 <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <p className="text-sm font-medium text-neutral-500">Mã công ty</p>
-                  </div>
-                  <p className="text-gray-900">{partner.code}</p>
+                  <p className="text-sm font-medium text-neutral-500 mb-2">Người đại diện</p>
+                  <p className="text-gray-900 font-semibold">{partner.contactPerson || '—'}</p>
                 </div>
-              )}
 
-              {/* Mã số thuế */}
-              {partner.taxCode && (
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <p className="text-sm font-medium text-neutral-500">Mã số thuế</p>
-                  </div>
-                  <p className="text-gray-900">{partner.taxCode}</p>
-                </div>
-              )}
-
-              {/* Email */}
-              {partner.email && (
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <Mail className="w-4 h-4 text-neutral-400" />
                     <p className="text-sm font-medium text-neutral-500">Email</p>
                   </div>
-                  <p className="text-gray-900">{partner.email}</p>
+                  <p className="text-gray-900 font-semibold">{partner.email || '—'}</p>
                 </div>
-              )}
 
-              {/* Số điện thoại */}
-              {partner.phoneNumber && (
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <Phone className="w-4 h-4 text-neutral-400" />
                     <p className="text-sm font-medium text-neutral-500">Số điện thoại</p>
                   </div>
-                  <p className="text-gray-900">{partner.phoneNumber}</p>
+                  <p className="text-gray-900 font-semibold">{partner.phoneNumber || '—'}</p>
                 </div>
-              )}
 
-              {/* Địa chỉ */}
-              {partner.address && (
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <MapPin className="w-4 h-4 text-neutral-400" />
                     <p className="text-sm font-medium text-neutral-500">Địa chỉ</p>
                   </div>
-                  <p className="text-gray-900">{partner.address}</p>
+                  <p className="text-gray-900 font-semibold">{partner.address || '—'}</p>
                 </div>
-              )}
-
-              {/* Loại đối tác */}
-              {partner.partnerType !== undefined && (
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <p className="text-sm font-medium text-neutral-500">Loại đối tác</p>
-                  </div>
-                  <p className="text-gray-900">
-                    {partner.partnerType === 1 ? 'Nhà cung cấp' : partner.partnerType === 2 ? 'Khách hàng' : '—'}
-                  </p>
-                </div>
-              )}
-
-              {/* Người liên hệ */}
-              {partner.contactPerson && (
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <p className="text-sm font-medium text-neutral-500">Người liên hệ</p>
-                  </div>
-                  <p className="text-gray-900">{partner.contactPerson}</p>
-                </div>
-              )}
+              </div>
             </div>
           ) : (
             <div className="text-center py-12">

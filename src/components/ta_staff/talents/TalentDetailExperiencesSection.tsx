@@ -1,7 +1,8 @@
 import { Plus, Trash2, Workflow, X, Save, Target, Search } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Button } from '../../ui/button';
 import { SectionPagination } from './SectionPagination';
+import { TalentWorkExperienceEditModal } from './TalentWorkExperienceEditModal';
 import { type TalentWorkExperience } from '../../../services/TalentWorkExperience';
 import { type TalentWorkExperienceCreateModel } from '../../../services/Talent';
 import { type CVAnalysisComparisonResponse } from '../../../services/TalentCV';
@@ -39,6 +40,9 @@ interface TalentDetailExperiencesSectionProps {
 
   // Permissions
   canEdit: boolean;
+
+  // Refresh callback after editing
+  onRefreshExperiences?: () => void | Promise<void>;
 }
 
 /**
@@ -66,8 +70,15 @@ export function TalentDetailExperiencesSection({
   setIsWorkExperiencePositionDropdownOpen,
   analysisResult,
   canEdit,
+  onRefreshExperiences,
 }: TalentDetailExperiencesSectionProps) {
-  const navigate = useNavigate();
+  const [isEditExperienceModalOpen, setIsEditExperienceModalOpen] = useState(false);
+  const [editingExperienceId, setEditingExperienceId] = useState<number | null>(null);
+
+  const openEditExperienceModal = (experienceId: number) => {
+    setEditingExperienceId(experienceId);
+    setIsEditExperienceModalOpen(true);
+  };
 
   // Filter positions
   const filteredPositions = workExperiencePositions.filter((position) => {
@@ -77,6 +88,17 @@ export function TalentDetailExperiencesSection({
 
   return (
     <div className="space-y-6">
+      <TalentWorkExperienceEditModal
+        isOpen={isEditExperienceModalOpen}
+        experienceId={editingExperienceId}
+        canEdit={canEdit}
+        onClose={() => {
+          setIsEditExperienceModalOpen(false);
+          setEditingExperienceId(null);
+        }}
+        onSaved={onRefreshExperiences}
+        workExperiencePositions={workExperiencePositions}
+      />
       {/* CV Analysis Suggestions */}
       {analysisResult &&
         (analysisResult.workExperiences.newEntries.length > 0 || analysisResult.workExperiences.potentialDuplicates.length > 0) && (
@@ -379,7 +401,7 @@ export function TalentDetailExperiencesSection({
                     <tr
                       key={exp.id}
                       className="hover:bg-accent-50 transition-colors duration-200 cursor-pointer"
-                      onClick={() => navigate(`/ta/talent-work-experiences/edit/${exp.id}`)}
+                      onClick={() => openEditExperienceModal(exp.id)}
                     >
                       <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <input

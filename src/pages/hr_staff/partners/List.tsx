@@ -9,11 +9,11 @@ import {
   Phone,
   ChevronLeft,
   ChevronRight,
-  Eye,
   User,
   Briefcase,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  X
 } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
 import { sidebarItems } from '../../../components/sidebar/ta_staff';
@@ -30,7 +30,9 @@ export default function ListPartner() {
   const [showFilters, setShowFilters] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [filterTaxCode, setFilterTaxCode] = useState('');
+  const [filterPhone, setFilterPhone] = useState('');
   const [filterPartnerType, setFilterPartnerType] = useState<PartnerType | null>(null);
+  const [isPartnerTypeDropdownOpen, setIsPartnerTypeDropdownOpen] = useState(false);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -47,6 +49,14 @@ export default function ListPartner() {
       if (Array.isArray(obj.data)) return obj.data as T[];
     }
     return [];
+  };
+
+  const maskPhone = (phone?: string | null) => {
+    const raw = (phone ?? '').trim();
+    if (!raw) return '—';
+    // Giữ 4 số đầu + 3 số cuối, phần giữa thay bằng ***
+    if (raw.length <= 7) return raw;
+    return `${raw.slice(0, 4)}***${raw.slice(-3)}`;
   };
 
   // Stats data - ensure partners is always an array
@@ -113,14 +123,21 @@ export default function ListPartner() {
     // Ensure partners is an array
     const partnersArray = Array.isArray(partners) ? partners : [];
     let filtered = [...partnersArray];
-    if (searchTerm) filtered = filtered.filter((p) => p.companyName?.toLowerCase().includes(searchTerm.toLowerCase()));
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      filtered = filtered.filter((p) =>
+        (p.companyName ?? '').toLowerCase().includes(q) ||
+        (p.code ?? '').toLowerCase().includes(q)
+      );
+    }
     if (filterTaxCode) filtered = filtered.filter((p) => p.taxCode?.includes(filterTaxCode));
+    if (filterPhone) filtered = filtered.filter((p) => p.phone?.includes(filterPhone));
     if (filterPartnerType !== null) filtered = filtered.filter((p) => p.partnerType === filterPartnerType);
     // Đảm bảo vẫn sắp xếp theo id giảm dần (mới nhất trước) sau khi filter
     filtered.sort((a, b) => b.id - a.id);
     setFilteredPartners(filtered);
     setCurrentPage(1); // Reset về trang đầu khi filter thay đổi
-  }, [searchTerm, filterTaxCode, filterPartnerType, partners]);
+  }, [searchTerm, filterTaxCode, filterPhone, filterPartnerType, partners]);
   
   // Tính toán pagination
   const totalPages = Math.ceil(filteredPartners.length / itemsPerPage);
@@ -133,7 +150,18 @@ export default function ListPartner() {
   const handleResetFilters = () => {
     setSearchTerm("");
     setFilterTaxCode("");
+    setFilterPhone("");
     setFilterPartnerType(null);
+  };
+
+  const hasActiveFilters = Boolean(searchTerm || filterTaxCode || filterPhone || filterPartnerType !== null);
+
+  const getPartnerTypeDisplayText = () => {
+    if (filterPartnerType === null) return "Tất cả loại đối tác";
+    if (filterPartnerType === PartnerType.OwnCompany) return "Công ty mình";
+    if (filterPartnerType === PartnerType.Partner) return "Đối tác";
+    if (filterPartnerType === PartnerType.Individual) return "Cá nhân";
+    return "Tất cả loại đối tác";
   };
 
 
@@ -241,7 +269,7 @@ export default function ListPartner() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 w-5 h-5" />
                 <input
                   type="text"
-                  placeholder="Tìm kiếm theo tên công ty..."
+                  placeholder="Tìm kiếm theo tên công ty, mã đối tác..."
                   className="w-full pl-12 pr-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 bg-neutral-50 focus:bg-white"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -254,12 +282,24 @@ export default function ListPartner() {
               >
                 <Filter className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
                 <span className="font-medium">{showFilters ? "Ẩn bộ lọc" : "Bộ lọc"}</span>
+                {hasActiveFilters && (
+                  <span className="ml-1 px-2.5 py-1 rounded-full text-xs font-bold bg-neutral-700 text-white shadow-sm">
+                    {[searchTerm, filterTaxCode, filterPhone, filterPartnerType !== null ? '1' : ''].filter(Boolean).length}
+                  </span>
+                )}
               </button>
+
+              {hasActiveFilters && (
+                <Button onClick={handleResetFilters} variant="outline" className="flex items-center gap-2">
+                  <X className="w-4 h-4" />
+                  Xóa bộ lọc
+                </Button>
+              )}
             </div>
 
             {showFilters && (
               <div className="mt-6 pt-6 border-t border-neutral-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="relative">
                     <input
                       type="text"
@@ -269,12 +309,97 @@ export default function ListPartner() {
                       onChange={(e) => setFilterTaxCode(e.target.value)}
                     />
                   </div>
-                  <button
-                    onClick={handleResetFilters}
-                    className="group flex items-center justify-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg px-4 py-2 transition-all duration-300 hover:scale-105 transform"
-                  >
-                    <span className="font-medium">Đặt lại</span>
-                  </button>
+
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Số điện thoại"
+                      className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300"
+                      value={filterPhone}
+                      onChange={(e) => setFilterPhone(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsPartnerTypeDropdownOpen(!isPartnerTypeDropdownOpen)}
+                      className="w-full h-10 flex items-center justify-between px-4 border border-neutral-200 rounded-lg bg-white text-left hover:border-primary-300 transition-colors"
+                    >
+                      <span className="text-sm text-neutral-700">{getPartnerTypeDisplayText()}</span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-neutral-400 transition-transform ${
+                          isPartnerTypeDropdownOpen ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+
+                    {isPartnerTypeDropdownOpen && (
+                      <div
+                        className="absolute z-50 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
+                        onMouseLeave={() => setIsPartnerTypeDropdownOpen(false)}
+                      >
+                        <div className="max-h-56 overflow-y-auto">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterPartnerType(null);
+                              setIsPartnerTypeDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              filterPartnerType === null
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'hover:bg-neutral-50 text-neutral-700'
+                            }`}
+                          >
+                            Tất cả loại đối tác
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterPartnerType(PartnerType.OwnCompany);
+                              setIsPartnerTypeDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              filterPartnerType === PartnerType.OwnCompany
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'hover:bg-neutral-50 text-neutral-700'
+                            }`}
+                          >
+                            Công ty mình
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterPartnerType(PartnerType.Partner);
+                              setIsPartnerTypeDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              filterPartnerType === PartnerType.Partner
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'hover:bg-neutral-50 text-neutral-700'
+                            }`}
+                          >
+                            Đối tác
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterPartnerType(PartnerType.Individual);
+                              setIsPartnerTypeDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              filterPartnerType === PartnerType.Individual
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'hover:bg-neutral-50 text-neutral-700'
+                            }`}
+                          >
+                            Cá nhân
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -330,18 +455,17 @@ export default function ListPartner() {
                 <tr>
                   <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">#</th>
                   <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Mã đối tác</th>
-                  <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Mã số thuế</th>
-                  <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Công ty</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Tên công ty</th>
+                  <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider whitespace-nowrap">Mã số thuế</th>
                   <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Loại</th>
                   <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Người đại diện</th>
                   <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Điện thoại</th>
-                  <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-200">
                 {filteredPartners.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-12">
+                    <td colSpan={7} className="text-center py-12">
                       <div className="flex flex-col items-center justify-center">
                         <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
                           <Building2 className="w-8 h-8 text-neutral-400" />
@@ -355,27 +479,39 @@ export default function ListPartner() {
                   paginatedPartners.map((p, i) => (
                     <tr
                       key={p.id}
-                      className="group hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 transition-all duration-300"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate(`${ROUTES.TA_STAFF.PARTNERS.LIST}/${p.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          navigate(`${ROUTES.TA_STAFF.PARTNERS.LIST}/${p.id}`);
+                        }
+                      }}
+                      className="group cursor-pointer hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                     >
                       <td className="py-4 px-6 text-sm font-medium text-neutral-900">{startIndex + i + 1}</td>
                       <td className="py-4 px-6">
                         <span className="text-sm font-semibold text-primary-700">{p.code || '—'}</span>
                       </td>
                       <td className="py-4 px-6">
-                        <span className="text-sm text-neutral-700">{p.taxCode || '—'}</span>
-                      </td>
-                      <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
                             <Building2 className="w-5 h-5 text-primary-600" />
                           </div>
-                          <div className="font-semibold text-primary-700 group-hover:text-primary-800 transition-colors duration-300">
+                          <div
+                            className="min-w-0 max-w-[220px] font-semibold text-primary-700 group-hover:text-primary-800 transition-colors duration-300 truncate"
+                            title={p.companyName}
+                          >
                             {p.companyName}
                           </div>
                         </div>
                       </td>
                       <td className="py-4 px-6">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        <span className="text-sm text-neutral-700">{p.taxCode || '—'}</span>
+                      </td>
+                      <td className="py-4 px-6">
+                        <span className={`inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-medium leading-5 ${
                           p.partnerType === PartnerType.OwnCompany ? 'bg-blue-100 text-blue-800' :
                           p.partnerType === PartnerType.Partner ? 'bg-green-100 text-green-800' :
                           p.partnerType === PartnerType.Individual ? 'bg-purple-100 text-purple-800' :
@@ -395,17 +531,10 @@ export default function ListPartner() {
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-2">
                           <Phone className="w-4 h-4 text-neutral-400" />
-                          <span className="text-sm text-neutral-700">{p.phone || '—'}</span>
+                          <span className="text-sm text-neutral-700" title={p.phone || undefined}>
+                            {maskPhone(p.phone)}
+                          </span>
                         </div>
-                      </td>
-                      <td className="py-4 px-6 text-center">
-                        <button
-                          onClick={() => navigate(`${ROUTES.TA_STAFF.PARTNERS.LIST}/${p.id}`)}
-                          className="group inline-flex items-center gap-2 px-3 py-2 text-primary-600 hover:text-primary-800 hover:bg-primary-50 rounded-lg transition-all duration-300 hover:scale-105 transform"
-                        >
-                          <Eye className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-                          <span className="text-sm font-medium">Xem</span>
-                        </button>
                       </td>
                     </tr>
                   ))

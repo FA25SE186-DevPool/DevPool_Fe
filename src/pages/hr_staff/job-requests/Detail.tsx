@@ -6,7 +6,6 @@ import { jobRequestService, type JobRequestStatus } from "../../../services/JobR
 import { clientCompanyService, type ClientCompany } from "../../../services/ClientCompany";
 import { projectService, type Project } from "../../../services/Project";
 import { jobRoleLevelService, type JobRoleLevel } from "../../../services/JobRoleLevel";
-import { jobRoleService } from "../../../services/JobRole";
 import { skillService, type Skill } from "../../../services/Skill";
 import { locationService } from "../../../services/location";
 import { applyProcessTemplateService } from "../../../services/ApplyProcessTemplate";
@@ -76,7 +75,6 @@ export default function JobRequestDetailHRPage() {
     const navigate = useNavigate();
     const [jobRequest, setJobRequest] = useState<JobRequestDetail | null>(null);
     const [jobSkills, setJobSkills] = useState<{ id: number; name: string }[]>([]);
-    const [jobRoleName, setJobRoleName] = useState<string>("—");
     const [locationName, setLocationName] = useState<string>("—");
     const [applyProcessTemplateName, setApplyProcessTemplateName] = useState<string>("—");
     const [effectiveSubmittedCount, setEffectiveSubmittedCount] = useState<number>(0);
@@ -170,10 +168,7 @@ export default function JobRequestDetailHRPage() {
             }
 
             if (position) {
-                try {
-                    const role = await jobRoleService.getById(position.jobRoleId);
-                    setJobRoleName(role?.name ?? "—");
-                } catch {}
+                // Job role name not needed for display
             }
 
             if (jobReqData.locationId) {
@@ -638,17 +633,6 @@ export default function JobRequestDetailHRPage() {
                                 Yêu cầu ứng viên
                             </button>
                             <button
-                                onClick={() => setActiveTab("skills")}
-                                className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
-                                    activeTab === "skills"
-                                        ? "border-primary-600 text-primary-600 bg-primary-50"
-                                        : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
-                                }`}
-                            >
-                                <Star className="w-4 h-4" />
-                                Kỹ năng yêu cầu
-                            </button>
-                            <button
                                 onClick={() => setActiveTab("applications")}
                                 className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
                                     activeTab === "applications"
@@ -665,57 +649,86 @@ export default function JobRequestDetailHRPage() {
                     {/* Tab Content */}
                     <div className="p-6">
                         {activeTab === "general" && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
-                                <InfoItem 
-                                    label="Mã yêu cầu" 
-                                    value={jobRequest.code ?? "—"} 
-                                    icon={<FileText className="w-4 h-4" />}
-                                />
-                                <InfoItem 
-                                    label="Công ty khách hàng" 
-                                    value={jobRequest.clientCompanyName ?? "—"} 
-                                    icon={<Building2 className="w-4 h-4" />}
-                                />
-                                <InfoItem 
-                                    label="Dự án" 
-                                    value={jobRequest.projectName ?? "—"} 
-                                    icon={<Layers className="w-4 h-4" />}
-                                />                          
-                                <InfoItem 
-                                    label="Loại vị trí tuyển dụng" 
-                                    value={jobRoleName} 
-                                    icon={<User className="w-4 h-4" />}
-                                />
-                                <InfoItem 
-                                    label="Vị trí tuyển dụng" 
-                                    value={jobRequest.jobPositionName ?? "—"} 
-                                    icon={<Users className="w-4 h-4" />}
-                                />
-                                <InfoItem 
-                                    label="Số lượng tuyển dụng" 
-                                    value={jobRequest.quantity?.toString() || "—"} 
-                                    icon={<UserPlus className="w-4 h-4" />}
-                                />
-                                <InfoItem 
-                                    label="Khu vực làm việc" 
-                                    value={locationName} 
-                                    icon={<MapPin className="w-4 h-4" />}
-                                />
-                                <InfoItem 
-                                    label="Chế độ làm việc" 
-                                    value={workingModeLabels[Number(jobRequest.workingMode ?? 0)] ?? "—"} 
-                                    icon={<GraduationCap className="w-4 h-4" />}
-                                />
-                                <InfoItem 
-                                    label="Mẫu CV khách hàng" 
-                                    value={jobRequest.clientCompanyCVTemplateName ?? "—"} 
-                                    icon={<FileText className="w-4 h-4" />}
-                                />
-                                <InfoItem 
-                                    label="Quy trình ứng tuyển" 
-                                    value={applyProcessTemplateName} 
-                                    icon={<FileCheck className="w-4 h-4" />}
-                                />
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in items-start">
+                                {/* Cột 1 */}
+                                <div className="space-y-6">
+                                    <InfoItem 
+                                        label="Mã yêu cầu" 
+                                        value={jobRequest.code ?? "—"} 
+                                        icon={<FileText className="w-4 h-4" />}
+                                    />
+                                    <InfoItem 
+                                        label="Công ty khách hàng" 
+                                        value={jobRequest.clientCompanyName ?? "—"} 
+                                        icon={<Building2 className="w-4 h-4" />}
+                                    />
+                                    <InfoItem 
+                                        label="Dự án" 
+                                        value={jobRequest.projectName ?? "—"} 
+                                        icon={<Layers className="w-4 h-4" />}
+                                    />
+                                </div>
+
+                                {/* Cột 2 */}
+                                <div className="space-y-6">
+                                    <InfoItem 
+                                        label="Vị trí tuyển dụng" 
+                                        value={jobRequest.jobPositionName ?? "—"} 
+                                        icon={<Users className="w-4 h-4" />}
+                                    />
+                                    <InfoItem 
+                                        label="Số lượng tuyển dụng" 
+                                        value={jobRequest.quantity?.toString() || "—"} 
+                                        icon={<UserPlus className="w-4 h-4" />}
+                                    />
+                                </div>
+
+                                {/* Cột 3: những nội dung còn lại */}
+                                <div className="space-y-6">
+                                    <InfoItem 
+                                        label="Khu vực làm việc" 
+                                        value={locationName} 
+                                        icon={<MapPin className="w-4 h-4" />}
+                                    />
+                                    <InfoItem 
+                                        label="Chế độ làm việc" 
+                                        value={workingModeLabels[Number(jobRequest.workingMode ?? 0)] ?? "—"} 
+                                        icon={<GraduationCap className="w-4 h-4" />}
+                                    />
+                                    <InfoItem 
+                                        label="Quy trình ứng tuyển" 
+                                        value={applyProcessTemplateName} 
+                                        icon={<FileCheck className="w-4 h-4" />}
+                                    />
+                                </div>
+
+                                {/* Kỹ năng yêu cầu (đưa vào Thông tin chung) */}
+                                <div className="lg:col-span-3">
+                                    <div className="rounded-2xl border border-neutral-100 bg-white p-5">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Star className="w-4 h-4 text-primary-600" />
+                                            <p className="text-sm font-semibold text-neutral-800">Kỹ năng yêu cầu</p>
+                                        </div>
+                                        {jobSkills.length > 0 ? (
+                                            <div className="flex flex-wrap gap-3">
+                                                {jobSkills.map((skill) => (
+                                                    <span
+                                                        key={skill.id}
+                                                        className="group inline-flex items-center gap-2 bg-gradient-to-r from-primary-100 to-primary-200 text-primary-800 px-4 py-2 rounded-xl text-sm font-medium border border-primary-200 hover:from-primary-200 hover:to-primary-300 transition-all duration-300 hover:scale-105 transform"
+                                                    >
+                                                        <Target className="w-3 h-3 group-hover:scale-110 transition-transform duration-300" />
+                                                        {skill.name}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-6">
+                                                <p className="text-neutral-500 text-sm font-medium">Chưa có kỹ năng yêu cầu</p>
+                                                <p className="text-neutral-400 text-xs mt-1">Thêm kỹ năng để tìm ứng viên phù hợp</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         )}
 
@@ -741,32 +754,6 @@ export default function JobRequestDetailHRPage() {
                                     />
                                 ) : (
                                     <p className="text-gray-500 italic">Chưa có yêu cầu cụ thể cho ứng viên</p>
-                                )}
-                            </div>
-                        )}
-
-                        {activeTab === "skills" && (
-                            <div className="animate-fade-in">
-                                {jobSkills.length > 0 ? (
-                                    <div className="flex flex-wrap gap-3">
-                                        {jobSkills.map((skill) => (
-                                            <span
-                                                key={skill.id}
-                                                className="group inline-flex items-center gap-2 bg-gradient-to-r from-primary-100 to-primary-200 text-primary-800 px-4 py-2 rounded-xl text-sm font-medium border border-primary-200 hover:from-primary-200 hover:to-primary-300 transition-all duration-300 hover:scale-105 transform"
-                                            >
-                                                <Target className="w-3 h-3 group-hover:scale-110 transition-transform duration-300" />
-                                                {skill.name}
-                                            </span>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-8">
-                                        <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                            <Briefcase className="w-8 h-8 text-neutral-400" />
-                                        </div>
-                                        <p className="text-neutral-500 text-lg font-medium">Chưa có kỹ năng yêu cầu</p>
-                                        <p className="text-neutral-400 text-sm mt-1">Thêm kỹ năng để tìm ứng viên phù hợp</p>
-                                    </div>
                                 )}
                             </div>
                         )}

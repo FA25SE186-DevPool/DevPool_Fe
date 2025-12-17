@@ -71,6 +71,7 @@ export default function TalentCVApplicationPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterJobRequestId, setFilterJobRequestId] = useState<string>(jobRequestIdFromQuery || "");
   const [jobRequestTitle, setJobRequestTitle] = useState<string>("");
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -269,7 +270,6 @@ export default function TalentCVApplicationPage() {
       const lowerSearch = searchTerm.toLowerCase();
       filtered = filtered.filter((a) => 
         a.jobRequest?.title?.toLowerCase().includes(lowerSearch) ||
-        a.submitterName?.toLowerCase().includes(lowerSearch) ||
         a.talentName?.toLowerCase().includes(lowerSearch)
       );
     }
@@ -293,6 +293,14 @@ export default function TalentCVApplicationPage() {
     setSearchTerm("");
     setFilterStatus("");
     setFilterJobRequestId("");
+    setIsStatusDropdownOpen(false);
+  };
+
+  const hasActiveFilters = Boolean(searchTerm || filterStatus || filterJobRequestId);
+
+  const getStatusDisplayText = () => {
+    if (!filterStatus) return "Tất cả trạng thái";
+    return statusLabels[filterStatus] ?? filterStatus;
   };
 
   if (loading)
@@ -472,7 +480,7 @@ export default function TalentCVApplicationPage() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 w-5 h-5" />
                 <input
                   type="text"
-                  placeholder="Tìm kiếm theo tên, email, tiêu đề yêu cầu..."
+                  placeholder="Tìm kiếm theo tên ứng viên, tiêu đề yêu cầu..."
                   className="w-full pl-12 pr-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 bg-neutral-50 focus:bg-white"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -486,29 +494,75 @@ export default function TalentCVApplicationPage() {
                 <Filter className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
                 <span className="font-medium">{showFilters ? "Ẩn bộ lọc" : "Bộ lọc"}</span>
               </button>
+
+              {hasActiveFilters && (
+                <button
+                  onClick={handleResetFilters}
+                  className="group flex items-center gap-2 px-6 py-3 border border-neutral-200 rounded-xl hover:border-primary-500 hover:text-primary-600 hover:bg-primary-50 transition-all duration-300 bg-white"
+                >
+                  <X className="w-5 h-5" />
+                  <span className="font-medium">Xóa bộ lọc</span>
+                </button>
+              )}
             </div>
 
             {showFilters && (
               <div className="mt-6 pt-6 border-t border-neutral-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 bg-white"
-                  >
-                    <option value="">Tất cả trạng thái</option>
-                    <option value="Submitted">Đã nộp hồ sơ</option>
-                    <option value="Interviewing">Đang xem xét phỏng vấn</option>
-                    <option value="Hired">Đã tuyển</option>
-                    <option value="Rejected">Đã từ chối</option>
-                    <option value="Withdrawn">Đã rút</option>
-                  </select>
-                  <button
-                    onClick={handleResetFilters}
-                    className="group flex items-center justify-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg px-4 py-2 transition-all duration-300 hover:scale-105 transform"
-                  >
-                    <span className="font-medium">Đặt lại</span>
-                  </button>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                      className="w-full flex items-center justify-between px-4 py-2 border border-neutral-200 rounded-lg bg-white text-left hover:border-primary-300 transition-colors"
+                    >
+                      <span className="text-sm text-neutral-700">{getStatusDisplayText()}</span>
+                      <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isStatusDropdownOpen && (
+                      <div
+                        className="absolute z-50 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
+                        onMouseLeave={() => setIsStatusDropdownOpen(false)}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFilterStatus("");
+                            setIsStatusDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2.5 text-sm ${
+                            !filterStatus
+                              ? 'bg-primary-50 text-primary-700'
+                              : 'hover:bg-neutral-50 text-neutral-700'
+                          }`}
+                        >
+                          Tất cả trạng thái
+                        </button>
+                        {[
+                          { value: "Submitted", label: statusLabels.Submitted },
+                          { value: "Interviewing", label: statusLabels.Interviewing },
+                          { value: "Hired", label: statusLabels.Hired },
+                          { value: "Rejected", label: statusLabels.Rejected },
+                          { value: "Withdrawn", label: statusLabels.Withdrawn },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setFilterStatus(opt.value);
+                              setIsStatusDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              filterStatus === opt.value
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'hover:bg-neutral-50 text-neutral-700'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

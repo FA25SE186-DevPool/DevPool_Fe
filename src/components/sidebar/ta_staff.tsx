@@ -8,7 +8,7 @@ export const sidebarItems = [
   },
   {
     label: "Nhân Sự",
-    href: "/ta/developers",
+    href: "/ta/talents",
     icon: Users,
     // subItems: [
     //   { label: 'Danh sách nhân sự', href: '/ta/developers' },

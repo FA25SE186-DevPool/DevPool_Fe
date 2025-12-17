@@ -143,7 +143,7 @@ export default function TalentProjectEditPage() {
       await talentProjectService.update(Number(id), formData);
 
       alert("✅ Cập nhật dự án nhân sự thành công!");
-      navigate(`/ta/developers/${talentId}`, { state: { tab: 'projects' } });
+      navigate(`/ta/talents/${talentId}`, { state: { tab: 'projects' } });
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật:", err);
       alert("Không thể cập nhật dự án nhân sự!");
@@ -172,8 +172,8 @@ export default function TalentProjectEditPage() {
         <div className="mb-8 animate-slide-up">
           <Breadcrumb
             items={[
-              { label: "Nhân sự", to: "/ta/developers" },
-              { label: talentId ? `Chi tiết nhân sự` : "Chi tiết", to: `/ta/developers/${talentId}` },
+              { label: "Nhân sự", to: "/ta/talents" },
+              { label: talentId ? `Chi tiết nhân sự` : "Chi tiết", to: `/ta/talents/${talentId}` },
               { label: "Chỉnh sửa dự án" }
             ]}
           />
@@ -312,7 +312,7 @@ export default function TalentProjectEditPage() {
           {/* Action Buttons */}
           <div className="flex justify-end gap-4 pt-6">
             <Link
-              to={`/ta/developers/${talentId}`}
+              to={`/ta/talents/${talentId}`}
               className="group flex items-center gap-2 px-6 py-3 border border-neutral-300 rounded-xl text-neutral-700 hover:bg-neutral-50 hover:border-neutral-400 transition-all duration-300 hover:scale-105 transform"
             >
               <X className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
