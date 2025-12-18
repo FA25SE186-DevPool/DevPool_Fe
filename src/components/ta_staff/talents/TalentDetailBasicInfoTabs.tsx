@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Ban, Briefcase, Target, Star, FolderOpen, Award, Clock } from 'lucide-react';
+import { FileText, Briefcase, Target, Star, FolderOpen, Award, Clock } from 'lucide-react';
 import { TalentDetailBasicInfoSection } from './TalentDetailBasicInfoSection';
 import { type Talent } from '../../../services/Talent';
 import { type ClientTalentBlacklist } from '../../../services/ClientTalentBlacklist';
@@ -30,7 +30,7 @@ export function TalentDetailBasicInfoTabs({
   onTabChange,
   tabContent,
 }: TalentDetailBasicInfoTabsProps) {
-  const [basicInfoTab, setBasicInfoTab] = useState<'info' | 'blacklist'>('info');
+  const [basicInfoTab, setBasicInfoTab] = useState<'info'>('info');
 
   // Các tab con (CV, Vị trí, Kỹ năng, v.v.)
   const detailTabs: Array<{ id: TalentDetailTab; label: string; icon: React.ReactNode }> = [
@@ -72,27 +72,6 @@ export function TalentDetailBasicInfoTabs({
             Thông tin
           </button>
           
-          {/* Tab Blacklist (nếu có) */}
-          {blacklists.length > 0 && (
-            <button
-              onClick={() => {
-                setBasicInfoTab('blacklist');
-                onTabChange(null); // Clear activeTab để hiển thị tab Blacklist
-              }}
-              className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 flex-shrink-0 ${
-                !isDetailTabActive && basicInfoTab === 'blacklist'
-                  ? 'border-red-600 text-red-600 bg-red-50'
-                  : 'border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
-              }`}
-            >
-              <Ban className="w-4 h-4" />
-              Cảnh báo Blacklist
-              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800">
-                {blacklists.length}
-              </span>
-            </button>
-          )}
-          
           {/* Các tab con (CV, Vị trí, Kỹ năng, v.v.) */}
           {detailTabs.map((tab) => (
             <button
@@ -114,32 +93,17 @@ export function TalentDetailBasicInfoTabs({
 
       {/* Tab Content */}
       <div className="p-6">
-        {/* Nội dung tab Thông tin hoặc Blacklist */}
-        {!isDetailTabActive && (
-          <>
-            {basicInfoTab === 'info' && (
-              <TalentDetailBasicInfoSection
-                talent={talent}
-                locationName={locationName}
-                partnerName={partnerName}
-                blacklists={blacklists}
-                workingModeLabels={workingModeLabels}
-                formatLinkDisplay={formatLinkDisplay}
-                onPartnerClick={onPartnerClick}
-              />
-            )}
-            {basicInfoTab === 'blacklist' && blacklists.length > 0 && (
-              <TalentDetailBasicInfoSection
-                talent={talent}
-                locationName={locationName}
-                partnerName={partnerName}
-                blacklists={blacklists}
-                workingModeLabels={workingModeLabels}
-                formatLinkDisplay={formatLinkDisplay}
-                onPartnerClick={onPartnerClick}
-              />
-            )}
-          </>
+        {/* Nội dung tab Thông tin */}
+        {!isDetailTabActive && basicInfoTab === 'info' && (
+          <TalentDetailBasicInfoSection
+            talent={talent}
+            locationName={locationName}
+            partnerName={partnerName}
+            blacklists={blacklists}
+            workingModeLabels={workingModeLabels}
+            formatLinkDisplay={formatLinkDisplay}
+            onPartnerClick={onPartnerClick}
+          />
         )}
         
         {/* Nội dung các tab khác (CV, Vị trí, Kỹ năng, v.v.) */}

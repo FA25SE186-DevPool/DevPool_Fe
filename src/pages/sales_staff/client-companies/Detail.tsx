@@ -8,7 +8,7 @@ import { clientTalentBlacklistService, type ClientTalentBlacklist, type ClientTa
 import { talentService, type Talent } from "../../../services/Talent";
 import { clientCompanyCVTemplateService } from "../../../services/ClientCompanyTemplate";
 import { cvTemplateService, type CVTemplate } from "../../../services/CVTemplate";
-import { clientJobRoleLevelService, type ClientJobRoleLevelCreate, type ClientJobRoleLevel } from "../../../services/ClientJobRoleLevel";
+import { clientJobRoleLevelService, type ClientJobRoleLevelCreate } from "../../../services/ClientJobRoleLevel";
 import { jobRoleLevelService, type JobRoleLevel } from "../../../services/JobRoleLevel";
 import { jobRoleService, type JobRole } from "../../../services/JobRole";
 import { useAuth } from "../../../context/AuthContext";
@@ -33,8 +33,6 @@ import {
   Target,
   FolderKanban,
   FileText,
-  Layers,
-  Eye,
   Hash,
 } from "lucide-react";
 
@@ -59,7 +57,7 @@ export default function ClientCompanyDetailPage() {
   const navigate = useNavigate();
   const [company, setCompany] = useState<ClientCompanyDetailedModel | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"info" | "projects" | "assignedCVTemplates" | "jobRoleLevels" | "blacklist">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "projects" | "blacklist">("info");
   const [blacklists, setBlacklists] = useState<ClientTalentBlacklist[]>([]);
   const [loadingBlacklists, setLoadingBlacklists] = useState(false);
   
@@ -79,12 +77,15 @@ export default function ClientCompanyDetailPage() {
   const [removalReason, setRemovalReason] = useState("");
   const [isRemovingBlacklist, setIsRemovingBlacklist] = useState(false);
   
+  // Blacklist Detail Modal
+  const [showBlacklistDetailModal, setShowBlacklistDetailModal] = useState(false);
+  const [selectedBlacklist, setSelectedBlacklist] = useState<ClientTalentBlacklist | null>(null);
+  
   // Assign Template Modal
   const [showAssignTemplateModal, setShowAssignTemplateModal] = useState(false);
   const [availableTemplates, setAvailableTemplates] = useState<CVTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [isAssigningTemplate, setIsAssigningTemplate] = useState(false);
-  const [isRemovingTemplate, setIsRemovingTemplate] = useState(false);
   const [templateSearchQuery, setTemplateSearchQuery] = useState<string>("");
   const [isTemplateDropdownOpen, setIsTemplateDropdownOpen] = useState(false);
   const templatePreviewRef = useRef<HTMLDivElement>(null);
@@ -92,7 +93,6 @@ export default function ClientCompanyDetailPage() {
   // Add Job Role Level Modal
   const [showAddJobRoleLevelModal, setShowAddJobRoleLevelModal] = useState(false);
   const [availableJobRoleLevels, setAvailableJobRoleLevels] = useState<JobRoleLevel[]>([]);
-  const [allJobRoleLevels, setAllJobRoleLevels] = useState<JobRoleLevel[]>([]);
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
   const [jobRoleFilterId, setJobRoleFilterId] = useState<number | null>(null);
   const [isJobRoleFilterDropdownOpen, setIsJobRoleFilterDropdownOpen] = useState(false);
@@ -102,7 +102,6 @@ export default function ClientCompanyDetailPage() {
   const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
   const [currencySearch, setCurrencySearch] = useState<string>("");
   const [editingJobRoleLevelId, setEditingJobRoleLevelId] = useState<number | null>(null);
-  const [isDeletingJobRoleLevelId, setIsDeletingJobRoleLevelId] = useState<number | null>(null);
   
   // Danh sách các loại tiền tệ phổ biến
   const currencies = [
@@ -220,28 +219,20 @@ export default function ClientCompanyDetailPage() {
     }
   }, [id]);
 
-  // Load all job role levels (for mapping) và danh sách JobRole dùng cho filter
+  // Load danh sách JobRole dùng cho filter vị trí tuyển dụng
   useEffect(() => {
-    const fetchJobRoleLevelsAndJobRoles = async () => {
+    const fetchJobRoles = async () => {
       try {
-        const [jobRoleLevels, jobRolesData] = await Promise.all([
-          jobRoleLevelService.getAll({ excludeDeleted: true }),
-          jobRoleService.getAll({ excludeDeleted: true }),
-        ]);
-
-        const jobRoleLevelsArray = ensureArray<JobRoleLevel>(jobRoleLevels);
+        const jobRolesData = await jobRoleService.getAll({ excludeDeleted: true });
         const jobRolesArray = ensureArray<JobRole>(jobRolesData);
-
-        setAllJobRoleLevels(jobRoleLevelsArray);
         setJobRoles(jobRolesArray);
       } catch (err) {
-        console.error("❌ Lỗi khi tải danh sách job role level / job role:", err);
-        setAllJobRoleLevels([]);
+        console.error("❌ Lỗi khi tải danh sách job role:", err);
         setJobRoles([]);
       }
     };
 
-    fetchJobRoleLevelsAndJobRoles();
+    fetchJobRoles();
   }, []);
 
   useEffect(() => {
@@ -376,6 +367,13 @@ export default function ClientCompanyDetailPage() {
 
   const handleDelete = async () => {
     if (!id) return;
+    
+    // Kiểm tra nếu công ty có dự án thì không cho xóa
+    if (company?.projects && company.projects.length > 0) {
+      alert("⚠️ Không thể xóa công ty này vì công ty đang có dự án. Vui lòng xóa hoặc chuyển các dự án trước khi xóa công ty.");
+      return;
+    }
+    
     const confirmDelete = window.confirm("⚠️ Bạn có chắc muốn xóa công ty này?");
     if (!confirmDelete) return;
 
@@ -494,11 +492,6 @@ export default function ClientCompanyDetailPage() {
   };
 
   // Handle Assign Template
-  const handleOpenAssignTemplateModal = () => {
-    setSelectedTemplateId(null);
-    setShowAssignTemplateModal(true);
-  };
-
   const handleCloseAssignTemplateModal = () => {
     setShowAssignTemplateModal(false);
     setSelectedTemplateId(null);
@@ -529,68 +522,6 @@ export default function ClientCompanyDetailPage() {
     } finally {
       setIsAssigningTemplate(false);
     }
-  };
-
-  const handleRemoveTemplate = async (templateId: number) => {
-    if (!id) return;
-    
-    const confirmRemove = window.confirm("⚠️ Bạn có chắc muốn xóa template này khỏi công ty?");
-    if (!confirmRemove) return;
-
-    try {
-      setIsRemovingTemplate(true);
-      await clientCompanyCVTemplateService.removeTemplate(Number(id), templateId);
-      alert("✅ Đã xóa template thành công!");
-      
-      // Refresh company data
-      const data = await clientCompanyService.getDetailedById(Number(id));
-      setCompany(data);
-    } catch (error: any) {
-      console.error("❌ Lỗi xóa template:", error);
-      const errorMessage = error?.message || error?.data?.message || "Không thể xóa template!";
-      alert(`⚠️ ${errorMessage}`);
-    } finally {
-      setIsRemovingTemplate(false);
-    }
-  };
-
-  // Handle Add Job Role Level (create mode)
-  const handleOpenAddJobRoleLevelModal = () => {
-    setEditingJobRoleLevelId(null);
-    setJobRoleLevelForm({
-      clientCompanyId: Number(id) || 0,
-      jobRoleLevelId: 0,
-      expectedMinRate: null,
-      expectedMaxRate: null,
-      currency: "VND",
-      notes: null,
-    });
-    setJobRoleFilterId(null);
-    setJobRoleLevelSearch("");
-    setShowAddJobRoleLevelModal(true);
-  };
-
-  // Handle Edit Job Role Level (edit mode)
-  const handleEditJobRoleLevel = (jobRoleLevel: ClientJobRoleLevel) => {
-    const jobRoleLevelInfo = allJobRoleLevels.find(jrl => jrl.id === jobRoleLevel.jobRoleLevelId);
-    
-    setEditingJobRoleLevelId(jobRoleLevel.id);
-    setJobRoleLevelForm({
-      clientCompanyId: Number(id) || jobRoleLevel.clientCompanyId,
-      jobRoleLevelId: jobRoleLevel.jobRoleLevelId,
-      expectedMinRate: jobRoleLevel.expectedMinRate ?? null,
-      expectedMaxRate: jobRoleLevel.expectedMaxRate ?? null,
-      currency: jobRoleLevel.currency ?? "VND",
-      notes: jobRoleLevel.notes ?? null,
-    });
-
-    if (jobRoleLevelInfo && (jobRoleLevelInfo as any).jobRoleId) {
-      setJobRoleFilterId((jobRoleLevelInfo as any).jobRoleId);
-    } else {
-      setJobRoleFilterId(null);
-    }
-    setJobRoleLevelSearch("");
-    setShowAddJobRoleLevelModal(true);
   };
 
   const handleCloseAddJobRoleLevelModal = () => {
@@ -647,30 +578,6 @@ export default function ClientCompanyDetailPage() {
       alert(`⚠️ ${errorMessage}`);
     } finally {
       setIsCreatingJobRoleLevel(false);
-    }
-  };
-
-  // Delete Job Role Level
-  const handleDeleteJobRoleLevel = async (jobRoleLevelId: number) => {
-    if (!id) return;
-
-    const confirmDelete = window.confirm("⚠️ Bạn có chắc muốn xóa vị trí tuyển dụng này?");
-    if (!confirmDelete) return;
-
-    try {
-      setIsDeletingJobRoleLevelId(jobRoleLevelId);
-      await clientJobRoleLevelService.delete(jobRoleLevelId);
-      alert("✅ Đã xóa vị trí tuyển dụng thành công!");
-
-      // Refresh company data
-      const data = await clientCompanyService.getDetailedById(Number(id));
-      setCompany(data);
-    } catch (error: any) {
-      console.error("❌ Lỗi xóa vị trí tuyển dụng:", error);
-      const errorMessage = error?.message || error?.data?.message || "Không thể xóa vị trí tuyển dụng!";
-      alert(`⚠️ ${errorMessage}`);
-    } finally {
-      setIsDeletingJobRoleLevelId(null);
     }
   };
 
@@ -745,7 +652,9 @@ export default function ClientCompanyDetailPage() {
               </Button>
               <Button
                 onClick={handleDelete}
-                className="group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
+                disabled={company?.projects && company.projects.length > 0}
+                className="group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-soft"
+                title={company?.projects && company.projects.length > 0 ? "Không thể xóa công ty có dự án" : ""}
               >
                 <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
                 Xóa
@@ -787,38 +696,6 @@ export default function ClientCompanyDetailPage() {
                 )}
               </button>
               <button
-                onClick={() => setActiveTab("assignedCVTemplates")}
-                className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
-                  activeTab === "assignedCVTemplates"
-                    ? "border-primary-600 text-primary-600 bg-primary-50"
-                    : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
-                }`}
-              >
-                <FileText className="w-4 h-4" />
-                CV Templates
-                {company?.assignedCVTemplates && company.assignedCVTemplates.length > 0 && (
-                  <span className="ml-1 px-2 py-0.5 text-xs font-semibold bg-primary-100 text-primary-700 rounded-full">
-                    {company.assignedCVTemplates.length}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setActiveTab("jobRoleLevels")}
-                className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
-                  activeTab === "jobRoleLevels"
-                    ? "border-primary-600 text-primary-600 bg-primary-50"
-                    : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
-                }`}
-              >
-                <Layers className="w-4 h-4" />
-                Vị trí tuyển dụng
-                {company?.jobRoleLevels && company.jobRoleLevels.length > 0 && (
-                  <span className="ml-1 px-2 py-0.5 text-xs font-semibold bg-primary-100 text-primary-700 rounded-full">
-                    {company.jobRoleLevels.length}
-                  </span>
-                )}
-              </button>
-              <button
                 onClick={() => setActiveTab("blacklist")}
                 className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
                   activeTab === "blacklist"
@@ -841,53 +718,65 @@ export default function ClientCompanyDetailPage() {
           <div className="p-6">
             {activeTab === "info" && (
               <div className="animate-fade-in">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <InfoItem
-                    label="Tên công ty"
-                    value={company.name}
-                    icon={<Building2 className="w-4 h-4" />}
-                  />
-                  <InfoItem
-                    label="Mã số thuế"
-                    value={company.taxCode ?? "—"}
-                    icon={<Briefcase className="w-4 h-4" />}
-                  />
-                  <InfoItem
-                    label="Người đại diện"
-                    value={company.contactPerson}
-                    icon={<User className="w-4 h-4" />}
-                  />
-                  <InfoItem
-                    label="Chức vụ"
-                    value={company.position ?? "—"}
-                    icon={<Briefcase className="w-4 h-4" />}
-                  />
-                  <InfoItem
-                    label="Email"
-                    value={company.email}
-                    icon={<Mail className="w-4 h-4" />}
-                  />
-                  <InfoItem
-                    label="Số điện thoại"
-                    value={company.phone ?? "—"}
-                    icon={<Phone className="w-4 h-4" />}
-                  />
-                  <InfoItem
-                    label="Ngày tạo"
-                    value={formatDateTime(company.createdAt)}
-                    icon={<Clock className="w-4 h-4" />}
-                  />
-                  <InfoItem
-                    label="Ngày cập nhật"
-                    value={formatDateTime(company.updatedAt)}
-                    icon={<Clock className="w-4 h-4" />}
-                  />
-                  <InfoItem
-                    label="Địa chỉ"
-                    value={company.address ?? "—"}
-                    icon={<MapPin className="w-4 h-4" />}
-                    className="col-span-2"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Cột 1 */}
+                  <div className="space-y-6">
+                    <InfoItem
+                      label="Tên công ty"
+                      value={company.name}
+                      icon={<Building2 className="w-4 h-4" />}
+                    />
+                    <InfoItem
+                      label="Mã số thuế"
+                      value={company.taxCode ?? "—"}
+                      icon={<Briefcase className="w-4 h-4" />}
+                    />
+                    <InfoItem
+                      label="Người đại diện"
+                      value={company.contactPerson}
+                      icon={<User className="w-4 h-4" />}
+                    />
+                    <InfoItem
+                      label="Chức vụ"
+                      value={company.position ?? "—"}
+                      icon={<Briefcase className="w-4 h-4" />}
+                    />
+                    <InfoItem
+                      label="Địa chỉ"
+                      value={company.address ?? "—"}
+                      icon={<MapPin className="w-4 h-4" />}
+                    />
+                  </div>
+                  
+                  {/* Cột 2 */}
+                  <div className="space-y-6">
+                    <InfoItem
+                      label="Email"
+                      value={company.email}
+                      icon={<Mail className="w-4 h-4" />}
+                    />
+                    <InfoItem
+                      label="Số điện thoại"
+                      value={company.phone ?? "—"}
+                      icon={<Phone className="w-4 h-4" />}
+                    />
+                    <InfoItem
+                      label="Ngày tạo"
+                      value={formatDateTime(company.createdAt)}
+                      icon={<Clock className="w-4 h-4" />}
+                    />
+                    {company.updatedAt && (() => {
+                      const updatedDate = new Date(company.updatedAt);
+                      const isValidDate = !isNaN(updatedDate.getTime()) && updatedDate.getFullYear() > 1970;
+                      return isValidDate ? (
+                        <InfoItem
+                          label="Ngày cập nhật"
+                          value={formatDateTime(company.updatedAt)}
+                          icon={<Clock className="w-4 h-4" />}
+                        />
+                      ) : null;
+                    })()}
+                  </div>
                 </div>
               </div>
             )}
@@ -904,223 +793,63 @@ export default function ClientCompanyDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {company.projects.map((project) => (
-                      <Link
-                        key={project.id}
-                        to={`/sales/projects/${project.id}`}
-                        className="block border border-neutral-200 rounded-xl p-4 hover:shadow-md transition-all hover:border-primary-300"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h3 className="text-lg font-semibold text-gray-900">{project.name}</h3>
-                              {project.code && (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-mono font-medium text-neutral-600 bg-neutral-100 rounded-lg">
-                                  <Hash className="w-3 h-3" />
-                                  {project.code}
-                                </span>
+                    {company.projects.map((project) => {
+                      const getStatusColor = (status: string) => {
+                        const statusLower = status.toLowerCase();
+                        if (statusLower.includes("hoàn thành") || statusLower.includes("completed") || statusLower.includes("done")) {
+                          return "bg-green-100 text-green-800 border-green-200";
+                        } else if (statusLower.includes("đang") || statusLower.includes("in progress") || statusLower.includes("ongoing")) {
+                          return "bg-blue-100 text-blue-800 border-blue-200";
+                        } else if (statusLower.includes("tạm dừng") || statusLower.includes("paused") || statusLower.includes("suspended")) {
+                          return "bg-yellow-100 text-yellow-800 border-yellow-200";
+                        } else if (statusLower.includes("hủy") || statusLower.includes("cancelled") || statusLower.includes("canceled")) {
+                          return "bg-red-100 text-red-800 border-red-200";
+                        } else {
+                          return "bg-neutral-100 text-neutral-800 border-neutral-200";
+                        }
+                      };
+                      
+                      return (
+                        <Link
+                          key={project.id}
+                          to={`/sales/projects/${project.id}`}
+                          className="block border border-neutral-200 rounded-xl p-4 hover:shadow-md transition-all hover:border-primary-300 relative"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h3 className="text-lg font-semibold text-gray-900">{project.name}</h3>
+                                {project.code && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-mono font-medium text-neutral-600 bg-neutral-100 rounded-lg">
+                                    <Hash className="w-3 h-3" />
+                                    {project.code}
+                                  </span>
+                                )}
+                              </div>
+                              {project.description && (
+                                <p className="text-sm text-neutral-600 mb-3 line-clamp-2">{project.description}</p>
                               )}
+                              <div className="flex flex-wrap gap-4 text-sm text-neutral-500">
+                                {project.startDate && (
+                                  <div className="flex items-center gap-1">
+                                    <Clock className="w-4 h-4" />
+                                    <span>Bắt đầu: {new Date(project.startDate).toLocaleDateString("vi-VN")}</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            {project.description && (
-                              <p className="text-sm text-neutral-600 mb-3 line-clamp-2">{project.description}</p>
+                            {project.status && (
+                              <div className="ml-4">
+                                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border ${getStatusColor(project.status)}`}>
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                  {project.status}
+                                </span>
+                              </div>
                             )}
-                            <div className="flex flex-wrap gap-4 text-sm text-neutral-500">
-                              {project.startDate && (
-                                <div className="flex items-center gap-1">
-                                  <Clock className="w-4 h-4" />
-                                  <span>Bắt đầu: {new Date(project.startDate).toLocaleDateString("vi-VN")}</span>
-                                </div>
-                              )}
-                              {project.status && (
-                                <div className="flex items-center gap-1">
-                                  <CheckCircle className="w-4 h-4" />
-                                  <span>Trạng thái: {project.status}</span>
-                                </div>
-                              )}
-                            </div>
                           </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === "assignedCVTemplates" && (
-              <div className="animate-fade-in">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">CV Templates được gán</h3>
-                  <Button
-                    onClick={handleOpenAssignTemplateModal}
-                    className="flex items-center gap-2 px-3 py-2 text-sm"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Gán Template
-                  </Button>
-                </div>
-                {!company.assignedCVTemplates || company.assignedCVTemplates.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <FileText className="w-8 h-8 text-neutral-400" />
-                    </div>
-                    <p className="text-neutral-500 text-lg font-medium">Chưa có CV Template nào được gán</p>
-                    <p className="text-neutral-400 text-sm mt-2">Danh sách CV Template được gán cho công ty này sẽ hiển thị ở đây</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {company.assignedCVTemplates.map((template) => (
-                      <div
-                        key={`${template.clientCompanyId}-${template.templateId}`}
-                        className="border border-neutral-200 rounded-xl p-4 hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <div className="p-2 bg-primary-100 rounded-lg">
-                                <FileText className="w-5 h-5 text-primary-600" />
-                              </div>
-                              <div>
-                                <h3 className="text-lg font-semibold text-gray-900">{template.templateName}</h3>
-                                {template.templateDescription && (
-                                  <p className="text-sm text-neutral-500 mt-1">{template.templateDescription}</p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="ml-12 space-y-2">
-                              {template.isDefault && (
-                                <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                                  Mặc định
-                                </span>
-                              )}
-                              <div className="flex items-center gap-2 text-sm text-neutral-500">
-                                <Clock className="w-4 h-4" />
-                                <span>Gán vào: {formatDateTime(template.createdAt)}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <Button
-                            onClick={() => handleRemoveTemplate(template.templateId)}
-                            variant="ghost"
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-2 text-sm"
-                            disabled={isRemovingTemplate}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === "jobRoleLevels" && (
-              <div className="animate-fade-in">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Vị trí tuyển dụng</h3>
-                  <Button
-                    onClick={handleOpenAddJobRoleLevelModal}
-                    className="flex items-center gap-2 px-3 py-2 text-sm"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Thêm vị trí
-                  </Button>
-                </div>
-                {!company.jobRoleLevels || company.jobRoleLevels.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Layers className="w-8 h-8 text-neutral-400" />
-                    </div>
-                    <p className="text-neutral-500 text-lg font-medium">Chưa có vị trí tuyển dụng nào</p>
-                    <p className="text-neutral-400 text-sm mt-2">Danh sách vị trí tuyển dụng của công ty này sẽ hiển thị ở đây</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gradient-to-r from-neutral-50 to-primary-50">
-                        <tr>
-                          <th className="py-3 px-4 text-left text-xs font-semibold text-neutral-600 uppercase">Vị trí</th>
-                          <th className="py-3 px-4 text-left text-xs font-semibold text-neutral-600 uppercase">Mức lương mong muốn tối thiểu</th>
-                          <th className="py-3 px-4 text-left text-xs font-semibold text-neutral-600 uppercase">Mức lương mong muốn tối đa</th>
-                          <th className="py-3 px-4 text-left text-xs font-semibold text-neutral-600 uppercase">Tiền tệ</th>
-                          <th className="py-3 px-4 text-left text-xs font-semibold text-neutral-600 uppercase">Ghi chú</th>
-                          <th className="py-3 px-4 text-right text-xs font-semibold text-neutral-600 uppercase">Hành động</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-neutral-200">
-                        {company.jobRoleLevels.map((jobRoleLevel) => {
-                          const jobRoleLevelInfo = allJobRoleLevels.find(jrl => jrl.id === jobRoleLevel.jobRoleLevelId);
-                          const isDeleting = isDeletingJobRoleLevelId === jobRoleLevel.id;
-                          return (
-                            <tr key={jobRoleLevel.id} className="hover:bg-neutral-50 transition-colors">
-                              <td className="py-3 px-4 text-sm font-medium text-gray-900">
-                                {jobRoleLevelInfo?.name || `Vị trí #${jobRoleLevel.jobRoleLevelId}`}
-                              </td>
-                              <td className="py-3 px-4 text-sm text-neutral-700">
-                                {jobRoleLevel.expectedMinRate ? jobRoleLevel.expectedMinRate.toLocaleString("vi-VN") : "—"}
-                              </td>
-                              <td className="py-3 px-4 text-sm text-neutral-700">
-                                {jobRoleLevel.expectedMaxRate ? jobRoleLevel.expectedMaxRate.toLocaleString("vi-VN") : "—"}
-                              </td>
-                              <td className="py-3 px-4 text-sm text-neutral-700">
-                                {jobRoleLevel.currency || "—"}
-                              </td>
-                              <td className="py-3 px-4 text-sm text-neutral-600">
-                                {jobRoleLevel.notes ? (
-                                  jobRoleLevel.notes.length > 50 ? (
-                                    <div className="flex items-center gap-2">
-                                      <span className="line-clamp-1">{jobRoleLevel.notes.substring(0, 50)}...</span>
-                                      <button
-                                        onClick={() => {
-                                          setSelectedNotes(jobRoleLevel.notes || "");
-                                          setShowNotesModal(true);
-                                        }}
-                                        className="text-primary-600 hover:text-primary-800 hover:underline flex items-center gap-1 text-xs font-medium"
-                                        title="Xem chi tiết ghi chú"
-                                      >
-                                        <Eye className="w-3.5 h-3.5" />
-                                        Xem thêm
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    jobRoleLevel.notes
-                                  )
-                                ) : (
-                                  "—"
-                                )}
-                              </td>
-                              <td className="py-3 px-4 text-sm text-right space-x-2">
-                                <Button
-                                  variant="ghost"
-                                  className="inline-flex items-center gap-1 px-2 py-1 text-xs text-primary-700 hover:text-primary-900 hover:bg-primary-50"
-                                  onClick={() => handleEditJobRoleLevel(jobRoleLevel as unknown as ClientJobRoleLevel)}
-                                  disabled={isDeletingJobRoleLevelId !== null}
-                                >
-                                  <Edit className="w-3 h-3" />
-                                  Sửa
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  className="inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50"
-                                  onClick={() => handleDeleteJobRoleLevel(jobRoleLevel.id)}
-                                  disabled={isDeleting}
-                                >
-                                  {isDeleting ? (
-                                    <span>Đang xóa...</span>
-                                  ) : (
-                                    <>
-                                      <Trash2 className="w-3 h-3" />
-                                      Xóa
-                                    </>
-                                  )}
-                                </Button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1160,7 +889,11 @@ export default function ClientCompanyDetailPage() {
                     {blacklists.map((blacklist) => (
                       <div
                         key={blacklist.id}
-                        className="border border-neutral-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+                        onClick={() => {
+                          setSelectedBlacklist(blacklist);
+                          setShowBlacklistDetailModal(true);
+                        }}
+                        className="border border-neutral-200 rounded-xl p-4 hover:shadow-md transition-all cursor-pointer hover:border-red-300"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -1177,24 +910,13 @@ export default function ClientCompanyDetailPage() {
                                 </p>
                               </div>
                             </div>
-                            <div className="ml-12 space-y-2">
-                              <div>
-                                <p className="text-sm font-medium text-neutral-700 mb-1">Lý do:</p>
-                                <p className="text-sm text-neutral-600 bg-neutral-50 rounded-lg p-3">
-                                  {blacklist.reason || "—"}
-                                </p>
-                              </div>
-                              {blacklist.requestedBy && (
-                                <div className="flex items-center gap-2 text-sm text-neutral-500">
-                                  <User className="w-4 h-4" />
-                                  <span>Yêu cầu bởi: {blacklist.requestedBy}</span>
-                                </div>
-                              )}
-                            </div>
                           </div>
                           {isManager && (
                             <button
-                              onClick={() => handleOpenRemoveBlacklistModal(blacklist.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenRemoveBlacklistModal(blacklist.id);
+                              }}
                               className="ml-4 px-3 py-2 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
                               title="Gỡ bỏ blacklist (Chỉ Manager)"
                             >
@@ -1327,13 +1049,14 @@ export default function ClientCompanyDetailPage() {
               </div>
 
               <div className="px-6 py-4 border-t border-neutral-200 flex justify-end gap-3">
-                <Button
+                <button
+                  type="button"
                   onClick={handleCloseAddBlacklistModal}
                   disabled={isAddingBlacklist}
-                  className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Hủy
-                </Button>
+                </button>
                 <Button
                   onClick={handleAddToBlacklist}
                   disabled={isAddingBlacklist || !selectedTalentId || !blacklistReason.trim()}
@@ -1448,6 +1171,92 @@ export default function ClientCompanyDetailPage() {
                     </>
                   )}
                 </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Blacklist Detail Modal */}
+        {showBlacklistDetailModal && selectedBlacklist && (
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowBlacklistDetailModal(false);
+                setSelectedBlacklist(null);
+              }
+            }}
+          >
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+                <h3 className="text-lg font-semibold text-gray-900">Chi tiết Blacklist</h3>
+                <button
+                  onClick={() => {
+                    setShowBlacklistDetailModal(false);
+                    setSelectedBlacklist(null);
+                  }}
+                  className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-neutral-500" />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                <div className="flex items-center gap-3 pb-4 border-b border-neutral-200">
+                  <div className="p-3 bg-red-100 rounded-lg">
+                    <Ban className="w-6 h-6 text-red-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-semibold text-gray-900">
+                      {selectedBlacklist.talentName || `Talent #${selectedBlacklist.talentId}`}
+                    </h4>
+                    <p className="text-sm text-neutral-500 mt-1">
+                      Mã Talent: #{selectedBlacklist.talentId}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-neutral-700 mb-2 block">Ngày thêm vào blacklist</label>
+                    <div className="flex items-center gap-2 text-sm text-neutral-600 bg-neutral-50 rounded-lg p-3">
+                      <Clock className="w-4 h-4 text-neutral-400" />
+                      <span>{formatDateTime(selectedBlacklist.blacklistedDate)}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-neutral-700 mb-2 block">Lý do</label>
+                    <div className="text-sm text-neutral-600 bg-neutral-50 rounded-lg p-3 min-h-[80px]">
+                      {selectedBlacklist.reason || "—"}
+                    </div>
+                  </div>
+
+                  {selectedBlacklist.requestedBy && (
+                    <div>
+                      <label className="text-sm font-medium text-neutral-700 mb-2 block">Yêu cầu bởi</label>
+                      <div className="flex items-center gap-2 text-sm text-neutral-600 bg-neutral-50 rounded-lg p-3">
+                        <User className="w-4 h-4 text-neutral-400" />
+                        <span>{selectedBlacklist.requestedBy}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {isManager && selectedBlacklist.isActive && (
+                  <div className="pt-4 border-t border-neutral-200">
+                    <Button
+                      onClick={() => {
+                        setShowBlacklistDetailModal(false);
+                        handleOpenRemoveBlacklistModal(selectedBlacklist.id);
+                      }}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      Gỡ bỏ khỏi Blacklist
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -1228,7 +1228,7 @@ export default function TalentCVApplicationDetailPage() {
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">Hồ sơ #{application.id}</h1>
                   <p className="text-neutral-600 mb-4">Thông tin chi tiết hồ sơ ứng viên</p>
                 </div>
-                {hasFailedActivity() && clientCompanyId && talentId && !isBlacklisted && (
+                {(hasFailedActivity() || application.status === "Interviewing") && clientCompanyId && talentId && !isBlacklisted && (
                   <Button
                     onClick={handleOpenBlacklistModal}
                     className="group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft transform hover:scale-105 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white flex-shrink-0"

@@ -126,9 +126,9 @@ export function TalentDetailBasicInfoSection({
         </div>
       </div>
 
-      {/* Blacklist Tab */}
+      {/* Blacklist Warning - Khối riêng phía dưới */}
       {blacklists.length > 0 && (
-        <div className="animate-fade-in">
+        <div className="mt-8 pt-8 border-t border-neutral-200 animate-fade-in">
           <div className="bg-red-50 border-l-4 border-red-500 rounded-xl p-6">
             <div className="flex items-start gap-4">
               <div className="p-2 bg-red-100 rounded-lg flex-shrink-0">
@@ -139,8 +139,7 @@ export function TalentDetailBasicInfoSection({
                   ⚠️ Cảnh báo: Ứng viên này đã bị blacklist
                 </h3>
                 <p className="text-sm text-red-800 mb-3">
-                  Ứng viên này đã bị thêm vào blacklist bởi {blacklists.length}{' '}
-                  {blacklists.length === 1 ? 'Client' : 'Clients'}:
+                  Ứng viên này đã bị thêm vào blacklist bởi {blacklists.length} Client{blacklists.length > 1 ? 's' : ''}:
                 </p>
                 <div className="space-y-2">
                   {blacklists.map((blacklist) => (
@@ -152,9 +151,12 @@ export function TalentDetailBasicInfoSection({
                           </p>
                           <p className="text-sm text-red-700 mt-1">Lý do: {blacklist.reason || '—'}</p>
                           <p className="text-xs text-red-600 mt-1">
-                            Ngày:{' '}
-                            {blacklist.blacklistedDate
-                              ? new Date(blacklist.blacklistedDate).toLocaleDateString('vi-VN')
+                            Ngày: {blacklist.blacklistedDate
+                              ? new Date(blacklist.blacklistedDate).toLocaleDateString('vi-VN', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric'
+                                })
                               : '—'}
                             {blacklist.requestedBy && ` • Yêu cầu bởi: ${blacklist.requestedBy}`}
                           </p>

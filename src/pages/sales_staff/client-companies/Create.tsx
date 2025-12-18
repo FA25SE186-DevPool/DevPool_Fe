@@ -8,7 +8,6 @@ import {
   User, 
   Briefcase,
   ArrowLeft,
-  Plus,
   Save,
   AlertCircle,
   CheckCircle,
@@ -29,6 +28,7 @@ export default function ClientCompanyCreatePage() {
   const [formErrors, setFormErrors] = useState<{
     name?: string;
     code?: string;
+    taxCode?: string;
     contactPerson?: string;
     email?: string;
     phone?: string;
@@ -91,6 +91,9 @@ export default function ClientCompanyCreatePage() {
         setFormErrors((prev) => ({ ...prev, code: undefined }));
       }
     }
+    if (name === "taxCode" && formErrors.taxCode) {
+      setFormErrors((prev) => ({ ...prev, taxCode: undefined }));
+    }
     if (name === "contactPerson" && formErrors.contactPerson) {
       setFormErrors((prev) => ({ ...prev, contactPerson: undefined }));
     }
@@ -143,7 +146,7 @@ export default function ClientCompanyCreatePage() {
     e.preventDefault();
     
     // Validate form
-    const errors: { name?: string; code?: string; contactPerson?: string; email?: string; phone?: string } = {};
+    const errors: { name?: string; code?: string; taxCode?: string; contactPerson?: string; email?: string; phone?: string } = {};
     
     // Validate tên công ty (bắt buộc)
     if (!form.name || form.name.trim() === "") {
@@ -159,6 +162,11 @@ export default function ClientCompanyCreatePage() {
       if (codeStatus === "duplicate") {
         errors.code = "Mã công ty đã tồn tại";
       }
+    }
+    
+    // Validate mã số thuế (bắt buộc)
+    if (!form.taxCode || form.taxCode.trim() === "") {
+      errors.taxCode = "Mã số thuế là bắt buộc";
     }
     
     // Validate người đại diện (bắt buộc)
@@ -259,30 +267,12 @@ export default function ClientCompanyCreatePage() {
               { label: "Tạo mới" }
             ]}
           />
-          <div className="flex items-center gap-4 mb-6">
-            <Link 
-              to="/sales/clients"
-              className="group flex items-center gap-2 text-neutral-600 hover:text-primary-600 transition-colors duration-300"
-            >
-              <ArrowLeft className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-              <span className="font-medium">Quay lại danh sách</span>
-            </Link>
-          </div>
-
           <div className="flex justify-between items-start">
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Tạo công ty khách hàng mới</h1>
               <p className="text-neutral-600 mb-4">
                 Nhập thông tin chi tiết để thêm công ty khách hàng vào hệ thống
               </p>
-              
-              {/* Status Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-50 border border-primary-200">
-                <Plus className="w-4 h-4 text-primary-600" />
-                <span className="text-sm font-medium text-primary-800">
-                  Tạo công ty khách hàng mới
-                </span>
-              </div>
             </div>
           </div>
         </div>
@@ -296,7 +286,7 @@ export default function ClientCompanyCreatePage() {
                 <div className="p-2 bg-primary-100 rounded-lg">
                   <Building2 className="w-5 h-5 text-primary-600" />
                 </div>
-                <h2 className="text-xl font-semibold text-gray-900">Thông tin cơ bản</h2>
+                <h2 className="text-xl font-semibold text-gray-900">Thông tin cơ bản <span className="text-red-500">*</span></h2>
               </div>
             </div>
             <div className="p-6 space-y-6">
@@ -304,7 +294,7 @@ export default function ClientCompanyCreatePage() {
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
                   <Building2 className="w-4 h-4" />
-                  Tên công ty <span className="text-red-500">*</span>
+                  Tên công ty
                 </label>
                 <input
                   name="name"
@@ -330,7 +320,7 @@ export default function ClientCompanyCreatePage() {
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
                   <Briefcase className="w-4 h-4" />
-                  Mã công ty <span className="text-red-500">*</span>
+                  Mã công ty
                 </label>
                 <div className="flex gap-2">
                   <div className="flex-1 relative">
@@ -402,15 +392,26 @@ export default function ClientCompanyCreatePage() {
                     value={form.taxCode}
                     onChange={handleChange}
                     placeholder="Nhập mã số thuế..."
-                    className="w-full border border-neutral-200 rounded-xl px-4 py-3 focus:border-primary-500 focus:ring-primary-500 bg-white"
+                    required
+                    className={`w-full border rounded-xl px-4 py-3 focus:ring-primary-500 bg-white ${
+                      formErrors.taxCode
+                        ? "border-red-500 focus:border-red-500"
+                        : "border-neutral-200 focus:border-primary-500"
+                    }`}
                   />
+                  {formErrors.taxCode && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                      <AlertCircle className="w-4 h-4" />
+                      {formErrors.taxCode}
+                    </p>
+                  )}
                 </div>
 
                 {/* Người liên hệ */}
                 <div>
                   <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
                     <User className="w-4 h-4" />
-                    Người đại diện <span className="text-red-500">*</span>
+                    Người đại diện
                   </label>
                   <input
                     name="contactPerson"

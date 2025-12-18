@@ -52,6 +52,29 @@ export default function ProjectCreatePage() {
   const [isMarketDropdownOpen, setIsMarketDropdownOpen] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  // Date helpers for input min/max
+  const today = new Date();
+  const formatDateInput = (d: Date) => d.toISOString().split("T")[0];
+
+  const fiveYearsAgo = new Date(today);
+  fiveYearsAgo.setFullYear(today.getFullYear() - 5);
+
+  const fiveYearsLater = new Date(today);
+  fiveYearsLater.setFullYear(today.getFullYear() + 5);
+
+  const startDateMin = formatDateInput(fiveYearsAgo);
+  const startDateMax = formatDateInput(fiveYearsLater);
+
+  // Ngày kết thúc: min = StartDate (nếu có), max = StartDate + 5 năm (nếu có)
+  const endDateMin: string | undefined = form.startDate || undefined;
+  let endDateMax: string | undefined;
+  if (form.startDate) {
+    const start = new Date(form.startDate);
+    const maxEnd = new Date(start);
+    maxEnd.setFullYear(start.getFullYear() + 5);
+    endDateMax = formatDateInput(maxEnd);
+  }
+
   // Helper function to ensure data is an array
   const ensureArray = <T,>(data: unknown): T[] => {
     if (Array.isArray(data)) return data as T[];
@@ -160,24 +183,34 @@ export default function ProjectCreatePage() {
       errors.status = "Vui lòng chọn trạng thái dự án!";
     }
 
-    // Validation: StartDate - không cho ngày tương lai quá vô lý (> 5 năm)
+    // Validation: StartDate - chỉ cho phép trong khoảng 5 năm trước / 5 năm sau hiện tại
     if (form.startDate) {
       const startDate = new Date(form.startDate);
-      const today = new Date();
-      const fiveYearsLater = new Date(today);
-      fiveYearsLater.setFullYear(today.getFullYear() + 5);
-      
-      if (startDate > fiveYearsLater) {
-        errors.startDate = "Ngày bắt đầu không được quá 5 năm trong tương lai!";
+      const fiveYearsAgoCheck = new Date();
+      fiveYearsAgoCheck.setFullYear(fiveYearsAgoCheck.getFullYear() - 5);
+      const fiveYearsLaterCheck = new Date();
+      fiveYearsLaterCheck.setFullYear(fiveYearsLaterCheck.getFullYear() + 5);
+
+      if (startDate < fiveYearsAgoCheck || startDate > fiveYearsLaterCheck) {
+        errors.startDate = "Ngày bắt đầu chỉ được trong khoảng 5 năm trước và 5 năm sau ngày hôm nay!";
       }
+
     }
 
-    // Validation: EndDate - phải sau StartDate (nếu có)
+    // Validation: EndDate (TÙY CHỌN) - chỉ áp dụng khi người dùng chọn
+    // Rule: EndDate ≥ StartDate và EndDate ≤ StartDate + 5 năm
     if (form.endDate && form.startDate) {
       const startDate = new Date(form.startDate);
       const endDate = new Date(form.endDate);
+
       if (endDate < startDate) {
         errors.endDate = "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu!";
+      } else {
+        const maxEnd = new Date(startDate);
+        maxEnd.setFullYear(startDate.getFullYear() + 5);
+        if (endDate > maxEnd) {
+          errors.endDate = "Ngày kết thúc không được cách Ngày bắt đầu quá 5 năm!";
+        }
       }
     }
 
@@ -272,162 +305,6 @@ export default function ProjectCreatePage() {
                   <Layers className="w-5 h-5 text-primary-600" />
                 </div>
                 <h2 className="text-xl font-semibold text-gray-900">Thông tin dự án</h2>
-              </div>
-            </div>
-            <div className="p-6 space-y-6">
-              {/* Tên dự án */}
-              <div>
-                <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
-                  <Layers className="w-4 h-4" />
-                  Tên dự án <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                name="name"
-                value={form.name}
-                onChange={(e) => {
-                  handleChange(e);
-                  if (fieldErrors.name) {
-                    setFieldErrors((prev) => {
-                      const newErrors = { ...prev };
-                      delete newErrors.name;
-                      return newErrors;
-                    });
-                  }
-                }}
-                  required
-                  className={`w-full border rounded-xl px-4 py-3 focus:ring-primary-500 bg-white ${
-                    fieldErrors.name
-                      ? "border-red-500 focus:border-red-500"
-                      : "border-neutral-200 focus:border-primary-500"
-                  }`}
-                placeholder="VD: Hệ thống quản lý nhân sự"
-              />
-                {fieldErrors.name && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {fieldErrors.name}
-                  </p>
-                )}
-              </div>
-
-              {/* Mô tả */}
-              <div>
-                <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Mô tả dự án
-                </label>
-                <textarea
-                name="description"
-                value={form.description}
-                onChange={handleChange}
-                  rows={3}
-                  className="w-full border border-neutral-200 rounded-xl px-4 py-3 focus:border-primary-500 focus:ring-primary-500 bg-white resize-none"
-                placeholder="Nhập mô tả ngắn gọn về dự án..."
-              />
-              </div>
-
-              {/* Ngày bắt đầu & kết thúc */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
-                    <CalendarDays className="w-4 h-4" />
-                    Ngày bắt đầu <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="startDate"
-                    value={form.startDate}
-                    onChange={(e) => {
-                      handleChange(e);
-                      if (fieldErrors.startDate) {
-                        setFieldErrors((prev) => {
-                          const newErrors = { ...prev };
-                          delete newErrors.startDate;
-                          return newErrors;
-                        });
-                      }
-                      // Clear endDate error if startDate changes
-                      if (fieldErrors.endDate && form.endDate) {
-                        const newEndDate = new Date(form.endDate);
-                        const newStartDate = new Date(e.target.value);
-                        if (newEndDate >= newStartDate) {
-                          setFieldErrors((prev) => {
-                            const newErrors = { ...prev };
-                            delete newErrors.endDate;
-                            return newErrors;
-                          });
-                        }
-                      }
-                    }}
-                    required
-                    max={form.endDate || undefined}
-                    className={`w-full border rounded-xl px-4 py-3 focus:ring-primary-500 bg-white ${
-                      fieldErrors.startDate
-                        ? "border-red-500 focus:border-red-500"
-                        : "border-neutral-200 focus:border-primary-500"
-                    }`}
-                  />
-                  {fieldErrors.startDate && (
-                    <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                      <AlertCircle className="w-4 h-4" />
-                      {fieldErrors.startDate}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
-                    <CalendarDays className="w-4 h-4" />
-                    Ngày kết thúc
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="date"
-                      name="endDate"
-                      value={form.endDate ?? ""}
-                      onChange={(e) => {
-                        const newValue = e.target.value;
-                        setForm((prev) => ({ ...prev, endDate: newValue }));
-                        if (fieldErrors.endDate) {
-                          setFieldErrors((prev) => {
-                            const newErrors = { ...prev };
-                            delete newErrors.endDate;
-                            return newErrors;
-                          });
-                        }
-                      }}
-                      min={form.startDate || undefined}
-                      className={`w-full border rounded-xl px-4 py-3 focus:ring-primary-500 bg-white ${
-                        fieldErrors.endDate
-                          ? "border-red-500 focus:border-red-500"
-                          : "border-neutral-200 focus:border-primary-500"
-                      }`}
-                    />
-                    {!form.endDate && (
-                      <div className="absolute -bottom-6 left-0 text-xs text-neutral-500 mt-1">
-                        💡 Bạn có thể để trống ngày kết thúc nếu chưa xác định
-                      </div>
-                    )}
-                  </div>
-                  {fieldErrors.endDate && (
-                    <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                      <AlertCircle className="w-4 h-4" />
-                      {fieldErrors.endDate}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-              </div>
-
-          {/* Client & Market Information */}
-          <div className="bg-white rounded-2xl shadow-soft border border-neutral-100">
-            <div className="p-6 border-b border-neutral-200">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-secondary-100 rounded-lg">
-                  <Building2 className="w-5 h-5 text-secondary-600" />
-                </div>
-                <h2 className="text-xl font-semibold text-gray-900">Thông tin khách hàng & thị trường</h2>
               </div>
             </div>
             <div className="p-6 space-y-6">
@@ -527,100 +404,279 @@ export default function ProjectCreatePage() {
                 )}
               </div>
 
-              {/* Thị trường - popover có ô tìm kiếm */}
+              {/* Tên dự án */}
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
-                  <Globe2 className="w-4 h-4" />
-                  Thị trường <span className="text-red-500">*</span>
+                  <Layers className="w-4 h-4" />
+                  Tên dự án <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setIsMarketDropdownOpen((prev) => !prev)}
-                    className={`w-full flex items-center justify-between px-4 py-3 border rounded-xl bg-white text-left focus:ring-primary-500 ${
-                      fieldErrors.marketId
+                <input
+                  type="text"
+                name="name"
+                value={form.name}
+                onChange={(e) => {
+                  handleChange(e);
+                  if (fieldErrors.name) {
+                    setFieldErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.name;
+                      return newErrors;
+                    });
+                  }
+                }}
+                  required
+                  className={`w-full border rounded-xl px-4 py-3 focus:ring-primary-500 bg-white ${
+                    fieldErrors.name
+                      ? "border-red-500 focus:border-red-500"
+                      : "border-neutral-200 focus:border-primary-500"
+                  }`}
+                placeholder="VD: Hệ thống quản lý nhân sự"
+              />
+                {fieldErrors.name && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    {fieldErrors.name}
+                  </p>
+                )}
+              </div>
+
+              {/* Mô tả */}
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Mô tả dự án
+                </label>
+                <textarea
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+                  rows={3}
+                  className="w-full border border-neutral-200 rounded-xl px-4 py-3 focus:border-primary-500 focus:ring-primary-500 bg-white resize-none"
+                placeholder="Nhập mô tả ngắn gọn về dự án..."
+              />
+              </div>
+
+              {/* Ngày bắt đầu & kết thúc */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
+                    <CalendarDays className="w-4 h-4" />
+                    Ngày bắt đầu <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="startDate"
+                    value={form.startDate}
+                    onChange={(e) => {
+                      handleChange(e);
+                      if (fieldErrors.startDate) {
+                        setFieldErrors((prev) => {
+                          const newErrors = { ...prev };
+                          delete newErrors.startDate;
+                          return newErrors;
+                        });
+                      }
+                      // Clear endDate error if startDate changes
+                      if (fieldErrors.endDate && form.endDate) {
+                        const newEndDate = new Date(form.endDate);
+                        const newStartDate = new Date(e.target.value);
+                        if (newEndDate >= newStartDate) {
+                          setFieldErrors((prev) => {
+                            const newErrors = { ...prev };
+                            delete newErrors.endDate;
+                            return newErrors;
+                          });
+                        }
+                      }
+                    }}
+                    required
+                    min={startDateMin}
+                    max={startDateMax}
+                    className={`w-full border rounded-xl px-4 py-3 focus:ring-primary-500 bg-white ${
+                      fieldErrors.startDate
                         ? "border-red-500 focus:border-red-500"
                         : "border-neutral-200 focus:border-primary-500"
                     }`}
-                  >
-                    <div className="flex items-center gap-2 text-sm text-neutral-700">
-                      <Globe2 className="w-4 h-4 text-neutral-400" />
-                      <span>
-                        {form.marketId
-                          ? markets.find((m) => m.id === Number(form.marketId))?.name || "Chọn thị trường"
-                          : "Chọn thị trường"}
-                      </span>
-                    </div>
-                    <span className="text-neutral-400 text-xs uppercase">Chọn</span>
-                  </button>
-                  {isMarketDropdownOpen && (
-                    <div className="absolute z-20 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl">
-                      <div className="p-3 border-b border-neutral-100">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
-                          <input
-                            type="text"
-                            value={marketSearch}
-                            onChange={(e) => setMarketSearch(e.target.value)}
-                            placeholder="Tìm thị trường..."
-                            className="w-full pl-9 pr-3 py-2.5 text-sm border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
-                          />
-                        </div>
-                      </div>
-                      <div className="max-h-56 overflow-y-auto">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setForm((prev) => ({ ...prev, marketId: undefined }));
-                            setMarketSearch("");
-                            setIsMarketDropdownOpen(false);
-                          }}
-                          className={`w-full text-left px-4 py-2.5 text-sm ${
-                            !form.marketId
-                              ? "bg-primary-50 text-primary-700"
-                              : "hover:bg-neutral-50 text-neutral-700"
-                          }`}
-                        >
-                          Tất cả thị trường
-                        </button>
-                        {filteredMarkets.length === 0 ? (
-                          <p className="px-4 py-3 text-sm text-neutral-500">Không tìm thấy thị trường phù hợp</p>
-                        ) : (
-                          filteredMarkets.map((m) => (
-                            <button
-                              type="button"
-                              key={m.id}
-                              onClick={() => {
-                                setForm((prev) => ({ ...prev, marketId: m.id }));
-                                setIsMarketDropdownOpen(false);
-                                if (fieldErrors.marketId) {
-                                  setFieldErrors((prev) => {
-                                    const newErrors = { ...prev };
-                                    delete newErrors.marketId;
-                                    return newErrors;
-                                  });
-                                }
-                              }}
-                              className={`w-full text-left px-4 py-2.5 text-sm ${
-                                form.marketId === m.id
-                                  ? "bg-primary-50 text-primary-700"
-                                  : "hover:bg-neutral-50 text-neutral-700"
-                              }`}
-                            >
-                              {m.name}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </div>
+                  />
+                  {fieldErrors.startDate && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                      <AlertCircle className="w-4 h-4" />
+                      {fieldErrors.startDate}
+                    </p>
                   )}
                 </div>
-                {fieldErrors.marketId && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {fieldErrors.marketId}
-                  </p>
-                )}
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
+                    <CalendarDays className="w-4 h-4" />
+                    Ngày kết thúc (TÙY CHỌN)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      name="endDate"
+                      value={form.endDate ?? ""}
+                      onChange={(e) => {
+                        const newValue = e.target.value;
+                        setForm((prev) => ({ ...prev, endDate: newValue }));
+                        if (fieldErrors.endDate) {
+                          setFieldErrors((prev) => {
+                            const newErrors = { ...prev };
+                            delete newErrors.endDate;
+                            return newErrors;
+                          });
+                        }
+                      }}
+                      min={endDateMin}
+                      max={endDateMax}
+                      className={`w-full border rounded-xl px-4 py-3 focus:ring-primary-500 bg-white ${
+                        fieldErrors.endDate
+                          ? "border-red-500 focus:border-red-500"
+                          : "border-neutral-200 focus:border-primary-500"
+                      }`}
+                    />
+                  </div>
+                  {fieldErrors.endDate && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                      <AlertCircle className="w-4 h-4" />
+                      {fieldErrors.endDate}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+              </div>
+
+          {/* Client & Market Information */}
+          <div className="bg-white rounded-2xl shadow-soft border border-neutral-100">
+            <div className="p-6 border-b border-neutral-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-secondary-100 rounded-lg">
+                  <Building2 className="w-5 h-5 text-secondary-600" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900">Thị trường, lĩnh vực & trạng thái</h2>
+              </div>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Thị trường & Trạng thái */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Thị trường - popover có ô tìm kiếm */}
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
+                    <Globe2 className="w-4 h-4" />
+                    Thị trường <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsMarketDropdownOpen((prev) => !prev)}
+                      className={`w-full flex items-center justify-between px-4 py-3 border rounded-xl bg-white text-left focus:ring-primary-500 ${
+                        fieldErrors.marketId
+                          ? "border-red-500 focus:border-red-500"
+                          : "border-neutral-200 focus:border-primary-500"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 text-sm text-neutral-700">
+                        <Globe2 className="w-4 h-4 text-neutral-400" />
+                        <span>
+                          {form.marketId
+                            ? markets.find((m) => m.id === Number(form.marketId))?.name || "Chọn thị trường"
+                            : "Chọn thị trường"}
+                        </span>
+                      </div>
+                      <span className="text-neutral-400 text-xs uppercase">Chọn</span>
+                    </button>
+                    {isMarketDropdownOpen && (
+                      <div className="absolute z-20 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl">
+                        <div className="p-3 border-b border-neutral-100">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
+                            <input
+                              type="text"
+                              value={marketSearch}
+                              onChange={(e) => setMarketSearch(e.target.value)}
+                              placeholder="Tìm thị trường..."
+                              className="w-full pl-9 pr-3 py-2.5 text-sm border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-56 overflow-y-auto">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setForm((prev) => ({ ...prev, marketId: undefined }));
+                              setMarketSearch("");
+                              setIsMarketDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              !form.marketId
+                                ? "bg-primary-50 text-primary-700"
+                                : "hover:bg-neutral-50 text-neutral-700"
+                            }`}
+                          >
+                            Tất cả thị trường
+                          </button>
+                          {filteredMarkets.length === 0 ? (
+                            <p className="px-4 py-3 text-sm text-neutral-500">Không tìm thấy thị trường phù hợp</p>
+                          ) : (
+                            filteredMarkets.map((m) => (
+                              <button
+                                type="button"
+                                key={m.id}
+                                onClick={() => {
+                                  setForm((prev) => ({ ...prev, marketId: m.id }));
+                                  setIsMarketDropdownOpen(false);
+                                  if (fieldErrors.marketId) {
+                                    setFieldErrors((prev) => {
+                                      const newErrors = { ...prev };
+                                      delete newErrors.marketId;
+                                      return newErrors;
+                                    });
+                                  }
+                                }}
+                                className={`w-full text-left px-4 py-2.5 text-sm ${
+                                  form.marketId === m.id
+                                    ? "bg-primary-50 text-primary-700"
+                                    : "hover:bg-neutral-50 text-neutral-700"
+                                }`}
+                              >
+                                {m.name}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {fieldErrors.marketId && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                      <AlertCircle className="w-4 h-4" />
+                      {fieldErrors.marketId}
+                    </p>
+                  )}
+                </div>
+
+                {/* Trạng thái */}
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    Trạng thái
+                  </label>
+                  <select
+                    name="status"
+                    value={form.status ?? "Planned"}
+                    onChange={handleChange}
+                    className="w-full border rounded-xl px-4 py-3 focus:ring-primary-500 bg-white border-neutral-200"
+                  >
+                    <option value="Planned">Đã lên kế hoạch (Planned)</option>
+                    <option value="Ongoing">Đang thực hiện (Ongoing)</option>
+                  </select>         
+                  {fieldErrors.status && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                      <AlertCircle className="w-4 h-4" />
+                      {fieldErrors.status}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -711,33 +767,6 @@ export default function ProjectCreatePage() {
                   </p>
                 )}
               </div>
-
-            {/* Trạng thái */}
-            <div>
-              <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
-                <CheckCircle className="w-4 h-4" />
-                Trạng thái
-              </label>
-              <select
-                name="status"
-                value={form.status ?? "Planned"}
-                onChange={handleChange}
-                className="w-full border rounded-xl px-4 py-3 focus:ring-primary-500 bg-white border-neutral-200"
-              >
-                <option value="Planned">Đã lên kế hoạch (Planned)</option>
-                <option value="Ongoing">Đang thực hiện (Ongoing)</option>
-              </select>
-              <p className="mt-1 text-xs text-neutral-500 flex items-center gap-1">
-                <AlertCircle className="w-4 h-4" />
-                Mặc định khi tạo mới là "Đã lên kế hoạch (Planned)". Bạn có thể đổi trạng thái nếu cần.
-              </p>
-              {fieldErrors.status && (
-                <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" />
-                  {fieldErrors.status}
-                </p>
-              )}
-            </div>
             </div>
           </div>
 
@@ -793,4 +822,5 @@ export default function ProjectCreatePage() {
     </div>
   );
 }
+
 

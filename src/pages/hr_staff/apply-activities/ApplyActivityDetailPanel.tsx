@@ -41,12 +41,11 @@ const getActivityTypeLabel = (type: number): string => {
 
 const getActivityStatusLabel = (status: number): string => {
   const labels: Record<number, string> = {
-    0: "Đã lên lịch",
-    1: "Hoàn thành",
-    2: "Đạt",
-    3: "Không đạt",
-    4: "Đã chấp nhận",
-    5: "Không có mặt",
+    [ApplyActivityStatus.Scheduled]: "Đã lên lịch",
+    [ApplyActivityStatus.Completed]: "Hoàn thành",
+    [ApplyActivityStatus.Passed]: "Đạt",
+    [ApplyActivityStatus.Failed]: "Không đạt",
+    [ApplyActivityStatus.NoShow]: "Không có mặt",
   };
   return labels[status] || `Trạng thái ${status}`;
 };

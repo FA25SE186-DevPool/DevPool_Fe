@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
-import Breadcrumb from "../../../components/common/Breadcrumb";
 import { sidebarItems } from "../../../components/sidebar/sales";
 import { Button } from "../../../components/ui/button";
 import { jobRequestService, type JobRequest, JobRequestStatus } from "../../../services/JobRequest";
@@ -241,11 +240,6 @@ export default function JobRequestListPage() {
       <div className="flex-1 p-8">
         {/* Header */}
         <div className="mb-8 animate-slide-up">
-          <Breadcrumb
-            items={[
-              { label: "Yêu cầu tuyển dụng" }
-            ]}
-          />
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Yêu cầu tuyển dụng</h1>

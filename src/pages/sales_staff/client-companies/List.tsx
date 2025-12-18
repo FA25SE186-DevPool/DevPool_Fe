@@ -1,26 +1,25 @@
 import { useEffect, useState } from "react";
 import Sidebar from "../../../components/common/Sidebar";
-import Breadcrumb from "../../../components/common/Breadcrumb";
 import { sidebarItems } from "../../../components/sidebar/sales";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../../../components/ui/button";
 import { clientCompanyService, type ClientCompany } from "../../../services/ClientCompany";
 import {
   Search,
   Filter,
   Plus,
-  Eye,
   Building2,
-  TrendingUp,
-  Mail,
-  Users,
-  CheckCircle,
   ChevronLeft,
   ChevronRight,
-  Briefcase
+  Briefcase,
+  Phone,
+  X,
+  Users,
+  Mail
 } from "lucide-react";
 
 export default function ClientCompanyListPage() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState<ClientCompany[]>([]);
   const [filteredCompanies, setFilteredCompanies] = useState<ClientCompany[]>([]);
@@ -28,40 +27,13 @@ export default function ClientCompanyListPage() {
   // Filter & search
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterEmail, setFilterEmail] = useState("");
-  const [filterContactPerson, setFilterContactPerson] = useState("");
+  const [filterTaxCode, setFilterTaxCode] = useState("");
+  const [filterPhone, setFilterPhone] = useState("");
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 30;
 
-  // Stats data
-  const stats = [
-    {
-      title: 'Tổng Công Ty',
-      value: companies.length.toString(),
-      color: 'blue',
-      icon: <Building2 className="w-6 h-6" />
-    },
-    {
-      title: 'Đang Hoạt Động',
-      value: companies.filter(c => !c.isDeleted).length.toString(),
-      color: 'green',
-      icon: <CheckCircle className="w-6 h-6" />
-    },
-    {
-      title: 'Có Thông Tin Đầy Đủ',
-      value: companies.filter(c => c.taxCode && c.address && c.phone).length.toString(),
-      color: 'purple',
-      icon: <Users className="w-6 h-6" />
-    },
-    {
-      title: 'Tỷ Lệ Hoàn Thiện',
-      value: `${Math.round((companies.filter(c => c.taxCode && c.address && c.phone).length / Math.max(companies.length, 1)) * 100)}%`,
-      color: 'orange',
-      icon: <TrendingUp className="w-6 h-6" />
-    }
-  ];
 
   // Helper function to ensure data is an array
   const ensureArray = <T,>(data: unknown): T[] => {
@@ -115,23 +87,25 @@ export default function ClientCompanyListPage() {
 
     if (searchTerm) {
       filtered = filtered.filter((c) =>
+        c.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-    if (filterEmail) {
+    if (filterTaxCode) {
       filtered = filtered.filter((c) =>
-        c.email.toLowerCase().includes(filterEmail.toLowerCase())
+        c.taxCode?.toLowerCase().includes(filterTaxCode.toLowerCase())
       );
     }
-    if (filterContactPerson) {
+    if (filterPhone) {
       filtered = filtered.filter((c) =>
-        c.contactPerson.toLowerCase().includes(filterContactPerson.toLowerCase())
+        c.phone?.toLowerCase().includes(filterPhone.toLowerCase())
       );
     }
 
     setFilteredCompanies(filtered);
     setCurrentPage(1); // Reset về trang đầu khi filter thay đổi
-  }, [searchTerm, filterEmail, filterContactPerson, companies]);
+  }, [searchTerm, filterTaxCode, filterPhone, companies]);
 
   // Tính toán pagination
   const totalPages = Math.ceil(filteredCompanies.length / itemsPerPage);
@@ -143,9 +117,11 @@ export default function ClientCompanyListPage() {
 
   const handleResetFilters = () => {
     setSearchTerm("");
-    setFilterEmail("");
-    setFilterContactPerson("");
+    setFilterTaxCode("");
+    setFilterPhone("");
   };
+
+  const hasActiveFilters = Boolean(searchTerm || filterTaxCode || filterPhone);
 
   if (loading) {
     return (
@@ -167,11 +143,6 @@ export default function ClientCompanyListPage() {
       <div className="flex-1 p-8">
         {/* Header */}
         <div className="mb-8 animate-slide-up">
-          <Breadcrumb
-            items={[
-              { label: "Công ty khách hàng" }
-            ]}
-          />
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Công ty khách hàng</h1>
@@ -184,27 +155,6 @@ export default function ClientCompanyListPage() {
               </Button>
             </Link>
           </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-fade-in">
-            {stats.map((stat, index) => (
-              <div key={index} className="group bg-white rounded-2xl shadow-soft hover:shadow-medium p-6 transition-all duration-300 transform hover:-translate-y-1 border border-neutral-100 hover:border-primary-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-neutral-600 group-hover:text-neutral-700 transition-colors duration-300">{stat.title}</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2 group-hover:text-primary-700 transition-colors duration-300">{stat.value}</p>
-                  </div>
-                  <div className={`p-3 rounded-full ${stat.color === 'blue' ? 'bg-primary-100 text-primary-600 group-hover:bg-primary-200' :
-                    stat.color === 'green' ? 'bg-secondary-100 text-secondary-600 group-hover:bg-secondary-200' :
-                      stat.color === 'purple' ? 'bg-accent-100 text-accent-600 group-hover:bg-accent-200' :
-                        'bg-warning-100 text-warning-600 group-hover:bg-warning-200'
-                    } transition-all duration-300`}>
-                    {stat.icon}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Search & Filters */}
@@ -215,7 +165,7 @@ export default function ClientCompanyListPage() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 w-5 h-5" />
                 <input
                   type="text"
-                  placeholder="Tìm kiếm theo tên công ty, email, người đại diện..."
+                  placeholder="Tìm kiếm theo mã công ty, tên công ty, email..."
                   className="w-full pl-12 pr-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 bg-neutral-50 focus:bg-white"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -228,38 +178,44 @@ export default function ClientCompanyListPage() {
               >
                 <Filter className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
                 <span className="font-medium">{showFilters ? "Ẩn bộ lọc" : "Bộ lọc"}</span>
+                {hasActiveFilters && (
+                  <span className="ml-1 px-2.5 py-1 rounded-full text-xs font-bold bg-neutral-700 text-white shadow-sm">
+                    {[searchTerm, filterTaxCode, filterPhone].filter(Boolean).length}
+                  </span>
+                )}
               </button>
+
+              {hasActiveFilters && (
+                <Button onClick={handleResetFilters} variant="outline" className="flex items-center gap-2">
+                  <X className="w-4 h-4" />
+                  Xóa bộ lọc
+                </Button>
+              )}
             </div>
 
             {showFilters && (
               <div className="mt-6 pt-6 border-t border-neutral-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
+                    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
                     <input
                       type="text"
-                      placeholder="Email công ty"
+                      placeholder="Mã số thuế"
                       className="w-full pl-10 pr-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300"
-                      value={filterEmail}
-                      onChange={(e) => setFilterEmail(e.target.value)}
+                      value={filterTaxCode}
+                      onChange={(e) => setFilterTaxCode(e.target.value)}
                     />
                   </div>
                   <div className="relative">
-                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
                     <input
                       type="text"
-                      placeholder="Người đại diện"
+                      placeholder="Số điện thoại"
                       className="w-full pl-10 pr-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300"
-                      value={filterContactPerson}
-                      onChange={(e) => setFilterContactPerson(e.target.value)}
+                      value={filterPhone}
+                      onChange={(e) => setFilterPhone(e.target.value)}
                     />
                   </div>
-                  <button
-                    onClick={handleResetFilters}
-                    className="group flex items-center justify-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg px-4 py-2 transition-all duration-300 hover:scale-105 transform"
-                  >
-                    <span className="font-medium">Đặt lại</span>
-                  </button>
                 </div>
               </div>
             )}
@@ -314,16 +270,15 @@ export default function ClientCompanyListPage() {
                   <th className="py-4 px-4 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">#</th>
                   <th className="py-4 px-4 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Mã công ty</th>
                   <th className="py-4 px-4 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Tên công ty</th>
+                  <th className="py-4 px-4 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Mã số thuế</th>
                   <th className="py-4 px-4 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Người đại diện</th>
                   <th className="py-4 px-4 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Email</th>
-                  <th className="py-4 px-4 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">Trạng thái</th>
-                  <th className="py-4 px-4 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-200">
                 {filteredCompanies.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-12">
+                    <td colSpan={6} className="text-center py-12">
                       <div className="flex flex-col items-center justify-center">
                         <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
                           <Building2 className="w-8 h-8 text-neutral-400" />
@@ -337,7 +292,8 @@ export default function ClientCompanyListPage() {
                   paginatedCompanies.map((c, i) => (
                     <tr
                       key={c.id}
-                      className="group hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 transition-all duration-300"
+                      onClick={() => navigate(`/sales/clients/${c.id}`)}
+                      className="group hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 transition-all duration-300 cursor-pointer"
                     >
                       <td className="py-4 px-4 text-sm font-medium text-neutral-900">{startIndex + i + 1}</td>
                       <td className="py-4 px-4">
@@ -357,6 +313,11 @@ export default function ClientCompanyListPage() {
                         </div>
                       </td>
                       <td className="py-4 px-4">
+                        <span className="text-sm text-neutral-700">
+                          {c.taxCode || "—"}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
                           <Users className="w-4 h-4 text-neutral-400" />
                           <span className="text-sm text-neutral-700">{c.contactPerson}</span>
@@ -367,21 +328,6 @@ export default function ClientCompanyListPage() {
                           <Mail className="w-4 h-4 text-neutral-400" />
                           <span className="text-sm text-neutral-700 truncate max-w-xs">{c.email}</span>
                         </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${c.isDeleted ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
-                          }`}>
-                          {c.isDeleted ? "Đã xóa" : "Hoạt động"}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <Link
-                          to={`/sales/clients/${c.id}`}
-                          className="group inline-flex items-center gap-2 px-3 py-2 text-primary-600 hover:text-primary-800 hover:bg-primary-50 rounded-lg transition-all duration-300 hover:scale-105 transform"
-                        >
-                          <Eye className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-                          <span className="text-sm font-medium">Xem</span>
-                        </Link>
                       </td>
                     </tr>
                   ))
