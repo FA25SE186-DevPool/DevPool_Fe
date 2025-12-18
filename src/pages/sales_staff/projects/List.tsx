@@ -5,6 +5,7 @@ import { sidebarItems } from "../../../components/sidebar/sales";
 import { Button } from "../../../components/ui/button";
 import { projectService, type Project } from "../../../services/Project";
 import { clientCompanyService, type ClientCompany } from "../../../services/ClientCompany";
+import { marketService, type Market } from "../../../services/Market";
 import {
   Search,
   Filter,
@@ -18,7 +19,6 @@ import {
   ChevronDown,
   Layers,
   Pause,
-  Hash,
   X
 } from "lucide-react";
 
@@ -28,10 +28,17 @@ export default function ProjectListPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [companies, setCompanies] = useState<ClientCompany[]>([]);
+  const [markets, setMarkets] = useState<Market[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterDateRange, setFilterDateRange] = useState("");
+  const [filterMarketId, setFilterMarketId] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const [isMarketDropdownOpen, setIsMarketDropdownOpen] = useState(false);
+  const [isDateRangeDropdownOpen, setIsDateRangeDropdownOpen] = useState(false);
+  const [marketSearch, setMarketSearch] = useState("");
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -127,14 +134,16 @@ export default function ProjectListPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [projectRes, companyRes] = await Promise.all([
+        const [projectRes, companyRes, marketRes] = await Promise.all([
           projectService.getAll({ excludeDeleted: true }),
           clientCompanyService.getAll({ excludeDeleted: true }),
+          marketService.getAll({ excludeDeleted: true }),
         ]);
 
         // Ensure all data are arrays - handle PagedResult with Items/items or direct array
         const projectsArray = ensureArray<Project>(projectRes);
         const companiesArray = ensureArray<ClientCompany>(companyRes);
+        const marketsArray = ensureArray<Market>(marketRes);
 
         // Sắp xếp dự án: mới nhất lên đầu (theo createdAt hoặc id)
         const sortedProjects = [...projectsArray].sort((a, b) => {
@@ -149,6 +158,7 @@ export default function ProjectListPage() {
         setProjects(sortedProjects);
         setFilteredProjects(sortedProjects);
         setCompanies(companiesArray);
+        setMarkets(marketsArray);
       } catch (err) {
         console.error("❌ Lỗi tải danh sách dự án:", err);
         setProjects([]);
@@ -179,9 +189,62 @@ export default function ProjectListPage() {
       filtered = filtered.filter(p => p.status === filterStatus);
     }
 
+    if (filterMarketId) {
+      const marketIdNum = Number(filterMarketId);
+      filtered = filtered.filter(p => p.marketId === marketIdNum);
+    }
+
+    // Lọc theo khoảng thời gian dự án (thông minh, không cần nhập ngày cụ thể)
+    if (filterDateRange) {
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+
+      const daysMap: Record<string, number> = {
+        "7": 7,
+        "30": 30,
+        "90": 90,
+        "180": 180,
+        "365": 365
+      };
+
+      const days = daysMap[filterDateRange] ?? 0;
+
+      if (days > 0) {
+        const start = new Date(today);
+        start.setDate(start.getDate() - (days - 1));
+        start.setHours(0, 0, 0, 0);
+
+        const filterStartTime = start.getTime();
+        const filterEndTime = today.getTime();
+
+        const parseDate = (value?: string | null): number | null => {
+          if (!value) return null;
+          const d = new Date(value);
+          if (Number.isNaN(d.getTime())) return null;
+          d.setHours(0, 0, 0, 0);
+          return d.getTime();
+        };
+
+        filtered = filtered.filter(p => {
+          const projectStart = parseDate(p.startDate as string);
+          if (projectStart === null) return false;
+
+          const projectEnd = parseDate(p.endDate as string | null);
+
+          // Nếu có ngày kết thúc: dự án nằm trong khoảng nếu khoảng (startDate, endDate) giao với (filterStart, filterEnd)
+          if (projectEnd !== null) {
+            return projectEnd >= filterStartTime && projectStart <= filterEndTime;
+          }
+
+          // Nếu không có ngày kết thúc: chỉ cần startDate nằm trong hoặc sau filterStart và trước / bằng filterEnd
+          return projectStart >= filterStartTime && projectStart <= filterEndTime;
+        });
+      }
+    }
+
     setFilteredProjects(filtered);
     setCurrentPage(1); // Reset về trang đầu khi filter thay đổi
-  }, [searchTerm, filterStatus, projects, companies]);
+  }, [searchTerm, filterStatus, filterMarketId, filterDateRange, projects, companies]);
   
   // Tính toán pagination
   const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
@@ -194,15 +257,55 @@ export default function ProjectListPage() {
   const handleResetFilters = () => {
     setSearchTerm("");
     setFilterStatus("");
+    setFilterMarketId("");
+    setFilterDateRange("");
+    setIsStatusDropdownOpen(false);
+    setIsMarketDropdownOpen(false);
+    setIsDateRangeDropdownOpen(false);
   };
 
-  const hasActiveFilters = Boolean(searchTerm || filterStatus);
+  const hasActiveFilters = Boolean(searchTerm || filterStatus || filterMarketId || filterDateRange);
 
   const statusLabels: Record<string, string> = {
     Planned: "Đã lên kế hoạch",
     Ongoing: "Đang thực hiện",
     OnHold: "Tạm dừng",
     Completed: "Đã hoàn thành"
+  };
+
+  const getStatusFilterLabel = () => {
+    if (!filterStatus) return "Tất cả trạng thái";
+    return statusLabels[filterStatus] || "Tất cả trạng thái";
+  };
+
+  const getMarketFilterLabel = () => {
+    if (!filterMarketId) return "Tất cả thị trường";
+    const market = markets.find((m) => m.id === Number(filterMarketId));
+    return market?.name || "Tất cả thị trường";
+  };
+
+  const filteredMarkets = markets
+    .filter(market =>
+      market.name.toLowerCase().includes(marketSearch.toLowerCase())
+    )
+    .sort((a, b) => a.name.localeCompare(b.name, "vi"));
+
+  const getDateRangeFilterLabel = () => {
+    if (!filterDateRange) return "Tất cả thời gian";
+    switch (filterDateRange) {
+      case "7":
+        return "7 ngày gần nhất";
+      case "30":
+        return "30 ngày gần nhất";
+      case "90":
+        return "3 tháng gần nhất";
+      case "180":
+        return "6 tháng gần nhất";
+      case "365":
+        return "12 tháng gần nhất";
+      default:
+        return "Tất cả thời gian";
+    }
   };
 
   if (loading) {
@@ -362,7 +465,7 @@ export default function ProjectListPage() {
                 <span className="font-medium">{showFilters ? "Ẩn bộ lọc" : "Bộ lọc"}</span>
                 {hasActiveFilters && (
                   <span className="ml-1 px-2.5 py-1 rounded-full text-xs font-bold bg-neutral-700 text-white shadow-sm">
-                    {[searchTerm, filterStatus].filter(Boolean).length}
+                    {[searchTerm, filterStatus, filterMarketId, filterDateRange].filter(Boolean).length}
                   </span>
                 )}
               </button>
@@ -378,19 +481,302 @@ export default function ProjectListPage() {
             {showFilters && (
               <div className="mt-6 pt-6 border-t border-neutral-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Trạng thái - dropdown giống loại đối tác */}
                   <div className="relative">
-                    <CheckCircle className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
-                    <select
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsStatusDropdownOpen((prev) => !prev);
+                        setIsMarketDropdownOpen(false);
+                        setIsDateRangeDropdownOpen(false);
+                      }}
+                      className="w-full h-10 flex items-center justify-between px-4 border border-neutral-200 rounded-lg bg-white text-left hover:border-primary-300 transition-colors"
                     >
-                      <option value="">Tất cả trạng thái</option>
-                      <option value="Planned">Đã lên kế hoạch</option>
-                      <option value="Ongoing">Đang thực hiện</option>
-                      <option value="OnHold">Tạm dừng</option>
-                      <option value="Completed">Đã hoàn thành</option>
-                    </select>
+                      <span className="text-sm text-neutral-700 flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-neutral-400" />
+                        {getStatusFilterLabel()}
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-neutral-400 transition-transform ${
+                          isStatusDropdownOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {isStatusDropdownOpen && (
+                      <div
+                        className="absolute z-50 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
+                        onMouseLeave={() => setIsStatusDropdownOpen(false)}
+                      >
+                        <div className="max-h-56 overflow-y-auto">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterStatus("");
+                              setIsStatusDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              !filterStatus ? "bg-primary-50 text-primary-700" : "hover:bg-neutral-50 text-neutral-700"
+                            }`}
+                          >
+                            Tất cả trạng thái
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterStatus("Planned");
+                              setIsStatusDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              filterStatus === "Planned"
+                                ? "bg-primary-50 text-primary-700"
+                                : "hover:bg-neutral-50 text-neutral-700"
+                            }`}
+                          >
+                            Đã lên kế hoạch
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterStatus("Ongoing");
+                              setIsStatusDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              filterStatus === "Ongoing"
+                                ? "bg-primary-50 text-primary-700"
+                                : "hover:bg-neutral-50 text-neutral-700"
+                            }`}
+                          >
+                            Đang thực hiện
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterStatus("OnHold");
+                              setIsStatusDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              filterStatus === "OnHold"
+                                ? "bg-primary-50 text-primary-700"
+                                : "hover:bg-neutral-50 text-neutral-700"
+                            }`}
+                          >
+                            Tạm dừng
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterStatus("Completed");
+                              setIsStatusDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              filterStatus === "Completed"
+                                ? "bg-primary-50 text-primary-700"
+                                : "hover:bg-neutral-50 text-neutral-700"
+                            }`}
+                          >
+                            Đã hoàn thành
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Thị trường - dropdown giống loại đối tác */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMarketDropdownOpen((prev) => !prev);
+                        setIsStatusDropdownOpen(false);
+                        setIsDateRangeDropdownOpen(false);
+                      }}
+                      className="w-full h-10 flex items-center justify-between px-4 border border-neutral-200 rounded-lg bg-white text-left hover:border-primary-300 transition-colors"
+                    >
+                      <span className="text-sm text-neutral-700 flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-neutral-400" />
+                        {getMarketFilterLabel()}
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-neutral-400 transition-transform ${
+                          isMarketDropdownOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {isMarketDropdownOpen && (
+                      <div
+                        className="absolute z-50 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
+                        onMouseLeave={() => setIsMarketDropdownOpen(false)}
+                      >
+                        <div className="p-3 border-b border-neutral-100">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
+                            <input
+                              type="text"
+                              value={marketSearch}
+                              onChange={(e) => setMarketSearch(e.target.value)}
+                              placeholder="Tìm thị trường..."
+                              className="w-full pl-9 pr-3 py-2.5 text-sm border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-56 overflow-y-auto">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterMarketId("");
+                              setMarketSearch("");
+                              setIsMarketDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              !filterMarketId ? "bg-primary-50 text-primary-700" : "hover:bg-neutral-50 text-neutral-700"
+                            }`}
+                          >
+                            Tất cả thị trường
+                          </button>
+                          {filteredMarkets.length === 0 ? (
+                            <p className="px-4 py-3 text-sm text-neutral-500">Không tìm thấy thị trường phù hợp</p>
+                          ) : (
+                            filteredMarkets.map((market) => (
+                              <button
+                                key={market.id}
+                                type="button"
+                                onClick={() => {
+                                  setFilterMarketId(String(market.id));
+                                  setMarketSearch("");
+                                  setIsMarketDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-4 py-2.5 text-sm ${
+                                  filterMarketId === String(market.id)
+                                    ? "bg-primary-50 text-primary-700"
+                                    : "hover:bg-neutral-50 text-neutral-700"
+                                }`}
+                              >
+                                {market.name}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Thời gian dự án - dropdown giống loại đối tác */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsDateRangeDropdownOpen((prev) => !prev);
+                        setIsStatusDropdownOpen(false);
+                        setIsMarketDropdownOpen(false);
+                      }}
+                      className="w-full h-10 flex items-center justify-between px-4 border border-neutral-200 rounded-lg bg-white text-left hover:border-primary-300 transition-colors"
+                    >
+                      <span className="text-sm text-neutral-700 flex items-center gap-2">
+                        <CalendarDays className="w-4 h-4 text-neutral-400" />
+                        {getDateRangeFilterLabel()}
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-neutral-400 transition-transform ${
+                          isDateRangeDropdownOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {isDateRangeDropdownOpen && (
+                      <div
+                        className="absolute z-50 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
+                        onMouseLeave={() => setIsDateRangeDropdownOpen(false)}
+                      >
+                        <div className="max-h-56 overflow-y-auto">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterDateRange("");
+                              setIsDateRangeDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              !filterDateRange
+                                ? "bg-primary-50 text-primary-700"
+                                : "hover:bg-neutral-50 text-neutral-700"
+                            }`}
+                          >
+                            Tất cả thời gian
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterDateRange("7");
+                              setIsDateRangeDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              filterDateRange === "7"
+                                ? "bg-primary-50 text-primary-700"
+                                : "hover:bg-neutral-50 text-neutral-700"
+                            }`}
+                          >
+                            7 ngày gần nhất
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterDateRange("30");
+                              setIsDateRangeDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              filterDateRange === "30"
+                                ? "bg-primary-50 text-primary-700"
+                                : "hover:bg-neutral-50 text-neutral-700"
+                            }`}
+                          >
+                            30 ngày gần nhất
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterDateRange("90");
+                              setIsDateRangeDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              filterDateRange === "90"
+                                ? "bg-primary-50 text-primary-700"
+                                : "hover:bg-neutral-50 text-neutral-700"
+                            }`}
+                          >
+                            3 tháng gần nhất
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterDateRange("180");
+                              setIsDateRangeDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              filterDateRange === "180"
+                                ? "bg-primary-50 text-primary-700"
+                                : "hover:bg-neutral-50 text-neutral-700"
+                            }`}
+                          >
+                            6 tháng gần nhất
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterDateRange("365");
+                              setIsDateRangeDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              filterDateRange === "365"
+                                ? "bg-primary-50 text-primary-700"
+                                : "hover:bg-neutral-50 text-neutral-700"
+                            }`}
+                          >
+                            12 tháng gần nhất
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -480,10 +866,9 @@ export default function ProjectListPage() {
                             <span>{startIndex + i + 1}</span>
                         </td>
                         <td className="py-4 px-4">
-                          <span className="inline-flex items-center gap-2 text-sm text-neutral-700 font-mono">
-                            <Hash className="w-4 h-4 text-neutral-400" />
-                            <span>{p.code || "—"}</span>
-                          </span>
+                          <div className="text-sm font-medium text-neutral-600">
+                            {p.code || "—"}
+                          </div>
                         </td>
                         <td className="py-4 px-4">
                           <div className="inline-flex items-center gap-2 font-semibold text-primary-700 group-hover:text-primary-800 transition-colors duration-300">
@@ -515,9 +900,9 @@ export default function ProjectListPage() {
                               p.status === 'Ongoing'
                                 ? 'bg-blue-100 text-blue-800'
                                 : p.status === 'Planned'
-                                ? 'bg-purple-100 text-purple-800'
-                                : p.status === 'OnHold'
                                 ? 'bg-yellow-100 text-yellow-800'
+                                : p.status === 'OnHold'
+                                ? 'bg-purple-100 text-purple-800'
                                 : p.status === 'Completed'
                                 ? 'bg-green-100 text-green-800'
                                 : 'bg-neutral-100 text-neutral-800'

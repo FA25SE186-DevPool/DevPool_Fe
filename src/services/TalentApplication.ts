@@ -1,9 +1,9 @@
 import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
-import { TalentApplicationStatusConstants, type TalentApplication, type TalentApplicationCreate, type TalentApplicationFilter, type TalentApplicationStatusUpdate, type TalentApplicationStatusTransitionResult, type TalentApplicationUpdate, type TalentApplicationDetailed, type TalentApplicationsByJobRequestResponse } from "../types/talentapplication.types";
+import { TalentApplicationStatusConstants, type TalentApplication, type TalentApplicationCreate, type TalentApplicationFilter, type TalentApplicationStatusUpdate, type TalentApplicationStatusTransitionResult, type TalentApplicationUpdate, type TalentApplicationDetailed, type TalentApplicationsByJobRequestResponse, type ApplicationOwnershipTransferModel, type BulkApplicationOwnershipTransferModel, type ApplicationOwnershipTransferResult, type BulkApplicationOwnershipTransferResult } from "../types/talentapplication.types";
 
 export { TalentApplicationStatusConstants };
-export type { TalentApplication, TalentApplicationCreate, TalentApplicationFilter, TalentApplicationStatusUpdate, TalentApplicationStatusTransitionResult, TalentApplicationUpdate, TalentApplicationDetailed, TalentApplicationsByJobRequestResponse };
+export type { TalentApplication, TalentApplicationCreate, TalentApplicationFilter, TalentApplicationStatusUpdate, TalentApplicationStatusTransitionResult, TalentApplicationUpdate, TalentApplicationDetailed, TalentApplicationsByJobRequestResponse, ApplicationOwnershipTransferModel, BulkApplicationOwnershipTransferModel, ApplicationOwnershipTransferResult, BulkApplicationOwnershipTransferResult };
 
 export const talentApplicationService = {
   async getAll(filter?: TalentApplicationFilter) {
@@ -140,6 +140,28 @@ export const talentApplicationService = {
         throw error.response?.data || { message: "Không thể tải danh sách hồ sơ ứng tuyển theo job request" };
       }
       throw { message: "Lỗi không xác định khi tải danh sách hồ sơ ứng tuyển theo job request" };
+    }
+  },
+
+  async transferOwnership(id: number, payload: ApplicationOwnershipTransferModel) {
+    try {
+      const response = await apiClient.post(`/talentapplication/${id}/transfer-ownership`, payload);
+      return response.data as ApplicationOwnershipTransferResult;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError)
+        throw error.response?.data || { message: "Không thể chuyển quyền sở hữu đơn ứng tuyển" };
+      throw { message: "Lỗi không xác định khi chuyển quyền sở hữu đơn ứng tuyển" };
+    }
+  },
+
+  async bulkTransferOwnership(payload: BulkApplicationOwnershipTransferModel) {
+    try {
+      const response = await apiClient.post("/talentapplication/bulk-transfer-ownership", payload);
+      return response.data as BulkApplicationOwnershipTransferResult;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError)
+        throw error.response?.data || { message: "Không thể chuyển quyền sở hữu hàng loạt đơn ứng tuyển" };
+      throw { message: "Lỗi không xác định khi chuyển quyền sở hữu hàng loạt đơn ứng tuyển" };
     }
   },
 };

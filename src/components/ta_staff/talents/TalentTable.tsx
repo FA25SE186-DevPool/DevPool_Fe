@@ -1,6 +1,5 @@
-import { Link } from 'react-router-dom';
-import { Eye, Mail, UserPlus, Users } from 'lucide-react';
-import { Button } from '../../../components/ui/button';
+import { useNavigate } from 'react-router-dom';
+import { Mail, Users } from 'lucide-react';
 import { type Talent } from '../../../services/Talent';
 import { type Location } from '../../../services/location';
 import { type Partner } from '../../../services/Partner';
@@ -11,8 +10,6 @@ interface TalentTableProps {
   partners: Partner[];
   startIndex?: number;
   loading?: boolean;
-  isCreatingAccount?: number | null;
-  onCreateAccount?: (talent: Talent) => void;
 }
 
 const statusLabels: Record<string, { label: string; badgeClass: string }> = {
@@ -42,15 +39,14 @@ const statusLabels: Record<string, { label: string; badgeClass: string }> = {
 /**
  * Component bảng hiển thị danh sách talents
  */
-export function TalentTable({ 
-  talents, 
+export function TalentTable({
+  talents,
   locations: _locations,
   partners,
   startIndex = 0,
-  loading = false,
-  isCreatingAccount = null,
-  onCreateAccount 
+  loading = false
 }: TalentTableProps) {
+  const navigate = useNavigate();
 
   const getPartnerName = (partnerId?: number): string => {
     if (!partnerId) return '—';
@@ -87,13 +83,12 @@ export function TalentTable({
               <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Họ và tên</th>
               <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Email</th>
               <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase">Trạng thái</th>
-              <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase">Tài khoản</th>
-              <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase">Thao tác</th>
+            <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase">Tài khoản</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-200">
             <tr>
-              <td colSpan={8} className="text-center py-12">
+              <td colSpan={7} className="text-center py-12">
                 <div className="flex flex-col items-center justify-center">
                   <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
                     <Users className="w-8 h-8 text-neutral-400" />
@@ -121,19 +116,18 @@ export function TalentTable({
             <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Email</th>
             <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase whitespace-nowrap">Trạng thái</th>
             <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase whitespace-nowrap">Tài khoản</th>
-            <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase">Thao tác</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-neutral-200">
           {talents.map((t, i) => {
             const partnerName = getPartnerName(t.currentPartnerId);
             const statusInfo = getStatusInfo(t.status);
-            const canCreateAccount = t.status === 'Working' && !t.userId && t.email;
 
             return (
               <tr
                 key={t.id}
-                className="group hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 transition-all duration-300"
+                className="group hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 transition-all duration-300 cursor-pointer"
+                onClick={() => navigate(`/ta/talents/${t.id}`, { state: { tab: 'cvs' } })}
               >
                 <td className="py-4 px-6 text-sm font-medium text-neutral-900">{startIndex + i + 1}</td>
                 <td className="py-4 px-6">
@@ -177,39 +171,6 @@ export function TalentTable({
                       Chưa có
                     </span>
                   )}
-                </td>
-                <td className="py-4 px-6 text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <Link
-                      to={`/ta/talents/${t.id}`}
-                      state={{ tab: 'cvs' }}
-                      className="group inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-primary-200 text-primary-600 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md"
-                    >
-                      <Eye className="w-4 h-4" />
-                      <span className="text-xs font-medium">Xem</span>
-                    </Link>
-                    {canCreateAccount && onCreateAccount && (
-                      <Button
-                        onClick={() => onCreateAccount(t)}
-                        disabled={isCreatingAccount === t.id}
-                        variant="outline"
-                        className="group inline-flex items-center gap-1.5 px-3 py-1.5 border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300 hover:text-green-700"
-                        title="Cấp tài khoản"
-                      >
-                        {isCreatingAccount === t.id ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-xs font-medium">Đang tạo...</span>
-                          </>
-                        ) : (
-                          <>
-                            <UserPlus className="w-4 h-4" />
-                            <span className="text-xs font-medium">Cấp account</span>
-                          </>
-                        )}
-                      </Button>
-                    )}
-                  </div>
                 </td>
               </tr>
             );

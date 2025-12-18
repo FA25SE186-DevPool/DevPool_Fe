@@ -7,8 +7,9 @@ import { projectService, type ProjectDetailedModel } from "../../../services/Pro
 import { clientCompanyService, type ClientCompany } from "../../../services/ClientCompany";
 import { projectPeriodService, type ProjectPeriodModel, type ProjectPeriodCreateModel } from "../../../services/ProjectPeriod";
 import { talentAssignmentService, type TalentAssignmentModel } from "../../../services/TalentAssignment";
-import { talentService, type Talent } from "../../../services/Talent";
+import { talentService, type Talent, type CreateDeveloperAccountModel } from "../../../services/Talent";
 import { partnerService, type Partner } from "../../../services/Partner";
+import { useTalents } from "../../../hooks/useTalents";
 import { formatNumberInput } from "../../../utils/formatters";
 import { clientContractPaymentService, type ClientContractPaymentModel } from "../../../services/ClientContractPayment";
 import { partnerContractPaymentService, type PartnerContractPaymentModel } from "../../../services/PartnerContractPayment";
@@ -32,12 +33,13 @@ import {
   ExternalLink,
   Download,
   User,
-  Eye
+  UserPlus
 } from "lucide-react";
 
 export default function AccountantProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { createDeveloperAccount } = useTalents();
   const [project, setProject] = useState<ProjectDetailedModel | null>(null);
   const [company, setCompany] = useState<ClientCompany | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,6 +69,89 @@ export default function AccountantProjectDetailPage() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [showDetailAssignmentModal, setShowDetailAssignmentModal] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<TalentAssignmentModel | null>(null);
+  const [isProcessingAccountCreation, setIsProcessingAccountCreation] = useState(false);
+  const [showCreateAccountModal, setShowCreateAccountModal] = useState(false);
+  const [selectedTalentForAccount, setSelectedTalentForAccount] = useState<Talent | null>(null);
+  const [accountEmail, setAccountEmail] = useState<string>("");
+  const [emailError, setEmailError] = useState<string>("");
+
+  // ========== Email validation ==========
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleEmailChange = (value: string) => {
+    setAccountEmail(value);
+    if (value && !validateEmail(value)) {
+      setEmailError("Email không hợp lệ");
+    } else {
+      setEmailError("");
+    }
+  };
+
+  // ========== Handle create developer account ==========
+  const handleCreateAccountWithEmailUpdate = async () => {
+    if (!selectedTalentForAccount) return;
+
+    const talent = selectedTalentForAccount;
+    if (!accountEmail.trim()) {
+      alert("Email không được để trống");
+      return;
+    }
+
+    if (!validateEmail(accountEmail)) {
+      alert("Email không hợp lệ. Vui lòng nhập email đúng định dạng.");
+      return;
+    }
+
+    const confirmCreate = window.confirm(
+      `Bạn có chắc muốn cấp tài khoản cho ${talent.fullName}?\n\nEmail: ${accountEmail}\nMật khẩu sẽ được gửi qua email.`
+    );
+
+    if (!confirmCreate) return;
+
+    setIsProcessingAccountCreation(true);
+    try {
+      // 1. Cập nhật email của partner nếu email thay đổi
+      if (accountEmail !== talent.email) {
+        const partner = partners.find(p => p.id === talent.currentPartnerId);
+        if (partner) {
+          await partnerService.update(partner.id, {
+            ...partner,
+            email: accountEmail
+          });
+          console.log(`✅ Đã cập nhật email của partner ${partner.companyName} thành ${accountEmail}`);
+        }
+      }
+
+      // 2. Tạo tài khoản developer
+      const payload: CreateDeveloperAccountModel = { email: accountEmail };
+      const success = await createDeveloperAccount(talent.id, payload);
+
+      if (success) {
+        // Cập nhật state talents để reflect tài khoản mới được tạo
+        setTalents(prevTalents =>
+          prevTalents.map(t =>
+            t.id === talent.id ? { ...t, userId: "new_user_id" } : t
+          )
+        );
+
+        alert(`Đã cấp tài khoản thành công cho ${talent.fullName}.\nEmail: ${accountEmail}\nMật khẩu đã được gửi qua email.`);
+        setShowCreateAccountModal(false);
+        setSelectedTalentForAccount(null);
+        setAccountEmail("");
+      } else {
+        alert("Không thể cấp tài khoản. Vui lòng thử lại.");
+      }
+    } catch (err: any) {
+      console.error("❌ Lỗi khi cấp tài khoản:", err);
+      const errorMessage = err?.message || err?.response?.data?.message || "Không thể cấp tài khoản. Vui lòng thử lại.";
+      alert(errorMessage);
+    } finally {
+      setIsProcessingAccountCreation(false);
+    }
+  };
   const [showAllAssignments, setShowAllAssignments] = useState(false);
   const [assignmentPage, setAssignmentPage] = useState(1);
 
@@ -1558,9 +1643,13 @@ export default function AccountantProjectDetailPage() {
                             const talent = talents.find(t => t.id === assignment.talentId);
                             const partner = partners.find(p => p.id === assignment.partnerId);
                             return (
-                              <tr 
-                                key={assignment.id} 
-                                className="border-b border-neutral-100 hover:bg-neutral-50"
+                              <tr
+                                key={assignment.id}
+                                className="border-b border-neutral-100 hover:bg-neutral-50 cursor-pointer"
+                                onClick={() => {
+                                  setSelectedAssignment(assignment);
+                                  setShowDetailAssignmentModal(true);
+                                }}
                               >
                                 <td className="py-3 px-4 text-sm text-neutral-900 font-medium">
                                   {talent?.fullName || `Nhân sự #${assignment.talentId}`}
@@ -1627,17 +1716,27 @@ export default function AccountantProjectDetailPage() {
                                       : "—"}
                                 </td>
                                 <td className="py-3 px-4 text-center">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedAssignment(assignment);
-                                      setShowDetailAssignmentModal(true);
-                                    }}
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary-100 hover:bg-primary-200 text-primary-700 rounded-lg text-sm font-medium transition-colors"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                    Xem chi tiết
-                                  </button>
+                                  <div className="flex items-center justify-center gap-2">
+                                    {/* Cấp tài khoản đối tác button */}
+                                    {talent && talent.status === "Working" && !talent.userId && talent.email && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedTalentForAccount(talent);
+                                          setAccountEmail(talent.email || "");
+                                          setShowCreateAccountModal(true);
+                                        }}
+                                        disabled={isProcessingAccountCreation}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300 hover:text-green-700 rounded-lg text-sm font-medium transition-colors"
+                                        title="Cấp tài khoản đối tác"
+                                      >
+                                        <>
+                                          <UserPlus className="w-4 h-4 mr-1 flex-shrink-0" />
+                                          <span className="text-xs font-medium">Cấp tài khoản</span>
+                                        </>
+                                      </button>
+                                    )}
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -1961,6 +2060,107 @@ export default function AccountantProjectDetailPage() {
                 {creatingPeriod ? "Đang tạo..." : "Tạo"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Account Modal */}
+      {showCreateAccountModal && selectedTalentForAccount && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowCreateAccountModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-green-600" />
+                Cấp tài khoản đối tác
+              </h3>
+              <button
+                onClick={() => {
+                  setShowCreateAccountModal(false);
+                  setSelectedTalentForAccount(null);
+                  setAccountEmail("");
+                  setEmailError("");
+                  setEmailError("");
+                }}
+                className="text-neutral-400 hover:text-neutral-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Talent Info */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 mb-2">Thông tin nhân sự</h4>
+                <p className="text-sm text-gray-600">
+                  <strong>{selectedTalentForAccount.fullName}</strong>
+                </p>
+                {(() => {
+                  const partner = partners.find(p => p.id === selectedTalentForAccount.currentPartnerId);
+                  return partner ? (
+                    <p className="text-sm text-gray-600 mt-1">
+                      Đối tác: <strong>{partner.companyName}</strong>
+                    </p>
+                  ) : null;
+                })()}
+              </div>
+
+              {/* Email Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={accountEmail}
+                  onChange={(e) => handleEmailChange(e.target.value)}
+                  placeholder="Nhập email..."
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                    emailError ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300'
+                  }`}
+                  required
+                />
+                {emailError && (
+                  <p className="text-sm text-red-600 mt-1">{emailError}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Mật khẩu sẽ được gửi về email này
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateAccountModal(false);
+                    setSelectedTalentForAccount(null);
+                    setAccountEmail("");
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateAccountWithEmailUpdate}
+                  disabled={isProcessingAccountCreation || !!emailError || !accountEmail.trim()}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cấp tài khoản
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Overlay for Account Creation */}
+      {isProcessingAccountCreation && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-600 border-t-transparent mb-4"></div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Đang cấp tài khoản</h3>
+            <p className="text-sm text-gray-600 text-center">Vui lòng đợi trong giây lát...</p>
           </div>
         </div>
       )}

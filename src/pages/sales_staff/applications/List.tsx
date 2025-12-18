@@ -15,6 +15,8 @@ import {
   CheckCircle,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   User as UserIcon,
   UserStar,
   FileUser,
@@ -97,6 +99,8 @@ export default function SalesApplicationListPage() {
   const [filterJobRequestId, setFilterJobRequestId] = useState<string>(jobRequestIdFromQuery ?? "");
   const [jobRequestTitle, setJobRequestTitle] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -318,10 +322,18 @@ export default function SalesApplicationListPage() {
     setStatusFilter("");
     setFilterJobRequestId("");
     setJobRequestTitle("");
+    setIsStatusDropdownOpen(false);
     setCurrentPage(1);
     const newParams = new URLSearchParams(searchParams);
     newParams.delete("jobRequestId");
     setSearchParams(newParams);
+  };
+
+  const hasActiveFilters = Boolean(searchTerm || statusFilter || filterJobRequestId);
+
+  const getStatusDisplayText = () => {
+    if (!statusFilter) return "Tất cả trạng thái";
+    return statusLabels[statusFilter] ?? statusFilter;
   };
 
   return (
@@ -337,77 +349,95 @@ export default function SalesApplicationListPage() {
           </div>
 
           <div className="mb-8 animate-fade-in">
-            <div className="relative">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {statsSlice.map((stat, idx) => (
-                  <div
-                    key={`${stat.title}-${statsStartIndex + idx}`}
-                    className="group bg-white rounded-2xl shadow-soft hover:shadow-medium p-6 transition-all duration-300 transform hover:-translate-y-1 border border-neutral-100 hover:border-primary-200"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-neutral-600 group-hover:text-neutral-700 transition-colors duration-300">
-                          {stat.title}
-                        </p>
-                        <p className="text-3xl font-bold text-gray-900 mt-2 group-hover:text-primary-700 transition-colors duration-300">
-                          {stat.value}
-                        </p>
-                      </div>
-                      <div
-                        className={`p-3 rounded-full ${
-                          stat.color === "blue"
-                            ? "bg-primary-100 text-primary-600 group-hover:bg-primary-200"
-                            : stat.color === "green"
-                            ? "bg-secondary-100 text-secondary-600 group-hover:bg-secondary-200"
-                            : stat.color === "purple"
-                            ? "bg-accent-100 text-accent-600 group-hover:bg-accent-200"
-                            : stat.color === "red"
-                            ? "bg-red-100 text-red-600 group-hover:bg-red-200"
-                            : stat.color === "gray"
-                            ? "bg-neutral-100 text-neutral-600 group-hover:bg-neutral-200"
-                            : stat.color === "teal"
-                            ? "bg-teal-100 text-teal-600 group-hover:bg-teal-200"
-                            : "bg-warning-100 text-warning-600 group-hover:bg-warning-200"
-                        } transition-all duration-300`}
-                      >
-                        {stat.icon}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <Briefcase className="w-5 h-5 text-primary-600" />
+                <h2 className="text-xl font-semibold text-gray-900">Thống kê hồ sơ</h2>
+              </div>
+              <button
+                onClick={() => setShowStats(!showStats)}
+                className="flex items-center justify-center w-7 h-7 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors duration-300"
+                title={showStats ? "Ẩn thống kê" : "Hiện thống kê"}
+              >
+                {showStats ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            </div>
+
+            {showStats && (
+              <div className="relative">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {statsSlice.map((stat, idx) => (
+                    <div
+                      key={`${stat.title}-${statsStartIndex + idx}`}
+                      className="group bg-white rounded-2xl shadow-soft hover:shadow-medium p-6 transition-all duration-300 transform hover:-translate-y-1 border border-neutral-100 hover:border-primary-200"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-neutral-600 group-hover:text-neutral-700 transition-colors duration-300">
+                            {stat.title}
+                          </p>
+                          <p className="text-3xl font-bold text-gray-900 mt-2 group-hover:text-primary-700 transition-colors duration-300">
+                            {stat.value}
+                          </p>
+                        </div>
+                        <div
+                          className={`p-3 rounded-full ${
+                            stat.color === "blue"
+                              ? "bg-primary-100 text-primary-600 group-hover:bg-primary-200"
+                              : stat.color === "green"
+                              ? "bg-secondary-100 text-secondary-600 group-hover:bg-secondary-200"
+                              : stat.color === "purple"
+                              ? "bg-accent-100 text-accent-600 group-hover:bg-accent-200"
+                              : stat.color === "red"
+                              ? "bg-red-100 text-red-600 group-hover:bg-red-200"
+                              : stat.color === "gray"
+                              ? "bg-neutral-100 text-neutral-600 group-hover:bg-neutral-200"
+                              : stat.color === "teal"
+                              ? "bg-teal-100 text-teal-600 group-hover:bg-teal-200"
+                              : "bg-warning-100 text-warning-600 group-hover:bg-warning-200"
+                          } transition-all duration-300`}
+                        >
+                          {stat.icon}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+                {canShowStatsNav && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handlePrevStats}
+                      disabled={!canGoPrevStats}
+                      className={`hidden lg:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 items-center justify-center rounded-full border transition-all duration-300 ${
+                        canGoPrevStats
+                          ? "h-9 w-9 bg-white/90 backdrop-blur border-neutral-200 text-neutral-600 shadow-soft hover:text-primary-600 hover:border-primary-300"
+                          : "h-9 w-9 bg-neutral-100 border-neutral-200 text-neutral-300 cursor-not-allowed"
+                      }`}
+                      aria-label="Xem thống kê phía trước"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNextStats}
+                      disabled={!canGoNextStats}
+                      className={`hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border transition-all duration-300 ${
+                        canGoNextStats
+                          ? "h-9 w-9 bg-white/90 backdrop-blur border-neutral-200 text-neutral-600 shadow-soft hover:text-primary-600 hover:border-primary-300"
+                          : "h-9 w-9 bg-neutral-100 border-neutral-200 text-neutral-300 cursor-not-allowed"
+                      }`}
+                      aria-label="Xem thống kê tiếp theo"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
               </div>
-              {canShowStatsNav && (
-                <>
-                  <button
-                    type="button"
-                    onClick={handlePrevStats}
-                    disabled={!canGoPrevStats}
-                    className={`hidden lg:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 items-center justify-center rounded-full border transition-all duration-300 ${
-                      canGoPrevStats
-                        ? "h-9 w-9 bg-white/90 backdrop-blur border-neutral-200 text-neutral-600 shadow-soft hover:text-primary-600 hover:border-primary-300"
-                        : "h-9 w-9 bg-neutral-100 border-neutral-200 text-neutral-300 cursor-not-allowed"
-                    }`}
-                    aria-label="Xem thống kê phía trước"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleNextStats}
-                    disabled={!canGoNextStats}
-                    className={`hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border transition-all duration-300 ${
-                      canGoNextStats
-                        ? "h-9 w-9 bg-white/90 backdrop-blur border-neutral-200 text-neutral-600 shadow-soft hover:text-primary-600 hover:border-primary-300"
-                        : "h-9 w-9 bg-neutral-100 border-neutral-200 text-neutral-300 cursor-not-allowed"
-                    }`}
-                    aria-label="Xem thống kê tiếp theo"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </>
-              )}
-            </div>
-            {canShowStatsNav && (
+            )}
+          </div>
+
+          {canShowStatsNav && (
               <div className="mt-3 flex justify-end text-xs text-neutral-500 lg:hidden">
                 <div className="flex gap-3">
                   <button
@@ -439,7 +469,6 @@ export default function SalesApplicationListPage() {
                 </div>
               </div>
             )}
-          </div>
 
           {filterJobRequestId && (
             <div className="mb-6 bg-primary-50 border border-primary-200 rounded-xl p-4 animate-fade-in">
@@ -484,24 +513,71 @@ export default function SalesApplicationListPage() {
                 <Filter className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
                 <span className="font-medium">{showFilters ? "Ẩn bộ lọc" : "Bộ lọc"}</span>
               </button>
+
+              {hasActiveFilters && (
+                <button
+                  onClick={handleResetFilters}
+                  className="group flex items-center gap-2 px-6 py-3 border border-neutral-200 rounded-xl hover:border-primary-500 hover:text-primary-600 hover:bg-primary-50 transition-all duration-300 bg-white"
+                >
+                  <X className="w-5 h-5" />
+                  <span className="font-medium">Xóa bộ lọc</span>
+                </button>
+              )}
             </div>
 
             {showFilters && (
               <div className="mt-6 pt-6 border-t border-neutral-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 bg-white"
-                  >
-                    <option value="">Tất cả trạng thái</option>
-                    {Object.entries(statusLabels).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                      className="w-full flex items-center justify-between px-4 py-2 border border-neutral-200 rounded-lg bg-white text-left focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300"
+                    >
+                      <span className="text-sm text-neutral-700">{getStatusDisplayText()}</span>
+                      <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isStatusDropdownOpen && (
+                      <div className="absolute z-20 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg">
+                        <div className="max-h-56 overflow-y-auto">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStatusFilter("");
+                              setIsStatusDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2 text-sm ${
+                              !statusFilter
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'hover:bg-neutral-50 text-neutral-700'
+                            }`}
+                          >
+                            Tất cả trạng thái
+                          </button>
+                          {Object.entries(statusLabels).map(([value, label]) => (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => {
+                                setStatusFilter(value);
+                                setIsStatusDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-4 py-2 text-sm ${
+                                statusFilter === value
+                                  ? 'bg-primary-50 text-primary-700'
+                                  : 'hover:bg-neutral-50 text-neutral-700'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <button
+                    type="button"
                     onClick={handleResetFilters}
                     className="group flex items-center justify-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg px-4 py-2 transition-all duration-300 hover:scale-105 transform"
                   >

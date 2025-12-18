@@ -794,19 +794,19 @@ export default function ClientCompanyDetailPage() {
                 ) : (
                   <div className="space-y-4">
                     {company.projects.map((project) => {
+                      const statusLabels: Record<string, string> = {
+                        Planned: "Đã lên kế hoạch",
+                        Ongoing: "Đang thực hiện",
+                        OnHold: "Tạm dừng",
+                        Completed: "Đã hoàn thành"
+                      };
+
                       const getStatusColor = (status: string) => {
-                        const statusLower = status.toLowerCase();
-                        if (statusLower.includes("hoàn thành") || statusLower.includes("completed") || statusLower.includes("done")) {
-                          return "bg-green-100 text-green-800 border-green-200";
-                        } else if (statusLower.includes("đang") || statusLower.includes("in progress") || statusLower.includes("ongoing")) {
-                          return "bg-blue-100 text-blue-800 border-blue-200";
-                        } else if (statusLower.includes("tạm dừng") || statusLower.includes("paused") || statusLower.includes("suspended")) {
-                          return "bg-yellow-100 text-yellow-800 border-yellow-200";
-                        } else if (statusLower.includes("hủy") || statusLower.includes("cancelled") || statusLower.includes("canceled")) {
-                          return "bg-red-100 text-red-800 border-red-200";
-                        } else {
-                          return "bg-neutral-100 text-neutral-800 border-neutral-200";
-                        }
+                        if (status === 'Ongoing') return 'bg-blue-100 text-blue-800 border-blue-200';
+                        if (status === 'Planned') return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                        if (status === 'OnHold') return 'bg-purple-100 text-purple-800 border-purple-200';
+                        if (status === 'Completed') return 'bg-green-100 text-green-800 border-green-200';
+                        return 'bg-neutral-100 text-neutral-800 border-neutral-200';
                       };
                       
                       return (
@@ -842,7 +842,7 @@ export default function ClientCompanyDetailPage() {
                               <div className="ml-4">
                                 <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border ${getStatusColor(project.status)}`}>
                                   <CheckCircle className="w-3.5 h-3.5" />
-                                  {project.status}
+                                  {statusLabels[project.status] || project.status}
                                 </span>
                               </div>
                             )}

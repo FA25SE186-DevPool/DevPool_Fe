@@ -32,6 +32,8 @@ export interface JobRequest {
   budgetPerMonth?: number | null;
   status: JobRequestStatus;
   jobSkills: JobSkill[];
+  ownerId?: string;
+  ownerName?: string;
 }
 
 export interface JobRequestPayload {
