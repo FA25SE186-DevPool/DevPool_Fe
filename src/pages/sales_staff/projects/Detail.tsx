@@ -87,11 +87,15 @@ export default function ProjectDetailPage() {
 
   // Talent Assignment states
   const [talentAssignments, setTalentAssignments] = useState<TalentAssignmentModel[]>([]);
+  const [showAllAssignments, setShowAllAssignments] = useState(false);
+  const [assignmentPage, setAssignmentPage] = useState(1);
   const [showCreateAssignmentModal, setShowCreateAssignmentModal] = useState(false);
   const [showUpdateAssignmentModal, setShowUpdateAssignmentModal] = useState(false);
   const [showDetailAssignmentModal, setShowDetailAssignmentModal] = useState(false);
   const [showTerminateAssignmentModal, setShowTerminateAssignmentModal] = useState(false);
   const [showExtendAssignmentModal, setShowExtendAssignmentModal] = useState(false);
+  const [showCancelAssignmentModal, setShowCancelAssignmentModal] = useState(false);
+  const [showDirectBookingModal, setShowDirectBookingModal] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<TalentAssignmentModel | null>(null);
   const [hiredApplications, setHiredApplications] = useState<TalentApplication[]>([]);
   const [talents, setTalents] = useState<Talent[]>([]);
@@ -99,13 +103,44 @@ export default function ProjectDetailPage() {
   const [jobRoleLevels, setJobRoleLevels] = useState<JobRoleLevel[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loadingAssignments, setLoadingAssignments] = useState(false);
+  const [loadingDirectBookingTalents, setLoadingDirectBookingTalents] = useState(false);
   const [submittingAssignment, setSubmittingAssignment] = useState(false);
   const [submittingUpdate, setSubmittingUpdate] = useState(false);
+  const [submittingCancel, setSubmittingCancel] = useState(false);
+  const [submittingDirectBooking, setSubmittingDirectBooking] = useState(false);
   const [assignmentErrors, setAssignmentErrors] = useState<{ startDate?: string; endDate?: string }>({});
   const [assignmentWarnings, setAssignmentWarnings] = useState<{ startDate?: string }>({});
   const [completedActivityDate, setCompletedActivityDate] = useState<string | null>(null); // Lưu CompletedDate của ApplyActivity
   const [updateErrors, setUpdateErrors] = useState<{ startDate?: string; endDate?: string; estimatedClientRate?: string; estimatedPartnerRate?: string }>({});
   const [editLastActivityScheduledDate, setEditLastActivityScheduledDate] = useState<string | null>(null);
+
+  // Direct booking (re-hiring) states
+  const [directBookingTalentIds, setDirectBookingTalentIds] = useState<number[]>([]);
+  const [directBookingHistoryAssignments, setDirectBookingHistoryAssignments] = useState<TalentAssignmentModel[]>([]);
+  const [directBookingForm, setDirectBookingForm] = useState<{
+    talentId: number;
+    jobRoleLevelId: number;
+    partnerId: number;
+    startDate: string;
+    endDate: string;
+    jobDescription: string;
+    estimatedClientRate: number | null;
+    estimatedPartnerRate: number | null;
+    currencyCode: string;
+    notes: string;
+  }>({
+    talentId: 0,
+    jobRoleLevelId: 0,
+    partnerId: 0,
+    startDate: "",
+    endDate: "",
+    jobDescription: "",
+    estimatedClientRate: null,
+    estimatedPartnerRate: null,
+    currencyCode: "VND",
+    notes: ""
+  });
+  const [directBookingErrors, setDirectBookingErrors] = useState<Record<string, string>>({});
   
   // Form state for creating assignment
   const [assignmentForm, setAssignmentForm] = useState<TalentAssignmentCreateModel>({
@@ -139,6 +174,18 @@ export default function ProjectDetailPage() {
   });
   const [terminateErrors, setTerminateErrors] = useState<{ terminationDate?: string; terminationReason?: string }>({});
   const [submittingTerminate, setSubmittingTerminate] = useState(false);
+
+  // Form state for cancelling draft assignment
+  const [cancelForm, setCancelForm] = useState<{
+    cancelReason: string;
+    addToBlacklist: boolean;
+    blacklistReason: string;
+  }>({
+    cancelReason: "",
+    addToBlacklist: false,
+    blacklistReason: ""
+  });
+  const [cancelErrors, setCancelErrors] = useState<{ cancelReason?: string; blacklistReason?: string }>({});
 
   // Form state for extending assignment
   const [extendForm, setExtendForm] = useState<{
@@ -331,6 +378,210 @@ export default function ProjectDetailPage() {
     fetchModalData();
   }, [showCreateAssignmentModal, id, project]);
 
+  // Fetch talents that already worked in this project (history) for direct booking modal
+  useEffect(() => {
+    const fetchDirectBookingTalents = async () => {
+      if (!showDirectBookingModal || !id) return;
+      try {
+        setLoadingDirectBookingTalents(true);
+        const history = await talentAssignmentService.getHistoryByProject(Number(id));
+        const list = ensureArray<TalentAssignmentModel>(history);
+
+        // Ưu tiên lọc theo status (Completed/Terminated). Nếu BE trả thêm, vẫn lấy unique talentId.
+        const filtered = list.filter(a =>
+          a.projectId === Number(id) &&
+          (a.status === "Completed" || a.status === "Terminated")
+        );
+        setDirectBookingHistoryAssignments(filtered);
+        const ids = Array.from(new Set(filtered.map(a => a.talentId))).filter(Boolean);
+        setDirectBookingTalentIds(ids);
+      } catch (err) {
+        console.error("❌ Lỗi tải danh sách nhân sự đã từng tham gia dự án:", err);
+        setDirectBookingTalentIds([]);
+        setDirectBookingHistoryAssignments([]);
+      } finally {
+        setLoadingDirectBookingTalents(false);
+      }
+    };
+    fetchDirectBookingTalents();
+  }, [showDirectBookingModal, id]);
+
+  const handleDirectBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+
+    setDirectBookingErrors({});
+
+    if (!directBookingForm.talentId) {
+      setDirectBookingErrors(prev => ({ ...prev, talentId: "Vui lòng chọn nhân sự" }));
+      return;
+    }
+    if (!directBookingTalentIds.includes(directBookingForm.talentId)) {
+      setDirectBookingErrors(prev => ({ ...prev, talentId: "Nhân sự này không nằm trong danh sách đã từng làm dự án" }));
+      return;
+    }
+    if (!directBookingForm.startDate) {
+      setDirectBookingErrors(prev => ({ ...prev, startDate: "Ngày bắt đầu là bắt buộc" }));
+      return;
+    }
+    if (!directBookingForm.endDate) {
+      setDirectBookingErrors(prev => ({ ...prev, endDate: "Ngày kết thúc là bắt buộc" }));
+      return;
+    }
+    if (!directBookingForm.jobRoleLevelId) {
+      setDirectBookingErrors(prev => ({ ...prev, jobRoleLevelId: "Vui lòng chọn Job Role Level" }));
+      return;
+    }
+    if (!directBookingForm.jobDescription.trim()) {
+      setDirectBookingErrors(prev => ({ ...prev, jobDescription: "Mô tả công việc là bắt buộc" }));
+      return;
+    }
+
+    const startUTC = toUTCISOString(directBookingForm.startDate);
+    const endUTC = toUTCISOString(directBookingForm.endDate);
+    if (!startUTC) {
+      setDirectBookingErrors(prev => ({ ...prev, startDate: "Ngày bắt đầu không hợp lệ" }));
+      return;
+    }
+    if (!endUTC) {
+      setDirectBookingErrors(prev => ({ ...prev, endDate: "Ngày kết thúc không hợp lệ" }));
+      return;
+    }
+
+    // Validate: ngày bắt đầu thuê lại phải > ngày kết thúc lần thuê trước (từ history)
+    const latestHistoryForTalent = (() => {
+      const list = directBookingHistoryAssignments.filter(
+        a => a.talentId === directBookingForm.talentId && a.projectId === Number(id)
+      );
+      if (list.length <= 1) return list[0];
+      return [...list].sort((a, b) => {
+        const aTime =
+          (a.endDate ? new Date(a.endDate).getTime() : 0) ||
+          (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+        const bTime =
+          (b.endDate ? new Date(b.endDate).getTime() : 0) ||
+          (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+        return bTime - aTime;
+      })[0];
+    })();
+
+    if (latestHistoryForTalent?.endDate) {
+      const lastEnd = new Date(latestHistoryForTalent.endDate).getTime();
+      const newStart = new Date(startUTC).getTime();
+      if (!(newStart > lastEnd)) {
+        setDirectBookingErrors(prev => ({
+          ...prev,
+          startDate: "Ngày bắt đầu thuê lại phải lớn hơn ngày kết thúc lần thuê trước"
+        }));
+        return;
+      }
+    }
+
+    // Validate: ngày kết thúc > ngày bắt đầu
+    const startTime = new Date(startUTC).getTime();
+    const endTime = new Date(endUTC).getTime();
+    if (!(endTime > startTime)) {
+      setDirectBookingErrors(prev => ({
+        ...prev,
+        endDate: "Ngày kết thúc phải lớn hơn ngày bắt đầu"
+      }));
+      return;
+    }
+
+    // Validate: chi phí dự kiến khách hàng >= chi phí dự kiến đối tác
+    if (
+      directBookingForm.estimatedClientRate !== null &&
+      directBookingForm.estimatedPartnerRate !== null &&
+      directBookingForm.estimatedClientRate < directBookingForm.estimatedPartnerRate
+    ) {
+      setDirectBookingErrors(prev => ({
+        ...prev,
+        estimatedClientRate: "Chi phí khách hàng phải lớn hơn hoặc bằng chi phí đối tác",
+        estimatedPartnerRate: "Chi phí đối tác đang lớn hơn chi phí khách hàng"
+      }));
+      return;
+    }
+
+    // Lấy partnerId từ lịch sử (hoặc từ form nếu đã được auto-fill trước đó)
+    const historyAssignment = directBookingHistoryAssignments.find(
+      a =>
+        a.talentId === directBookingForm.talentId &&
+        a.projectId === Number(id)
+    );
+    const partnerId = historyAssignment?.partnerId || directBookingForm.partnerId;
+    if (!partnerId) {
+      alert("Không tìm được đối tác từ lịch sử cho nhân sự này trong dự án. Vui lòng kiểm tra lại history.");
+      return;
+    }
+
+    const talentName = talents.find(t => t.id === directBookingForm.talentId)?.fullName || `Nhân sự #${directBookingForm.talentId}`;
+    const partnerName = partners.find(p => p.id === partnerId)?.companyName || `Partner #${partnerId}`;
+    const jobRoleLevelName =
+      jobRoleLevels.find(j => j.id === directBookingForm.jobRoleLevelId)?.name || "—";
+
+    const confirmed = window.confirm(
+      `Xác nhận THUÊ LẠI (Direct Booking)?\n\n` +
+      `Nhân sự: ${talentName}\n` +
+      `Đối tác: ${partnerName}\n` +
+      `Ngày bắt đầu: ${directBookingForm.startDate}\n` +
+      `Ngày kết thúc: ${directBookingForm.endDate || "—"}\n` +
+      `Job Role Level: ${jobRoleLevelName}\n`
+    );
+    if (!confirmed) return;
+
+    try {
+      setSubmittingDirectBooking(true);
+
+      const currencyCode: string | null =
+        directBookingForm.estimatedClientRate || directBookingForm.estimatedPartnerRate
+          ? (directBookingForm.currencyCode || "VND")
+          : null;
+
+      await talentAssignmentService.directBooking({
+        talentId: directBookingForm.talentId,
+        projectId: Number(id),
+        partnerId,
+        startDate: startUTC,
+        endDate: endUTC as string,
+        jobRoleLevelId: directBookingForm.jobRoleLevelId,
+        jobDescription: directBookingForm.jobDescription.trim(),
+        estimatedClientRate: directBookingForm.estimatedClientRate ?? null,
+        estimatedPartnerRate: directBookingForm.estimatedPartnerRate ?? null,
+        currencyCode,
+        notes: directBookingForm.notes?.trim() ? directBookingForm.notes.trim() : null,
+      });
+
+      // Refresh assignments list
+      const assignmentsData = await talentAssignmentService.getAll({ projectId: Number(id) });
+      const assignments = ensureArray<TalentAssignmentModel>(assignmentsData);
+      setTalentAssignments(assignments.filter(a => a.projectId === Number(id)));
+
+      setShowDirectBookingModal(false);
+      setDirectBookingForm({
+        talentId: 0,
+        jobRoleLevelId: 0,
+        partnerId: 0,
+        startDate: "",
+        endDate: "",
+        jobDescription: "",
+        estimatedClientRate: null,
+        estimatedPartnerRate: null,
+        currencyCode: "VND",
+        notes: ""
+      });
+      setDirectBookingErrors({});
+
+      alert("✅ Thuê lại nhân sự thành công!");
+    } catch (error: unknown) {
+      console.error("❌ Lỗi khi thuê lại (Direct Booking):", error);
+      const message =
+        error instanceof Error ? error.message : (typeof error === "string" ? error : "");
+      alert(message || "Không thể thuê lại nhân sự");
+    } finally {
+      setSubmittingDirectBooking(false);
+    }
+  };
+
   // Lấy CompletedDate của ApplyActivity khi talentApplicationId thay đổi
   useEffect(() => {
     const fetchCompletedActivityDate = async () => {
@@ -423,7 +674,7 @@ export default function ProjectDetailPage() {
     };
 
     fetchActivityForUpdate();
-  }, [showUpdateAssignmentModal, selectedAssignment?.talentApplicationId]);
+  }, [showUpdateAssignmentModal, selectedAssignment]);
 
   const handleDelete = async () => {
     if (!id || !project) return;
@@ -619,7 +870,7 @@ export default function ProjectDetailPage() {
                       // Gọi API để tạo contract payments cho talent assignment trong project period
                       await projectPeriodService.createPaymentsForAssignment(period.id, newAssignment.id);
                       console.log(`✅ Đã tạo contract payments cho talent assignment ${newAssignment.id} trong project period ${period.periodMonth}/${period.periodYear}`);
-                    } catch (err: any) {
+                    } catch (err: unknown) {
                       console.error(`❌ Lỗi khi tạo contract payments cho talent assignment ${newAssignment.id} trong project period ${period.id}:`, err);
                       // Không block việc tạo assignment nếu có lỗi tạo contract payments
                     }
@@ -661,9 +912,11 @@ export default function ProjectDetailPage() {
       setShowCreateAssignmentModal(false);
 
       alert("✅ Tạo phân công nhân sự thành công!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("❌ Lỗi khi tạo phân công:", error);
-      alert(error.message || "Không thể tạo phân công nhân sự");
+      const message =
+        error instanceof Error ? error.message : (typeof error === "string" ? error : "");
+      alert(message || "Không thể tạo phân công nhân sự");
     } finally {
       setSubmittingAssignment(false);
     }
@@ -852,9 +1105,11 @@ export default function ProjectDetailPage() {
       setShowUpdateAssignmentModal(false);
 
       alert("✅ Cập nhật phân công nhân sự thành công!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("❌ Lỗi khi cập nhật phân công:", error);
-      alert(error.message || "Không thể cập nhật phân công nhân sự");
+      const message =
+        error instanceof Error ? error.message : (typeof error === "string" ? error : "");
+      alert(message || "Không thể cập nhật phân công nhân sự");
     } finally {
       setSubmittingUpdate(false);
     }
@@ -950,9 +1205,11 @@ export default function ProjectDetailPage() {
       setSelectedAssignment(null);
 
       alert("✅ Chấm dứt phân công nhân sự thành công!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("❌ Lỗi khi chấm dứt phân công:", error);
-      alert(error.message || "Không thể chấm dứt phân công nhân sự");
+      const message =
+        error instanceof Error ? error.message : (typeof error === "string" ? error : "");
+      alert(message || "Không thể chấm dứt phân công nhân sự");
     } finally {
       setSubmittingTerminate(false);
     }
@@ -1078,9 +1335,11 @@ export default function ProjectDetailPage() {
       setSelectedAssignment(null);
 
       alert("✅ Gia hạn phân công nhân sự thành công!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("❌ Lỗi khi gia hạn phân công:", error);
-      alert(error.message || "Không thể gia hạn phân công nhân sự");
+      const message =
+        error instanceof Error ? error.message : (typeof error === "string" ? error : "");
+      alert(message || "Không thể gia hạn phân công nhân sự");
     } finally {
       setSubmittingExtend(false);
     }
@@ -1158,11 +1417,11 @@ export default function ProjectDetailPage() {
   };
 
   const statusLabels: Record<string, string> = {
-  Planned: "Đã lên kế hoạch",
-  Ongoing: "Đang thực hiện",
-  Completed: "Đã hoàn thành",
-  OnHold: "Tạm dừng",
-};
+    Planned: "Đã lên kế hoạch",
+    Ongoing: "Đang thực hiện",
+    Completed: "Đã hoàn thành",
+    OnHold: "Tạm dừng",
+  };
 
   const assignmentStatusLabels: Record<string, string> = {
     Active: "Đang hoạt động",
@@ -1170,6 +1429,102 @@ export default function ProjectDetailPage() {
     Terminated: "Đã chấm dứt",
     Inactive: "Không hoạt động",
     Draft: "Nháp",
+    Cancelled: "Đã hủy",
+    Canceled: "Đã hủy",
+  };
+
+  // Pagination cho danh sách nhân sự tham gia
+  const assignmentItemsPerPage = 6;
+
+  const filteredAssignmentsForTable = [...talentAssignments]
+    .filter(a => a.projectId === Number(id))
+    .filter(a =>
+      showAllAssignments
+        ? true
+        : a.status === "Draft" || a.status === "Active"
+    )
+    .sort((a, b) => {
+      // Sắp xếp theo ngày cập nhật gần nhất (mới nhất trước)
+      const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      return dateB - dateA; // Sắp xếp giảm dần (mới nhất trước)
+    });
+
+  const totalAssignmentsForTable = filteredAssignmentsForTable.length;
+  const totalAssignmentPages = totalAssignmentsForTable > 0
+    ? Math.ceil(totalAssignmentsForTable / assignmentItemsPerPage)
+    : 1;
+  const currentAssignmentPage = Math.min(assignmentPage, totalAssignmentPages);
+
+  const paginatedAssignmentsForTable = filteredAssignmentsForTable.slice(
+    (currentAssignmentPage - 1) * assignmentItemsPerPage,
+    currentAssignmentPage * assignmentItemsPerPage
+  );
+
+  const handleCancelAssignment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !selectedAssignment) return;
+
+    if (selectedAssignment.status !== "Draft") {
+      alert("Chỉ có thể hủy khi phân công đang ở trạng thái Nháp (Draft).");
+      return;
+    }
+
+    setCancelErrors({});
+    const reason = cancelForm.cancelReason?.trim();
+    if (!reason) {
+      setCancelErrors({ cancelReason: "Lý do hủy là bắt buộc" });
+      return;
+    }
+
+    if (cancelForm.addToBlacklist) {
+      const br = cancelForm.blacklistReason?.trim();
+      if (!br) {
+        setCancelErrors({ blacklistReason: "Lý do blacklist là bắt buộc khi chọn thêm vào blacklist" });
+        return;
+      }
+    }
+
+    const talentName = talents.find(t => t.id === selectedAssignment.talentId)?.fullName || `Nhân sự #${selectedAssignment.talentId}`;
+    const confirmed = window.confirm(
+      `Xác nhận HỦY phân công nhân sự?\n\n` +
+      `Nhân sự: ${talentName}\n` +
+      `Lý do hủy: ${reason}\n` +
+      (cancelForm.addToBlacklist ? `Thêm vào blacklist: Có\nLý do blacklist: ${cancelForm.blacklistReason.trim()}\n` : `Thêm vào blacklist: Không\n`) +
+      `\nLưu ý: Chỉ hủy được khi trạng thái là Draft.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setSubmittingCancel(true);
+      await talentAssignmentService.cancel(selectedAssignment.id, {
+        cancelReason: reason,
+        addToBlacklist: !!cancelForm.addToBlacklist,
+        blacklistReason: cancelForm.addToBlacklist ? cancelForm.blacklistReason.trim() : null,
+      });
+
+      // Refresh assignments list
+      const assignmentsData = await talentAssignmentService.getAll({ projectId: Number(id) });
+      const assignments = ensureArray<TalentAssignmentModel>(assignmentsData);
+      const filteredAssignments = assignments.filter(a => a.projectId === Number(id));
+      setTalentAssignments(filteredAssignments);
+
+      // Close modals + reset
+      setShowCancelAssignmentModal(false);
+      setShowDetailAssignmentModal(false);
+      setSelectedAssignment(null);
+      setCancelForm({ cancelReason: "", addToBlacklist: false, blacklistReason: "" });
+      setCancelErrors({});
+
+      alert("✅ Đã hủy phân công nhân sự!");
+    } catch (error: unknown) {
+      console.error("❌ Lỗi khi hủy phân công:", error);
+      const message =
+        error instanceof Error ? error.message : (typeof error === "string" ? error : "");
+      alert(message || "Không thể hủy phân công nhân sự");
+    } finally {
+      setSubmittingCancel(false);
+    }
   };
 
   const applicationStatusLabels: Record<string, string> = {
@@ -1381,11 +1736,17 @@ export default function ProjectDetailPage() {
     return matched.length > 0 ? matched.join(", ") : "—";
   };
 
+  // Một số BE trả về thêm field jobPositionName ngoài schema JobRequest
+  const getJobPositionName = (jr: JobRequest): string => {
+    const v = (jr as unknown as { jobPositionName?: unknown })?.jobPositionName;
+    return typeof v === "string" ? v : "";
+  };
+
   // Filter và paginate Job Requests
   const filteredJobRequests = ((project?.jobRequests || []) as JobRequest[]).filter((jr) => {
     const matchesSearch = !jobRequestSearch || 
       (jr.title?.toLowerCase().includes(jobRequestSearch.toLowerCase()) ||
-       (jr as any).jobPositionName?.toLowerCase().includes(jobRequestSearch.toLowerCase()));
+       getJobPositionName(jr).toLowerCase().includes(jobRequestSearch.toLowerCase()));
     // Convert status to string for comparison (status can be number or string)
     const statusStr = typeof jr.status === 'number' ? String(jr.status) : jr.status;
     const statusNum = typeof jr.status === 'number' ? jr.status : undefined;
@@ -1783,7 +2144,9 @@ export default function ProjectDetailPage() {
                               className="border-b border-neutral-100 hover:bg-primary-50 cursor-pointer transition-colors"
                             >
                               <td className="py-3 px-4 text-sm text-neutral-900 font-medium">{jr.title || "—"}</td>
-                              <td className="py-3 px-4 text-sm text-neutral-700">{jobRoleLevel?.name || (jr as any).jobPositionName || "—"}</td>
+                              <td className="py-3 px-4 text-sm text-neutral-700">
+                                {jobRoleLevel?.name || getJobPositionName(jr) || "—"}
+                              </td>
                               <td className="py-3 px-4 text-sm text-neutral-700">{jr.quantity || 0}</td>
                               <td className="py-3 px-4 text-sm text-neutral-700">{location?.name || "—"}</td>
                               <td className="py-3 px-4 text-sm text-neutral-700">{formatWorkingMode(jr.workingMode)}</td>
@@ -2081,19 +2444,49 @@ export default function ProjectDetailPage() {
             {activeTab === 'staff' && (
               <div className="animate-fade-in">
                 <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">Danh sách nhân sự tham gia</h3>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-neutral-500">
-                      ({talentAssignments.length} nhân sự)
-                    </span>
-                    <button
-                      onClick={() => setShowCreateAssignmentModal(true)}
-                      className="group flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-all duration-300 shadow-soft hover:shadow-glow"
-                    >
-                      <Plus className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-                      Thêm nhân sự
-                    </button>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Danh sách nhân sự tham gia</h3>
+                    <div className="mt-1 flex items-center gap-4">
+                      <span className="text-sm text-neutral-500">
+                        ({totalAssignmentsForTable} nhân sự)
+                      </span>
+                      <label className="inline-flex items-center gap-2 text-sm text-neutral-700">
+                        <input
+                          type="checkbox"
+                          checked={showAllAssignments}
+                          onChange={(e) => {
+                            setShowAllAssignments(e.target.checked);
+                            setAssignmentPage(1);
+                          }}
+                          className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        Hiện tất cả nhân sự tham gia
+                      </label>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => {
+                      // Mở popup thuê lại (Direct Booking) - chỉ chọn talent từng làm dự án này
+                      setDirectBookingForm({
+                        talentId: 0,
+                        jobRoleLevelId: 0,
+                        partnerId: 0,
+                        startDate: "",
+                        endDate: "",
+                        jobDescription: "",
+                        estimatedClientRate: null,
+                        estimatedPartnerRate: null,
+                        currencyCode: "VND",
+                        notes: ""
+                      });
+                      setDirectBookingErrors({});
+                      setShowDirectBookingModal(true);
+                    }}
+                    className="group flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-all duration-300 shadow-soft hover:shadow-glow"
+                  >
+                    <Plus className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+                    Thuê lại nhân sự
+                  </button>
                 </div>
               {talentAssignments.length > 0 ? (
                 <div className="overflow-x-auto">
@@ -2101,6 +2494,7 @@ export default function ProjectDetailPage() {
                     <thead>
                       <tr className="border-b border-neutral-200">
                         <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Nhân sự</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Vị trí công việc</th>
                         <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Đối tác</th>
                         <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Ngày bắt đầu</th>
                         <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Ngày kết thúc</th>
@@ -2111,15 +2505,7 @@ export default function ProjectDetailPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {[...talentAssignments]
-                        .filter(a => a.projectId === Number(id))
-                        .sort((a, b) => {
-                          // Sắp xếp theo ngày cập nhật gần nhất (mới nhất trước)
-                          const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
-                          const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
-                          return dateB - dateA; // Sắp xếp giảm dần (mới nhất trước)
-                        })
-                        .map((assignment) => {
+                      {paginatedAssignmentsForTable.map((assignment) => {
                         const talent = talents.find(t => t.id === assignment.talentId);
                         const partner = partners.find(p => p.id === assignment.partnerId);
                         return (
@@ -2129,6 +2515,9 @@ export default function ProjectDetailPage() {
                           >
                             <td className="py-3 px-4 text-sm text-neutral-900 font-medium">
                               {talent?.fullName || `Nhân sự #${assignment.talentId}`}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-neutral-700">
+                              {assignment.jobRoleLevelName || "—"}
                             </td>
                             <td className="py-3 px-4 text-sm text-neutral-700">
                               {partner?.companyName || `Đối tác #${assignment.partnerId}`}
@@ -2206,6 +2595,47 @@ export default function ProjectDetailPage() {
                       })}
                     </tbody>
                   </table>
+                  {totalAssignmentsForTable > assignmentItemsPerPage && (
+                    <div className="flex items-center justify-between mt-4">
+                      <p className="text-sm text-neutral-600">
+                        Hiển thị{" "}
+                        {Math.min(
+                          assignmentItemsPerPage,
+                          totalAssignmentsForTable - (currentAssignmentPage - 1) * assignmentItemsPerPage
+                        )}{" "}
+                        / {totalAssignmentsForTable} nhân sự
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setAssignmentPage((prev) => Math.max(1, prev - 1))}
+                          disabled={currentAssignmentPage === 1}
+                          className={`px-3 py-1.5 rounded-lg text-sm border ${
+                            currentAssignmentPage === 1
+                              ? "text-neutral-400 border-neutral-200 cursor-not-allowed bg-neutral-50"
+                              : "text-neutral-700 border-neutral-300 hover:bg-neutral-50"
+                          }`}
+                        >
+                          Trước
+                        </button>
+                        <span className="text-sm text-neutral-700">
+                          Trang {currentAssignmentPage} / {totalAssignmentPages}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setAssignmentPage((prev) => Math.min(totalAssignmentPages, prev + 1))}
+                          disabled={currentAssignmentPage === totalAssignmentPages}
+                          className={`px-3 py-1.5 rounded-lg text-sm border ${
+                            currentAssignmentPage === totalAssignmentPages
+                              ? "text-neutral-400 border-neutral-200 cursor-not-allowed bg-neutral-50"
+                              : "text-neutral-700 border-neutral-300 hover:bg-neutral-50"
+                          }`}
+                        >
+                          Sau
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-8 text-neutral-500">
@@ -2387,6 +2817,387 @@ export default function ProjectDetailPage() {
                 <p className="text-neutral-500 text-center py-4">Không có lĩnh vực nào</p>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Direct Booking (Re-hiring) Modal */}
+      {showDirectBookingModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowDirectBookingModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <User className="w-5 h-5 text-primary-600" />
+                Thuê lại nhân sự (Direct Booking)
+              </h3>
+              <button
+                onClick={() => setShowDirectBookingModal(false)}
+                className="text-neutral-400 hover:text-neutral-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {loadingDirectBookingTalents ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                <p className="text-gray-500">Đang tải danh sách nhân sự đã từng tham gia...</p>
+              </div>
+            ) : (
+              <form onSubmit={handleDirectBooking} className="space-y-4">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Thuê lại</strong> các nhân sự đã từng làm trong dự án nhưng đã kết thúc,
+                    bỏ qua các bước tuyển dụng.
+                  </p>
+                </div>
+
+                {/* Talent Selection (history only) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nhân sự đã từng làm dự án <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={directBookingForm.talentId || ""}
+                    onChange={(e) => {
+                      const talentId = Number(e.target.value);
+                      // Tìm assignment gần nhất của talent này trong history (ưu tiên createdAt, fallback endDate, rồi id)
+                      const assignmentsForTalent = directBookingHistoryAssignments.filter(
+                        (a) => a.talentId === talentId && a.projectId === Number(id)
+                      );
+                      let latest = assignmentsForTalent[0];
+                      if (assignmentsForTalent.length > 1) {
+                        latest = [...assignmentsForTalent].sort((a, b) => {
+                          const aTime =
+                            (a.endDate ? new Date(a.endDate).getTime() : 0) ||
+                            (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+                          const bTime =
+                            (b.endDate ? new Date(b.endDate).getTime() : 0) ||
+                            (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+                          return bTime - aTime;
+                        })[0];
+                      }
+
+                      // Tự động gợi ý ngày bắt đầu = ngày kết thúc lần thuê trước + 1 ngày (nếu có),
+                      // nhưng vẫn cho phép chỉnh sửa lại.
+                      let suggestedStartDate = directBookingForm.startDate;
+                      let suggestedEndDate = directBookingForm.endDate;
+                      if (latest?.endDate) {
+                        const d = new Date(latest.endDate);
+                        d.setDate(d.getDate() + 1);
+                        const yyyy = d.getFullYear();
+                        const mm = String(d.getMonth() + 1).padStart(2, "0");
+                        const dd = String(d.getDate()).padStart(2, "0");
+                        const nextDayIso = `${yyyy}-${mm}-${dd}T00:00:00`;
+                        suggestedStartDate = nextDayIso;
+                        // Nếu endDate hiện tại < startDate mới thì reset endDate để tránh invalid ẩn
+                        if (suggestedEndDate && new Date(suggestedEndDate).getTime() < d.getTime()) {
+                          suggestedEndDate = "";
+                        }
+                      }
+
+                      setDirectBookingForm((prev) => ({
+                        ...prev,
+                        talentId,
+                        // partnerId không cho sale chọn, nhưng vẫn cần gửi lên BE -> lấy từ lần thuê gần nhất
+                        partnerId: latest?.partnerId || prev.partnerId || 0,
+                        // jobRoleLevelId auto-fill từ history nhưng cho phép chỉnh sửa (qua dropdown)
+                        jobRoleLevelId: latest?.jobRoleLevelId || prev.jobRoleLevelId || 0,
+                        startDate: suggestedStartDate || prev.startDate,
+                        endDate: suggestedEndDate || prev.endDate,
+                        // Chi phí dự kiến auto-fill nhưng cho phép chỉnh sửa
+                        estimatedClientRate:
+                          latest?.estimatedClientRate !== undefined && latest?.estimatedClientRate !== null
+                            ? latest.estimatedClientRate
+                            : prev.estimatedClientRate,
+                        estimatedPartnerRate:
+                          latest?.estimatedPartnerRate !== undefined && latest?.estimatedPartnerRate !== null
+                            ? latest.estimatedPartnerRate
+                            : prev.estimatedPartnerRate,
+                        currencyCode: latest?.currencyCode || prev.currencyCode || "VND",
+                      }));
+
+                      if (directBookingErrors.talentId)
+                        setDirectBookingErrors((prev) => ({ ...prev, talentId: "" }));
+                    }}
+                    required
+                    className={`w-full px-3 py-2 border rounded-lg focus:border-primary-500 focus:ring-primary-500 ${
+                      directBookingErrors.talentId ? "border-red-300" : "border-neutral-200"
+                    }`}
+                  >
+                    <option value="">Chọn talent...</option>
+                    {directBookingTalentIds.length === 0 ? (
+                      <option value="" disabled>
+                        Không có nhân sự lịch sử (Completed/Terminated) cho dự án này
+                      </option>
+                    ) : (
+                      directBookingTalentIds.map((talentId) => {
+                        const t = talents.find(x => x.id === talentId);
+                        return (
+                          <option key={talentId} value={talentId}>
+                            {t ? `${t.fullName} (${t.email || "—"})` : `Talent #${talentId}`}
+                          </option>
+                        );
+                      })
+                    )}
+                  </select>
+                  {!!directBookingErrors.talentId && (
+                    <p className="mt-1 text-sm text-red-500">{directBookingErrors.talentId}</p>
+                  )}
+                </div>
+
+                {/* Partner hiển thị từ lịch sử (không cho sale chọn) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Đối tác
+                  </label>
+                  <p className="text-sm text-neutral-800 font-medium">
+                    {(() => {
+                      const historyAssignment = directBookingHistoryAssignments.find(
+                        (a) =>
+                          a.talentId === directBookingForm.talentId &&
+                          a.projectId === Number(id)
+                      );
+                      const partnerId = historyAssignment?.partnerId || directBookingForm.partnerId;
+                      const partner = partners.find((p) => p.id === partnerId);
+                      return partner ? partner.companyName : "—";
+                    })()}
+                  </p>
+                </div>
+
+                {/* Start/End Date */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Ngày bắt đầu <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={toVietnamDateInputValue(directBookingForm.startDate)}
+                      min={(() => {
+                        // Không cho chọn ngày trước hoặc bằng ngày kết thúc lần thuê trước (nếu có)
+                        const historyAssignment = directBookingHistoryAssignments
+                          .filter(
+                            (a) =>
+                              a.talentId === directBookingForm.talentId &&
+                              a.projectId === Number(id) &&
+                              a.endDate
+                          )
+                          .sort((a, b) => {
+                            const aTime = a.endDate ? new Date(a.endDate).getTime() : 0;
+                            const bTime = b.endDate ? new Date(b.endDate).getTime() : 0;
+                            return bTime - aTime;
+                          })[0];
+
+                        let baseIso: string | undefined = project?.startDate || undefined;
+                        if (historyAssignment?.endDate) {
+                          const d = new Date(historyAssignment.endDate);
+                          d.setDate(d.getDate() + 1);
+                          const yyyy = d.getFullYear();
+                          const mm = String(d.getMonth() + 1).padStart(2, "0");
+                          const dd = String(d.getDate()).padStart(2, "0");
+                          baseIso = `${yyyy}-${mm}-${dd}T00:00:00`;
+                        }
+                        return toVietnamDateInputValue(baseIso);
+                      })()}
+                      max={toVietnamDateInputValue(project?.endDate)}
+                      onChange={(e) => {
+                        const v = e.target.value ? `${e.target.value}T00:00:00` : "";
+                        setDirectBookingForm({ ...directBookingForm, startDate: v });
+                        if (directBookingErrors.startDate) setDirectBookingErrors(prev => ({ ...prev, startDate: "" }));
+                      }}
+                      required
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-primary-500 ${
+                        directBookingErrors.startDate ? "border-red-300 focus:border-red-300" : "border-neutral-200 focus:border-primary-500"
+                      }`}
+                    />
+                    {!!directBookingErrors.startDate && (
+                      <p className="mt-1 text-sm text-red-500">{directBookingErrors.startDate}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Ngày kết thúc <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={toVietnamDateInputValue(directBookingForm.endDate)}
+                      min={(() => {
+                        // Ngày kết thúc không được trước ngày bắt đầu và cũng không được trước ngày bắt đầu hợp lệ tối thiểu (sau lần thuê trước)
+                        const historyAssignment = directBookingHistoryAssignments
+                          .filter(
+                            (a) =>
+                              a.talentId === directBookingForm.talentId &&
+                              a.projectId === Number(id) &&
+                              a.endDate
+                          )
+                          .sort((a, b) => {
+                            const aTime = a.endDate ? new Date(a.endDate).getTime() : 0;
+                            const bTime = b.endDate ? new Date(b.endDate).getTime() : 0;
+                            return bTime - aTime;
+                          })[0];
+
+                        let minIso: string | undefined = project?.startDate || undefined;
+                        if (historyAssignment?.endDate) {
+                          const d = new Date(historyAssignment.endDate);
+                          d.setDate(d.getDate() + 1);
+                          const yyyy = d.getFullYear();
+                          const mm = String(d.getMonth() + 1).padStart(2, "0");
+                          const dd = String(d.getDate()).padStart(2, "0");
+                          minIso = `${yyyy}-${mm}-${dd}T00:00:00`;
+                        }
+
+                        const startIso = directBookingForm.startDate || minIso;
+                        return toVietnamDateInputValue(startIso);
+                      })()}
+                      max={toVietnamDateInputValue(project?.endDate)}
+                      onChange={(e) => {
+                        const v = e.target.value ? `${e.target.value}T00:00:00` : "";
+                        setDirectBookingForm({ ...directBookingForm, endDate: v });
+                        if (directBookingErrors.endDate) setDirectBookingErrors(prev => ({ ...prev, endDate: "" }));
+                      }}
+                      required
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-primary-500 ${
+                        directBookingErrors.endDate ? "border-red-300 focus:border-red-300" : "border-neutral-200 focus:border-primary-500"
+                      }`}
+                    />
+                    {!!directBookingErrors.endDate && (
+                      <p className="mt-1 text-sm text-red-500">{directBookingErrors.endDate}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Job Role Level (tự lấy từ lịch sử, không cho chọn) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Vị trí công việc
+                  </label>
+                  <p className="text-sm text-neutral-800 font-medium">
+                    {(() => {
+                      const jrl = jobRoleLevels.find(j => j.id === directBookingForm.jobRoleLevelId);
+                      return jrl ? jrl.name : "—";
+                    })()}
+                  </p>
+                  {!!directBookingErrors.jobRoleLevelId && (
+                    <p className="mt-1 text-sm text-red-500">{directBookingErrors.jobRoleLevelId}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Mô tả công việc <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={directBookingForm.jobDescription}
+                    onChange={(e) => {
+                      setDirectBookingForm({ ...directBookingForm, jobDescription: e.target.value });
+                      if (directBookingErrors.jobDescription) setDirectBookingErrors(prev => ({ ...prev, jobDescription: "" }));
+                    }}
+                    rows={4}
+                    className={`w-full px-3 py-2 border rounded-lg focus:border-primary-500 focus:ring-primary-500 ${
+                      directBookingErrors.jobDescription ? "border-red-300" : "border-neutral-200"
+                    }`}
+                    placeholder="Nhập mô tả công việc..."
+                  />
+                  {!!directBookingErrors.jobDescription && (
+                    <p className="mt-1 text-sm text-red-500">{directBookingErrors.jobDescription}</p>
+                  )}
+                </div>
+
+                {/* Estimated Rates */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Chi phí dự kiến với khách hàng</label>
+                    <input
+                      type="number"
+                      value={directBookingForm.estimatedClientRate ?? ""}
+                      onChange={(e) => setDirectBookingForm({ ...directBookingForm, estimatedClientRate: e.target.value ? Number(e.target.value) : null })}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-primary-500 ${
+                        directBookingForm.estimatedClientRate !== null &&
+                        directBookingForm.estimatedPartnerRate !== null &&
+                        directBookingForm.estimatedClientRate < directBookingForm.estimatedPartnerRate
+                          ? "border-red-300 focus:border-red-300"
+                          : directBookingForm.estimatedClientRate !== null &&
+                            directBookingForm.estimatedPartnerRate !== null &&
+                            directBookingForm.estimatedClientRate === directBookingForm.estimatedPartnerRate
+                          ? "border-yellow-300 focus:border-yellow-300"
+                          : "border-neutral-200 focus:border-primary-500"
+                      }`}
+                      placeholder="0"
+                      min={0}
+                    />
+                    {!!directBookingErrors.estimatedClientRate && (
+                      <p className="mt-1 text-sm text-red-500">{directBookingErrors.estimatedClientRate}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Chi phí dự kiến với đối tác</label>
+                    <input
+                      type="number"
+                      value={directBookingForm.estimatedPartnerRate ?? ""}
+                      onChange={(e) => setDirectBookingForm({ ...directBookingForm, estimatedPartnerRate: e.target.value ? Number(e.target.value) : null })}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-primary-500 ${
+                        directBookingForm.estimatedClientRate !== null &&
+                        directBookingForm.estimatedPartnerRate !== null &&
+                        directBookingForm.estimatedClientRate < directBookingForm.estimatedPartnerRate
+                          ? "border-red-300 focus:border-red-300"
+                          : directBookingForm.estimatedClientRate !== null &&
+                            directBookingForm.estimatedPartnerRate !== null &&
+                            directBookingForm.estimatedClientRate === directBookingForm.estimatedPartnerRate
+                          ? "border-yellow-300 focus:border-yellow-300"
+                          : "border-neutral-200 focus:border-primary-500"
+                      }`}
+                      placeholder="0"
+                      min={0}
+                    />
+                    {!!directBookingErrors.estimatedPartnerRate && (
+                      <p className="mt-1 text-sm text-red-500">{directBookingErrors.estimatedPartnerRate}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Mã tiền tệ</label>
+                  <select
+                    value={directBookingForm.currencyCode}
+                    onChange={(e) => setDirectBookingForm({ ...directBookingForm, currencyCode: e.target.value })}
+                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
+                  >
+                    <option value="VND">VND</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ghi chú</label>
+                  <textarea
+                    value={directBookingForm.notes}
+                    onChange={(e) => setDirectBookingForm({ ...directBookingForm, notes: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
+                    placeholder="Ghi chú..."
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
+                  <button
+                    type="button"
+                    onClick={() => setShowDirectBookingModal(false)}
+                    className="px-4 py-2 border border-neutral-200 rounded-lg text-neutral-700 hover:bg-neutral-50 transition-colors"
+                  >
+                    Đóng
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingDirectBooking || directBookingTalentIds.length === 0}
+                    className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                  >
+                    {submittingDirectBooking ? "Đang tạo..." : "Thuê lại"}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
@@ -3055,6 +3866,12 @@ export default function ProjectDetailPage() {
                   </p>
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Vị trí công việc</label>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {selectedAssignment.jobRoleLevelName || "—"}
+                  </p>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">Đối tác</label>
                   <p className="text-sm font-semibold text-gray-900">
                     {partners.find(p => p.id === selectedAssignment.partnerId)?.companyName || `Đối tác #${selectedAssignment.partnerId}`}
@@ -3219,66 +4036,80 @@ export default function ProjectDetailPage() {
                   Đóng
                 </button>
                 {selectedAssignment.status === "Draft" && (
-                  <button
-                    onClick={async () => {
-                      // Lấy ngày lên lịch của activity cuối cùng cho application gắn với assignment (nếu có)
-                      let lastActivityDate: string | null = null;
-                      if (selectedAssignment.talentApplicationId) {
-                        try {
-                          const activitiesData = await applyActivityService.getAll({
-                            applyId: selectedAssignment.talentApplicationId,
-                            excludeDeleted: true,
-                          });
-                          const activities = ensureArray<ApplyActivity>(activitiesData);
-                          const activitiesWithDate = activities.filter(a => a.scheduledDate);
-                          if (activitiesWithDate.length > 0) {
-                            const lastActivity = activitiesWithDate.reduce((latest, current) => {
-                              if (!latest.scheduledDate) return current;
-                              if (!current.scheduledDate) return latest;
-                              return new Date(current.scheduledDate) > new Date(latest.scheduledDate) ? current : latest;
+                  <>
+                    <button
+                      onClick={() => {
+                        setCancelForm({ cancelReason: "", addToBlacklist: false, blacklistReason: "" });
+                        setCancelErrors({});
+                        setShowDetailAssignmentModal(false);
+                        setShowCancelAssignmentModal(true);
+                      }}
+                      className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                    >
+                      <X className="w-4 h-4" />
+                      Rút lui
+                    </button>
+                    <button
+                      onClick={async () => {
+                        // Lấy ngày lên lịch của activity cuối cùng cho application gắn với assignment (nếu có)
+                        let lastActivityDate: string | null = null;
+                        if (selectedAssignment.talentApplicationId) {
+                          try {
+                            const activitiesData = await applyActivityService.getAll({
+                              applyId: selectedAssignment.talentApplicationId,
+                              excludeDeleted: true,
                             });
-                            lastActivityDate = lastActivity.scheduledDate || null;
-                            setEditLastActivityScheduledDate(lastActivityDate);
-                          } else {
+                            const activities = ensureArray<ApplyActivity>(activitiesData);
+                            const activitiesWithDate = activities.filter(a => a.scheduledDate);
+                            if (activitiesWithDate.length > 0) {
+                              const lastActivity = activitiesWithDate.reduce((latest, current) => {
+                                if (!latest.scheduledDate) return current;
+                                if (!current.scheduledDate) return latest;
+                                return new Date(current.scheduledDate) > new Date(latest.scheduledDate) ? current : latest;
+                              });
+                              lastActivityDate = lastActivity.scheduledDate || null;
+                              setEditLastActivityScheduledDate(lastActivityDate);
+                            } else {
+                              setEditLastActivityScheduledDate(null);
+                            }
+                          } catch (error) {
+                            console.error("❌ Lỗi tải activity của đơn ứng tuyển:", error);
                             setEditLastActivityScheduledDate(null);
                           }
-                        } catch (error) {
-                          console.error("❌ Lỗi tải activity của đơn ứng tuyển:", error);
+                        } else {
                           setEditLastActivityScheduledDate(null);
                         }
-                      } else {
-                        setEditLastActivityScheduledDate(null);
-                      }
 
-                      // Xác định initialStartDate: ưu tiên startDate hiện tại (nếu hợp lệ), nếu không thì dùng activity date (nếu có)
-                      let initialStartDate = "";
-                      if (isValidDate(selectedAssignment.startDate)) {
-                        initialStartDate = selectedAssignment.startDate;
-                      } else if (lastActivityDate) {
-                        // Nếu không có startDate hợp lệ, dùng activity date
-                        initialStartDate = lastActivityDate;
-                      }
-                      
-                      setUpdateForm({
-                        startDate: initialStartDate,
-                        endDate: selectedAssignment.endDate || "",
-                        commitmentFileUrl: selectedAssignment.commitmentFileUrl || null,
-                        terminationDate: selectedAssignment.terminationDate || null,
-                        terminationReason: selectedAssignment.terminationReason || null,
-                        notes: selectedAssignment.notes || null,
-                        estimatedClientRate: selectedAssignment.estimatedClientRate || null,
-                        estimatedPartnerRate: selectedAssignment.estimatedPartnerRate || null,
-                        currencyCode: selectedAssignment.currencyCode || "VND"
-                      });
-                      setUpdateCommitmentFile(null);
-                      setShowDetailAssignmentModal(false);
-                      setShowUpdateAssignmentModal(true);
-                    }}
-                    className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                  >
-                    <Edit className="w-4 h-4" />
-                    Chỉnh sửa
-                  </button>
+                        // Xác định initialStartDate: ưu tiên startDate hiện tại (nếu hợp lệ), nếu không thì dùng activity date (nếu có)
+                        let initialStartDate = "";
+                        if (isValidDate(selectedAssignment.startDate)) {
+                          initialStartDate = selectedAssignment.startDate;
+                        } else if (lastActivityDate) {
+                          // Nếu không có startDate hợp lệ, dùng activity date
+                          initialStartDate = lastActivityDate;
+                        }
+                        
+                        setUpdateForm({
+                          startDate: initialStartDate,
+                          endDate: selectedAssignment.endDate || "",
+                          commitmentFileUrl: selectedAssignment.commitmentFileUrl || null,
+                          terminationDate: selectedAssignment.terminationDate || null,
+                          terminationReason: selectedAssignment.terminationReason || null,
+                          notes: selectedAssignment.notes || null,
+                          estimatedClientRate: selectedAssignment.estimatedClientRate || null,
+                          estimatedPartnerRate: selectedAssignment.estimatedPartnerRate || null,
+                          currencyCode: selectedAssignment.currencyCode || "VND"
+                        });
+                        setUpdateCommitmentFile(null);
+                        setShowDetailAssignmentModal(false);
+                        setShowUpdateAssignmentModal(true);
+                      }}
+                      className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Ghi nhận
+                    </button>
+                  </>
                 )}
                 {selectedAssignment.status === "Active" && selectedAssignment.startDate && (
                   <>
@@ -3431,6 +4262,115 @@ export default function ProjectDetailPage() {
                   className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submittingTerminate ? "Đang xử lý..." : "Chấm dứt"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Draft Talent Assignment Modal */}
+      {showCancelAssignmentModal && selectedAssignment && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <X className="w-5 h-5 text-red-600" />
+                Hủy phân công nhân sự
+              </h3>
+              <button
+                onClick={() => setShowCancelAssignmentModal(false)}
+                className="text-neutral-400 hover:text-neutral-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCancelAssignment} className="space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-800">
+                  Chỉ hủy được khi phân công đang ở trạng thái <strong>Nháp</strong>. Sau khi hủy, hệ thống sẽ cập nhật lại trạng thái của nhân sự.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Lý do hủy <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={cancelForm.cancelReason}
+                  onChange={(e) => {
+                    setCancelForm({ ...cancelForm, cancelReason: e.target.value });
+                    if (cancelErrors.cancelReason) setCancelErrors({ ...cancelErrors, cancelReason: undefined });
+                  }}
+                  rows={3}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                    cancelErrors.cancelReason ? "border-red-300 focus:ring-red-200" : "border-neutral-200 focus:ring-primary-200"
+                  }`}
+                  placeholder="Nhập lý do hủy..."
+                />
+                {cancelErrors.cancelReason && (
+                  <p className="mt-1 text-sm text-red-500">{cancelErrors.cancelReason}</p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  id="addToBlacklist"
+                  type="checkbox"
+                  checked={cancelForm.addToBlacklist}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setCancelForm(prev => ({ ...prev, addToBlacklist: checked, blacklistReason: checked ? prev.blacklistReason : "" }));
+                    setCancelErrors(prev => ({ ...prev, blacklistReason: undefined }));
+                  }}
+                  className="h-4 w-4"
+                />
+                <label htmlFor="addToBlacklist" className="text-sm text-gray-700">
+                  Thêm talent vào danh sách đen của công ty khách hàng
+                </label>
+              </div>
+
+              {cancelForm.addToBlacklist && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Lý do blacklist <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={cancelForm.blacklistReason}
+                    onChange={(e) => {
+                      setCancelForm({ ...cancelForm, blacklistReason: e.target.value });
+                      if (cancelErrors.blacklistReason) setCancelErrors({ ...cancelErrors, blacklistReason: undefined });
+                    }}
+                    rows={3}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                      cancelErrors.blacklistReason ? "border-red-300 focus:ring-red-200" : "border-neutral-200 focus:ring-primary-200"
+                    }`}
+                    placeholder="Nhập lý do blacklist..."
+                  />
+                  {cancelErrors.blacklistReason && (
+                    <p className="mt-1 text-sm text-red-500">{cancelErrors.blacklistReason}</p>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCancelAssignmentModal(false);
+                    setShowDetailAssignmentModal(true);
+                  }}
+                  className="px-4 py-2 border border-neutral-200 rounded-lg text-neutral-700 hover:bg-neutral-50 transition-colors"
+                >
+                  Quay lại
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingCancel}
+                  className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                >
+                  {submittingCancel ? "Đang hủy..." : "Xác nhận hủy"}
                 </button>
               </div>
             </form>

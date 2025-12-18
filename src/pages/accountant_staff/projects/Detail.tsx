@@ -152,6 +152,8 @@ export default function AccountantProjectDetailPage() {
       setIsProcessingAccountCreation(false);
     }
   };
+  const [showAllAssignments, setShowAllAssignments] = useState(false);
+  const [assignmentPage, setAssignmentPage] = useState(1);
 
   // Helper function to ensure data is an array
   const ensureArray = <T,>(data: unknown): T[] => {
@@ -1009,6 +1011,34 @@ export default function AccountantProjectDetailPage() {
     Draft: "Nháp",
   };
 
+  // Pagination cho danh sách nhân sự tham gia
+  const assignmentItemsPerPage = 6;
+
+  const filteredAssignmentsForTable = [...talentAssignments]
+    .filter(a => a.projectId === Number(id))
+    .filter(a =>
+      showAllAssignments
+        ? true
+        : a.status === "Draft" || a.status === "Active"
+    )
+    .sort((a, b) => {
+      // Sắp xếp theo ngày cập nhật gần nhất (mới nhất trước)
+      const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      return dateB - dateA; // Sắp xếp giảm dần (mới nhất trước)
+    });
+
+  const totalAssignmentsForTable = filteredAssignmentsForTable.length;
+  const totalAssignmentPages = totalAssignmentsForTable > 0
+    ? Math.ceil(totalAssignmentsForTable / assignmentItemsPerPage)
+    : 1;
+  const currentAssignmentPage = Math.min(assignmentPage, totalAssignmentPages);
+
+  const paginatedAssignmentsForTable = filteredAssignmentsForTable.slice(
+    (currentAssignmentPage - 1) * assignmentItemsPerPage,
+    currentAssignmentPage * assignmentItemsPerPage
+  );
+
   const statusLabels: Record<string, string> = {
     Planned: "Đã lên kế hoạch",
     Ongoing: "Đang thực hiện",
@@ -1571,10 +1601,26 @@ export default function AccountantProjectDetailPage() {
             {activeTab === 'staff' && (
               <div className="animate-fade-in">
                 <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">Danh sách nhân sự tham gia</h3>
-                  <span className="text-sm text-neutral-500">
-                    ({talentAssignments.length} nhân sự)
-                  </span>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Danh sách nhân sự tham gia</h3>
+                    <div className="mt-1 flex items-center gap-3">
+                      <span className="text-sm text-neutral-500">
+                        ({totalAssignmentsForTable} nhân sự)
+                      </span>
+                      <label className="inline-flex items-center gap-2 text-sm text-neutral-700">
+                        <input
+                          type="checkbox"
+                          checked={showAllAssignments}
+                          onChange={(e) => {
+                            setShowAllAssignments(e.target.checked);
+                            setAssignmentPage(1);
+                          }}
+                          className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        Hiện tất cả nhân sự tham gia
+                      </label>
+                    </div>
+                  </div>
                 </div>
                 {talentAssignments.length > 0 ? (
                   <div className="overflow-x-auto">
@@ -1582,6 +1628,7 @@ export default function AccountantProjectDetailPage() {
                       <thead>
                         <tr className="border-b border-neutral-200">
                           <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Nhân sự</th>
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Vị trí công việc</th>
                           <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Đối tác</th>
                           <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Ngày bắt đầu</th>
                           <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Ngày kết thúc</th>
@@ -1592,15 +1639,7 @@ export default function AccountantProjectDetailPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {[...talentAssignments]
-                          .filter(a => a.projectId === Number(id))
-                          .sort((a, b) => {
-                            // Sắp xếp theo ngày cập nhật gần nhất (mới nhất trước)
-                            const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
-                            const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
-                            return dateB - dateA; // Sắp xếp giảm dần (mới nhất trước)
-                          })
-                          .map((assignment) => {
+                        {paginatedAssignmentsForTable.map((assignment) => {
                             const talent = talents.find(t => t.id === assignment.talentId);
                             const partner = partners.find(p => p.id === assignment.partnerId);
                             return (
@@ -1614,6 +1653,9 @@ export default function AccountantProjectDetailPage() {
                               >
                                 <td className="py-3 px-4 text-sm text-neutral-900 font-medium">
                                   {talent?.fullName || `Nhân sự #${assignment.talentId}`}
+                                </td>
+                                <td className="py-3 px-4 text-sm text-neutral-700">
+                                  {assignment.jobRoleLevelName || "—"}
                                 </td>
                                 <td className="py-3 px-4 text-sm text-neutral-700">
                                   {partner?.companyName || `Đối tác #${assignment.partnerId}`}
@@ -1699,10 +1741,51 @@ export default function AccountantProjectDetailPage() {
                               </tr>
                             );
                           })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
+                        </tbody>
+                      </table>
+                      {totalAssignmentsForTable > assignmentItemsPerPage && (
+                        <div className="flex items-center justify-between mt-4">
+                          <p className="text-sm text-neutral-600">
+                            Hiển thị{" "}
+                            {Math.min(
+                              assignmentItemsPerPage,
+                              totalAssignmentsForTable - (currentAssignmentPage - 1) * assignmentItemsPerPage
+                            )}{" "}
+                            / {totalAssignmentsForTable} nhân sự
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setAssignmentPage((prev) => Math.max(1, prev - 1))}
+                              disabled={currentAssignmentPage === 1}
+                              className={`px-3 py-1.5 rounded-lg text-sm border ${
+                                currentAssignmentPage === 1
+                                  ? "text-neutral-400 border-neutral-200 cursor-not-allowed bg-neutral-50"
+                                  : "text-neutral-700 border-neutral-300 hover:bg-neutral-50"
+                              }`}
+                            >
+                              Trước
+                            </button>
+                            <span className="text-sm text-neutral-700">
+                              Trang {currentAssignmentPage} / {totalAssignmentPages}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setAssignmentPage((prev) => Math.min(totalAssignmentPages, prev + 1))}
+                              disabled={currentAssignmentPage === totalAssignmentPages}
+                              className={`px-3 py-1.5 rounded-lg text-sm border ${
+                                currentAssignmentPage === totalAssignmentPages
+                                  ? "text-neutral-400 border-neutral-200 cursor-not-allowed bg-neutral-50"
+                                  : "text-neutral-700 border-neutral-300 hover:bg-neutral-50"
+                              }`}
+                            >
+                              Sau
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
                   <div className="text-center py-8 text-neutral-500">
                     <UserCheck className="w-12 h-12 mx-auto mb-3 text-neutral-400" />
                     <p>Chưa có nhân sự nào được phân công</p>
@@ -1741,6 +1824,12 @@ export default function AccountantProjectDetailPage() {
                   <label className="block text-sm font-medium text-gray-500 mb-1">Nhân sự</label>
                   <p className="text-sm font-semibold text-gray-900">
                     {talents.find(t => t.id === selectedAssignment.talentId)?.fullName || `Nhân sự #${selectedAssignment.talentId}`}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Vị trí công việc</label>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {selectedAssignment.jobRoleLevelName || "—"}
                   </p>
                 </div>
                 <div>
