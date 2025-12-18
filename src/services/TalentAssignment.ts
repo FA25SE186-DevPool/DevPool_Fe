@@ -1,9 +1,9 @@
 import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
-import { TalentAssignmentStatusConstants, type TalentAssignmentModel, type TalentAssignmentCreateModel, type TalentAssignmentExtendModel, type TalentAssignmentTerminateModel, type TalentAssignmentUpdateModel, type TalentAssignmentFilter } from "../types/talentassignment.types";
+import { TalentAssignmentStatusConstants, type TalentAssignmentModel, type TalentAssignmentCreateModel, type TalentAssignmentExtendModel, type TalentAssignmentTerminateModel, type TalentAssignmentUpdateModel, type TalentAssignmentFilter, type TalentAssignmentCancelModel, type TalentAssignmentDirectBookingModel, type TalentAssignmentValidateTalentResponse } from "../types/talentassignment.types";
 
 export { TalentAssignmentStatusConstants };
-export type { TalentAssignmentModel, TalentAssignmentCreateModel, TalentAssignmentExtendModel, TalentAssignmentTerminateModel, TalentAssignmentUpdateModel, TalentAssignmentFilter };
+export type { TalentAssignmentModel, TalentAssignmentCreateModel, TalentAssignmentExtendModel, TalentAssignmentTerminateModel, TalentAssignmentUpdateModel, TalentAssignmentFilter, TalentAssignmentCancelModel, TalentAssignmentDirectBookingModel, TalentAssignmentValidateTalentResponse };
 
 export const talentAssignmentService = {
   async getAll(filter?: TalentAssignmentFilter) {
@@ -135,6 +135,65 @@ export const talentAssignmentService = {
         throw error.response?.data || { message: "Không thể tải danh sách phân công đang hoạt động" };
       }
       throw { message: "Lỗi không xác định khi tải danh sách phân công đang hoạt động" };
+    }
+  },
+
+  async cancel(id: number, payload: TalentAssignmentCancelModel) {
+    try {
+      const response = await apiClient.post(`/talentassignment/${id}/cancel`, payload);
+      return response.data as TalentAssignmentModel;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        throw error.response?.data || { message: "Không thể hủy phân công nhân sự" };
+      }
+      throw { message: "Lỗi không xác định khi hủy phân công nhân sự" };
+    }
+  },
+
+  async getHistoryByProject(projectId: number) {
+    try {
+      const response = await apiClient.get(`/talentassignment/project/${projectId}/history`);
+      const data = response.data;
+      if (Array.isArray(data)) {
+        return data as TalentAssignmentModel[];
+      } else if (data && Array.isArray(data.data)) {
+        return data.data as TalentAssignmentModel[];
+      } else {
+        console.warn("⚠️ Response không phải là mảng:", data);
+        return [] as TalentAssignmentModel[];
+      }
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        throw error.response?.data || { message: "Không thể tải lịch sử phân công theo dự án" };
+      }
+      throw { message: "Lỗi không xác định khi tải lịch sử phân công theo dự án" };
+    }
+  },
+
+  async directBooking(payload: TalentAssignmentDirectBookingModel) {
+    try {
+      const response = await apiClient.post(`/talentassignment/direct-booking`, payload);
+      return response.data as TalentAssignmentModel;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        throw error.response?.data || { message: "Không thể tạo phân công theo hình thức Direct Booking" };
+      }
+      throw { message: "Lỗi không xác định khi tạo Direct Booking" };
+    }
+  },
+
+  async validateTalent(talentId: number, projectId: number) {
+    try {
+      const params = new URLSearchParams();
+      params.append("talentId", talentId.toString());
+      params.append("projectId", projectId.toString());
+      const response = await apiClient.get(`/talentassignment/validate-talent?${params.toString()}`);
+      return response.data as TalentAssignmentValidateTalentResponse;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        throw error.response?.data || { message: "Không thể kiểm tra talent có thể được assign" };
+      }
+      throw { message: "Lỗi không xác định khi validate talent cho assignment" };
     }
   },
 };
