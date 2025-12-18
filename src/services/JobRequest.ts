@@ -2,6 +2,11 @@ import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import { JobRequestStatus, type JobSkill, type JobRequest, type JobRequestPayload, type JobRequestStatusUpdateModel, type JobRequestFilter } from "../types/jobrequest.types";
 
+export interface OwnershipTransferModel {
+  newOwnerId: string;
+  reason?: string;
+}
+
 export { JobRequestStatus };
 export type { JobSkill, JobRequest, JobRequestPayload, JobRequestStatusUpdateModel, JobRequestFilter };
 
@@ -77,6 +82,17 @@ export const jobRequestService = {
       if (error instanceof AxiosError)
         throw error.response?.data || { message: "Không thể xóa yêu cầu tuyển dụng" };
       throw { message: "Lỗi không xác định khi xóa yêu cầu tuyển dụng" };
+    }
+  },
+
+  async transferOwnership(id: number, payload: OwnershipTransferModel) {
+    try {
+      const response = await apiClient.post(`/jobrequest/${id}/transfer-ownership`, payload);
+      return response.data;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError)
+        throw error.response?.data || { message: "Không thể chuyển quyền sở hữu yêu cầu tuyển dụng" };
+      throw { message: "Lỗi không xác định khi chuyển quyền sở hữu yêu cầu tuyển dụng" };
     }
   },
 

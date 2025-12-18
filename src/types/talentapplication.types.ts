@@ -10,6 +10,8 @@ export interface TalentApplication {
   jobRequestId: number;
   cvId: number;
   submittedBy: string;
+  recruiterId: string;
+  recruiterName: string;
   status: string;
   note?: string;
   convertedCVPath?: string | null;
@@ -135,5 +137,37 @@ export interface TalentApplicationsByJobRequestResponse {
     totalApplications: number;
     applications: TalentApplicationDetailed[];
   };
+}
+
+export interface ApplicationOwnershipTransferModel {
+  newRecruiterId: string;
+  reason?: string;
+}
+
+export interface BulkApplicationOwnershipTransferModel {
+  applicationIds: number[];
+  newRecruiterId: string;
+  reason?: string;
+}
+
+export interface ApplicationOwnershipTransferResult {
+  isSuccess: boolean;
+  message: string;
+  oldRecruiterId?: string;
+  newRecruiterId?: string;
+  auditLogId?: number;
+}
+
+export interface BulkApplicationOwnershipTransferResult {
+  isSuccess: boolean;
+  message: string;
+  totalTransferred: number;
+  totalFailed: number;
+  results: {
+    applicationId: number;
+    isSuccess: boolean;
+    message: string;
+  }[];
+  auditLogIds?: number[];
 }
 

@@ -9,6 +9,7 @@ import { jobRoleLevelService, type JobRoleLevel } from "../../../services/JobRol
 import { skillService, type Skill } from "../../../services/Skill";
 import { locationService } from "../../../services/location";
 import { applyProcessTemplateService } from "../../../services/ApplyProcessTemplate";
+import { applyProcessStepService, type ApplyProcessStep } from "../../../services/ApplyProcessStep";
 import { Button } from "../../../components/ui/button";
 import { jobSkillService, type JobSkill } from "../../../services/JobSkill";
 import { clientCompanyCVTemplateService } from "../../../services/ClientCompanyTemplate";
@@ -16,13 +17,13 @@ import { talentApplicationService, type TalentApplication } from "../../../servi
 import { talentCVService, type TalentCV } from "../../../services/TalentCV";
 import { talentService, type Talent } from "../../../services/Talent";
 import { sidebarItems } from "../../../components/sidebar/ta_staff";
-import { 
-  CheckCircle, 
-  XCircle, 
-  Building2, 
-  Briefcase, 
-  Users, 
-  FileText, 
+import {
+  CheckCircle,
+  XCircle,
+  Building2,
+  Briefcase,
+  Users,
+  FileText,
   Target,
   Clock,
   AlertCircle,
@@ -41,7 +42,11 @@ import {
   FileUser,
   ChevronLeft,
   ChevronRight,
-  AlertTriangle
+  AlertTriangle,
+  X,
+  Mail,
+  Phone,
+  Calendar
 } from "lucide-react";
 import { notificationService, NotificationPriority, NotificationType } from "../../../services/Notification";
 import { userService } from "../../../services/User";
@@ -54,6 +59,7 @@ interface JobRequestDetail {
     projectId: number;
     applyProcessTemplateId?: number | null;
     clientCompanyCVTemplateId: number;
+    clientCompanyId?: number;
     title: string;
     projectName?: string;
     clientCompanyName?: string;
@@ -77,13 +83,21 @@ export default function JobRequestDetailHRPage() {
     const [jobSkills, setJobSkills] = useState<{ id: number; name: string }[]>([]);
     const [locationName, setLocationName] = useState<string>("—");
     const [applyProcessTemplateName, setApplyProcessTemplateName] = useState<string>("—");
+    const [templateSteps, setTemplateSteps] = useState<ApplyProcessStep[]>([]);
     const [effectiveSubmittedCount, setEffectiveSubmittedCount] = useState<number>(0);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [showRejectDialog, setShowRejectDialog] = useState(false);
     const [rejectNote, setRejectNote] = useState("");
     const [activeTab, setActiveTab] = useState<string>("general");
-    
+    const [isProcessStepsPopupOpen, setIsProcessStepsPopupOpen] = useState(false);
+    const [isClientCompanyPopupOpen, setIsClientCompanyPopupOpen] = useState(false);
+    const [clientCompanyDetail, setClientCompanyDetail] = useState<any>(null);
+    const [clientCompanyDetailLoading, setClientCompanyDetailLoading] = useState(false);
+    const [isProjectPopupOpen, setIsProjectPopupOpen] = useState(false);
+    const [projectDetail, setProjectDetail] = useState<any>(null);
+    const [projectDetailLoading, setProjectDetailLoading] = useState(false);
+
     // Applications state
     const [applications, setApplications] = useState<any[]>([]);
     const [applicationsLoading, setApplicationsLoading] = useState(false);
@@ -116,8 +130,24 @@ export default function JobRequestDetailHRPage() {
         Withdrawn: "bg-gray-100 text-gray-800",
     };
 
-    // Helper function to ensure data is an array
-    const ensureArray = <T,>(data: unknown): T[] => {
+  // Format date and time as "07:00 18/12/2025"
+  const formatDateTime = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear();
+
+      return `${hours}:${minutes} ${day}/${month}/${year}`;
+    } catch {
+      return dateString; // fallback to original string
+    }
+  };
+
+  // Helper function to ensure data is an array
+  const ensureArray = <T,>(data: unknown): T[] => {
         if (Array.isArray(data)) return data as T[];
         if (data && typeof data === "object") {
             // Handle PagedResult with Items (C# convention) or items (JS convention)
@@ -182,6 +212,15 @@ export default function JobRequestDetailHRPage() {
                 try {
                     const apt = await applyProcessTemplateService.getById(jobReqData.applyProcessTemplateId);
                     setApplyProcessTemplateName(apt?.name ?? "—");
+
+                // Load template steps
+                const steps = await applyProcessStepService.getAll({
+                  templateId: jobReqData.applyProcessTemplateId,
+                  excludeDeleted: true
+                });
+                const stepArray = ensureArray<ApplyProcessStep>(steps);
+                stepArray.sort((a, b) => (a.stepOrder ?? 0) - (b.stepOrder ?? 0));
+                setTemplateSteps(stepArray);
                 } catch {}
             }
 
@@ -191,6 +230,7 @@ export default function JobRequestDetailHRPage() {
                 clientCompanyName: clientCompany?.name || "—",
                 jobPositionName: position?.name || "—",
                 clientCompanyCVTemplateName: templateName,
+                clientCompanyId: project?.clientCompanyId,
             };
 
             const jobSkillData = (await jobSkillService.getAll({
@@ -437,6 +477,52 @@ export default function JobRequestDetailHRPage() {
         navigate(`/ta/job-requests/matching-cv?jobRequestId=${id}`);
     };
 
+    const openProcessStepsPopup = () => setIsProcessStepsPopupOpen(true);
+    const closeProcessStepsPopup = () => setIsProcessStepsPopupOpen(false);
+
+    const openClientCompanyPopup = async () => {
+      if (!jobRequest || !jobRequest.clientCompanyId) return;
+
+      setIsClientCompanyPopupOpen(true);
+      setClientCompanyDetailLoading(true);
+
+      try {
+        const detail = await clientCompanyService.getById(jobRequest.clientCompanyId);
+        setClientCompanyDetail(detail);
+      } catch (error) {
+        console.error("Failed to load client company detail:", error);
+      } finally {
+        setClientCompanyDetailLoading(false);
+      }
+    };
+
+    const closeClientCompanyPopup = () => {
+      setIsClientCompanyPopupOpen(false);
+      setClientCompanyDetail(null);
+    };
+
+    const openProjectPopup = async () => {
+      if (!jobRequest || !jobRequest.projectId) return;
+
+      setIsProjectPopupOpen(true);
+      setProjectDetailLoading(true);
+
+      try {
+        const detail = await projectService.getById(jobRequest.projectId);
+        setProjectDetail(detail);
+      } catch (error) {
+        console.error("Failed to load project detail:", error);
+        setProjectDetail(null);
+      } finally {
+        setProjectDetailLoading(false);
+      }
+    };
+
+    const closeProjectPopup = () => {
+      setIsProjectPopupOpen(false);
+      setProjectDetail(null);
+    };
+
     if (loading) {
         return (
             <div className="flex bg-gray-50 min-h-screen">
@@ -657,15 +743,17 @@ export default function JobRequestDetailHRPage() {
                                         value={jobRequest.code ?? "—"} 
                                         icon={<FileText className="w-4 h-4" />}
                                     />
-                                    <InfoItem 
-                                        label="Công ty khách hàng" 
-                                        value={jobRequest.clientCompanyName ?? "—"} 
+                                    <InfoItem
+                                        label="Công ty khách hàng"
+                                        value={jobRequest.clientCompanyName ?? "—"}
                                         icon={<Building2 className="w-4 h-4" />}
+                                        onClick={jobRequest.clientCompanyId ? openClientCompanyPopup : undefined}
                                     />
-                                    <InfoItem 
-                                        label="Dự án" 
-                                        value={jobRequest.projectName ?? "—"} 
+                                    <InfoItem
+                                        label="Dự án"
+                                        value={jobRequest.projectName ?? "—"}
                                         icon={<Layers className="w-4 h-4" />}
+                                        onClick={jobRequest.projectId ? openProjectPopup : undefined}
                                     />
                                 </div>
 
@@ -695,10 +783,11 @@ export default function JobRequestDetailHRPage() {
                                         value={workingModeLabels[Number(jobRequest.workingMode ?? 0)] ?? "—"} 
                                         icon={<GraduationCap className="w-4 h-4" />}
                                     />
-                                    <InfoItem 
-                                        label="Quy trình ứng tuyển" 
-                                        value={applyProcessTemplateName} 
+                                    <InfoItem
+                                        label="Quy trình ứng tuyển"
+                                        value={applyProcessTemplateName}
                                         icon={<FileCheck className="w-4 h-4" />}
+                                        onClick={templateSteps.length > 0 ? openProcessStepsPopup : undefined}
                                     />
                                 </div>
                             </div>
@@ -719,6 +808,19 @@ export default function JobRequestDetailHRPage() {
 
                         {activeTab === "requirements" && (
                             <div className="space-y-6 animate-fade-in">
+                                {/* Yêu cầu ứng viên */}
+                                <div className="rounded-2xl border border-neutral-100 bg-white p-5">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Briefcase className="w-4 h-4 text-primary-600" />
+                                        <p className="text-sm font-semibold text-neutral-800">Yêu cầu ứng viên</p>
+                                    </div>
+                                    <div className="prose prose-sm max-w-none">
+                                        <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                                            {jobRequest.requirements || "Chưa có yêu cầu cụ thể cho ứng viên"}
+                                        </p>
+                                    </div>
+                                </div>
+
                                 {/* Kỹ năng yêu cầu */}
                                 <div className="rounded-2xl border border-neutral-100 bg-white p-5">
                                     <div className="flex items-center gap-2 mb-3">
@@ -738,23 +840,12 @@ export default function JobRequestDetailHRPage() {
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="text-center py-6">
-                                            <p className="text-neutral-500 text-sm font-medium">Chưa có kỹ năng yêu cầu</p>
-                                            <p className="text-neutral-400 text-xs mt-1">Thêm kỹ năng để tìm ứng viên phù hợp</p>
+                                        <div className="text-center py-8">
+                                            <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                <Star className="w-8 h-8 text-neutral-400" />
+                                            </div>
+                                            <p className="text-neutral-500 text-lg font-medium">Chưa có kỹ năng yêu cầu</p>
                                         </div>
-                                    )}
-                                </div>
-
-                                {/* Yêu cầu ứng viên */}
-                                <div className="prose prose-sm max-w-none">
-                                    <h3 className="text-lg font-semibold text-neutral-800 mb-4">Yêu cầu ứng viên</h3>
-                                    {jobRequest.requirements ? (
-                                        <div 
-                                            className="text-gray-700 leading-relaxed"
-                                            dangerouslySetInnerHTML={{ __html: jobRequest.requirements }}
-                                        />
-                                    ) : (
-                                        <p className="text-gray-500 italic">Chưa có yêu cầu cụ thể cho ứng viên</p>
                                     )}
                                 </div>
                             </div>
@@ -1037,21 +1128,260 @@ export default function JobRequestDetailHRPage() {
                     </div>
                 </div>
             )}
+
+            {/* Project Info Popup */}
+            {isProjectPopupOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={closeProjectPopup}>
+                <div
+                  className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between z-10">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary-100 rounded-lg">
+                        <Layers className="w-5 h-5 text-primary-600" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-900">Thông tin dự án</h3>
+                    </div>
+                    <button
+                      onClick={closeProjectPopup}
+                      className="text-neutral-400 hover:text-neutral-600 transition-colors p-1 rounded hover:bg-neutral-100"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="p-6">
+                    {projectDetailLoading ? (
+                      <div className="flex justify-center items-center py-12">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                          <p className="text-neutral-600">Đang tải thông tin...</p>
+                        </div>
+                      </div>
+                    ) : projectDetail ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-6">
+                          <div>
+                            <p className="text-sm font-medium text-neutral-500 mb-2">Mã dự án</p>
+                            <p className="text-gray-900 font-semibold">{projectDetail.code || '—'}</p>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <Layers className="w-4 h-4 text-neutral-400" />
+                              <p className="text-sm font-medium text-neutral-500">Tên dự án</p>
+                            </div>
+                            <p className="text-gray-900 font-semibold">{projectDetail.name || '—'}</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-6">
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <Calendar className="w-4 h-4 text-neutral-400" />
+                              <p className="text-sm font-medium text-neutral-500">Ngày bắt đầu</p>
+                            </div>
+                            <p className="text-gray-900 font-semibold">
+                              {projectDetail.startDate ? formatDateTime(projectDetail.startDate) : '—'}
+                            </p>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <Calendar className="w-4 h-4 text-neutral-400" />
+                              <p className="text-sm font-medium text-neutral-500">Ngày kết thúc</p>
+                            </div>
+                            <p className="text-gray-900 font-semibold">
+                              {projectDetail.endDate ? formatDateTime(projectDetail.endDate) : '—'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Layers className="w-8 h-8 text-neutral-400" />
+                        </div>
+                        <p className="text-neutral-500 text-lg font-medium">Không tìm thấy thông tin dự án</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Client Company Info Popup */}
+            {isClientCompanyPopupOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={closeClientCompanyPopup}>
+                <div
+                  className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between z-10">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary-100 rounded-lg">
+                        <Building2 className="w-5 h-5 text-primary-600" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-900">Thông tin công ty khách hàng</h3>
+                    </div>
+                    <button
+                      onClick={closeClientCompanyPopup}
+                      className="text-neutral-400 hover:text-neutral-600 transition-colors p-1 rounded hover:bg-neutral-100"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="p-6">
+                    {clientCompanyDetailLoading ? (
+                      <div className="flex justify-center items-center py-12">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                          <p className="text-neutral-600">Đang tải thông tin...</p>
+                        </div>
+                      </div>
+                    ) : clientCompanyDetail ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-6">
+                          <div>
+                            <p className="text-sm font-medium text-neutral-500 mb-2">Mã công ty</p>
+                            <p className="text-gray-900 font-semibold">{clientCompanyDetail.code || '—'}</p>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <Building2 className="w-4 h-4 text-neutral-400" />
+                              <p className="text-sm font-medium text-neutral-500">Tên công ty</p>
+                            </div>
+                            <p className="text-gray-900 font-semibold">{clientCompanyDetail.name || '—'}</p>
+                          </div>
+
+                          <div>
+                            <p className="text-sm font-medium text-neutral-500 mb-2">Mã số thuế</p>
+                            <p className="text-gray-900 font-semibold">{clientCompanyDetail.taxCode || '—'}</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-6">
+                          <div>
+                            <p className="text-sm font-medium text-neutral-500 mb-2">Người đại diện</p>
+                            <p className="text-gray-900 font-semibold">{clientCompanyDetail.contactPerson || '—'}</p>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <Mail className="w-4 h-4 text-neutral-400" />
+                              <p className="text-sm font-medium text-neutral-500">Email</p>
+                            </div>
+                            <p className="text-gray-900 font-semibold">{clientCompanyDetail.email || '—'}</p>
+                          </div>
+
+                          <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Phone className="w-4 h-4 text-neutral-400" />
+                            <p className="text-sm font-medium text-neutral-500">Số điện thoại</p>
+                          </div>
+                          <p className="text-gray-900 font-semibold">{clientCompanyDetail.phone || '—'}</p>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <MapPin className="w-4 h-4 text-neutral-400" />
+                              <p className="text-sm font-medium text-neutral-500">Địa chỉ</p>
+                            </div>
+                            <p className="text-gray-900 font-semibold">{clientCompanyDetail.address || '—'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Building2 className="w-8 h-8 text-neutral-400" />
+                        </div>
+                        <p className="text-neutral-500 text-lg font-medium">Không tìm thấy thông tin công ty</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Process Steps Popup */}
+            {isProcessStepsPopupOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    onMouseDown={(e) => {
+                        if (e.target === e.currentTarget) closeProcessStepsPopup();
+                    }}
+                >
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-fade-in overflow-hidden border border-neutral-200">
+                        <div className="p-5 border-b border-neutral-200 bg-gradient-to-r from-neutral-50 to-primary-50 flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                                <h3 className="text-base font-semibold text-neutral-900">Các bước quy trình</h3>
+                                <p className="text-sm text-neutral-700 mt-1 truncate">{applyProcessTemplateName || "—"}</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closeProcessStepsPopup}
+                                className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-neutral-600 hover:bg-neutral-100"
+                                aria-label="Đóng"
+                                title="Đóng"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-5">
+                            {templateSteps.length === 0 ? (
+                                <p className="text-sm text-neutral-600">Chưa có bước quy trình.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {templateSteps.map((step, idx) => (
+                                        <div
+                                            key={step.id ?? `${step.stepName}-${idx}`}
+                                            className="rounded-xl border border-neutral-200 bg-white p-4"
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary-100 text-primary-700 text-xs font-semibold">
+                                                    {step.stepOrder ?? idx + 1}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-semibold text-neutral-900">{step.stepName || `Bước ${idx + 1}`}</p>
+                                                    {step.description ? (
+                                                        <p className="text-xs text-neutral-600 mt-1 whitespace-pre-line">{step.description}</p>
+                                                    ) : null}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
 
 
-function InfoItem({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
-    return (
-        <div className="group">
-            <div className="flex items-center gap-2 mb-2">
-                {icon && <div className="text-neutral-400">{icon}</div>}
-                <p className="text-neutral-500 text-sm font-medium">{label}</p>
-            </div>
-            <p className="text-gray-900 font-semibold group-hover:text-primary-700 transition-colors duration-300">
-                {value || "—"}
-            </p>
-        </div>
-    );
+function InfoItem({ label, value, icon, onClick }: { label: string; value: string; icon?: React.ReactNode; onClick?: () => void }) {
+  return (
+    <div className={`group ${onClick ? 'cursor-pointer' : ''}`} onClick={onClick}>
+      <div className="flex items-center gap-2 mb-2">
+        {icon && <div className="text-neutral-400">{icon}</div>}
+        <p className="text-neutral-500 text-sm font-medium">{label}</p>
+      </div>
+      <p className={`font-semibold transition-colors duration-300 ${
+        onClick
+          ? 'text-primary-600 hover:text-primary-800'
+          : 'text-gray-900 group-hover:text-primary-700'
+      }`}>
+        {value || "—"}
+      </p>
+    </div>
+  );
 }

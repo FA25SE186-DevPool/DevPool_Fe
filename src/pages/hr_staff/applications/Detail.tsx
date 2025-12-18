@@ -31,7 +31,6 @@ import {
   X,
   Mail,
   Phone,
-  Target,
   MapPin,
   GraduationCap,
   Users,
@@ -104,6 +103,8 @@ export default function TalentCVApplicationDetailPage() {
   const [clientCompanyName, setClientCompanyName] = useState<string>("—");
   const [jobRoleLevelName, setJobRoleLevelName] = useState<string>("—");
   const [cvJobRoleLevelName, setCvJobRoleLevelName] = useState<string>("—");
+  const [projectName, setProjectName] = useState<string>("—");
+  const [jobRequestLocationName, setJobRequestLocationName] = useState<string>("—");
   const [showJobDetails, setShowJobDetails] = useState(false);
   const [applyProcessTemplateName, setApplyProcessTemplateName] = useState<string>("—");
   const [isTalentPopupOpen, setIsTalentPopupOpen] = useState(false);
@@ -537,6 +538,8 @@ export default function TalentCVApplicationDetailPage() {
         if (jobReqData.projectId) {
           try {
             const proj = await projectService.getById(jobReqData.projectId);
+            setProjectName(proj?.name ?? "—");
+
             if (proj?.clientCompanyId) {
               setClientCompanyId(proj.clientCompanyId);
               try {
@@ -550,12 +553,14 @@ export default function TalentCVApplicationDetailPage() {
               setClientCompanyName("—");
             }
           } catch {
+            setProjectName("—");
             setClientCompanyId(null);
             setClientCompanyName("—");
           }
         } else {
           setClientCompanyId(null);
           setClientCompanyName("—");
+          setProjectName("—");
         }
 
         // Job role level
@@ -580,6 +585,18 @@ export default function TalentCVApplicationDetailPage() {
           }
         } catch {
           setApplyProcessTemplateName("—");
+        }
+
+        // Job request location
+        try {
+          if (jobReqData.locationId) {
+            const location = await locationService.getById(jobReqData.locationId);
+            setJobRequestLocationName(location?.name ?? "—");
+          } else {
+            setJobRequestLocationName("—");
+          }
+        } catch {
+          setJobRequestLocationName("—");
         }
 
       } catch {
@@ -1404,83 +1421,81 @@ export default function TalentCVApplicationDetailPage() {
                 {showJobDetails ? "Thu gọn" : "Xem chi tiết"}
               </button>
             </div>
-            {showJobDetails ? (
-              <div className="p-6 grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
-                {/* Cột trái ~40%: Meta */}
-                <div className="lg:col-span-2 space-y-4">
-                  <InfoRow label="Công ty khách hàng" value={clientCompanyName} icon={<Building2 className="w-4 h-4" />} />
-                  <InfoRow label="Vị trí tuyển dụng" value={jobRoleLevelName} icon={<Users className="w-4 h-4" />} />
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <InfoRow
+                label="Công ty khách hàng"
+                value={clientCompanyName}
+                icon={<Building2 className="w-4 h-4" />}
+              />
+              <InfoRow
+                label="Dự án"
+                value={projectName}
+                icon={<Briefcase className="w-4 h-4" />}
+              />
+              <InfoRow
+                label="Vị trí tuyển dụng"
+                value={jobRoleLevelName}
+                icon={<Users className="w-4 h-4" />}
+              />
+              <InfoRow
+                label="Chế độ làm việc"
+                value={getWorkingModeDisplay(jobRequest.workingMode)}
+                icon={<GraduationCap className="w-4 h-4" />}
+              />
+              <InfoRow
+                label="Khu vực làm việc"
+                value={jobRequestLocationName}
+                icon={<MapPin className="w-4 h-4" />}
+              />
+              <InfoRow
+                label="Quy trình ứng tuyển"
+                value={
+                  templateSteps.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={openProcessStepsPopup}
+                      className="text-left font-semibold text-primary-700 hover:text-primary-800 hover:underline"
+                      title="Xem các bước quy trình"
+                    >
+                      {applyProcessTemplateName}
+                    </button>
+                  ) : (
+                    applyProcessTemplateName || "—"
+                  )
+                }
+                icon={<FileCheck className="w-4 h-4" />}
+              />
+              {showJobDetails && (
+                <>
                   <InfoRow
-                    label="Chế độ làm việc"
-                    value={getWorkingModeDisplay(jobRequest.workingMode)}
-                    icon={<GraduationCap className="w-4 h-4" />}
+                    label="Mô tả công việc"
+                    value={
+                      <div className="mt-2 p-3 bg-neutral-50 rounded-lg">
+                        <div
+                          className="prose prose-sm max-w-none text-gray-700"
+                          dangerouslySetInnerHTML={{
+                            __html: jobRequest?.description || "Chưa có mô tả",
+                          }}
+                        />
+                      </div>
+                    }
                   />
-                  <InfoRow label="Quy trình ứng tuyển" value={applyProcessTemplateName} icon={<FileCheck className="w-4 h-4" />} />
-                </div>
-
-                {/* Cột phải ~60%: Content */}
-                <div className="lg:col-span-3 space-y-6">
-                  <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <FileText className="w-4 h-4 text-neutral-500" />
-                      <p className="text-sm font-semibold text-neutral-800">Mô tả công việc</p>
-                    </div>
-                    {jobRequest.description ? (
-                      <div
-                        className="prose prose-sm text-gray-700 leading-relaxed max-w-none"
-                        dangerouslySetInnerHTML={{ __html: jobRequest.description }}
-                      />
-                    ) : (
-                      <p className="text-sm text-neutral-500 italic">Chưa có mô tả</p>
-                    )}
-                  </div>
-
-                  <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Target className="w-4 h-4 text-neutral-500" />
-                      <p className="text-sm font-semibold text-neutral-800">Yêu cầu ứng viên</p>
-                    </div>
-                    {jobRequest.requirements ? (
-                      <div
-                        className="prose prose-sm text-gray-700 leading-relaxed max-w-none"
-                        dangerouslySetInnerHTML={{ __html: jobRequest.requirements }}
-                      />
-                    ) : (
-                      <p className="text-sm text-neutral-500 italic">Chưa có yêu cầu ứng viên</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              // Khi chưa bấm "Xem chi tiết": layout 2 cột, 2 hàng (không khối bao)
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                <InfoRow label="Công ty khách hàng" value={clientCompanyName} icon={<Building2 className="w-4 h-4" />} />
-                <InfoRow
-                  label="Chế độ làm việc"
-                  value={getWorkingModeDisplay(jobRequest.workingMode)}
-                  icon={<GraduationCap className="w-4 h-4" />}
-                />
-                <InfoRow label="Vị trí tuyển dụng" value={jobRoleLevelName} icon={<Users className="w-4 h-4" />} />
-                <InfoRow
-                  label="Quy trình ứng tuyển"
-                  value={
-                    templateSteps.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={openProcessStepsPopup}
-                        className="text-left font-semibold text-primary-700 hover:text-primary-800 hover:underline"
-                        title="Xem các bước quy trình"
-                      >
-                        {applyProcessTemplateName}
-                      </button>
-                    ) : (
-                      applyProcessTemplateName || "—"
-                    )
-                  }
-                  icon={<FileCheck className="w-4 h-4" />}
-                />
-              </div>
-            )}
+                  <InfoRow
+                    label="Yêu cầu ứng viên"
+                    value={
+                      <div className="mt-2 p-3 bg-neutral-50 rounded-lg">
+                        <div
+                          className="prose prose-sm max-w-none text-gray-700"
+                          dangerouslySetInnerHTML={{
+                            __html: jobRequest?.requirements || "Chưa có yêu cầu",
+                          }}
+                        />
+                      </div>
+                    }
+                  />
+                </>
+              )}
+            </div>
           </div>
         )}
 

@@ -38,6 +38,7 @@ export default function ProjectEditPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
+    const [statusChangeSuccess, setStatusChangeSuccess] = useState(false);
 
     const [formData, setFormData] = useState<
         Partial<Omit<ProjectPayload, "industryIds">> & { industryIds: number[] }
@@ -53,6 +54,32 @@ export default function ProjectEditPage() {
     });
     const [originalStatus, setOriginalStatus] = useState<string>("");
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+    const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+
+    // Date helpers for input min/max
+    const today = new Date();
+    const formatDateInput = (d: Date) => d.toISOString().split("T")[0];
+
+    const fiveYearsAgo = new Date(today);
+    fiveYearsAgo.setFullYear(today.getFullYear() - 5);
+
+    const fiveYearsLater = new Date(today);
+    fiveYearsLater.setFullYear(today.getFullYear() + 5);
+
+    const tenYearsLater = new Date(today);
+    tenYearsLater.setFullYear(today.getFullYear() + 10);
+
+    const startDateMin = formatDateInput(fiveYearsAgo);
+    const startDateMax = formatDateInput(fiveYearsLater);
+
+    // Ngày kết thúc: min = ngày sau StartDate (nếu có), max = hôm nay + 10 năm
+    let endDateMin: string | undefined;
+    if (formData.startDate) {
+        const start = new Date(formData.startDate);
+        start.setDate(start.getDate() + 1);
+        endDateMin = formatDateInput(start);
+    }
+    const endDateMax: string | undefined = formatDateInput(tenYearsLater);
 
     // Helper function to ensure data is an array
     const ensureArray = <T,>(data: unknown): T[] => {
@@ -143,13 +170,147 @@ export default function ProjectEditPage() {
         }));
     };
 
+    const handleStatusChange = async (newStatus: string) => {
+        if (!id || !project) return;
+        if (!newStatus || newStatus === originalStatus) return;
+
+        // Kiểm tra chuyển status: Completed → status khác (disable)
+        if (originalStatus === "Completed" && newStatus !== "Completed") {
+            setError("⚠️ Không thể thay đổi trạng thái từ 'Đã hoàn thành' sang trạng thái khác!");
+            return;
+        }
+
+        // Kiểm tra chuyển status: Planned → chỉ cho phép chuyển sang Ongoing
+        if (originalStatus === "Planned" && newStatus !== "Planned" && newStatus !== "Ongoing") {
+            setError("⚠️ Từ trạng thái 'Planned' chỉ có thể chuyển sang 'Ongoing'!");
+            return;
+        }
+
+        // Kiểm tra chuyển status: Ongoing → chỉ cho phép chuyển sang Completed, OnHold
+        if (originalStatus === "Ongoing" && newStatus !== "Ongoing" &&
+            newStatus !== "Completed" && newStatus !== "OnHold") {
+            setError("⚠️ Từ trạng thái 'Ongoing' chỉ có thể chuyển sang 'Completed' hoặc 'OnHold'!");
+            return;
+        }
+
+        // Kiểm tra chuyển status: Ongoing → Completed (check active contracts)
+        if (originalStatus === "Ongoing" && newStatus === "Completed") {
+            try {
+                const periods = await projectPeriodService.getAll({
+                    projectId: Number(id),
+                    excludeDeleted: true
+                });
+                const periodIds = Array.isArray(periods)
+                    ? periods.map((p: any) => p.id)
+                    : [];
+
+                if (periodIds.length > 0) {
+                    const allClientPayments: any[] = [];
+                    const allPartnerPayments: any[] = [];
+
+                    for (const periodId of periodIds) {
+                        const [clientPayments, partnerPayments] = await Promise.all([
+                            clientContractPaymentService.getAll({
+                                projectPeriodId: periodId,
+                                excludeDeleted: true
+                            }),
+                            partnerContractPaymentService.getAll({
+                                projectPeriodId: periodId,
+                                excludeDeleted: true
+                            })
+                        ]);
+
+                        const clientArray = Array.isArray(clientPayments) ? clientPayments : ((clientPayments as any)?.items || []);
+                        const partnerArray = Array.isArray(partnerPayments) ? partnerPayments : ((partnerPayments as any)?.items || []);
+
+                        allClientPayments.push(...clientArray);
+                        allPartnerPayments.push(...partnerArray);
+                    }
+
+                    const activeContracts = [
+                        ...allClientPayments.filter((c: any) =>
+                            c.contractStatus === "Active" || c.contractStatus === "Ongoing"
+                        ),
+                        ...allPartnerPayments.filter((c: any) =>
+                            c.contractStatus === "Active" || c.contractStatus === "Ongoing"
+                        )
+                    ];
+
+                    if (activeContracts.length > 0) {
+                        const confirmed = window.confirm(
+                            `Dự án còn ${activeContracts.length} hợp đồng chưa kết thúc. Bạn có chắc chắn đóng dự án?`
+                        );
+                        if (!confirmed) {
+                            return;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("❌ Lỗi kiểm tra hợp đồng khi đổi trạng thái:", err);
+                // Vẫn cho phép tiếp tục nếu không check được
+            }
+        }
+
+        // Kiểm tra chuyển status: Ongoing → OnHold (cảnh báo nhẹ)
+        if (originalStatus === "Ongoing" && newStatus === "OnHold") {
+            const confirmed = window.confirm(
+                "Dự án tạm dừng – không thể tạo Job Request mới. Bạn có chắc chắn muốn tạm dừng dự án?"
+            );
+            if (!confirmed) {
+                return;
+            }
+        }
+
+        // Xác nhận trước khi đổi trạng thái
+        const confirmChange = window.confirm(
+            `Bạn có chắc chắn muốn đổi trạng thái dự án từ "${originalStatus || "N/A"}" sang "${newStatus}" không?`
+        );
+        if (!confirmChange) {
+            return;
+        }
+
+        try {
+            setSaving(true);
+            setError("");
+            setStatusChangeSuccess(false);
+
+            const statusPayload: ProjectStatusUpdateModel = {
+                newStatus,
+                notes: null
+            };
+
+            const result = await projectService.updateStatus(Number(id), statusPayload);
+
+            if (!result.isSuccess && !result.success) {
+                throw new Error(result.message || "Không thể thay đổi trạng thái dự án");
+            }
+
+            setOriginalStatus(newStatus);
+            setProject({ ...project, status: newStatus });
+            setFormData(prev => ({ ...prev, status: newStatus }));
+            setStatusChangeSuccess(true);
+            
+            // Tự động ẩn thông báo sau 3 giây
+            setTimeout(() => {
+                setStatusChangeSuccess(false);
+            }, 3000);
+        } catch (err: any) {
+            console.error("❌ Lỗi cập nhật trạng thái dự án:", err);
+            setError(err.message || "Không thể thay đổi trạng thái. Vui lòng thử lại.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const filteredIndustries = industries.filter(industry =>
         industry.name.toLowerCase().includes(industrySearch.toLowerCase())
     );
 
-    const filteredMarkets = markets.filter(m =>
-        !marketSearch || m.name.toLowerCase().includes(marketSearch.toLowerCase())
-    );
+    const filteredMarkets = markets
+        .filter(m =>
+            !marketSearch || m.name.toLowerCase().includes(marketSearch.toLowerCase())
+        )
+        .sort((a, b) => a.name.localeCompare(b.name, "vi"));
 
     const formatDate = (dateStr?: string | null) => {
         if (!dateStr) return "";
@@ -199,30 +360,41 @@ export default function ProjectEditPage() {
                 return;
             }
 
-            // Validation: StartDate - không cho ngày tương lai quá vô lý (> 5 năm)
+            // Validation: StartDate - chỉ cho phép trong khoảng 5 năm trước / 5 năm sau hiện tại
             if (formData.startDate) {
                 const startDate = new Date(formData.startDate);
-                const today = new Date();
-                const fiveYearsLater = new Date(today);
-                fiveYearsLater.setFullYear(today.getFullYear() + 5);
-                
-                if (startDate > fiveYearsLater) {
-                    setFieldErrors({ startDate: "Ngày bắt đầu không được quá 5 năm trong tương lai!" });
-                    setError("⚠️ Ngày bắt đầu không được quá 5 năm trong tương lai!");
+                const fiveYearsAgoCheck = new Date();
+                fiveYearsAgoCheck.setFullYear(fiveYearsAgoCheck.getFullYear() - 5);
+                const fiveYearsLaterCheck = new Date();
+                fiveYearsLaterCheck.setFullYear(fiveYearsLaterCheck.getFullYear() + 5);
+
+                if (startDate < fiveYearsAgoCheck || startDate > fiveYearsLaterCheck) {
+                    setFieldErrors({ startDate: "Ngày bắt đầu chỉ được trong khoảng 5 năm trước và 5 năm sau ngày hôm nay!" });
+                    setError("⚠️ Ngày bắt đầu chỉ được trong khoảng 5 năm trước và 5 năm sau ngày hôm nay!");
                     setSaving(false);
                     return;
                 }
             }
 
-            // Validation: EndDate - phải sau StartDate (nếu có)
+            // Validation: EndDate (TÙY CHỌN) - chỉ áp dụng khi người dùng chọn
+            // Rule: EndDate > StartDate và EndDate ≤ hôm nay + 10 năm
             if (formData.endDate && formData.startDate) {
                 const startDate = new Date(formData.startDate);
                 const endDate = new Date(formData.endDate);
-                if (endDate < startDate) {
-                    setFieldErrors({ endDate: "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu!" });
-                    setError("⚠️ Ngày kết thúc phải sau hoặc bằng ngày bắt đầu!");
+                if (endDate <= startDate) {
+                    setFieldErrors({ endDate: "Ngày kết thúc phải sau Ngày bắt đầu!" });
+                    setError("⚠️ Ngày kết thúc phải sau Ngày bắt đầu!");
                     setSaving(false);
                     return;
+                } else {
+                    const tenYearsLaterCheck = new Date();
+                    tenYearsLaterCheck.setFullYear(tenYearsLaterCheck.getFullYear() + 10);
+                    if (endDate > tenYearsLaterCheck) {
+                        setFieldErrors({ endDate: "Ngày kết thúc không được quá 10 năm sau ngày hôm nay!" });
+                        setError("⚠️ Ngày kết thúc không được quá 10 năm sau ngày hôm nay!");
+                        setSaving(false);
+                        return;
+                    }
                 }
             }
 
@@ -238,101 +410,6 @@ export default function ProjectEditPage() {
             }
             if (!formData.industryIds || formData.industryIds.length === 0) {
                 setError("⚠️ Vui lòng chọn ít nhất một lĩnh vực!");
-                setSaving(false);
-                return;
-            }
-        }
-
-        // Kiểm tra chuyển status: Completed → status khác (disable)
-        if (originalStatus === "Completed" && formData.status !== "Completed") {
-            setError("⚠️ Không thể thay đổi trạng thái từ 'Đã hoàn thành' sang trạng thái khác!");
-            setSaving(false);
-            return;
-        }
-
-        // Kiểm tra chuyển status: Planned → chỉ cho phép chuyển sang Ongoing
-        if (originalStatus === "Planned" && formData.status !== "Planned" && formData.status !== "Ongoing") {
-            setError("⚠️ Từ trạng thái 'Planned' chỉ có thể chuyển sang 'Ongoing'!");
-            setSaving(false);
-            return;
-        }
-
-        // Kiểm tra chuyển status: Ongoing → chỉ cho phép chuyển sang Completed, OnHold
-        if (originalStatus === "Ongoing" && formData.status !== "Ongoing" && 
-            formData.status !== "Completed" && formData.status !== "OnHold") {
-            setError("⚠️ Từ trạng thái 'Ongoing' chỉ có thể chuyển sang 'Completed' hoặc 'OnHold'!");
-            setSaving(false);
-            return;
-        }
-
-        // Kiểm tra chuyển status: Ongoing → Completed (check active contracts)
-        if (originalStatus === "Ongoing" && formData.status === "Completed") {
-            try {
-                // Lấy tất cả ProjectPeriod của project
-                const periods = await projectPeriodService.getAll({ 
-                    projectId: Number(id), 
-                    excludeDeleted: true 
-                });
-                const periodIds = Array.isArray(periods) 
-                    ? periods.map((p: any) => p.id)
-                    : [];
-                
-                if (periodIds.length > 0) {
-                    // Lấy tất cả ClientContractPayment và PartnerContractPayment của các period
-                    const allClientPayments: any[] = [];
-                    const allPartnerPayments: any[] = [];
-                    
-                    for (const periodId of periodIds) {
-                        const [clientPayments, partnerPayments] = await Promise.all([
-                            clientContractPaymentService.getAll({ 
-                                projectPeriodId: periodId, 
-                                excludeDeleted: true 
-                            }),
-                            partnerContractPaymentService.getAll({ 
-                                projectPeriodId: periodId, 
-                                excludeDeleted: true 
-                            })
-                        ]);
-                        
-                        const clientArray = Array.isArray(clientPayments) ? clientPayments : ((clientPayments as any)?.items || []);
-                        const partnerArray = Array.isArray(partnerPayments) ? partnerPayments : ((partnerPayments as any)?.items || []);
-                        
-                        allClientPayments.push(...clientArray);
-                        allPartnerPayments.push(...partnerArray);
-                    }
-                    
-                    // Filter active contracts
-                    const activeContracts = [
-                        ...allClientPayments.filter((c: any) => 
-                            c.contractStatus === "Active" || c.contractStatus === "Ongoing"
-                        ),
-                        ...allPartnerPayments.filter((c: any) => 
-                            c.contractStatus === "Active" || c.contractStatus === "Ongoing"
-                        )
-                    ];
-                    
-                    if (activeContracts.length > 0) {
-                        const confirmed = window.confirm(
-                            `Dự án còn ${activeContracts.length} hợp đồng chưa kết thúc. Bạn có chắc chắn đóng dự án?`
-                        );
-                        if (!confirmed) {
-                            setSaving(false);
-                            return;
-                        }
-                    }
-                }
-            } catch (err) {
-                console.error("❌ Lỗi kiểm tra hợp đồng:", err);
-                // Vẫn cho phép tiếp tục nếu không check được
-            }
-        }
-
-        // Kiểm tra chuyển status: Ongoing → OnHold (cảnh báo nhẹ)
-        if (originalStatus === "Ongoing" && formData.status === "OnHold") {
-            const confirmed = window.confirm(
-                "Dự án tạm dừng – không thể tạo Job Request mới. Bạn có chắc chắn muốn tạm dừng dự án?"
-            );
-            if (!confirmed) {
                 setSaving(false);
                 return;
             }
@@ -491,6 +568,17 @@ export default function ProjectEditPage() {
                             </div>
                         </div>
                         <div className="p-6 space-y-6">
+                            {/* Công ty khách hàng (readonly) */}
+                            {company && (
+                                <div className="bg-neutral-50 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Building2 className="w-4 h-4 text-neutral-600" />
+                                        <span className="text-sm font-medium text-neutral-600">Công ty khách hàng</span>
+                                    </div>
+                                    <p className="text-gray-900 font-semibold">{company.name}</p>
+                                </div>
+                            )}
+
                             {/* Tên dự án */}
                             <div>
                                 <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
@@ -542,7 +630,8 @@ export default function ProjectEditPage() {
                                         name="startDate"
                                         value={formData.startDate}
                                         onChange={handleChange}
-                                        max={formData.endDate || undefined}
+                                        min={startDateMin}
+                                        max={startDateMax}
                                         disabled={isReadOnly}
                                         className={`w-full border rounded-xl px-4 py-3 focus:ring-primary-500 ${
                                             fieldErrors.startDate
@@ -570,12 +659,13 @@ export default function ProjectEditPage() {
                                             name="endDate"
                                             value={formData.endDate ?? ""}
                                             onChange={handleChange}
-                                            min={formData.startDate || undefined}
+                                            min={endDateMin}
+                                            max={endDateMax}
                                             disabled={!canEditEndDate}
                                             className={`w-full border rounded-xl px-4 py-3 focus:ring-primary-500 ${
                                                 fieldErrors.endDate
                                                     ? "border-red-500 focus:border-red-500"
-                                                    : "border-neutral-200 focus:border-primary-500"
+                                                    : "border-neutral-200 focus-border-primary-500"
                                             } ${
                                                 !canEditEndDate ? "bg-neutral-50 cursor-not-allowed" : "bg-white"
                                             }`}
@@ -597,29 +687,21 @@ export default function ProjectEditPage() {
                         </div>
                     </div>
 
-                    {/* Client & Market Information */}
+                    {/* Thị trường, Lĩnh vực & Trạng thái */}
                     <div className="bg-white rounded-2xl shadow-soft border border-neutral-100">
                         <div className="p-6 border-b border-neutral-200">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-secondary-100 rounded-lg">
                                     <Building2 className="w-5 h-5 text-secondary-600" />
                                 </div>
-                                <h2 className="text-xl font-semibold text-gray-900">Thông tin khách hàng & thị trường</h2>
+                                <h2 className="text-xl font-semibold text-gray-900">Thị trường, lĩnh vực & trạng thái</h2>
                             </div>
                         </div>
                         <div className="p-6 space-y-6">
-                            {/* Company Info */}
-                            {company && (
-                                <div className="bg-neutral-50 rounded-xl p-4">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Building2 className="w-4 h-4 text-neutral-600" />
-                                        <span className="text-sm font-medium text-neutral-600">Công ty khách hàng</span>
-                                    </div>
-                                    <p className="text-gray-900 font-semibold">{company.name}</p>
-                                </div>
-                            )}
-
-                            <div>
+                            {/* Thị trường & Trạng thái */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Thị trường */}
+                                <div>
                                 <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
                                     <Globe2 className="w-4 h-4" />
                                     Thị trường <span className="text-red-500">*</span>
@@ -642,7 +724,10 @@ export default function ProjectEditPage() {
                                         <span className="text-neutral-400 text-xs uppercase">Chọn</span>
                                     </button>
                                     {isMarketDropdownOpen && (
-                                        <div className="absolute z-20 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl">
+                                        <div
+                                            className="absolute z-20 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl"
+                                            onMouseLeave={() => setIsMarketDropdownOpen(false)}
+                                        >
                                             <div className="p-3 border-b border-neutral-100">
                                                 <div className="relative">
                                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
@@ -696,7 +781,168 @@ export default function ProjectEditPage() {
                                         </div>
                                     )}
                                 </div>
+                                </div>
+
+                                {/* Trạng thái */}
+                                <div>
+                                    <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
+                                        <CheckCircle className="w-4 h-4" />
+                                        Trạng thái <span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <button
+                                            type="button"
+                                            disabled={!canEditStatus || isStatusDisabled}
+                                            onClick={() => {
+                                                if (!canEditStatus || isStatusDisabled) return;
+                                                setIsStatusDropdownOpen(prev => !prev);
+                                            }}
+                                            className={`w-full flex items-center justify-between px-4 py-3 border rounded-xl bg-white text-left focus:ring-primary-500 border-neutral-200 focus:border-primary-500 ${
+                                                (!canEditStatus || isStatusDisabled) ? "opacity-50 cursor-not-allowed bg-neutral-50" : ""
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-2 text-sm text-neutral-700">
+                                                <CheckCircle className="w-4 h-4 text-neutral-400" />
+                                                <span>
+                                                    {formData.status === "Ongoing"
+                                                        ? "Đang thực hiện (Ongoing)"
+                                                        : formData.status === "Completed"
+                                                        ? "Đã hoàn thành (Completed)"
+                                                        : formData.status === "OnHold"
+                                                        ? "Tạm dừng (OnHold)"
+                                                        : "Đã lên kế hoạch (Planned)"}
+                                                </span>
+                                            </div>
+                                            <span className="text-neutral-400 text-xs uppercase">Chọn</span>
+                                        </button>
+                                        {isStatusDropdownOpen && canEditStatus && !isStatusDisabled && (
+                                            <div
+                                                className="absolute z-20 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl"
+                                                onMouseLeave={() => setIsStatusDropdownOpen(false)}
+                                            >
+                                                <div className="max-h-56 overflow-y-auto">
+                                                    {/* Chỉ hiển thị các trạng thái hợp lệ tiếp theo tùy theo trạng thái hiện tại */}
+                                                    {/* Planned -> chỉ cho chọn Ongoing */}
+                                                    {originalStatus === "Planned" && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setIsStatusDropdownOpen(false);
+                                                                void handleStatusChange("Ongoing");
+                                                            }}
+                                                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                                                                (project?.status || originalStatus) === "Ongoing"
+                                                                    ? "bg-primary-50 text-primary-700"
+                                                                    : "hover:bg-neutral-50 text-neutral-700"
+                                                            }`}
+                                                        >
+                                                            Đang thực hiện (Ongoing)
+                                                        </button>
+                                                    )}
+
+                                                    {/* Ongoing -> Completed hoặc OnHold */}
+                                                    {originalStatus === "Ongoing" && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setIsStatusDropdownOpen(false);
+                                                                    void handleStatusChange("Completed");
+                                                                }}
+                                                                className={`w-full text-left px-4 py-2.5 text-sm ${
+                                                                    (project?.status || originalStatus) === "Completed"
+                                                                        ? "bg-primary-50 text-primary-700"
+                                                                        : "hover:bg-neutral-50 text-neutral-700"
+                                                                }`}
+                                                            >
+                                                                Đã hoàn thành (Completed)
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setIsStatusDropdownOpen(false);
+                                                                    void handleStatusChange("OnHold");
+                                                                }}
+                                                                className={`w-full text-left px-4 py-2.5 text-sm ${
+                                                                    (project?.status || originalStatus) === "OnHold"
+                                                                        ? "bg-primary-50 text-primary-700"
+                                                                        : "hover:bg-neutral-50 text-neutral-700"
+                                                                }`}
+                                                            >
+                                                                Tạm dừng (OnHold)
+                                                            </button>
+                                                        </>
+                                                    )}
+
+                                                    {/* Trường hợp không có originalStatus (fallback) -> cho chọn tất cả */}
+                                                    {!originalStatus && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setIsStatusDropdownOpen(false);
+                                                                    void handleStatusChange("Planned");
+                                                                }}
+                                                                className={`w-full text-left px-4 py-2.5 text-sm ${
+                                                                    (project?.status || "Planned") === "Planned"
+                                                                        ? "bg-primary-50 text-primary-700"
+                                                                        : "hover:bg-neutral-50 text-neutral-700"
+                                                                }`}
+                                                            >
+                                                                Đã lên kế hoạch (Planned)
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setIsStatusDropdownOpen(false);
+                                                                    void handleStatusChange("Ongoing");
+                                                                }}
+                                                                className={`w-full text-left px-4 py-2.5 text-sm ${
+                                                                    (project?.status || originalStatus) === "Ongoing"
+                                                                        ? "bg-primary-50 text-primary-700"
+                                                                        : "hover:bg-neutral-50 text-neutral-700"
+                                                                }`}
+                                                            >
+                                                                Đang thực hiện (Ongoing)
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setIsStatusDropdownOpen(false);
+                                                                    void handleStatusChange("Completed");
+                                                                }}
+                                                                className={`w-full text-left px-4 py-2.5 text-sm ${
+                                                                    (project?.status || originalStatus) === "Completed"
+                                                                        ? "bg-primary-50 text-primary-700"
+                                                                        : "hover:bg-neutral-50 text-neutral-700"
+                                                                }`}
+                                                            >
+                                                                Đã hoàn thành (Completed)
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setIsStatusDropdownOpen(false);
+                                                                    void handleStatusChange("OnHold");
+                                                                }}
+                                                                className={`w-full text-left px-4 py-2.5 text-sm ${
+                                                                    (project?.status || originalStatus) === "OnHold"
+                                                                        ? "bg-primary-50 text-primary-700"
+                                                                        : "hover:bg-neutral-50 text-neutral-700"
+                                                                }`}
+                                                            >
+                                                                Tạm dừng (OnHold)
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
+
+                            {/* Lĩnh vực */}
                             <div>
                                 <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
                                     <Factory className="w-4 h-4" />
@@ -780,102 +1026,13 @@ export default function ProjectEditPage() {
                                 </div>
                             </div>
 
-                            {/* Trạng thái */}
-                            <div>
-                                <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
-                                    <CheckCircle className="w-4 h-4" />
-                                    Trạng thái <span className="text-red-500">*</span>
-                                </label>
-                                <div className="flex flex-col md:flex-row md:items-center gap-3">
-                                    <select
-                                        name="status"
-                                        value={formData.status}
-                                        onChange={handleChange}
-                                        required
-                                        disabled={!canEditStatus || isStatusDisabled}
-                                        className={`w-full md:w-auto flex-1 border rounded-xl px-4 py-3 focus:border-primary-500 focus:ring-primary-500 bg-white ${
-                                            (!canEditStatus || isStatusDisabled) ? "opacity-50 cursor-not-allowed bg-neutral-50" : ""
-                                        }`}
-                                    >
-                                        <option value="">-- Chọn trạng thái --</option>
-                                        {originalStatus === "Planned" && (
-                                            <>
-                                                <option value="Planned">Đã lên kế hoạch (Planned)</option>
-                                                <option value="Ongoing">Đang thực hiện (Ongoing)</option>
-                                            </>
-                                        )}
-                                        {originalStatus === "Ongoing" && (
-                                            <>
-                                                <option value="Ongoing">Đang thực hiện (Ongoing)</option>
-                                                <option value="Completed">Đã hoàn thành (Completed)</option>
-                                                <option value="OnHold">Tạm dừng (OnHold)</option>
-                                            </>
-                                        )}
-                                        {originalStatus === "Completed" && (
-                                            <option value="Completed">Đã hoàn thành (Completed)</option>
-                                        )}
-                                        {originalStatus === "OnHold" && (
-                                            <>
-                                                <option value="OnHold">Tạm dừng (OnHold)</option>
-                                                <option value="Ongoing">Đang thực hiện (Ongoing)</option>
-                                            </>
-                                        )}
-                                        {!originalStatus && (
-                                            <>
-                                                <option value="Planned">Đã lên kế hoạch (Planned)</option>
-                                                <option value="Ongoing">Đang thực hiện (Ongoing)</option>
-                                                <option value="Completed">Đã hoàn thành (Completed)</option>
-                                                <option value="OnHold">Tạm dừng (OnHold)</option>
-                                            </>
-                                        )}
-                                    </select>
-
-                                    {/* Nút xác nhận thay đổi trạng thái riêng (submit form) */}
-                                    <button
-                                        type="submit"
-                                        disabled={saving || !formData.status || (!canEditStatus || isStatusDisabled)}
-                                        className="inline-flex items-center justify-center px-4 py-2 rounded-xl border border-primary-200 text-primary-700 bg-primary-50 hover:bg-primary-100 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        Xác nhận thay đổi trạng thái
-                                    </button>
-                                </div>
-                                {isReadOnly && originalStatus !== "Completed" && originalStatus !== "Ongoing" && (
-                                    <p className="mt-1 text-sm text-amber-600 flex items-center gap-1">
-                                        <AlertCircle className="w-4 h-4" />
-                                        Chỉ có thể chỉnh sửa thông tin dự án khi ở trạng thái "Planned"
-                                    </p>
-                                )}
-                                {originalStatus === "Ongoing" && (
-                                    <p className="mt-1 text-sm text-blue-600 flex items-center gap-1">
-                                        <AlertCircle className="w-4 h-4" />
-                                        Ở trạng thái "Ongoing" chỉ có thể chỉnh sửa ngày kết thúc và trạng thái
-                                    </p>
-                                )}
-                                {isStatusDisabled && (
-                                    <p className="mt-1 text-sm text-amber-600 flex items-center gap-1">
-                                        <AlertCircle className="w-4 h-4" />
-                                        Không thể thay đổi trạng thái từ "Đã hoàn thành"
-                                    </p>
-                                )}
-                                {originalStatus === "Planned" && !isReadOnly && (
-                                    <p className="mt-1 text-sm text-blue-600 flex items-center gap-1">
-                                        <AlertCircle className="w-4 h-4" />
-                                        Từ "Planned" chỉ có thể chuyển sang "Ongoing"
-                                    </p>
-                                )}
-                                {originalStatus === "Ongoing" && !isReadOnly && (
-                                    <p className="mt-1 text-sm text-blue-600 flex items-center gap-1">
-                                        <AlertCircle className="w-4 h-4" />
-                                        Từ "Ongoing" có thể chuyển sang "Completed" hoặc "OnHold"
-                                    </p>
-                                )}
-                            </div>
+                            {/* Trạng thái - đã được xử lý ở phần trên, không hiển thị lại ở cuối */}
                         </div>
                     </div>
 
                     {/* Notifications */}
                     {(error || success) && (
-                        <div className="animate-fade-in">
+                        <div className="animate-fade-in space-y-3">
                             {error && (
                                 <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
                                     <AlertCircle className="w-5 h-5 text-red-600" />
@@ -922,6 +1079,25 @@ export default function ProjectEditPage() {
                     </div>
                 </form>
             </div>
+
+            {/* Status Change Success Modal */}
+            {statusChangeSuccess && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 text-center animate-fade-in">
+                        <div className="mb-4 flex justify-center">
+                            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                                <CheckCircle className="w-10 h-10 text-green-600" />
+                            </div>
+                        </div>
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                            Đã đổi trạng thái dự án thành công!
+                        </h3>
+                        <p className="text-gray-600">
+                            Trạng thái dự án đã được cập nhật.
+                        </p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

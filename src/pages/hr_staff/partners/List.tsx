@@ -5,7 +5,6 @@ import {
   Filter,
   Building2,
   Plus,
-  Users,
   Phone,
   ChevronLeft,
   ChevronRight,
@@ -458,14 +457,13 @@ export default function ListPartner() {
                   <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Tên công ty</th>
                   <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider whitespace-nowrap">Mã số thuế</th>
                   <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Loại</th>
-                  <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Người đại diện</th>
                   <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Điện thoại</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-200">
                 {filteredPartners.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-12">
+                    <td colSpan={6} className="text-center py-12">
                       <div className="flex flex-col items-center justify-center">
                         <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
                           <Building2 className="w-8 h-8 text-neutral-400" />
@@ -521,12 +519,6 @@ export default function ListPartner() {
                            p.partnerType === PartnerType.Partner ? 'Đối tác' :
                            p.partnerType === PartnerType.Individual ? 'Cá nhân' : '—'}
                         </span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4 text-neutral-400" />
-                          <span className="text-sm text-neutral-700">{p.contactPerson || '—'}</span>
-                        </div>
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-2">

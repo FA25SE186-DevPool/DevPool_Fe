@@ -7,20 +7,20 @@ import { jobRequestService } from "../../../services/JobRequest";
 import { clientCompanyService, type ClientCompany } from "../../../services/ClientCompany";
 import { projectService, type Project } from "../../../services/Project";
 import { jobRoleLevelService, type JobRoleLevel, TalentLevel } from "../../../services/JobRoleLevel";
-import { jobRoleService } from "../../../services/JobRole";
 import { skillService, type Skill } from "../../../services/Skill";
 import { locationService } from "../../../services/location";
 import { applyProcessTemplateService } from "../../../services/ApplyProcessTemplate";
+import { applyProcessStepService, type ApplyProcessStep } from "../../../services/ApplyProcessStep";
 import { Button } from "../../../components/ui/button";
 import { jobSkillService, type JobSkill } from "../../../services/JobSkill";
 import { talentApplicationService } from "../../../services/TalentApplication";
-import {  
-  Edit, 
-  Trash2, 
-  Building2, 
-  Briefcase, 
-  Users, 
-  FileText, 
+import {
+  Edit,
+  Trash2,
+  Building2,
+  Briefcase,
+  Users,
+  FileText,
   Target,
   CheckCircle,
   Clock,
@@ -35,15 +35,22 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
-  AlertTriangle
+  AlertTriangle,
+  X,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar
 } from "lucide-react";
 
 interface JobRequestDetail {
   id: number;
   code: string;
   title: string;
+  projectId: number;
   projectName?: string;
   clientCompanyName?: string;
+  clientCompanyId?: number;
   jobPositionName?: string;
   level: string;
   quantity: number;
@@ -61,12 +68,69 @@ export default function JobRequestDetailPage() {
   const navigate = useNavigate();
   const [jobRequest, setJobRequest] = useState<JobRequestDetail | null>(null);
   const [jobSkills, setJobSkills] = useState<{ id: number; name: string }[]>([]);
-  const [jobRoleName, setJobRoleName] = useState<string>("—");
   const [locationName, setLocationName] = useState<string>("—");
   const [applyProcessTemplateName, setApplyProcessTemplateName] = useState<string>("—");
+  const [templateSteps, setTemplateSteps] = useState<ApplyProcessStep[]>([]);
   const [jobRoleLevelDisplay, setJobRoleLevelDisplay] = useState<string>("—");
   const [loading, setLoading] = useState(true);
+  const [isClientCompanyPopupOpen, setIsClientCompanyPopupOpen] = useState(false);
+  const [clientCompanyDetail, setClientCompanyDetail] = useState<any>(null);
+  const [clientCompanyDetailLoading, setClientCompanyDetailLoading] = useState(false);
+  const [isProjectPopupOpen, setIsProjectPopupOpen] = useState(false);
+  const [projectDetail, setProjectDetail] = useState<any>(null);
+  const [projectDetailLoading, setProjectDetailLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("general");
+  const [isProcessStepsPopupOpen, setIsProcessStepsPopupOpen] = useState(false);
+
+  const openProcessStepsPopup = () => setIsProcessStepsPopupOpen(true);
+  const closeProcessStepsPopup = () => setIsProcessStepsPopupOpen(false);
+
+  const openClientCompanyPopup = async () => {
+    if (!jobRequest || !jobRequest.clientCompanyId) return;
+
+    setIsClientCompanyPopupOpen(true);
+    setClientCompanyDetailLoading(true);
+
+    try {
+      const detail = await clientCompanyService.getById(jobRequest.clientCompanyId);
+      console.log("Client company detail:", detail);
+      setClientCompanyDetail(detail);
+    } catch (error) {
+      console.error("Failed to load client company detail:", error);
+      setClientCompanyDetail(null);
+    } finally {
+      setClientCompanyDetailLoading(false);
+    }
+  };
+
+  const closeClientCompanyPopup = () => {
+    setIsClientCompanyPopupOpen(false);
+    setClientCompanyDetail(null);
+  };
+
+  const openProjectPopup = async () => {
+    if (!jobRequest) return;
+    if (!jobRequest.projectId) return;
+
+    setIsProjectPopupOpen(true);
+    setProjectDetailLoading(true);
+
+    try {
+      if (!jobRequest) return;
+      const detail = await projectService.getById(jobRequest.projectId);
+      setProjectDetail(detail);
+    } catch (error) {
+      console.error("Failed to load project detail:", error);
+      setProjectDetail(null);
+    } finally {
+      setProjectDetailLoading(false);
+    }
+  };
+
+  const closeProjectPopup = () => {
+    setIsProjectPopupOpen(false);
+    setProjectDetail(null);
+  };
   
   // Applications state
   const [applications, setApplications] = useState<any[]>([]);
@@ -101,6 +165,22 @@ export default function JobRequestDetailPage() {
     Hired: "bg-purple-100 text-purple-800",
     Rejected: "bg-red-100 text-red-800",
     Withdrawn: "bg-gray-100 text-gray-800",
+  };
+
+  // Format date and time as "07:00 18/12/2025"
+  const formatDateTime = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear();
+
+      return `${hours}:${minutes} ${day}/${month}/${year}`;
+    } catch {
+      return dateString; // fallback to original string
+    }
   };
 
   // Helper function to ensure data is an array
@@ -151,8 +231,7 @@ export default function JobRequestDetailPage() {
 
         if (position) {
           try {
-            const role = await jobRoleService.getById(position.jobRoleId);
-            setJobRoleName(role?.name ?? "—");
+            // jobRoleName removed - no longer needed
             
             // Format level text
             const getLevelText = (level: number): string => {
@@ -182,6 +261,15 @@ export default function JobRequestDetailPage() {
           try {
             const apt = await applyProcessTemplateService.getById(jobReqData.applyProcessTemplateId);
             setApplyProcessTemplateName(apt?.name ?? "—");
+
+            // Load template steps
+            const steps = await applyProcessStepService.getAll({
+              templateId: jobReqData.applyProcessTemplateId,
+              excludeDeleted: true
+            });
+            const stepArray = ensureArray<ApplyProcessStep>(steps);
+            stepArray.sort((a, b) => (a.stepOrder ?? 0) - (b.stepOrder ?? 0));
+            setTemplateSteps(stepArray);
           } catch {}
         }
 
@@ -190,6 +278,7 @@ export default function JobRequestDetailPage() {
           projectName: project?.name || "—",
           clientCompanyName: clientCompany?.name || "—",
           jobPositionName: position?.name || "—",
+          clientCompanyId: project?.clientCompanyId,
         };
 
         const jobSkillData = await jobSkillService.getAll({
@@ -203,6 +292,7 @@ export default function JobRequestDetailPage() {
 
         setJobRequest(jobReqWithExtra);
         console.log("Job Request chi tiết:", jobReqWithExtra);
+        console.log("clientCompanyId:", jobReqWithExtra.clientCompanyId);
         setJobSkills(skills);
       } catch (err) {
         console.error("❌ Lỗi tải chi tiết Job Request:", err);
@@ -450,17 +540,6 @@ export default function JobRequestDetailPage() {
                 Yêu cầu ứng viên
               </button>
               <button
-                onClick={() => setActiveTab("skills")}
-                className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
-                  activeTab === "skills"
-                    ? "border-primary-600 text-primary-600 bg-primary-50"
-                    : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
-                }`}
-              >
-                <Star className="w-4 h-4" />
-                Kỹ năng yêu cầu
-              </button>
-              <button
                 onClick={() => setActiveTab("applications")}
                 className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
                   activeTab === "applications"
@@ -477,52 +556,61 @@ export default function JobRequestDetailPage() {
           {/* Tab Content */}
           <div className="p-6">
             {activeTab === "general" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
-                <InfoItem 
-                  label="Mã yêu cầu" 
-                  value={jobRequest.code ?? "—"} 
-                  icon={<FileText className="w-4 h-4" />}
-                />
-                <InfoItem 
-                  label="Công ty khách hàng" 
-                  value={jobRequest.clientCompanyName ?? "—"} 
-                  icon={<Building2 className="w-4 h-4" />}
-                />
-                <InfoItem 
-                  label="Dự án" 
-                  value={jobRequest.projectName ?? "—"} 
-                  icon={<Layers className="w-4 h-4" />}
-                />
-                <InfoItem 
-                  label="Loại vị trí tuyển dụng" 
-                  value={jobRoleName} 
-                  icon={<Users className="w-4 h-4" />}
-                />
-                <InfoItem 
-                  label="Vị trí tuyển dụng" 
-                  value={jobRoleLevelDisplay} 
-                  icon={<Users className="w-4 h-4" />}
-                />            
-                <InfoItem 
-                  label="Số lượng tuyển dụng" 
-                  value={jobRequest.quantity?.toString() || "—"} 
-                  icon={<Users className="w-4 h-4" />}
-                />
-                <InfoItem 
-                  label="Khu vực làm việc" 
-                  value={locationName} 
-                  icon={<Building2 className="w-4 h-4" />}
-                />
-                <InfoItem 
-                  label="Chế độ làm việc" 
-                  value={workingModeLabels[Number(jobRequest.workingMode ?? 0)] ?? "—"} 
-                  icon={<Target className="w-4 h-4" />}
-                />
-                <InfoItem 
-                  label="Mẫu quy trình ứng tuyển" 
-                  value={applyProcessTemplateName} 
-                  icon={<FileText className="w-4 h-4" />}
-                />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in items-start">
+                {/* Cột 1 */}
+                <div className="space-y-6">
+                  <InfoItem
+                    label="Mã yêu cầu"
+                    value={jobRequest.code ?? "—"}
+                    icon={<FileText className="w-4 h-4" />}
+                  />
+                  <InfoItem
+                    label="Công ty khách hàng"
+                    value={jobRequest.clientCompanyName ?? "—"}
+                    icon={<Building2 className="w-4 h-4" />}
+                    onClick={jobRequest.clientCompanyId ? openClientCompanyPopup : undefined}
+                  />
+                  <InfoItem
+                    label="Dự án"
+                    value={jobRequest.projectName ?? "—"}
+                    icon={<Layers className="w-4 h-4" />}
+                    onClick={jobRequest && jobRequest.projectId ? openProjectPopup : undefined}
+                  />
+                </div>
+
+                {/* Cột 2 */}
+                <div className="space-y-6">
+                  <InfoItem
+                    label="Vị trí tuyển dụng"
+                    value={jobRoleLevelDisplay}
+                    icon={<Users className="w-4 h-4" />}
+                  />
+                  <InfoItem
+                    label="Số lượng tuyển dụng"
+                    value={jobRequest.quantity?.toString() || "—"}
+                    icon={<Users className="w-4 h-4" />}
+                  />
+                </div>
+
+                {/* Cột 3: những nội dung còn lại */}
+                <div className="space-y-6">
+                  <InfoItem
+                    label="Khu vực làm việc"
+                    value={locationName}
+                    icon={<Building2 className="w-4 h-4" />}
+                  />
+                  <InfoItem
+                    label="Chế độ làm việc"
+                    value={workingModeLabels[Number(jobRequest.workingMode ?? 0)] ?? "—"}
+                    icon={<Target className="w-4 h-4" />}
+                  />
+                  <InfoItem
+                    label="Mẫu quy trình ứng tuyển"
+                    value={applyProcessTemplateName}
+                    icon={<FileText className="w-4 h-4" />}
+                    onClick={templateSteps.length > 0 ? openProcessStepsPopup : undefined}
+                  />
+                </div>
               </div>
             )}
 
@@ -535,36 +623,47 @@ export default function JobRequestDetailPage() {
             )}
 
             {activeTab === "requirements" && (
-              <div className="prose prose-sm max-w-none animate-fade-in">
-                <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                  {jobRequest.requirements || "Chưa có yêu cầu cụ thể cho ứng viên"}
-                </p>
-              </div>
-            )}
+              <div className="space-y-6 animate-fade-in">
+                {/* Yêu cầu ứng viên */}
+                <div className="rounded-2xl border border-neutral-100 bg-white p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Briefcase className="w-4 h-4 text-primary-600" />
+                    <p className="text-sm font-semibold text-neutral-800">Yêu cầu ứng viên</p>
+                  </div>
+                  <div className="prose prose-sm max-w-none">
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                      {jobRequest.requirements || "Chưa có yêu cầu cụ thể cho ứng viên"}
+                    </p>
+                  </div>
+                </div>
 
-            {activeTab === "skills" && (
-              <div className="animate-fade-in">
-                {jobSkills.length > 0 ? (
-                  <div className="flex flex-wrap gap-3">
-                    {jobSkills.map((skill) => (
-                      <span
-                        key={skill.id}
-                        className="group inline-flex items-center gap-2 bg-gradient-to-r from-primary-100 to-primary-200 text-primary-800 px-4 py-2 rounded-xl text-sm font-medium border border-primary-200 hover:from-primary-200 hover:to-primary-300 transition-all duration-300 hover:scale-105 transform"
-                      >
-                        <Target className="w-3 h-3 group-hover:scale-110 transition-transform duration-300" />
-                        {skill.name}
-                      </span>
-                    ))}
+                {/* Kỹ năng yêu cầu */}
+                <div className="rounded-2xl border border-neutral-100 bg-white p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Star className="w-4 h-4 text-primary-600" />
+                    <p className="text-sm font-semibold text-neutral-800">Kỹ năng yêu cầu</p>
                   </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Briefcase className="w-8 h-8 text-neutral-400" />
+                  {jobSkills.length > 0 ? (
+                    <div className="flex flex-wrap gap-3">
+                      {jobSkills.map((skill) => (
+                        <span
+                          key={skill.id}
+                          className="group inline-flex items-center gap-2 bg-gradient-to-r from-primary-100 to-primary-200 text-primary-800 px-4 py-2 rounded-xl text-sm font-medium border border-primary-200 hover:from-primary-200 hover:to-primary-300 transition-all duration-300 hover:scale-105 transform"
+                        >
+                          <Target className="w-3 h-3 group-hover:scale-110 transition-transform duration-300" />
+                          {skill.name}
+                        </span>
+                      ))}
                     </div>
-                    <p className="text-neutral-500 text-lg font-medium">Chưa có kỹ năng yêu cầu</p>
-                    <p className="text-neutral-400 text-sm mt-1">Thêm kỹ năng để tìm ứng viên phù hợp</p>
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Star className="w-8 h-8 text-neutral-400" />
+                      </div>
+                      <p className="text-neutral-500 text-lg font-medium">Chưa có kỹ năng yêu cầu</p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -607,10 +706,12 @@ export default function JobRequestDetailPage() {
                 ) : (
                   <>
                     {(() => {
-                      let filtered = [...applications];
+                      let filtered = [...applications]
+                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
                       if (searchTerm) {
                         const lowerSearch = searchTerm.toLowerCase();
-                        filtered = filtered.filter((a) => 
+                        filtered = filtered.filter((a) =>
                           a.submitterName?.toLowerCase().includes(lowerSearch) ||
                           a.talentName?.toLowerCase().includes(lowerSearch)
                         );
@@ -789,18 +890,259 @@ export default function JobRequestDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Process Steps Popup */}
+      {isProcessStepsPopupOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeProcessStepsPopup();
+          }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-fade-in overflow-hidden border border-neutral-200">
+            <div className="p-5 border-b border-neutral-200 bg-gradient-to-r from-neutral-50 to-primary-50 flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h3 className="text-base font-semibold text-neutral-900">Các bước quy trình</h3>
+                <p className="text-sm text-neutral-700 mt-1 truncate">{applyProcessTemplateName || "—"}</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeProcessStepsPopup}
+                className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-neutral-600 hover:bg-neutral-100"
+                aria-label="Đóng"
+                title="Đóng"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5">
+              {templateSteps.length === 0 ? (
+                <p className="text-sm text-neutral-600">Chưa có bước quy trình.</p>
+              ) : (
+                <div className="space-y-3">
+                  {[...templateSteps]
+                    .sort((a, b) => (a.stepOrder ?? 0) - (b.stepOrder ?? 0))
+                    .map((step, idx) => (
+                      <div
+                        key={step.id ?? `${step.stepName}-${idx}`}
+                        className="rounded-xl border border-neutral-200 bg-white p-4"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary-100 text-primary-700 text-xs font-semibold">
+                            {step.stepOrder ?? idx + 1}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-neutral-900">{step.stepName || `Bước ${idx + 1}`}</p>
+                            {step.description ? (
+                              <p className="text-xs text-neutral-600 mt-1 whitespace-pre-line">{step.description}</p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Project Info Popup */}
+      {isProjectPopupOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={closeProjectPopup}>
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between z-10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary-100 rounded-lg">
+                  <Layers className="w-5 h-5 text-primary-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900">Thông tin dự án</h3>
+              </div>
+              <button
+                onClick={closeProjectPopup}
+                className="text-neutral-400 hover:text-neutral-600 transition-colors p-1 rounded hover:bg-neutral-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {projectDetailLoading ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                    <p className="text-neutral-600">Đang tải thông tin...</p>
+                  </div>
+                </div>
+              ) : projectDetail ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-6">
+                    <div>
+                      <p className="text-sm font-medium text-neutral-500 mb-2">Mã dự án</p>
+                      <p className="text-gray-900 font-semibold">{projectDetail.code || '—'}</p>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Layers className="w-4 h-4 text-neutral-400" />
+                        <p className="text-sm font-medium text-neutral-500">Tên dự án</p>
+                      </div>
+                      <p className="text-gray-900 font-semibold">{projectDetail.name || '—'}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Calendar className="w-4 h-4 text-neutral-400" />
+                        <p className="text-sm font-medium text-neutral-500">Ngày bắt đầu</p>
+                      </div>
+                      <p className="text-gray-900 font-semibold">
+                        {projectDetail.startDate ? formatDateTime(projectDetail.startDate) : '—'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Calendar className="w-4 h-4 text-neutral-400" />
+                        <p className="text-sm font-medium text-neutral-500">Ngày kết thúc</p>
+                      </div>
+                      <p className="text-gray-900 font-semibold">
+                        {projectDetail.endDate ? formatDateTime(projectDetail.endDate) : '—'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Layers className="w-8 h-8 text-neutral-400" />
+                  </div>
+                  <p className="text-neutral-500 text-lg font-medium">Không tìm thấy thông tin dự án</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Client Company Info Popup */}
+      {isClientCompanyPopupOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={closeClientCompanyPopup}>
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between z-10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary-100 rounded-lg">
+                  <Building2 className="w-5 h-5 text-primary-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900">Thông tin công ty khách hàng</h3>
+              </div>
+              <button
+                onClick={closeClientCompanyPopup}
+                className="text-neutral-400 hover:text-neutral-600 transition-colors p-1 rounded hover:bg-neutral-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {clientCompanyDetailLoading ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                    <p className="text-neutral-600">Đang tải thông tin...</p>
+                  </div>
+                </div>
+              ) : clientCompanyDetail ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-6">
+                    <div>
+                      <p className="text-sm font-medium text-neutral-500 mb-2">Mã công ty</p>
+                      <p className="text-gray-900 font-semibold">{clientCompanyDetail.code || '—'}</p>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Building2 className="w-4 h-4 text-neutral-400" />
+                        <p className="text-sm font-medium text-neutral-500">Tên công ty</p>
+                      </div>
+                      <p className="text-gray-900 font-semibold">{clientCompanyDetail.name || '—'}</p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-medium text-neutral-500 mb-2">Mã số thuế</p>
+                      <p className="text-gray-900 font-semibold">{clientCompanyDetail.taxCode || '—'}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <p className="text-sm font-medium text-neutral-500 mb-2">Người đại diện</p>
+                      <p className="text-gray-900 font-semibold">{clientCompanyDetail.contactPerson || '—'}</p>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Mail className="w-4 h-4 text-neutral-400" />
+                        <p className="text-sm font-medium text-neutral-500">Email</p>
+                      </div>
+                      <p className="text-gray-900 font-semibold">{clientCompanyDetail.email || '—'}</p>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Phone className="w-4 h-4 text-neutral-400" />
+                        <p className="text-sm font-medium text-neutral-500">Số điện thoại</p>
+                      </div>
+                      <p className="text-gray-900 font-semibold">{clientCompanyDetail.phone || '—'}</p>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <MapPin className="w-4 h-4 text-neutral-400" />
+                        <p className="text-sm font-medium text-neutral-500">Địa chỉ</p>
+                      </div>
+                      <p className="text-gray-900 font-semibold">{clientCompanyDetail.address || '—'}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Building2 className="w-8 h-8 text-neutral-400" />
+                  </div>
+                  <p className="text-neutral-500 text-lg font-medium">Không tìm thấy thông tin công ty</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function InfoItem({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
+function InfoItem({ label, value, icon, onClick }: { label: string; value: string; icon?: React.ReactNode; onClick?: () => void }) {
   return (
-    <div className="group">
+    <div className={`group ${onClick ? 'cursor-pointer' : ''}`} onClick={onClick}>
       <div className="flex items-center gap-2 mb-2">
         {icon && <div className="text-neutral-400">{icon}</div>}
         <p className="text-neutral-500 text-sm font-medium">{label}</p>
       </div>
-      <p className="text-gray-900 font-semibold group-hover:text-primary-700 transition-colors duration-300">
+      <p className={`font-semibold transition-colors duration-300 ${
+        onClick
+          ? 'text-primary-600 hover:text-primary-800'
+          : 'text-gray-900 group-hover:text-primary-700'
+      }`}>
         {value || "—"}
       </p>
     </div>

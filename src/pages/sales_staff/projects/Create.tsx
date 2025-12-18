@@ -7,7 +7,6 @@ import {
   Globe2,
   Factory,
   CheckCircle,
-  Plus,
   Save,
   AlertCircle,
   X,
@@ -50,6 +49,7 @@ export default function ProjectCreatePage() {
   const [marketSearch, setMarketSearch] = useState("");
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
   const [isMarketDropdownOpen, setIsMarketDropdownOpen] = useState(false);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Date helpers for input min/max
@@ -62,18 +62,20 @@ export default function ProjectCreatePage() {
   const fiveYearsLater = new Date(today);
   fiveYearsLater.setFullYear(today.getFullYear() + 5);
 
+  const tenYearsLater = new Date(today);
+  tenYearsLater.setFullYear(today.getFullYear() + 10);
+
   const startDateMin = formatDateInput(fiveYearsAgo);
   const startDateMax = formatDateInput(fiveYearsLater);
 
-  // Ngày kết thúc: min = StartDate (nếu có), max = StartDate + 5 năm (nếu có)
-  const endDateMin: string | undefined = form.startDate || undefined;
-  let endDateMax: string | undefined;
+  // Ngày kết thúc: min = ngày sau StartDate (nếu có), max = hôm nay + 10 năm
+  let endDateMin: string | undefined;
   if (form.startDate) {
     const start = new Date(form.startDate);
-    const maxEnd = new Date(start);
-    maxEnd.setFullYear(start.getFullYear() + 5);
-    endDateMax = formatDateInput(maxEnd);
+    start.setDate(start.getDate() + 1);
+    endDateMin = formatDateInput(start);
   }
+  const endDateMax: string | undefined = formatDateInput(tenYearsLater);
 
   // Helper function to ensure data is an array
   const ensureArray = <T,>(data: unknown): T[] => {
@@ -121,13 +123,17 @@ export default function ProjectCreatePage() {
     industry.name.toLowerCase().includes(industrySearch.toLowerCase())
   );
 
-  const filteredClients = clients.filter((c) =>
-    !companySearch || c.name.toLowerCase().includes(companySearch.toLowerCase())
-  );
+  const filteredClients = clients
+    .filter((c) =>
+      !companySearch || c.name.toLowerCase().includes(companySearch.toLowerCase())
+    )
+    .sort((a, b) => a.name.localeCompare(b.name, "vi", { sensitivity: "base" }));
 
-  const filteredMarkets = markets.filter((m) =>
-    !marketSearch || m.name.toLowerCase().includes(marketSearch.toLowerCase())
-  );
+  const filteredMarkets = markets
+    .filter((m) =>
+      !marketSearch || m.name.toLowerCase().includes(marketSearch.toLowerCase())
+    )
+    .sort((a, b) => a.name.localeCompare(b.name, "vi"));
 
   const toUTCDateString = (dateStr?: string | null) => {
     if (!dateStr) return null;
@@ -198,18 +204,18 @@ export default function ProjectCreatePage() {
     }
 
     // Validation: EndDate (TÙY CHỌN) - chỉ áp dụng khi người dùng chọn
-    // Rule: EndDate ≥ StartDate và EndDate ≤ StartDate + 5 năm
+    // Rule: EndDate > StartDate và EndDate ≤ hôm nay + 10 năm
     if (form.endDate && form.startDate) {
       const startDate = new Date(form.startDate);
       const endDate = new Date(form.endDate);
 
-      if (endDate < startDate) {
-        errors.endDate = "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu!";
+      if (endDate <= startDate) {
+        errors.endDate = "Ngày kết thúc phải sau Ngày bắt đầu!";
       } else {
-        const maxEnd = new Date(startDate);
-        maxEnd.setFullYear(startDate.getFullYear() + 5);
-        if (endDate > maxEnd) {
-          errors.endDate = "Ngày kết thúc không được cách Ngày bắt đầu quá 5 năm!";
+        const tenYearsLaterCheck = new Date();
+        tenYearsLaterCheck.setFullYear(tenYearsLaterCheck.getFullYear() + 10);
+        if (endDate > tenYearsLaterCheck) {
+          errors.endDate = "Ngày kết thúc không được quá 10 năm sau ngày hôm nay!";
         }
       }
     }
@@ -283,14 +289,6 @@ export default function ProjectCreatePage() {
               <p className="text-neutral-600 mb-4">
                 Thêm thông tin dự án khách hàng vào hệ thống DevPool
               </p>
-              
-              {/* Status Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-50 border border-primary-200">
-                <Plus className="w-4 h-4 text-primary-600" />
-                <span className="text-sm font-medium text-primary-800">
-                  Tạo dự án mới
-                </span>
-              </div>
             </div>
           </div>
           </div>
@@ -335,7 +333,10 @@ export default function ProjectCreatePage() {
                     <span className="text-neutral-400 text-xs uppercase">Chọn</span>
                   </button>
                   {isCompanyDropdownOpen && (
-                    <div className="absolute z-20 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl">
+                    <div
+                      className="absolute z-20 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl"
+                      onMouseLeave={() => setIsCompanyDropdownOpen(false)}
+                    >
                       <div className="p-3 border-b border-neutral-100">
                         <div className="relative">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
@@ -586,7 +587,10 @@ export default function ProjectCreatePage() {
                       <span className="text-neutral-400 text-xs uppercase">Chọn</span>
                     </button>
                     {isMarketDropdownOpen && (
-                      <div className="absolute z-20 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl">
+                      <div
+                        className="absolute z-20 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl"
+                        onMouseLeave={() => setIsMarketDropdownOpen(false)}
+                      >
                         <div className="p-3 border-b border-neutral-100">
                           <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
@@ -661,15 +665,60 @@ export default function ProjectCreatePage() {
                     <CheckCircle className="w-4 h-4" />
                     Trạng thái
                   </label>
-                  <select
-                    name="status"
-                    value={form.status ?? "Planned"}
-                    onChange={handleChange}
-                    className="w-full border rounded-xl px-4 py-3 focus:ring-primary-500 bg-white border-neutral-200"
-                  >
-                    <option value="Planned">Đã lên kế hoạch (Planned)</option>
-                    <option value="Ongoing">Đang thực hiện (Ongoing)</option>
-                  </select>         
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsStatusDropdownOpen((prev) => !prev)}
+                      className="w-full flex items-center justify-between px-4 py-3 border rounded-xl bg-white text-left focus:ring-primary-500 border-neutral-200 focus:border-primary-500"
+                    >
+                      <div className="flex items-center gap-2 text-sm text-neutral-700">
+                        <CheckCircle className="w-4 h-4 text-neutral-400" />
+                        <span>
+                          {form.status === "Ongoing"
+                            ? "Đang thực hiện (Ongoing)"
+                            : "Đã lên kế hoạch (Planned)"}
+                        </span>
+                      </div>
+                      <span className="text-neutral-400 text-xs uppercase">Chọn</span>
+                    </button>
+                    {isStatusDropdownOpen && (
+                      <div
+                        className="absolute z-20 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl"
+                        onMouseLeave={() => setIsStatusDropdownOpen(false)}
+                      >
+                        <div className="max-h-56 overflow-y-auto">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setForm((prev) => ({ ...prev, status: "Planned" }));
+                              setIsStatusDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              (form.status ?? "Planned") === "Planned"
+                                ? "bg-primary-50 text-primary-700"
+                                : "hover:bg-neutral-50 text-neutral-700"
+                            }`}
+                          >
+                            Đã lên kế hoạch (Planned)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setForm((prev) => ({ ...prev, status: "Ongoing" }));
+                              setIsStatusDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                              form.status === "Ongoing"
+                                ? "bg-primary-50 text-primary-700"
+                                : "hover:bg-neutral-50 text-neutral-700"
+                            }`}
+                          >
+                            Đang thực hiện (Ongoing)
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   {fieldErrors.status && (
                     <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
                       <AlertCircle className="w-4 h-4" />

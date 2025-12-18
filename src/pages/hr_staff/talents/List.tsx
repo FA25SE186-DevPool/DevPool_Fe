@@ -11,13 +11,13 @@ import { TalentFilters } from "../../../components/ta_staff/talents/TalentFilter
 import { TalentTable } from "../../../components/ta_staff/talents/TalentTable";
 import { locationService, type Location } from "../../../services/location";
 import { partnerService, type Partner } from "../../../services/Partner";
-import { type Talent, type CreateDeveloperAccountModel, talentService } from "../../../services/Talent";
+import { type Talent, talentService } from "../../../services/Talent";
 import { clientTalentBlacklistService, type ClientTalentBlacklist } from "../../../services/ClientTalentBlacklist";
 import PageLoader from "../../../components/common/PageLoader";
 
 export default function ListDev() {
   // ========== HOOKS - Logic được tách ra hooks ==========
-  const { talents, myManagedTalents, loading, createDeveloperAccount } = useTalents();
+  const { talents, myManagedTalents, loading } = useTalents();
   const [activeTab, setActiveTab] = useState<"all" | "my" | "blacklist">("my");
   const [blacklistedTalents, setBlacklistedTalents] = useState<Talent[]>([]);
   const [loadingBlacklisted, setLoadingBlacklisted] = useState(false);
@@ -38,7 +38,6 @@ export default function ListDev() {
   const [showStats, setShowStats] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
-  const [isCreatingAccount, setIsCreatingAccount] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [statsStartIndex, setStatsStartIndex] = useState(0);
   const itemsPerPage = 10;
@@ -76,10 +75,9 @@ export default function ListDev() {
     fetchLookupData();
   }, []);
 
-  // ========== Load blacklisted talents ==========
+  // ========== Load blacklisted talents on mount ==========
   useEffect(() => {
     const fetchBlacklistedTalents = async () => {
-      if (activeTab !== "blacklist") return;
       
       try {
         setLoadingBlacklisted(true);
@@ -110,7 +108,7 @@ export default function ListDev() {
     };
     
     fetchBlacklistedTalents();
-  }, [activeTab]);
+  }, []); // Only run on mount to show correct count in tab
 
   // ========== Tính toán stats ==========
   const stats = useMemo(() => [
@@ -172,46 +170,6 @@ export default function ListDev() {
   }, [filters, activeTab]);
 
   // ========== Handlers ==========
-  const handleCreateAccount = async (talent: Talent) => {
-    if (!talent.email) {
-      alert("Talent không có email, không thể cấp tài khoản");
-      return;
-    }
-
-    if (talent.status !== "Working") {
-      alert("Chỉ có thể cấp tài khoản cho talent có trạng thái 'Đang làm việc'");
-      return;
-    }
-
-    if (talent.userId) {
-      alert("Talent này đã có tài khoản");
-      return;
-    }
-
-    const confirmCreate = window.confirm(
-      `Bạn có chắc muốn cấp tài khoản cho ${talent.fullName}?\n\nEmail: ${talent.email}\nMật khẩu sẽ được gửi qua email.`
-    );
-
-    if (!confirmCreate) return;
-
-    setIsCreatingAccount(talent.id);
-    try {
-      const payload: CreateDeveloperAccountModel = { email: talent.email };
-      const success = await createDeveloperAccount(talent.id, payload);
-      
-      if (success) {
-        alert(`Đã cấp tài khoản thành công cho ${talent.fullName}.\nEmail: ${talent.email}\nMật khẩu đã được gửi qua email.`);
-      } else {
-        alert("Không thể cấp tài khoản. Vui lòng thử lại.");
-      }
-    } catch (err: any) {
-      console.error("❌ Lỗi khi cấp tài khoản:", err);
-      const errorMessage = err?.message || err?.response?.data?.message || "Không thể cấp tài khoản. Vui lòng thử lại.";
-      alert(errorMessage);
-    } finally {
-      setIsCreatingAccount(null);
-    }
-  };
 
   const handlePrevStats = () => {
     setStatsStartIndex((prev) => Math.max(0, prev - statsPageSize));
@@ -409,8 +367,6 @@ export default function ListDev() {
               partners={partners}
               startIndex={startIndex}
               loading={false}
-              isCreatingAccount={isCreatingAccount}
-              onCreateAccount={handleCreateAccount}
             />
           )}
         </div>
