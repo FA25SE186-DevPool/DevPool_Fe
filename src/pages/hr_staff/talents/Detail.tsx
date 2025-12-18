@@ -796,6 +796,7 @@ export default function TalentDetailPage() {
           onToggleAvailability={handleToggleAvailability}
           showToggleAvailability={talent.status === 'Available' || talent.status === 'Unavailable'}
           availabilityAction={talent.status === 'Available' ? 'toUnavailable' : 'toAvailable'}
+          blacklists={blacklists}
         />
 
         {/* Main Tabs: Thông tin cơ bản và các tab con (CV, Vị trí, Kỹ năng, v.v.) - cùng hàng */}

@@ -7,7 +7,6 @@ import { clientCompanyService, type ClientCompany, type ClientCompanyPayload } f
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { 
-  ArrowLeft, 
   Save, 
   X, 
   Building2, 
@@ -17,8 +16,6 @@ import {
   User, 
   Briefcase, 
   AlertCircle,
-  Sparkles,
-  CheckCircle,
 } from "lucide-react";
 
 export default function ClientCompanyEditPage() {
@@ -41,8 +38,6 @@ export default function ClientCompanyEditPage() {
     email?: string;
     phone?: string;
   }>({});
-  const [isCheckingCode, setIsCheckingCode] = useState(false);
-  const [codeStatus, setCodeStatus] = useState<"idle" | "checking" | "unique" | "duplicate">("idle");
 
   // 🧭 Load dữ liệu công ty
   useEffect(() => {
@@ -103,64 +98,11 @@ export default function ClientCompanyEditPage() {
       return;
     }
     
-    // Khi thay đổi tên công ty, tự động suggest code
-    if (name === "name" && value.trim()) {
-      handleSuggestCode(value);
-    }
-    
     setFormData(prev => ({ ...prev, [name]: value }));
     
     // Clear error khi user đang nhập
-    if (name === "code") {
-      setCodeStatus("idle");
-      if (formErrors.code) {
-        setFormErrors((prev) => ({ ...prev, code: undefined }));
-      }
-    }
     if (name === "email" && formErrors.email) {
       setFormErrors((prev) => ({ ...prev, email: undefined }));
-    }
-  };
-
-  const handleSuggestCode = async (companyName: string) => {
-    if (!companyName.trim()) return;
-    
-    try {
-      const result = await clientCompanyService.suggestCode(companyName);
-      if (result.success && result.suggestedCode) {
-        setFormData((prev) => ({ ...prev, code: result.suggestedCode }));
-        setCodeStatus("idle");
-      }
-    } catch (err) {
-      console.error("❌ Lỗi khi gợi ý code:", err);
-    }
-  };
-
-  const handleCheckCodeUnique = async (code: string) => {
-    if (!code.trim()) {
-      setCodeStatus("idle");
-      return;
-    }
-
-    if (!id) return;
-
-    try {
-      setIsCheckingCode(true);
-      setCodeStatus("checking");
-      const result = await clientCompanyService.checkCodeUnique(code, Number(id));
-      if (result.success) {
-        setCodeStatus(result.isUnique ? "unique" : "duplicate");
-        if (!result.isUnique) {
-          setFormErrors((prev) => ({ ...prev, code: "Mã công ty đã tồn tại" }));
-        } else {
-          setFormErrors((prev) => ({ ...prev, code: undefined }));
-        }
-      }
-    } catch (err) {
-      console.error("❌ Lỗi khi kiểm tra code:", err);
-      setCodeStatus("idle");
-    } finally {
-      setIsCheckingCode(false);
     }
   };
 
@@ -171,17 +113,6 @@ export default function ClientCompanyEditPage() {
 
     // Validate form
     const errors: { code?: string; email?: string; phone?: string } = {};
-    
-    // Validate code (bắt buộc)
-    if (!formData.code || formData.code.trim() === "") {
-      errors.code = "Mã công ty là bắt buộc";
-    } else {
-      // Kiểm tra code unique trước khi submit
-      await handleCheckCodeUnique(formData.code);
-      if (codeStatus === "duplicate") {
-        errors.code = "Mã công ty đã tồn tại";
-      }
-    }
     
     // Validate email
     if (!formData.email.trim()) {
@@ -275,16 +206,6 @@ export default function ClientCompanyEditPage() {
               { label: "Chỉnh sửa" }
             ]}
           />
-          <div className="flex items-center gap-4 mb-6">
-            <Link 
-              to={`/sales/clients/${id}`}
-              className="group flex items-center gap-2 text-neutral-600 hover:text-primary-600 transition-colors duration-300"
-            >
-              <ArrowLeft className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-              <span className="font-medium">Quay lại chi tiết</span>
-            </Link>
-          </div>
-
           <div className="flex justify-between items-start">
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Chỉnh sửa công ty khách hàng</h1>
@@ -338,62 +259,13 @@ export default function ClientCompanyEditPage() {
                   <Briefcase className="w-4 h-4" />
                   Mã công ty <span className="text-red-500">*</span>
                 </label>
-                <div className="flex gap-2">
-                  <div className="flex-1 relative">
-                    <Input
-                      name="code"
-                      value={formData.code}
-                      onChange={handleChange}
-                      onBlur={() => formData.code && handleCheckCodeUnique(formData.code)}
-                      placeholder="Nhập mã công ty..."
-                      required
-                      className={`w-full rounded-xl ${
-                        formErrors.code || codeStatus === "duplicate"
-                          ? "border-red-500 focus:border-red-500"
-                          : codeStatus === "unique"
-                          ? "border-green-500 focus:border-green-500"
-                          : "border-neutral-200 focus:border-primary-500"
-                      }`}
-                    />
-                    {codeStatus === "checking" && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
-                      </div>
-                    )}
-                    {codeStatus === "unique" && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                      </div>
-                    )}
-                    {codeStatus === "duplicate" && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <AlertCircle className="w-5 h-5 text-red-600" />
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => formData.name && handleSuggestCode(formData.name)}
-                    disabled={!formData.name.trim() || isCheckingCode}
-                    className="px-4 py-3 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-xl border border-primary-200 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    title="Gợi ý mã từ tên công ty"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    <span className="hidden sm:inline">Gợi ý</span>
-                  </button>
-                </div>
-                {formErrors.code && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {formErrors.code}
-                  </p>
-                )}
-                {codeStatus === "unique" && !formErrors.code && (
-                  <p className="mt-1 text-sm text-green-600 flex items-center gap-1">
-                    <CheckCircle className="w-4 h-4" />
-                    Mã công ty hợp lệ
-                  </p>
-                )}
+                <Input
+                  name="code"
+                  value={formData.code}
+                  disabled
+                  readOnly
+                  className="w-full rounded-xl bg-neutral-50 border-neutral-200 text-neutral-600 cursor-not-allowed"
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -406,9 +278,9 @@ export default function ClientCompanyEditPage() {
                   <Input
                     name="taxCode"
                     value={formData.taxCode}
-                    onChange={handleChange}
-                    placeholder="Nhập mã số thuế..."
-                    className="w-full border-neutral-200 focus:border-primary-500 focus:ring-primary-500 rounded-xl"
+                    disabled
+                    readOnly
+                    className="w-full rounded-xl bg-neutral-50 border-neutral-200 text-neutral-600 cursor-not-allowed"
                   />
                 </div>
 

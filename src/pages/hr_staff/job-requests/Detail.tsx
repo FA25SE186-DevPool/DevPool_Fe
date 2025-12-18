@@ -701,34 +701,6 @@ export default function JobRequestDetailHRPage() {
                                         icon={<FileCheck className="w-4 h-4" />}
                                     />
                                 </div>
-
-                                {/* Kỹ năng yêu cầu (đưa vào Thông tin chung) */}
-                                <div className="lg:col-span-3">
-                                    <div className="rounded-2xl border border-neutral-100 bg-white p-5">
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <Star className="w-4 h-4 text-primary-600" />
-                                            <p className="text-sm font-semibold text-neutral-800">Kỹ năng yêu cầu</p>
-                                        </div>
-                                        {jobSkills.length > 0 ? (
-                                            <div className="flex flex-wrap gap-3">
-                                                {jobSkills.map((skill) => (
-                                                    <span
-                                                        key={skill.id}
-                                                        className="group inline-flex items-center gap-2 bg-gradient-to-r from-primary-100 to-primary-200 text-primary-800 px-4 py-2 rounded-xl text-sm font-medium border border-primary-200 hover:from-primary-200 hover:to-primary-300 transition-all duration-300 hover:scale-105 transform"
-                                                    >
-                                                        <Target className="w-3 h-3 group-hover:scale-110 transition-transform duration-300" />
-                                                        {skill.name}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-6">
-                                                <p className="text-neutral-500 text-sm font-medium">Chưa có kỹ năng yêu cầu</p>
-                                                <p className="text-neutral-400 text-xs mt-1">Thêm kỹ năng để tìm ứng viên phù hợp</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
                             </div>
                         )}
 
@@ -746,15 +718,45 @@ export default function JobRequestDetailHRPage() {
                         )}
 
                         {activeTab === "requirements" && (
-                            <div className="prose prose-sm max-w-none animate-fade-in">
-                                {jobRequest.requirements ? (
-                                    <div 
-                                        className="text-gray-700 leading-relaxed"
-                                        dangerouslySetInnerHTML={{ __html: jobRequest.requirements }}
-                                    />
-                                ) : (
-                                    <p className="text-gray-500 italic">Chưa có yêu cầu cụ thể cho ứng viên</p>
-                                )}
+                            <div className="space-y-6 animate-fade-in">
+                                {/* Kỹ năng yêu cầu */}
+                                <div className="rounded-2xl border border-neutral-100 bg-white p-5">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Star className="w-4 h-4 text-primary-600" />
+                                        <p className="text-sm font-semibold text-neutral-800">Kỹ năng yêu cầu</p>
+                                    </div>
+                                    {jobSkills.length > 0 ? (
+                                        <div className="flex flex-wrap gap-3">
+                                            {jobSkills.map((skill) => (
+                                                <span
+                                                    key={skill.id}
+                                                    className="group inline-flex items-center gap-2 bg-gradient-to-r from-primary-100 to-primary-200 text-primary-800 px-4 py-2 rounded-xl text-sm font-medium border border-primary-200 hover:from-primary-200 hover:to-primary-300 transition-all duration-300 hover:scale-105 transform"
+                                                >
+                                                    <Target className="w-3 h-3 group-hover:scale-110 transition-transform duration-300" />
+                                                    {skill.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-6">
+                                            <p className="text-neutral-500 text-sm font-medium">Chưa có kỹ năng yêu cầu</p>
+                                            <p className="text-neutral-400 text-xs mt-1">Thêm kỹ năng để tìm ứng viên phù hợp</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Yêu cầu ứng viên */}
+                                <div className="prose prose-sm max-w-none">
+                                    <h3 className="text-lg font-semibold text-neutral-800 mb-4">Yêu cầu ứng viên</h3>
+                                    {jobRequest.requirements ? (
+                                        <div 
+                                            className="text-gray-700 leading-relaxed"
+                                            dangerouslySetInnerHTML={{ __html: jobRequest.requirements }}
+                                        />
+                                    ) : (
+                                        <p className="text-gray-500 italic">Chưa có yêu cầu cụ thể cho ứng viên</p>
+                                    )}
+                                </div>
                             </div>
                         )}
 

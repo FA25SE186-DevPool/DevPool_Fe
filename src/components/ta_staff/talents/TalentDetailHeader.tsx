@@ -1,7 +1,8 @@
-import { Edit, FileText, UserCheck, UserX } from 'lucide-react';
+import { Edit, FileText, UserCheck, UserX, Ban } from 'lucide-react';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import { Button } from '../../../components/ui/button';
 import { type Talent } from '../../../services/Talent';
+import { type ClientTalentBlacklist } from '../../../services/ClientTalentBlacklist';
 
 interface StatusConfig {
   label: string;
@@ -20,6 +21,7 @@ interface TalentDetailHeaderProps {
   onToggleAvailability: () => void;
   showToggleAvailability: boolean;
   availabilityAction: 'toUnavailable' | 'toAvailable';
+  blacklists?: ClientTalentBlacklist[];
 }
 
 export function TalentDetailHeader({
@@ -32,6 +34,7 @@ export function TalentDetailHeader({
   onToggleAvailability,
   showToggleAvailability,
   availabilityAction,
+  blacklists = [],
 }: TalentDetailHeaderProps) {
   return (
     <div className="mb-8 animate-slide-up">
@@ -61,6 +64,12 @@ export function TalentDetailHeader({
               {statusConfig.icon}
               <span className={`text-sm font-medium ${statusConfig.color}`}>{statusConfig.label}</span>
             </div>
+            {blacklists.length > 0 && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-50 border border-red-200">
+                <Ban className="w-4 h-4 text-red-600" />
+                <span className="text-sm font-medium text-red-700">Đã bị blacklist</span>
+              </div>
+            )}
           </div>
         </div>
 
