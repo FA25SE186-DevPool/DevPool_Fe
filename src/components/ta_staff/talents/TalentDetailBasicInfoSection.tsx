@@ -39,97 +39,96 @@ export function TalentDetailBasicInfoSection({
     <>
       {/* Basic Info Tab */}
       <div className="animate-fade-in">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          <InfoItem label="Họ và tên" value={talent.fullName} icon={<User className="w-4 h-4" />} />
-          <InfoItem
-            label="Email"
-            value={talent.email || '—'}
-            icon={<Mail className="w-4 h-4" />}
-          />
-          <InfoItem
-            label="Số điện thoại"
-            value={talent.phone || '—'}
-            icon={<Phone className="w-4 h-4" />}
-          />
-          <InfoItem
-            label="Ngày sinh"
-            value={
-              talent.dateOfBirth
-                ? new Date(talent.dateOfBirth).toLocaleDateString('vi-VN')
-                : 'Chưa xác định'
-            }
-            icon={<Calendar className="w-4 h-4" />}
-          />
-          <InfoItem 
-            label="Công ty" 
-            value={
-              partnerName && talent.currentPartnerId ? (
-                <button
-                  onClick={onPartnerClick}
-                  className="text-primary-600 hover:text-primary-800 cursor-pointer text-left"
-                >
-                  {partnerName}
-                </button>
-              ) : (
-                partnerName || '—'
-              )
-            } 
-            icon={<Building2 className="w-4 h-4" />} 
-          />
-          <InfoItem
-            label="Khu vực làm việc"
-            value={locationName}
-            icon={<MapPin className="w-4 h-4" />}
-          />
-          <InfoItem
-            label="Chế độ làm việc"
-            value={workingModeLabels[talent.workingMode] || 'Không xác định'}
-            icon={<Globe className="w-4 h-4" />}
-          />
-          <InfoItem
-            label="GitHub"
-            value={
-              talent.githubUrl ? (
-                <a
-                  href={talent.githubUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={talent.githubUrl}
-                  className="text-primary-600 hover:text-primary-800 inline-block max-w-full truncate"
-                >
-                  {formatLinkDisplay(talent.githubUrl)}
-                </a>
-              ) : (
-                '—'
-              )
-            }
-            icon={<ExternalLink className="w-4 h-4" />}
-          />
-          <InfoItem
-            label="Portfolio"
-            value={
-              talent.portfolioUrl ? (
-                <a
-                  href={talent.portfolioUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={talent.portfolioUrl}
-                  className="text-primary-600 hover:text-primary-800 inline-block max-w-full truncate"
-                >
-                  {formatLinkDisplay(talent.portfolioUrl)}
-                </a>
-              ) : (
-                '—'
-              )
-            }
-            icon={<ExternalLink className="w-4 h-4" />}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
+          {/* Cột 1 */}
+          <div className="space-y-6">
+            <InfoItem label="Họ và tên" value={talent.fullName || '—'} icon={<User className="w-4 h-4" />} />
+            <InfoItem label="Email" value={talent.email || '—'} icon={<Mail className="w-4 h-4" />} />
+            <InfoItem label="Số điện thoại" value={talent.phone || '—'} icon={<Phone className="w-4 h-4" />} />
+            <InfoItem
+              label="Ngày sinh"
+              value={
+                talent.dateOfBirth
+                  ? new Date(talent.dateOfBirth).toLocaleDateString('vi-VN')
+                  : 'Chưa xác định'
+              }
+              icon={<Calendar className="w-4 h-4" />}
+            />
+          </div>
+
+          {/* Cột 2 */}
+          <div className="space-y-6">
+            <InfoItem
+              label="Công ty"
+              value={
+                partnerName && talent.currentPartnerId ? (
+                  <button
+                    onClick={onPartnerClick}
+                    className="text-primary-600 hover:text-primary-800 cursor-pointer text-left"
+                  >
+                    {partnerName}
+                  </button>
+                ) : (
+                  partnerName || '—'
+                )
+              }
+              icon={<Building2 className="w-4 h-4" />}
+            />
+            <InfoItem label="Khu vực làm việc" value={locationName} icon={<MapPin className="w-4 h-4" />} />
+            <InfoItem
+              label="Chế độ làm việc"
+              value={workingModeLabels[talent.workingMode] || 'Không xác định'}
+              icon={<Globe className="w-4 h-4" />}
+            />
+          </div>
+
+          {/* Cột 3 */}
+          <div className="space-y-6">
+            <InfoItem
+              label="GitHub"
+              value={
+                talent.githubUrl ? (
+                  <a
+                    href={talent.githubUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={talent.githubUrl}
+                    className="text-primary-600 hover:text-primary-800 inline-block max-w-full truncate"
+                  >
+                    {formatLinkDisplay(talent.githubUrl)}
+                  </a>
+                ) : (
+                  '—'
+                )
+              }
+              icon={<ExternalLink className="w-4 h-4" />}
+            />
+            <InfoItem
+              label="Portfolio"
+              value={
+                talent.portfolioUrl ? (
+                  <a
+                    href={talent.portfolioUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={talent.portfolioUrl}
+                    className="text-primary-600 hover:text-primary-800 inline-block max-w-full truncate"
+                  >
+                    {formatLinkDisplay(talent.portfolioUrl)}
+                  </a>
+                ) : (
+                  '—'
+                )
+              }
+              icon={<ExternalLink className="w-4 h-4" />}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Blacklist Tab */}
+      {/* Blacklist Warning - Khối riêng phía dưới */}
       {blacklists.length > 0 && (
-        <div className="animate-fade-in">
+        <div className="mt-8 pt-8 border-t border-neutral-200 animate-fade-in">
           <div className="bg-red-50 border-l-4 border-red-500 rounded-xl p-6">
             <div className="flex items-start gap-4">
               <div className="p-2 bg-red-100 rounded-lg flex-shrink-0">
@@ -140,8 +139,7 @@ export function TalentDetailBasicInfoSection({
                   ⚠️ Cảnh báo: Ứng viên này đã bị blacklist
                 </h3>
                 <p className="text-sm text-red-800 mb-3">
-                  Ứng viên này đã bị thêm vào blacklist bởi {blacklists.length}{' '}
-                  {blacklists.length === 1 ? 'Client' : 'Clients'}:
+                  Ứng viên này đã bị thêm vào blacklist bởi {blacklists.length} Client{blacklists.length > 1 ? 's' : ''}:
                 </p>
                 <div className="space-y-2">
                   {blacklists.map((blacklist) => (
@@ -153,9 +151,12 @@ export function TalentDetailBasicInfoSection({
                           </p>
                           <p className="text-sm text-red-700 mt-1">Lý do: {blacklist.reason || '—'}</p>
                           <p className="text-xs text-red-600 mt-1">
-                            Ngày:{' '}
-                            {blacklist.blacklistedDate
-                              ? new Date(blacklist.blacklistedDate).toLocaleDateString('vi-VN')
+                            Ngày: {blacklist.blacklistedDate
+                              ? new Date(blacklist.blacklistedDate).toLocaleDateString('vi-VN', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric'
+                                })
                               : '—'}
                             {blacklist.requestedBy && ` • Yêu cầu bởi: ${blacklist.requestedBy}`}
                           </p>

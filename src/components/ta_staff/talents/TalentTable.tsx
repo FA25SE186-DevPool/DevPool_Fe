@@ -119,8 +119,8 @@ export function TalentTable({
             <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Đối tác</th>
             <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Họ và tên</th>
             <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Email</th>
-            <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase">Trạng thái</th>
-            <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase">Tài khoản</th>
+            <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase whitespace-nowrap">Trạng thái</th>
+            <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase whitespace-nowrap">Tài khoản</th>
             <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase">Thao tác</th>
           </tr>
         </thead>
@@ -147,14 +147,19 @@ export function TalentTable({
                   </div>
                 </td>
                 <td className="py-4 px-6">
-                  <div className="font-semibold text-primary-700 group-hover:text-primary-800 transition-colors duration-300">
+                  <div className="font-semibold text-primary-700 group-hover:text-primary-800 transition-colors duration-300 break-words">
                     {t.fullName}
                   </div>
                 </td>
                 <td className="py-4 px-6">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <Mail className="w-4 h-4 text-neutral-400" />
-                    <span className="text-sm text-neutral-700">{t.email || '—'}</span>
+                    <span
+                      className="text-sm text-neutral-700 inline-block max-w-[160px] truncate align-middle"
+                      title={t.email || undefined}
+                    >
+                      {t.email || '—'}
+                    </span>
                   </div>
                 </td>
                 <td className="py-4 px-6 text-center">
@@ -176,7 +181,7 @@ export function TalentTable({
                 <td className="py-4 px-6 text-center">
                   <div className="flex items-center justify-center gap-2">
                     <Link
-                      to={`/ta/developers/${t.id}`}
+                      to={`/ta/talents/${t.id}`}
                       state={{ tab: 'cvs' }}
                       className="group inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-primary-200 text-primary-600 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md"
                     >

@@ -105,26 +105,20 @@ export function useTalentDetailCVAnalysis(
       const hasAnalysisResult = !!analysisResult;
 
       if (hasAnalysisResult) {
-        const warningMessage =
-          '⚠️ CẢNH BÁO\n\n' +
-          'Bạn đang có kết quả phân tích CV hiện tại.\n\n' +
-          `Để phân tích CV "v${cv.version}", bạn cần hủy kết quả phân tích hiện tại.\n\n` +
-          'Bạn có muốn tiếp tục không?';
-
-        const confirmedCancel = window.confirm(warningMessage);
-        if (!confirmedCancel) {
-          return;
-        }
-
+        const confirmed = window.confirm(
+          '⚠️ XÁC NHẬN\n\n' +
+            'Bạn đang có kết quả phân tích CV hiện tại.\n\n' +
+            `Nếu tiếp tục, hệ thống sẽ hủy kết quả hiện tại và phân tích CV "v${cv.version}".\n\n` +
+            'Bạn có muốn tiếp tục không?'
+        );
+        if (!confirmed) return;
         await clearAnalysisResult();
-      }
-
-      const confirmed = window.confirm(
-        `Bạn có chắc chắn muốn phân tích CV "v${cv.version}"?\n` +
-          'Hệ thống sẽ tải file CV hiện tại và tiến hành phân tích.'
-      );
-      if (!confirmed) {
-        return;
+      } else {
+        const confirmed = window.confirm(
+          `Bạn có chắc chắn muốn phân tích CV "v${cv.version}"?\n` +
+            'Hệ thống sẽ tải file CV hiện tại và tiến hành phân tích.'
+        );
+        if (!confirmed) return;
       }
 
       setAnalysisLoadingId(cv.id);

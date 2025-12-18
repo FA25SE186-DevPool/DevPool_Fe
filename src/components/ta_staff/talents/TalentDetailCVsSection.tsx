@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import {
   FileText,
   Upload,
@@ -13,6 +12,7 @@ import {
 import { Button } from '../../ui/button';
 import { SectionPagination } from './SectionPagination';
 import { TalentDetailCVForm } from './TalentDetailCVForm';
+import { TalentCVEditModal } from './TalentCVEditModal';
 import { type TalentCV } from '../../../services/TalentCV';
 import { type CVAnalysisComparisonResponse } from '../../../services/TalentCV';
 import { type TalentCVCreate } from '../../../services/TalentCV';
@@ -86,6 +86,9 @@ interface TalentDetailCVsSectionProps {
   collapsedInactiveCVGroups: Set<string>;
   setCollapsedInactiveCVGroups: (groups: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
 
+  // Refresh list after editing
+  onRefreshCVs?: () => void | Promise<void>;
+
   // CV Form props (from useTalentDetailCVForm hook)
   cvForm?: {
     // Form data
@@ -155,6 +158,7 @@ export function TalentDetailCVsSection({
   canEdit,
   collapsedInactiveCVGroups,
   setCollapsedInactiveCVGroups,
+  onRefreshCVs,
   cvForm,
   expandedAnalysisDetail,
   setExpandedAnalysisDetail,
@@ -171,9 +175,21 @@ export function TalentDetailCVsSection({
   isValueDifferent,
   jobRoles,
 }: TalentDetailCVsSectionProps) {
-  const navigate = useNavigate();
   const [isCVsExpanded] = useState(true);
   const [activeCVTab, setActiveCVTab] = useState<'list' | 'analysis'>('list');
+  const [isEditCVModalOpen, setIsEditCVModalOpen] = useState(false);
+  const [editingCVId, setEditingCVId] = useState<number | null>(null);
+  const [showVerificationTechDetail, setShowVerificationTechDetail] = useState(false);
+
+  useEffect(() => {
+    // Reset technical detail toggle when analysis result changes
+    setShowVerificationTechDetail(false);
+  }, [analysisResult]);
+
+  const openEditCVModal = (cvId: number) => {
+    setEditingCVId(cvId);
+    setIsEditCVModalOpen(true);
+  };
 
   // Group CVs by jobRoleLevelName
   const groupedCVs = new Map<string, (TalentCV & { jobRoleLevelName?: string })[]>();
@@ -278,7 +294,7 @@ export function TalentDetailCVsSection({
           <tr
             key={cv.id}
             className="hover:bg-accent-50 transition-colors duration-200 cursor-pointer"
-            onClick={() => navigate(`/ta/talent-cvs/edit/${cv.id}`)}
+            onClick={() => openEditCVModal(cv.id)}
           >
             <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
               <input
@@ -334,7 +350,7 @@ export function TalentDetailCVsSection({
               <tr
                 key={cv.id}
                 className="hover:bg-neutral-50 transition-colors duration-200 cursor-pointer bg-neutral-50/50"
-                onClick={() => navigate(`/ta/talent-cvs/edit/${cv.id}`)}
+                onClick={() => openEditCVModal(cv.id)}
               >
                 <td className="px-4 py-3 whitespace-nowrap pl-8" onClick={(e) => e.stopPropagation()}>
                   <input
@@ -387,6 +403,16 @@ export function TalentDetailCVsSection({
 
   return (
     <div className="space-y-6">
+      <TalentCVEditModal
+        isOpen={isEditCVModalOpen}
+        cvId={editingCVId}
+        canEdit={canEdit}
+        onClose={() => {
+          setIsEditCVModalOpen(false);
+          setEditingCVId(null);
+        }}
+        onSaved={onRefreshCVs}
+      />
       {/* CV Analysis Error */}
       {analysisError && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
@@ -599,6 +625,161 @@ export function TalentDetailCVsSection({
                     Hủy phân tích
                   </Button>
                 </div>
+
+                {/* CV Ownership Verification */}
+                {(() => {
+                  const ov = (analysisResult as any)?.ownershipVerification ?? null;
+                  if (!ov) return null;
+
+                  const recommendationRaw = (ov.recommendation || '').toString();
+                  const isVerified = !!ov.isVerified;
+                  const methodRaw = (ov.method || '').toString();
+                  const confidence =
+                    typeof ov.confidenceScore === 'number'
+                      ? `${Math.round(ov.confidenceScore * 100)}%`
+                      : ov.confidenceScore
+                        ? `${ov.confidenceScore}`
+                        : '—';
+
+                  const mapRecommendationLabel = (v: string) => {
+                    switch ((v || '').toUpperCase()) {
+                      case 'APPROVE':
+                        return 'Đạt';
+                      case 'REJECT':
+                        return 'Không đạt';
+                      case 'REVIEW_REQUIRED':
+                        return 'Cần xem xét';
+                      default:
+                        return v || 'Cần xem xét';
+                    }
+                  };
+
+                  const mapMethodLabel = (v: string) => {
+                    const vv = (v || '').toLowerCase();
+                    if (!vv) return '—';
+                    if (vv.includes('groq')) return 'AI (Groq Vision)';
+                    if (vv.includes('code')) return 'Thuật toán';
+                    if (vv.includes('failed') || vv.includes('error')) return 'Lỗi hệ thống';
+                    return v;
+                  };
+
+                  const recommendationLabel = mapRecommendationLabel(recommendationRaw);
+                  const methodLabel = mapMethodLabel(methodRaw);
+
+                  const badgeClass = isVerified
+                    ? 'bg-green-100 border-green-200 text-green-700'
+                    : 'bg-amber-100 border-amber-200 text-amber-800';
+
+                  const recBadgeClass =
+                    recommendationRaw === 'APPROVE'
+                      ? 'bg-green-50 border-green-200 text-green-700'
+                      : recommendationRaw === 'REJECT'
+                        ? 'bg-red-50 border-red-200 text-red-700'
+                        : 'bg-amber-50 border-amber-200 text-amber-800';
+
+                  const rawMessage = (ov.message || '').toString();
+                  const isTechError =
+                    /ai response format invalid|format invalid|exception|stack|error/i.test(rawMessage) ||
+                    methodLabel === 'Lỗi hệ thống';
+
+                  const userFriendlyMessage = isTechError
+                    ? 'Hệ thống chưa thể xác minh tự động CV này. Vui lòng kiểm tra thủ công (tên, email, số điện thoại, ảnh/face trong CV) trước khi cập nhật hồ sơ.'
+                    : rawMessage;
+
+                  return (
+                    <div className="rounded-xl border border-neutral-200 bg-white p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+                            Xác minh chủ sở hữu CV
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${badgeClass}`}>
+                              {isVerified ? 'Đạt' : 'Cần xem xét'}
+                            </span>
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border border-neutral-200 bg-neutral-50 text-neutral-700">
+                              Phương thức: {methodLabel}
+                            </span>
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border border-neutral-200 bg-neutral-50 text-neutral-700">
+                              Confidence: {confidence}
+                            </span>
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${recBadgeClass}`}>
+                              {recommendationLabel}
+                            </span>
+                          </div>
+                          {rawMessage ? (
+                            <div className="mt-2 space-y-2">
+                              <p className="text-sm text-neutral-700">{userFriendlyMessage}</p>
+                              {isTechError ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowVerificationTechDetail((v: boolean) => !v)}
+                                  className="text-xs font-medium text-neutral-600 hover:text-neutral-900 underline"
+                                >
+                                  {showVerificationTechDetail ? 'Ẩn chi tiết kỹ thuật' : 'Xem chi tiết kỹ thuật'}
+                                </button>
+                              ) : null}
+                              {isTechError && showVerificationTechDetail ? (
+                                <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-2">
+                                  <p className="text-xs text-neutral-600 break-words">{rawMessage}</p>
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          {ov.reasoning ? (
+                            <p className="mt-1 text-xs text-neutral-500">{ov.reasoning}</p>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {(Array.isArray(ov.criticalWarnings) && ov.criticalWarnings.length > 0) ||
+                      (Array.isArray(ov.minorWarnings) && ov.minorWarnings.length > 0) ||
+                      (Array.isArray(ov.missingInformation) && ov.missingInformation.length > 0) ? (
+                        <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {Array.isArray(ov.criticalWarnings) && ov.criticalWarnings.length > 0 ? (
+                            <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                              <p className="text-xs font-semibold text-red-800 mb-1">Cảnh báo nghiêm trọng</p>
+                              <ul className="space-y-1">
+                                {ov.criticalWarnings.map((w: string, idx: number) => (
+                                  <li key={`ov-critical-${idx}`} className="text-xs text-red-700">
+                                    - {w}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+
+                          {Array.isArray(ov.minorWarnings) && ov.minorWarnings.length > 0 ? (
+                            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                              <p className="text-xs font-semibold text-amber-800 mb-1">Cảnh báo nhẹ</p>
+                              <ul className="space-y-1">
+                                {ov.minorWarnings.map((w: string, idx: number) => (
+                                  <li key={`ov-minor-${idx}`} className="text-xs text-amber-800">
+                                    - {w}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+
+                          {Array.isArray(ov.missingInformation) && ov.missingInformation.length > 0 ? (
+                            <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                              <p className="text-xs font-semibold text-neutral-700 mb-1">Thiếu thông tin</p>
+                              <ul className="space-y-1">
+                                {ov.missingInformation.map((w: string, idx: number) => (
+                                  <li key={`ov-missing-${idx}`} className="text-xs text-neutral-700">
+                                    - {w}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })()}
+
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2.5">
                   <div 
                     className={`p-2.5 rounded-lg border border-primary-100 bg-primary-50/70 cursor-pointer transition-all hover:shadow-sm hover:border-primary-300 ${expandedBasicInfo ? "ring-1 ring-primary-400" : ""}`}

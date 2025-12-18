@@ -22,11 +22,11 @@ export const ROUTES = {
     PROFILE: '/ta/profile',
 
     // Talent & nguồn cung
-    DEVELOPERS: {
-      LIST: '/ta/developers',                    // Danh sách tất cả developers
-      DETAIL: '/ta/developers/:id',              // Chi tiết developer   
-      EDIT: '/ta/developers/edit/:id',           // Sửa thông tin developer
-      CREATE: '/ta/developers/create',
+    TALENTS: {
+      LIST: '/ta/talents',                    // Danh sách tất cả talents
+      DETAIL: '/ta/talents/:id',              // Chi tiết talent
+      EDIT: '/ta/talents/edit/:id',           // Sửa thông tin talent
+      CREATE: '/ta/talents/create',
 
     },
     TALENT_AVAILABLE_TIMES: {

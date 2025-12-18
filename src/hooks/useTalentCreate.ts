@@ -534,7 +534,7 @@ export function useTalentCreate() {
 
         const result = await talentService.createWithRelatedData(payload);
         alert('✅ Tạo nhân sự thành công!');
-        navigate(`/ta/developers/${result.id}`);
+        navigate(`/ta/talents/${result.id}`);
       } catch (err: any) {
         console.error('❌ Lỗi khi tạo nhân sự:', err);
         console.error('❌ Error response:', err?.response);

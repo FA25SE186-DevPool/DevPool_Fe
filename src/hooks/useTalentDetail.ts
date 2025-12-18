@@ -264,6 +264,7 @@ export function useTalentDetail() {
   return {
     // Main data
     talent,
+    setTalent,
     locationName,
     partnerName,
     loading,

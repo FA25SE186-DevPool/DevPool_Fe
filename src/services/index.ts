@@ -87,6 +87,9 @@ export { jobRoleLevelSkillService } from './JobRoleLevelSkill';
 export { jobSkillService } from './JobSkill';
 export { jobStyleService } from './JobStyle';
 
+// Master Data
+export { masterDataService } from './MasterData';
+
 // Location
 export { locationService } from './location';
 

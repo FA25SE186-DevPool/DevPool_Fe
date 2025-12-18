@@ -18,6 +18,7 @@ import { TalentCertificatesSection } from '../../../components/ta_staff/talents/
 import { TalentCVSection } from '../../../components/ta_staff/talents/TalentCVSection';
 import { type TalentCVCreate } from '../../../services/TalentCV';
 import { talentService } from '../../../services/Talent';
+import { masterDataService } from '../../../services/MasterData';
 // import { notificationService, NotificationPriority, NotificationType } from '../../../services/Notification'; // Tạm thời comment vì Extracted Data Sidebar đã bị ẩn
 // import { userService } from '../../../services/User'; // Tạm thời comment vì Extracted Data Sidebar đã bị ẩn
 
@@ -25,6 +26,13 @@ export default function CreateTalent() {
   const [showModalCVPreview, setShowModalCVPreview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); // State để quản lý loading khi submit
   const [submittingMessage, setSubmittingMessage] = useState('Đang xử lý...'); // Message hiển thị khi đang submit
+  const lastAutoSkillJobRoleLevelIdRef = useRef<number | null>(null);
+  const didAutoOpenSkillFormRef = useRef(false);
+  const [autoSkillToast, setAutoSkillToast] = useState<{ open: boolean; message: string }>({
+    open: false,
+    message: '',
+  });
+  const autoSkillToastTimerRef = useRef<number | null>(null);
   
   // Main hook for form management
   const {
@@ -38,7 +46,6 @@ export default function CreateTalent() {
     partners,
     locations,
     skills,
-    skillGroups,
     jobRoles,
     certificateTypes,
     jobRoleLevels,
@@ -70,6 +77,18 @@ export default function CreateTalent() {
     setTalentProjects,
     setTalentCertificates,
   });
+
+  // Khi vào tab Kỹ năng, tự mở sẵn 1 dòng form kỹ năng (chỉ 1 lần, và không tạo trùng)
+  useEffect(() => {
+    if (activeTab !== 'skills') return;
+    if (didAutoOpenSkillFormRef.current) return;
+    if (talentSkills && talentSkills.length > 0) {
+      didAutoOpenSkillFormRef.current = true;
+      return;
+    }
+    handlers.addSkill();
+    didAutoOpenSkillFormRef.current = true;
+  }, [activeTab, talentSkills, handlers]);
 
   // File upload management
   const {
@@ -475,6 +494,77 @@ export default function CreateTalent() {
     }
   }, [initialCVs, jobRoleLevels, talentJobRoleLevels, filters]);
 
+  // Tự động thêm kỹ năng theo "Vị trí công việc" được chọn ở CV ban đầu (template skills từ BE)
+  // - Chỉ "thêm" (merge), không xóa kỹ năng user đã chọn
+  // - Không thêm trùng skillId
+  useEffect(() => {
+    const jobRoleLevelId = initialCVs?.[0]?.jobRoleLevelId ?? 0;
+    if (!jobRoleLevelId || jobRoleLevelId <= 0) return;
+
+    // Tránh chạy lặp cho cùng 1 lựa chọn (kể cả khi state khác thay đổi)
+    if (lastAutoSkillJobRoleLevelIdRef.current === jobRoleLevelId) return;
+
+    const hasExistingSkills = (talentSkills || []).some((s) => s.skillId && s.skillId > 0);
+    const confirmed = window.confirm(
+      hasExistingSkills
+        ? 'Bạn muốn thêm kỹ năng gợi ý theo vị trí vào danh sách kỹ năng hiện có không?\n\n(Không tạo trùng kỹ năng, và không xóa kỹ năng đã có)'
+        : 'Bạn muốn tự động thêm kỹ năng gợi ý theo vị trí không?'
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    // Chỉ set ref sau khi user đã xác nhận
+    lastAutoSkillJobRoleLevelIdRef.current = jobRoleLevelId;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const resp = await masterDataService.getSkillsByJobRoleLevel(jobRoleLevelId);
+        const skillIds = (resp?.data || [])
+          .map((s: any) => s?.id)
+          .filter((id: any): id is number => typeof id === 'number' && id > 0);
+
+        if (cancelled) return;
+        if (skillIds.length === 0) return;
+
+        let addedCount = 0;
+        setTalentSkills((prev) => {
+          const existing = new Set((prev || []).map((x) => x.skillId));
+          const toAdd = skillIds.filter((id) => !existing.has(id));
+          addedCount = toAdd.length;
+          if (toAdd.length === 0) return prev;
+          return [
+            ...toAdd.map((skillId) => ({ skillId, level: 'Beginner', yearsExp: 1 })),
+            ...(prev || []),
+          ];
+        });
+
+        if (!cancelled && addedCount > 0) {
+          // Clear timer cũ nếu có
+          if (autoSkillToastTimerRef.current) {
+            window.clearTimeout(autoSkillToastTimerRef.current);
+          }
+          setAutoSkillToast({
+            open: true,
+            message: `Đã thêm ${addedCount} kỹ năng theo vị trí`,
+          });
+          autoSkillToastTimerRef.current = window.setTimeout(() => {
+            setAutoSkillToast({ open: false, message: '' });
+            autoSkillToastTimerRef.current = null;
+          }, 2500);
+        }
+      } catch {
+        // Best-effort: nếu API mapping lỗi thì không auto-add để tránh làm phiền user
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialCVs, talentSkills, setTalentSkills]);
+
   // Ref cho tab navigation container để scroll đến tab active
   const tabNavRef = useRef<HTMLDivElement>(null);
 
@@ -495,6 +585,22 @@ export default function CreateTalent() {
 
   return (
     <div className="flex bg-gray-50 min-h-screen relative">
+      {/* Toast: Auto-add skills */}
+      {autoSkillToast.open && (
+        <div className="fixed top-4 right-4 z-[10000] animate-slide-in-right">
+          <div className="bg-success-50 border border-success-200 text-success-700 px-4 py-3 rounded-lg shadow-lg flex items-center gap-3">
+            <span className="text-sm">{autoSkillToast.message}</span>
+            <button
+              type="button"
+              onClick={() => setAutoSkillToast({ open: false, message: '' })}
+              className="text-success-600 hover:text-success-800"
+              aria-label="Đóng thông báo"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
       {/* Loading Overlay ở giữa màn hình */}
       {(isSubmitting || loading) && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center">
@@ -514,7 +620,7 @@ export default function CreateTalent() {
             <div className="px-6 py-4">
               {/* Không hiển thị formError ở đầu trang - chỉ hiển thị alert khi có lỗi */}
               <div className="flex items-center gap-2 text-sm text-neutral-600 mb-2">
-                <Link to="/ta/developers" className="text-primary-600 hover:text-primary-700 cursor-pointer transition-colors">
+                <Link to="/ta/talents" className="text-primary-600 hover:text-primary-700 cursor-pointer transition-colors">
                   Nhân sự
                 </Link>
                 <span>/</span>
@@ -870,17 +976,10 @@ export default function CreateTalent() {
                         <TalentSkillsSection
                           talentSkills={talentSkills}
                           skills={skills}
-                          skillGroups={skillGroups}
                           skillSearchQuery={filters.skillSearchQuery}
                           setSkillSearchQuery={filters.setSkillSearchQuery}
                           isSkillDropdownOpen={filters.isSkillDropdownOpen}
                           setIsSkillDropdownOpen={filters.setIsSkillDropdownOpen}
-                          skillGroupSearchQuery={filters.skillGroupSearchQuery}
-                          setSkillGroupSearchQuery={filters.setSkillGroupSearchQuery}
-                          isSkillGroupDropdownOpen={filters.isSkillGroupDropdownOpen}
-                          setIsSkillGroupDropdownOpen={filters.setIsSkillGroupDropdownOpen}
-                          selectedSkillGroupId={filters.selectedSkillGroupId}
-                          setSelectedSkillGroupId={filters.setSelectedSkillGroupId}
                           onAdd={handlers.addSkill}
                           onRemove={handlers.removeSkill}
                           onUpdate={handlers.updateSkill}

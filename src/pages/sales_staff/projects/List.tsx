@@ -1,34 +1,37 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
-import Breadcrumb from "../../../components/common/Breadcrumb";
 import { sidebarItems } from "../../../components/sidebar/sales";
+import { Button } from "../../../components/ui/button";
 import { projectService, type Project } from "../../../services/Project";
 import { clientCompanyService, type ClientCompany } from "../../../services/ClientCompany";
 import {
   Search,
   Filter,
   Plus,
-  Eye,
   Building2,
   CalendarDays,
   CheckCircle,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Layers,
   Pause,
-  Hash
+  Hash,
+  X
 } from "lucide-react";
 
 export default function ProjectListPage() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [companies, setCompanies] = useState<ClientCompany[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterCompany, setFilterCompany] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -162,15 +165,13 @@ export default function ProjectListPage() {
     let filtered = [...projects];
 
     if (searchTerm) {
-      filtered = filtered.filter((p) =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (filterCompany) {
       filtered = filtered.filter((p) => {
         const company = companies.find(c => c.id === p.clientCompanyId);
-        return company?.name.toLowerCase().includes(filterCompany.toLowerCase());
+        return (
+          p.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          company?.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
       });
     }
 
@@ -180,7 +181,7 @@ export default function ProjectListPage() {
 
     setFilteredProjects(filtered);
     setCurrentPage(1); // Reset về trang đầu khi filter thay đổi
-  }, [searchTerm, filterCompany, filterStatus, projects, companies]);
+  }, [searchTerm, filterStatus, projects, companies]);
   
   // Tính toán pagination
   const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
@@ -192,9 +193,10 @@ export default function ProjectListPage() {
 
   const handleResetFilters = () => {
     setSearchTerm("");
-    setFilterCompany("");
     setFilterStatus("");
   };
+
+  const hasActiveFilters = Boolean(searchTerm || filterStatus);
 
   const statusLabels: Record<string, string> = {
     Planned: "Đã lên kế hoạch",
@@ -223,15 +225,19 @@ export default function ProjectListPage() {
       <div className="flex-1 p-8">
         {/* Header */}
         <div className="mb-8 animate-slide-up">
-          <Breadcrumb
-            items={[
-              { label: "Dự án" }
-            ]}
-          />
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Dự án</h1>
-              <p className="text-neutral-600 mt-1">Quản lý và theo dõi các dự án khách hàng</p>
+              <div className="flex items-center gap-3 mt-1">
+                <p className="text-neutral-600">Quản lý và theo dõi các dự án khách hàng</p>
+                <button
+                  onClick={() => setShowStats(!showStats)}
+                  className="flex items-center justify-center w-7 h-7 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors duration-300"
+                  title={showStats ? "Ẩn thống kê" : "Hiện thống kê"}
+                >
+                  {showStats ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <Link to="/sales/projects/create">
               <button className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105">
@@ -242,6 +248,7 @@ export default function ProjectListPage() {
           </div>
 
           {/* Stats Cards */}
+          {showStats && (
           <div className="mb-8 animate-fade-in">
             <div className="relative">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -329,6 +336,7 @@ export default function ProjectListPage() {
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* Search & Filters */}
@@ -339,7 +347,7 @@ export default function ProjectListPage() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 w-5 h-5" />
                 <input
                   type="text"
-                  placeholder="Tìm kiếm theo tên dự án..."
+                  placeholder="Tìm kiếm theo mã dự án, tên dự án, tên công ty..."
                   className="w-full pl-12 pr-4 py-3 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 bg-neutral-50 focus:bg-white"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -352,22 +360,24 @@ export default function ProjectListPage() {
               >
                 <Filter className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
                 <span className="font-medium">{showFilters ? "Ẩn bộ lọc" : "Bộ lọc"}</span>
+                {hasActiveFilters && (
+                  <span className="ml-1 px-2.5 py-1 rounded-full text-xs font-bold bg-neutral-700 text-white shadow-sm">
+                    {[searchTerm, filterStatus].filter(Boolean).length}
+                  </span>
+                )}
               </button>
+
+              {hasActiveFilters && (
+                <Button onClick={handleResetFilters} variant="outline" className="flex items-center gap-2">
+                  <X className="w-4 h-4" />
+                  Xóa bộ lọc
+                </Button>
+              )}
             </div>
 
             {showFilters && (
               <div className="mt-6 pt-6 border-t border-neutral-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
-                    <input
-                      type="text"
-                      placeholder="Tên công ty"
-                      className="w-full pl-10 pr-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300"
-                      value={filterCompany}
-                      onChange={(e) => setFilterCompany(e.target.value)}
-                    />
-                  </div>
                   <div className="relative">
                     <CheckCircle className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
                     <select
@@ -382,12 +392,6 @@ export default function ProjectListPage() {
                       <option value="Completed">Đã hoàn thành</option>
                     </select>
                   </div>
-                  <button
-                    onClick={handleResetFilters}
-                    className="group flex items-center justify-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg px-4 py-2 transition-all duration-300 hover:scale-105 transform"
-                  >
-                    <span className="font-medium">Đặt lại</span>
-                  </button>
                 </div>
               </div>
             )}
@@ -446,15 +450,14 @@ export default function ProjectListPage() {
                   <th className="py-4 px-4 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Tên dự án</th>
                   <th className="py-4 px-4 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Công ty khách hàng</th>
                   <th className="py-4 px-4 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Ngày bắt đầu</th>
-                  <th className="py-4 px-4 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Ngày kết thúc</th>
+                  <th className="py-4 px-4 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider whitespace-nowrap">Ngày kết thúc</th>
                   <th className="py-4 px-4 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Trạng thái</th>
-                  <th className="py-4 px-4 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-200">
                 {filteredProjects.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-12">
+                    <td colSpan={7} className="text-center py-12">
                       <div className="flex flex-col items-center justify-center">
                         <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
                           <Layers className="w-8 h-8 text-neutral-400" />
@@ -470,7 +473,8 @@ export default function ProjectListPage() {
                     return (
                       <tr
                         key={p.id}
-                        className="group hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 transition-all duration-300"
+                        onClick={() => navigate(`/sales/projects/${p.id}`)}
+                        className="group hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 transition-all duration-300 cursor-pointer"
                       >
                         <td className="py-4 px-4 text-sm font-medium text-neutral-900">
                             <span>{startIndex + i + 1}</span>
@@ -505,33 +509,22 @@ export default function ProjectListPage() {
                             <span>{formatViDate(p.endDate as string | null)}</span>
                           </span>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 text-center">
                           <span
-                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
                               p.status === 'Ongoing'
-                                ? 'bg-green-100 text-green-800'
+                                ? 'bg-blue-100 text-blue-800'
                                 : p.status === 'Planned'
                                 ? 'bg-purple-100 text-purple-800'
                                 : p.status === 'OnHold'
                                 ? 'bg-yellow-100 text-yellow-800'
                                 : p.status === 'Completed'
-                                ? 'bg-blue-100 text-blue-800'
+                                ? 'bg-green-100 text-green-800'
                                 : 'bg-neutral-100 text-neutral-800'
                             }`}
                           >
-                            <span>{statusLabels[p.status] || "—"}</span>
+                            {statusLabels[p.status] || "—"}
                           </span>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <Link
-                              to={`/sales/projects/${p.id}`}
-                              className="group inline-flex items-center gap-1 px-3 py-2 text-primary-600 hover:text-primary-800 hover:bg-primary-50 rounded-lg transition-all duration-300 hover:scale-105 transform"
-                            >
-                              <Eye className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-                              <span className="text-sm font-medium">Xem</span>
-                            </Link>                          
-                          </div>
                         </td>
                       </tr>
                     );

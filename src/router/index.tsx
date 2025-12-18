@@ -308,10 +308,10 @@ const AppRouter: React.FC = () => {
               <Route path={ROUTES.TA_STAFF.PROFILE} element={<HRStaffProfile />} />
 
               {/* Talents */}
-              <Route path={ROUTES.TA_STAFF.DEVELOPERS.LIST} element={<ListDev />} />
-              <Route path={ROUTES.TA_STAFF.DEVELOPERS.DETAIL} element={<TalentDetailPage />} />
-              <Route path={ROUTES.TA_STAFF.DEVELOPERS.EDIT} element={<TalentEditPage />} />
-              <Route path={ROUTES.TA_STAFF.DEVELOPERS.CREATE} element={<CreateTalent />} />
+              <Route path={ROUTES.TA_STAFF.TALENTS.LIST} element={<ListDev />} />
+              <Route path={ROUTES.TA_STAFF.TALENTS.DETAIL} element={<TalentDetailPage />} />
+              <Route path={ROUTES.TA_STAFF.TALENTS.EDIT} element={<TalentEditPage />} />
+              <Route path={ROUTES.TA_STAFF.TALENTS.CREATE} element={<CreateTalent />} />
 
               {/* Talent Sub-entities */}
               <Route path={ROUTES.TA_STAFF.TALENT_AVAILABLE_TIMES.CREATE} element={<TalentAvailableTimeCreatePage />} />

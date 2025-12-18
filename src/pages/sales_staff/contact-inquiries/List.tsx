@@ -17,7 +17,6 @@ import {
   UserCheck
 } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
-import Breadcrumb from '../../../components/common/Breadcrumb';
 import { sidebarItems } from '../../../components/sidebar/sales';
 import { 
   contactInquiryService, 
@@ -244,11 +243,6 @@ export default function ContactInquiryListPage() {
       <div className="flex-1 p-4 sm:p-8 min-w-0">
         {/* Header */}
         <div className="mb-8 animate-slide-up">
-          <Breadcrumb
-            items={[
-              { label: "Yêu cầu liên hệ" }
-            ]}
-          />
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
             <div className="min-w-0">
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">Yêu Cầu Liên Hệ</h1>

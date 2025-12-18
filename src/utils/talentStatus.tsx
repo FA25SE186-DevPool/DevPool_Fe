@@ -22,9 +22,9 @@ export const getStatusConfig = (status: string): StatusConfig => {
     case 'Available':
       return {
         label: 'Sẵn sàng',
-        color: 'text-green-800',
+        color: 'text-green-700',
         icon: <CheckCircle className="w-4 h-4" />,
-        bgColor: 'bg-green-50',
+        bgColor: 'bg-green-100',
       };
     case 'Busy':
       return {
@@ -49,10 +49,10 @@ export const getStatusConfig = (status: string): StatusConfig => {
       };
     case 'Unavailable':
       return {
-        label: 'Không sẵn sàng',
-        color: 'text-gray-800',
+        label: 'Tạm ngưng',
+        color: 'text-gray-600',
         icon: <XCircle className="w-4 h-4" />,
-        bgColor: 'bg-gray-50',
+        bgColor: 'bg-gray-100',
       };
     default:
       return {

@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { User, Mail, Phone, Save, AlertCircle, CheckCircle } from 'lucide-react';
-import Sidebar from '../../components/common/Sidebar';
-import { sidebarItems } from '../../components/sidebar/admin';
 import { useAuth } from '../../context/AuthContext';
 import { userService, type User as UserType } from '../../services/User';
 import { decodeJWT } from '../../services/Auth';
 import FaceIDSection from '../../components/profile/FaceIDSection';
+import { ChangePasswordSection } from '../../components/profile/ChangePasswordSection';
 
 export default function AdminProfilePage() {
     const { user: authUser } = useAuth();
     const [user, setUser] = useState<UserType | null>(null);
+    const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -43,6 +43,8 @@ export default function AdminProfilePage() {
                     setLoading(false);
                     return;
                 }
+
+                setResolvedUserId(userId);
                 
                 const userData = await userService.getById(userId);
                 setUser(userData);
@@ -77,17 +79,8 @@ export default function AdminProfilePage() {
             setSaving(true);
             setError('');
             setSuccess(false);
-            
-            const token = localStorage.getItem('accessToken');
-            let userId: string | null = null;
-            
-            if (token) {
-                const decoded = decodeJWT(token);
-                userId = decoded?.nameid || decoded?.sub || decoded?.userId || decoded?.uid || authUser.id;
-            } else {
-                userId = authUser.id;
-            }
-            
+
+            const userId = resolvedUserId || authUser.id;
             if (!userId) {
                 setError('Không thể xác định người dùng');
                 return;
@@ -113,12 +106,13 @@ export default function AdminProfilePage() {
 
     if (loading) {
         return (
-            <div className="flex bg-gray-50 min-h-screen">
-                <Sidebar items={sidebarItems} title="Admin" />
-                <div className="flex-1 flex justify-center items-center">
-                    <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-                        <p className="text-gray-500">Đang tải thông tin...</p>
+            <div className="bg-gray-50 min-h-screen">
+                <div className="p-6">
+                    <div className="flex justify-center items-center min-h-[60vh]">
+                        <div className="text-center">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                            <p className="text-gray-500">Đang tải thông tin...</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -126,30 +120,28 @@ export default function AdminProfilePage() {
     }
 
     return (
-        <div className="flex bg-gray-50 min-h-screen">
-            <Sidebar items={sidebarItems} title="Admin" />
-            
-            <div className="flex-1 p-8">
-                <div className="max-w-4xl mx-auto">
+        <div className="bg-gray-50 min-h-screen">
+            <div className="p-6">
+                <div className="max-w-5xl mx-auto">
                     <div className="mb-8 animate-slide-up">
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Thông Tin Cá Nhân</h1>
+                        <h1 className="text-2xl font-bold text-gray-900 mb-1.5">Thông Tin Cá Nhân</h1>
                         <p className="text-neutral-600">Quản lý thông tin tài khoản của bạn</p>
                     </div>
 
                     <div className="bg-white rounded-2xl shadow-soft border border-neutral-100 overflow-hidden animate-fade-in">
-                        <div className="p-6 border-b border-neutral-200 bg-gradient-to-r from-neutral-50 to-primary-50">
+                        <div className="p-5 border-b border-neutral-200 bg-gradient-to-r from-neutral-50 to-primary-50">
                             <div className="flex items-center gap-3">
                                 <div className="p-3 bg-primary-100 rounded-lg">
                                     <User className="w-6 h-6 text-primary-600" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold text-gray-900">Thông Tin Tài Khoản</h2>
+                                    <h2 className="text-lg font-bold text-gray-900">Thông Tin Tài Khoản</h2>
                                     <p className="text-sm text-neutral-600">Cập nhật thông tin cá nhân của bạn</p>
                                 </div>
                             </div>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="p-6">
+                        <form onSubmit={handleSubmit} className="p-5">
                             {success && (
                                 <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
                                     <CheckCircle className="w-5 h-5 text-green-600" />
@@ -164,7 +156,7 @@ export default function AdminProfilePage() {
                                 </div>
                             )}
 
-                            <div className="space-y-6">
+                            <div className="space-y-5">
                                 <div>
                                     <label className="block text-sm font-medium text-neutral-700 mb-2">
                                         <Mail className="w-4 h-4 inline mr-2" />
@@ -174,7 +166,7 @@ export default function AdminProfilePage() {
                                         type="email"
                                         value={user?.email || ''}
                                         disabled
-                                        className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-lg text-neutral-500 cursor-not-allowed"
+                                        className="w-full h-10 px-4 bg-neutral-50 border border-neutral-200 rounded-lg text-neutral-500 cursor-not-allowed"
                                     />
                                     <p className="mt-1 text-xs text-neutral-500">Email không thể thay đổi</p>
                                 </div>
@@ -190,7 +182,7 @@ export default function AdminProfilePage() {
                                         value={formData.fullName}
                                         onChange={handleChange}
                                         required
-                                        className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                                        className="w-full h-10 px-4 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
                                         placeholder="Nhập họ và tên"
                                     />
                                 </div>
@@ -205,7 +197,7 @@ export default function AdminProfilePage() {
                                         name="phoneNumber"
                                         value={formData.phoneNumber}
                                         onChange={handleChange}
-                                        className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                                        className="w-full h-10 px-4 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
                                         placeholder="Nhập số điện thoại"
                                     />
                                 </div>
@@ -218,7 +210,7 @@ export default function AdminProfilePage() {
                                         type="text"
                                         value={authUser?.role || 'Admin'}
                                         disabled
-                                        className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-lg text-neutral-500 cursor-not-allowed"
+                                        className="w-full h-10 px-4 bg-neutral-50 border border-neutral-200 rounded-lg text-neutral-500 cursor-not-allowed"
                                     />
                                 </div>
 
@@ -245,15 +237,17 @@ export default function AdminProfilePage() {
                         </form>
                     </div>
 
-                    {/* FaceID Enrollment Section */}
-                    <FaceIDSection 
-                        user={user} 
-                        onUserUpdate={(updatedUser) => {
-                            setUser(updatedUser);
-                            setSuccess(true);
-                            setTimeout(() => setSuccess(false), 3000);
-                        }}
-                    />
+                    <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <ChangePasswordSection userId={resolvedUserId || authUser?.id || null} />
+                        <FaceIDSection 
+                            user={user} 
+                            onUserUpdate={(updatedUser) => {
+                                setUser(updatedUser);
+                                setSuccess(true);
+                                setTimeout(() => setSuccess(false), 3000);
+                            }}
+                        />
+                    </div>
                 </div>
             </div>
         </div>

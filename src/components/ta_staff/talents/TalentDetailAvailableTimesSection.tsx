@@ -1,9 +1,10 @@
 import { Plus, Trash2, X, Save, Calendar } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Button } from '../../ui/button';
 import { SectionPagination } from './SectionPagination';
 import { type TalentAvailableTime } from '../../../services/TalentAvailableTime';
 import { type TalentAvailableTimeCreate } from '../../../services/TalentAvailableTime';
+import { TalentAvailableTimeEditModal } from './TalentAvailableTimeEditModal';
 
 interface TalentDetailAvailableTimesSectionProps {
   // Data
@@ -34,6 +35,9 @@ interface TalentDetailAvailableTimesSectionProps {
 
   // Permissions
   canEdit: boolean;
+
+  // Refresh
+  onRefreshAvailableTimes?: () => void | Promise<void>;
 }
 
 /**
@@ -59,8 +63,10 @@ export function TalentDetailAvailableTimesSection({
   validateStartTime,
   validateEndTime,
   canEdit,
+  onRefreshAvailableTimes,
 }: TalentDetailAvailableTimesSectionProps) {
-  const navigate = useNavigate();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingAvailableTimeId, setEditingAvailableTimeId] = useState<number | null>(null);
 
   return (
     <div className="space-y-6">
@@ -294,7 +300,10 @@ export function TalentDetailAvailableTimesSection({
                     <tr
                       key={time.id}
                       className="hover:bg-secondary-50 transition-colors duration-200 cursor-pointer"
-                      onClick={() => navigate(`/ta/talent-available-times/edit/${time.id}`)}
+                      onClick={() => {
+                        setEditingAvailableTimeId(time.id);
+                        setIsEditModalOpen(true);
+                      }}
                     >
                       <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <input
@@ -344,6 +353,19 @@ export function TalentDetailAvailableTimesSection({
           <p className="text-neutral-500 text-lg font-medium">Chưa có thông tin thời gian</p>
           <p className="text-neutral-400 text-sm mt-1">Nhân sự chưa cập nhật thời gian có sẵn</p>
         </div>
+      )}
+
+      {isEditModalOpen && (
+        <TalentAvailableTimeEditModal
+          isOpen={isEditModalOpen}
+          availableTimeId={editingAvailableTimeId}
+          canEdit={canEdit}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingAvailableTimeId(null);
+          }}
+          onSaved={onRefreshAvailableTimes}
+        />
       )}
     </div>
   );

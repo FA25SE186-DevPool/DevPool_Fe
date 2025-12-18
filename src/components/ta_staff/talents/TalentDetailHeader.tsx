@@ -1,7 +1,8 @@
-import { Edit, Trash2, FileText } from 'lucide-react';
+import { Edit, FileText, UserCheck, UserX, Ban } from 'lucide-react';
 import Breadcrumb from '../../../components/common/Breadcrumb';
 import { Button } from '../../../components/ui/button';
 import { type Talent } from '../../../services/Talent';
+import { type ClientTalentBlacklist } from '../../../services/ClientTalentBlacklist';
 
 interface StatusConfig {
   label: string;
@@ -17,7 +18,10 @@ interface TalentDetailHeaderProps {
   canEdit: boolean;
   isDisabled: boolean;
   onEdit: () => void;
-  onDelete: () => void;
+  onToggleAvailability: () => void;
+  showToggleAvailability: boolean;
+  availabilityAction: 'toUnavailable' | 'toAvailable';
+  blacklists?: ClientTalentBlacklist[];
 }
 
 export function TalentDetailHeader({
@@ -27,13 +31,16 @@ export function TalentDetailHeader({
   canEdit,
   isDisabled,
   onEdit,
-  onDelete,
+  onToggleAvailability,
+  showToggleAvailability,
+  availabilityAction,
+  blacklists = [],
 }: TalentDetailHeaderProps) {
   return (
     <div className="mb-8 animate-slide-up">
       <Breadcrumb
         items={[
-          { label: 'Nhân sự', to: returnTo || '/ta/developers' },
+          { label: 'Nhân sự', to: returnTo || '/ta/talents' },
           { label: talent?.fullName || 'Chi tiết nhân sự' },
         ]}
       />
@@ -57,6 +64,12 @@ export function TalentDetailHeader({
               {statusConfig.icon}
               <span className={`text-sm font-medium ${statusConfig.color}`}>{statusConfig.label}</span>
             </div>
+            {blacklists.length > 0 && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-50 border border-red-200">
+                <Ban className="w-4 h-4 text-red-600" />
+                <span className="text-sm font-medium text-red-700">Đã bị blacklist</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -80,25 +93,35 @@ export function TalentDetailHeader({
             <Edit className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
             Sửa
           </Button>
-          <Button
-            onClick={onDelete}
-            disabled={isDisabled}
-            title={
-              !canEdit
-                ? 'Bạn không có quyền xóa nhân sự này. Chỉ TA đang quản lý nhân sự này mới được xóa.'
-                : isDisabled
-                  ? 'Không thể xóa khi nhân sự đang ứng tuyển hoặc đang làm việc'
-                  : ''
-            }
-            className={`group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${
-              isDisabled
-                ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white'
-            }`}
-          >
-            <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-            Xóa
-          </Button>
+          {showToggleAvailability && (
+            <Button
+              onClick={onToggleAvailability}
+              disabled={!canEdit || isDisabled}
+              title={
+                !canEdit
+                  ? 'Bạn không có quyền thay đổi trạng thái nhân sự này. Chỉ TA đang quản lý nhân sự này mới được thao tác.'
+                  : isDisabled
+                    ? 'Không thể thay đổi trạng thái khi nhân sự đang ứng tuyển hoặc đang làm việc'
+                    : availabilityAction === 'toUnavailable'
+                      ? 'Chuyển trạng thái nhân sự sang Tạm ngưng'
+                      : 'Chuyển trạng thái nhân sự sang Sẵn sàng'
+              }
+              className={`group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${
+                !canEdit || isDisabled
+                  ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
+                  : availabilityAction === 'toUnavailable'
+                    ? 'bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white'
+                    : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white'
+              }`}
+            >
+              {availabilityAction === 'toUnavailable' ? (
+                <UserX className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+              ) : (
+                <UserCheck className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+              )}
+              {availabilityAction === 'toUnavailable' ? 'Tạm ngưng' : 'Sẵn sàng'}
+            </Button>
+          )}
         </div>
       </div>
     </div>

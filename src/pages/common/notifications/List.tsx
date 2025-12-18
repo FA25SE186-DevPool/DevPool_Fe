@@ -364,14 +364,14 @@ const NotificationCenterPage = () => {
     }
     
     if (notification.actionUrl) {
-      // Fix: Convert /ta/talents/:id thành /ta/developers/:id (route đúng)
+      // Fix: Convert legacy /ta/developers/:id to new /ta/talents/:id
       let targetUrl = notification.actionUrl;
-      if (targetUrl.startsWith('/ta/talents/')) {
-        targetUrl = targetUrl.replace('/ta/talents/', '/ta/developers/');
+      if (targetUrl.startsWith('/ta/developers/')) {
+        targetUrl = targetUrl.replace('/ta/developers/', '/ta/talents/');
       }
       
       // Xử lý đặc biệt cho notification về skill group - navigate với state để mở tab "skills"
-      if (notification.type === NotificationType.SkillGroupAutoInvalidated && targetUrl.includes('/ta/developers/')) {
+      if (notification.type === NotificationType.SkillGroupAutoInvalidated && targetUrl.includes('/ta/talents/')) {
         navigate(targetUrl, { state: { tab: 'skills' } });
       } else {
         navigate(targetUrl);

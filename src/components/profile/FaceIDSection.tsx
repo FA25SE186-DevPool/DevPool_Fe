@@ -78,8 +78,8 @@ export default function FaceIDSection({ user, onUserUpdate }: FaceIDSectionProps
   };
 
   return (
-    <div className="mt-6 bg-white rounded-2xl shadow-soft border border-neutral-100 overflow-hidden animate-fade-in">
-      <div className="p-6 border-b border-neutral-200 bg-gradient-to-r from-neutral-50 to-primary-50">
+    <div className="bg-white rounded-2xl shadow-soft border border-neutral-100 overflow-hidden animate-fade-in">
+      <div className="p-5 border-b border-neutral-200 bg-gradient-to-r from-neutral-50 to-primary-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`p-3 rounded-xl ${user?.hasFaceId ? 'bg-green-100' : 'bg-primary-100'}`}>
@@ -91,7 +91,7 @@ export default function FaceIDSection({ user, onUserUpdate }: FaceIDSectionProps
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-gray-900">FaceID</h2>
+                <h2 className="text-lg font-bold text-gray-900">FaceID</h2>
                 {user?.hasFaceId && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
                     <CheckCircle className="w-3 h-3" />
@@ -109,7 +109,7 @@ export default function FaceIDSection({ user, onUserUpdate }: FaceIDSectionProps
           {!user?.hasFaceId && !showFaceIDEnroll && (
             <button
               onClick={() => setShowFaceIDEnroll(true)}
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all duration-300 font-medium shadow-sm hover:shadow-md"
+              className="px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all duration-300 font-medium shadow-sm hover:shadow-md"
             >
               Đăng Ký FaceID
             </button>
@@ -127,7 +127,7 @@ export default function FaceIDSection({ user, onUserUpdate }: FaceIDSectionProps
 
       {/* Enroll Form */}
       {showFaceIDEnroll && (
-        <div className="p-6">
+        <div className="p-5">
           <FaceIDEnroll
             email={user?.email || authUser?.email || ''}
             onSuccess={handleFaceIDEnrollSuccess}
@@ -138,7 +138,7 @@ export default function FaceIDSection({ user, onUserUpdate }: FaceIDSectionProps
 
       {/* FaceID Active State */}
       {!showFaceIDEnroll && user?.hasFaceId && (
-        <div className="p-6">
+        <div className="p-5">
           {/* Success Status */}
           <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl">
             <div className="p-3 bg-green-100 rounded-full">
@@ -207,7 +207,7 @@ export default function FaceIDSection({ user, onUserUpdate }: FaceIDSectionProps
 
       {/* No FaceID State */}
       {!showFaceIDEnroll && !user?.hasFaceId && (
-        <div className="p-6">
+        <div className="p-5">
           <div className="flex items-center gap-4 p-4 bg-neutral-50 border border-neutral-200 rounded-xl">
             <div className="p-3 bg-neutral-200 rounded-full">
               <Camera className="w-8 h-8 text-neutral-500" />

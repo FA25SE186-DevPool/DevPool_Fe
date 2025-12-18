@@ -15,6 +15,10 @@ import { SkillGroupVerificationModal } from '../../../components/ta_staff/talent
 import { SkillGroupHistoryModal } from '../../../components/ta_staff/talents/SkillGroupHistoryModal';
 import { PartnerInfoModal } from '../../../components/ta_staff/talents/PartnerInfoModal';
 import { partnerService, type PartnerDetailedModel } from '../../../services/Partner';
+import { talentProjectService } from '../../../services/TalentProject';
+import { talentWorkExperienceService } from '../../../services/TalentWorkExperience';
+import { talentCertificateService } from '../../../services/TalentCertificate';
+import { talentAvailableTimeService } from '../../../services/TalentAvailableTime';
 import { useTalentDetail } from '../../../hooks/useTalentDetail';
 import { useTalentDetailOperations } from '../../../hooks/useTalentDetailOperations';
 import { useTalentDetailCVAnalysis } from '../../../hooks/useTalentDetailCVAnalysis';
@@ -52,16 +56,12 @@ export default function TalentDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
-  const locationState = location.state as {
-    tab?: 'projects' | 'cvs' | 'jobRoleLevels' | 'skills' | 'availableTimes' | 'certificates' | 'experiences';
-    defaultTab?: 'projects' | 'cvs' | 'jobRoleLevels' | 'skills' | 'availableTimes' | 'certificates' | 'experiences';
-  } | null;
-  const initialTab = locationState?.tab || locationState?.defaultTab;
 
   // ========== HOOKS - Logic được tách ra hooks ==========
   // Main data fetching
   const {
     talent,
+    setTalent,
     locationName,
     partnerName,
     loading,
@@ -110,14 +110,9 @@ export default function TalentDetailPage() {
   const pagination = useTalentDetailPagination();
 
   // ========== LOCAL STATES ==========
-  const [activeTab, setActiveTab] = useState<TalentDetailTab | null>(initialTab || null);
-  
-  // Khi có initialTab từ location state, tự động set activeTab
-  useEffect(() => {
-    if (initialTab) {
-      setActiveTab(initialTab);
-    }
-  }, [initialTab]);
+  // Mặc định luôn hiển thị tab Thông tin (activeTab = null).
+  // Không tự động chuyển tab theo location.state.tab/defaultTab để tránh mở nhầm khi vào Detail.
+  const [activeTab, setActiveTab] = useState<TalentDetailTab | null>(null);
   const [collapsedInactiveCVGroups, setCollapsedInactiveCVGroups] = useState<Set<string>>(new Set());
 
   // Skills section states
@@ -271,25 +266,39 @@ export default function TalentDetailPage() {
   });
 
   // ========== HANDLERS ==========
-  // Delete talent
-  const handleDelete = useCallback(async () => {
+  const handleToggleAvailability = useCallback(async () => {
     if (!id) return;
-    const confirm = window.confirm('⚠️ Bạn có chắc muốn xóa nhân sự này?');
+    if (!talent) return;
+    if (talent.status !== 'Available' && talent.status !== 'Unavailable') return;
+
+    const nextStatus = talent.status === 'Available' ? 'Unavailable' : 'Available';
+    const nextStatusLabel = nextStatus === 'Unavailable' ? 'Tạm ngưng' : 'Sẵn sàng';
+
+    const confirm = window.confirm(`Bạn có chắc muốn chuyển trạng thái nhân sự sang "${nextStatusLabel}" không?`);
     if (!confirm) return;
 
     try {
-      await talentService.deleteById(Number(id));
-      alert('✅ Đã xóa nhân sự thành công!');
-      navigate('/ta/developers');
+      const result = await talentService.changeStatus(Number(id), {
+        newStatus: nextStatus,
+      });
+
+      if (result && result.isSuccess === false) {
+        alert(result.message || 'Không thể thay đổi trạng thái nhân sự!');
+        return;
+      }
+
+      const updated = await talentService.getById(Number(id));
+      setTalent(updated);
+      alert(`✅ Đã chuyển trạng thái sang "${nextStatusLabel}"!`);
     } catch (err) {
-      console.error('❌ Lỗi khi xóa:', err);
-      alert('Không thể xóa nhân sự!');
+      console.error('❌ Lỗi khi đổi trạng thái:', err);
+      alert('Không thể thay đổi trạng thái nhân sự!');
     }
-  }, [id, navigate]);
+  }, [id, talent, setTalent]);
 
   // Edit talent
   const handleEdit = useCallback(() => {
-    navigate(`/ta/developers/edit/${id}`);
+    navigate(`/ta/talents/edit/${id}`);
   }, [id, navigate]);
 
   // Format link display
@@ -759,7 +768,7 @@ export default function TalentDetailPage() {
               <XCircle className="w-8 h-8 text-red-500" />
             </div>
             <p className="text-red-500 text-lg font-medium">Không tìm thấy nhân sự</p>
-            <Link to="/ta/developers" className="text-primary-600 hover:text-primary-800 text-sm mt-2 inline-block">
+              <Link to="/ta/talents" className="text-primary-600 hover:text-primary-800 text-sm mt-2 inline-block">
               ← Quay lại danh sách
             </Link>
           </div>
@@ -784,7 +793,10 @@ export default function TalentDetailPage() {
           canEdit={canEdit}
           isDisabled={isDisabled}
           onEdit={handleEdit}
-          onDelete={handleDelete}
+          onToggleAvailability={handleToggleAvailability}
+          showToggleAvailability={talent.status === 'Available' || talent.status === 'Unavailable'}
+          availabilityAction={talent.status === 'Available' ? 'toUnavailable' : 'toAvailable'}
+          blacklists={blacklists}
         />
 
         {/* Main Tabs: Thông tin cơ bản và các tab con (CV, Vị trí, Kỹ năng, v.v.) - cùng hàng */}
@@ -824,6 +836,11 @@ export default function TalentDetailPage() {
                 onDelete={handleDeleteProjects}
                 canEdit={canEdit}
                 analysisResult={cvAnalysis.analysisResult}
+                onRefreshProjects={async () => {
+                  if (!id) return;
+                  const projects = await talentProjectService.getAll({ talentId: Number(id), excludeDeleted: true });
+                  setTalentProjects(projects);
+                }}
               />
             )}
 
@@ -864,6 +881,7 @@ export default function TalentDetailPage() {
                 getTalentLevelName={getTalentLevelName}
                 isValueDifferent={isValueDifferent}
                 jobRoles={jobRoles}
+                onRefreshCVs={handleRefreshCVs}
               />
             )}
 
@@ -1008,6 +1026,11 @@ export default function TalentDetailPage() {
                 validateStartTime={validateStartTime}
                 validateEndTime={validateEndTime}
                 canEdit={canEdit}
+                onRefreshAvailableTimes={async () => {
+                  if (!id) return;
+                  const times = await talentAvailableTimeService.getAll({ talentId: Number(id), excludeDeleted: true });
+                  setAvailableTimes(times);
+                }}
               />
             )}
 
@@ -1048,6 +1071,11 @@ export default function TalentDetailPage() {
                 certificatesUnmatched={cvAnalysis.certificatesUnmatched}
                 canEdit={canEdit}
                 validateIssuedDate={validateIssuedDate}
+                onRefreshCertificates={async () => {
+                  if (!id) return;
+                  const certs = await talentCertificateService.getAll({ talentId: Number(id), excludeDeleted: true });
+                  setCertificates(certs);
+                }}
               />
             )}
 
@@ -1075,6 +1103,11 @@ export default function TalentDetailPage() {
                 setIsWorkExperiencePositionDropdownOpen={setIsWorkExperiencePositionDropdownOpen}
                 analysisResult={cvAnalysis.analysisResult}
                 canEdit={canEdit}
+                onRefreshExperiences={async () => {
+                  if (!id) return;
+                  const exps = await talentWorkExperienceService.getAll({ talentId: Number(id), excludeDeleted: true });
+                  setWorkExperiences(exps);
+                }}
               />
             )}
             </>

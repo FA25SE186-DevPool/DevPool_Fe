@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Users, Briefcase, MapPin, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Users, Briefcase, MapPin, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Ban } from "lucide-react";
 import Sidebar from "../../../components/common/Sidebar";
 import { sidebarItems } from "../../../components/sidebar/ta_staff";
 import { Button } from "../../../components/ui/button";
@@ -11,14 +11,17 @@ import { TalentFilters } from "../../../components/ta_staff/talents/TalentFilter
 import { TalentTable } from "../../../components/ta_staff/talents/TalentTable";
 import { locationService, type Location } from "../../../services/location";
 import { partnerService, type Partner } from "../../../services/Partner";
-import { type Talent, type CreateDeveloperAccountModel } from "../../../services/Talent";
+import { type Talent, type CreateDeveloperAccountModel, talentService } from "../../../services/Talent";
+import { clientTalentBlacklistService, type ClientTalentBlacklist } from "../../../services/ClientTalentBlacklist";
 import PageLoader from "../../../components/common/PageLoader";
 
 export default function ListDev() {
   // ========== HOOKS - Logic được tách ra hooks ==========
   const { talents, myManagedTalents, loading, createDeveloperAccount } = useTalents();
-  const [activeTab, setActiveTab] = useState<"all" | "my">("all");
-  const currentTalentsList = activeTab === "all" ? talents : myManagedTalents;
+  const [activeTab, setActiveTab] = useState<"all" | "my" | "blacklist">("my");
+  const [blacklistedTalents, setBlacklistedTalents] = useState<Talent[]>([]);
+  const [loadingBlacklisted, setLoadingBlacklisted] = useState(false);
+  const currentTalentsList = activeTab === "all" ? talents : activeTab === "blacklist" ? blacklistedTalents : myManagedTalents;
   const { 
     filters, 
     setSearchTerm, 
@@ -72,6 +75,42 @@ export default function ListDev() {
     };
     fetchLookupData();
   }, []);
+
+  // ========== Load blacklisted talents ==========
+  useEffect(() => {
+    const fetchBlacklistedTalents = async () => {
+      if (activeTab !== "blacklist") return;
+      
+      try {
+        setLoadingBlacklisted(true);
+        // Lấy tất cả blacklist records (active only)
+        const blacklistData = await clientTalentBlacklistService.getAll({
+          isActive: true,
+          excludeDeleted: true,
+        });
+        const blacklists = ensureArray<ClientTalentBlacklist>(blacklistData);
+        
+        // Lấy unique talent IDs
+        const uniqueTalentIds = [...new Set(blacklists.map(b => b.talentId))];
+        
+        // Fetch thông tin talent từ các IDs
+        const talentPromises = uniqueTalentIds.map(id => 
+          talentService.getById(id).catch(() => null)
+        );
+        const talentResults = await Promise.all(talentPromises);
+        const validTalents = talentResults.filter((t): t is Talent => t !== null);
+        
+        setBlacklistedTalents(validTalents);
+      } catch (err) {
+        console.error("❌ Không thể tải danh sách talent bị blacklist:", err);
+        setBlacklistedTalents([]);
+      } finally {
+        setLoadingBlacklisted(false);
+      }
+    };
+    
+    fetchBlacklistedTalents();
+  }, [activeTab]);
 
   // ========== Tính toán stats ==========
   const stats = useMemo(() => [
@@ -127,10 +166,10 @@ export default function ListDev() {
   const startItem = filteredTalents.length > 0 ? startIndex + 1 : 0;
   const endItem = Math.min(endIndex, filteredTalents.length);
 
-  // Reset page khi filter thay đổi
+  // Reset page khi filter thay đổi hoặc chuyển tab
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters]);
+  }, [filters, activeTab]);
 
   // ========== Handlers ==========
   const handleCreateAccount = async (talent: Talent) => {
@@ -220,7 +259,7 @@ export default function ListDev() {
                 </button>
               </div>
             </div>
-            <Link to="/ta/developers/create">
+            <Link to="/ta/talents/create">
               <Button className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105">
                 <Plus className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform duration-300" />
                 Tạo nhân sự mới
@@ -231,6 +270,19 @@ export default function ListDev() {
           {/* Tabs */}
           <div className="mb-6">
             <div className="flex gap-2 border-b border-neutral-200">
+              <button
+                onClick={() => setActiveTab("my")}
+                className={`px-6 py-3 font-medium text-sm transition-all duration-300 border-b-2 ${
+                  activeTab === "my"
+                    ? "border-primary-600 text-primary-600 bg-primary-50"
+                    : "border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-50"
+                }`}
+              >
+                Nhân sự của tôi
+                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-neutral-200 text-neutral-700">
+                  {myManagedTalents.length}
+                </span>
+              </button>
               <button
                 onClick={() => setActiveTab("all")}
                 className={`px-6 py-3 font-medium text-sm transition-all duration-300 border-b-2 ${
@@ -245,24 +297,25 @@ export default function ListDev() {
                 </span>
               </button>
               <button
-                onClick={() => setActiveTab("my")}
-                className={`px-6 py-3 font-medium text-sm transition-all duration-300 border-b-2 ${
-                  activeTab === "my"
-                    ? "border-primary-600 text-primary-600 bg-primary-50"
-                    : "border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-50"
+                onClick={() => setActiveTab("blacklist")}
+                className={`flex items-center gap-2 px-6 py-3 font-medium text-sm transition-all duration-300 border-b-2 ${
+                  activeTab === "blacklist"
+                    ? "border-red-600 text-red-600 bg-red-50"
+                    : "border-transparent text-neutral-600 hover:text-red-600 hover:bg-neutral-50"
                 }`}
               >
-                Nhân sự của tôi
-                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-neutral-200 text-neutral-700">
-                  {myManagedTalents.length}
+                <Ban className="w-4 h-4" />
+                Nhân sự bị blacklist
+                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700">
+                  {blacklistedTalents.length}
                 </span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Stats - Component tái sử dụng */}
-        {showStats && (
+        {/* Stats - Component tái sử dụng (ẩn khi ở tab blacklist) */}
+        {showStats && activeTab !== "blacklist" && (
           <TalentStats
             stats={stats}
             startIndex={statsStartIndex}
@@ -281,30 +334,34 @@ export default function ListDev() {
           />
         )}
 
-        {/* Filters - Component tái sử dụng */}
-        <TalentFilters
-          showFilters={showFilters}
-          onToggleFilters={() => setShowFilters(!showFilters)}
-          searchTerm={filters.searchTerm}
-          onSearchChange={setSearchTerm}
-          filterLocation={filters.location}
-          onLocationChange={setLocation}
-          filterStatus={filters.status}
-          onStatusChange={setStatus}
-          filterWorkingMode={filters.workingMode}
-          onWorkingModeChange={setWorkingMode}
-          filterPartnerId={filters.partnerId}
-          onPartnerIdChange={setPartnerId}
-          locations={locations}
-          partners={partners}
-          onReset={resetFilters}
-        />
+        {/* Filters - Component tái sử dụng (ẩn khi ở tab blacklist) */}
+        {activeTab !== "blacklist" && (
+          <TalentFilters
+            showFilters={showFilters}
+            onToggleFilters={() => setShowFilters(!showFilters)}
+            searchTerm={filters.searchTerm}
+            onSearchChange={setSearchTerm}
+            filterLocation={filters.location}
+            onLocationChange={setLocation}
+            filterStatus={filters.status}
+            onStatusChange={setStatus}
+            filterWorkingMode={filters.workingMode}
+            onWorkingModeChange={setWorkingMode}
+            filterPartnerId={filters.partnerId}
+            onPartnerIdChange={setPartnerId}
+            locations={locations}
+            partners={partners}
+            onReset={resetFilters}
+          />
+        )}
 
         {/* Table - Component tái sử dụng */}
         <div className="bg-white rounded-2xl shadow-soft border border-neutral-100 animate-fade-in">
           <div className="p-6 border-b border-neutral-200 sticky top-16 bg-white z-20 rounded-t-2xl">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Danh sách nhân sự</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                {activeTab === "blacklist" ? "Danh sách nhân sự bị blacklist" : "Danh sách nhân sự"}
+              </h2>
               <div className="flex items-center gap-4">
                 {filteredTalents.length > 0 ? (
                   <>
@@ -340,15 +397,22 @@ export default function ListDev() {
               </div>
             </div>
           </div>
-          <TalentTable
-            talents={paginatedTalents}
-            locations={locations}
-            partners={partners}
-            startIndex={startIndex}
-            loading={false}
-            isCreatingAccount={isCreatingAccount}
-            onCreateAccount={handleCreateAccount}
-          />
+          {loadingBlacklisted ? (
+            <div className="p-12 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+              <p className="text-gray-500">Đang tải danh sách talent bị blacklist...</p>
+            </div>
+          ) : (
+            <TalentTable
+              talents={paginatedTalents}
+              locations={locations}
+              partners={partners}
+              startIndex={startIndex}
+              loading={false}
+              isCreatingAccount={isCreatingAccount}
+              onCreateAccount={handleCreateAccount}
+            />
+          )}
         </div>
       </div>
     </div>

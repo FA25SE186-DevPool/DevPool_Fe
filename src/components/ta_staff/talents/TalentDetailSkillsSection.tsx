@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Plus,
   Trash2,
@@ -8,6 +8,7 @@ import {
   Save,
   X,
   Layers,
+  MoreVertical,
 } from 'lucide-react';
 import { Button } from '../../ui/button';
 import { SectionPagination } from './SectionPagination';
@@ -172,6 +173,23 @@ export function TalentDetailSkillsSection({
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingSkillId, setEditingSkillId] = useState<number | null>(null);
+  const [openGroupActionsKey, setOpenGroupActionsKey] = useState<string | null>(null);
+  const groupActionsRef = useRef<HTMLDivElement | null>(null);
+
+  // Close actions menu when clicking outside
+  useEffect(() => {
+    if (!openGroupActionsKey) return;
+
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (groupActionsRef.current && groupActionsRef.current.contains(target)) return;
+      setOpenGroupActionsKey(null);
+    };
+
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [openGroupActionsKey]);
 
   // Filter skills for inline form
   const filteredSkillsForForm = useMemo(() => {
@@ -607,10 +625,11 @@ export function TalentDetailSkillsSection({
       {/* Filters and search */}
       {talentSkills.length > 0 && (
         <>
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-neutral-600">
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <p className="text-sm text-neutral-600 mr-auto">
               Tổng cộng <span className="font-semibold text-neutral-900">{talentSkills.length}</span> kỹ năng
             </p>
+
             <label className="inline-flex items-center gap-2 text-sm text-neutral-700 cursor-pointer">
               <input
                 type="checkbox"
@@ -618,32 +637,19 @@ export function TalentDetailSkillsSection({
                 checked={showOnlyUnverifiedSkills}
                 onChange={(e) => setShowOnlyUnverifiedSkills(e.target.checked)}
               />
-              <span>Chỉ xem nhóm kỹ năng chưa verify</span>
+              <span>Chỉ chưa verify</span>
             </label>
-          </div>
-          <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-            {/* Search by skill name */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
-              <input
-                type="text"
-                value={skillListSearchQuery}
-                onChange={(e) => setSkillListSearchQuery(e.target.value)}
-                placeholder="Tìm kiếm theo tên kỹ năng..."
-                className="w-full pl-9 pr-3 py-2 text-sm border border-neutral-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 bg-white"
-              />
-            </div>
-            {/* Filter by skill group */}
+
             {lookupSkillGroups.length > 0 && (
-              <div className="relative">
+              <div className="relative min-w-[220px]">
                 <button
                   type="button"
                   onClick={() => setIsSkillGroupListDropdownOpen(!isSkillGroupListDropdownOpen)}
-                  className="w-full flex items-center justify-between px-3 py-2 border rounded-lg bg-white text-left focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all border-neutral-300"
+                  className="w-full h-10 flex items-center justify-between px-3 border rounded-lg bg-white text-left focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all border-neutral-300"
                 >
-                  <div className="flex items-center gap-2 text-sm text-neutral-700">
-                    <Filter className="w-4 h-4 text-neutral-400" />
-                    <span>
+                  <div className="flex items-center gap-2 text-sm text-neutral-700 min-w-0">
+                    <Filter className="w-4 h-4 text-neutral-400 flex-shrink-0" />
+                    <span className="truncate">
                       {selectedSkillGroupIdForList
                         ? lookupSkillGroups.find((g) => g.id === selectedSkillGroupIdForList)?.name || 'Nhóm kỹ năng'
                         : 'Tất cả nhóm kỹ năng'}
@@ -716,6 +722,17 @@ export function TalentDetailSkillsSection({
                 )}
               </div>
             )}
+
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
+              <input
+                type="text"
+                value={skillListSearchQuery}
+                onChange={(e) => setSkillListSearchQuery(e.target.value)}
+                placeholder="Tìm kỹ năng..."
+                className="w-full h-10 pl-9 pr-3 text-sm border border-neutral-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 bg-white"
+              />
+            </div>
           </div>
         </>
       )}
@@ -739,7 +756,7 @@ export function TalentDetailSkillsSection({
                 groupSkillIds.length > 0 && groupSkillIds.every((id) => selectedSkills.includes(id));
 
               return (
-                <div key={group.key} className="border border-neutral-200 rounded-xl bg-white shadow-sm overflow-hidden">
+                <div key={group.key} className="border border-neutral-200 rounded-xl bg-white shadow-sm overflow-visible">
                   <div className="flex items-center justify-between px-4 py-3 bg-neutral-50 border-b border-neutral-200">
                     <div>
                       <div className="flex items-center gap-2">
@@ -781,8 +798,8 @@ export function TalentDetailSkillsSection({
                               Không hợp lệ / bị hủy
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-neutral-100 text-neutral-600 border border-neutral-300">
-                              <span className="w-2 h-2 rounded-full bg-neutral-400" />
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200">
+                              <span className="w-2 h-2 rounded-full bg-red-500" />
                               Chưa verify
                             </span>
                           ))}
@@ -807,43 +824,73 @@ export function TalentDetailSkillsSection({
                     </div>
                     <div className="flex items-center gap-2">
                       {group.skillGroupId && (
-                        <>
-                          {!isVerified && (
-                            <button
-                              type="button"
-                              onClick={() => onOpenVerifySkillGroup(group.skillGroupId)}
-                              disabled={!canEdit}
-                              className={`px-3 py-1.5 text-xs font-semibold rounded-lg bg-secondary-600 text-white hover:bg-secondary-700 ${
-                                !canEdit ? 'opacity-50 cursor-not-allowed' : ''
-                              }`}
-                              title={!canEdit ? 'Bạn không có quyền verify. Chỉ TA đang quản lý nhân sự này mới được verify.' : ''}
-                            >
-                              Verify group
-                            </button>
+                        <div
+                          className="relative"
+                          ref={openGroupActionsKey === group.key ? groupActionsRef : undefined}
+                        >
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenGroupActionsKey((prev) => (prev === group.key ? null : group.key))
+                            }
+                            className="p-2 rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 transition-colors"
+                            title="Thao tác"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                          {openGroupActionsKey === group.key && (
+                            <div className="absolute right-0 mt-2 w-44 rounded-xl border border-neutral-200 bg-white shadow-lg z-30 overflow-hidden">
+                              {!isVerified && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenGroupActionsKey(null);
+                                    onOpenVerifySkillGroup(group.skillGroupId);
+                                  }}
+                                  disabled={!canEdit}
+                                  className={`w-full text-left px-4 py-2.5 text-sm ${
+                                    !canEdit
+                                      ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+                                      : 'hover:bg-neutral-50 text-neutral-700'
+                                  }`}
+                                  title={!canEdit ? 'Bạn không có quyền verify.' : undefined}
+                                >
+                                  Verify group
+                                </button>
+                              )}
+                              {status && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenGroupActionsKey(null);
+                                    onOpenHistorySkillGroup(group.skillGroupId);
+                                  }}
+                                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-neutral-50 text-neutral-700"
+                                >
+                                  Lịch sử
+                                </button>
+                              )}
+                              {status && isVerified && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenGroupActionsKey(null);
+                                    onInvalidateSkillGroup(group.skillGroupId);
+                                  }}
+                                  disabled={!canEdit}
+                                  className={`w-full text-left px-4 py-2.5 text-sm ${
+                                    !canEdit
+                                      ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+                                      : 'hover:bg-red-50 text-red-600'
+                                  }`}
+                                  title={!canEdit ? 'Bạn không có quyền hủy đánh giá.' : undefined}
+                                >
+                                  Hủy đánh giá
+                                </button>
+                              )}
+                            </div>
                           )}
-                          {status && (
-                            <button
-                              type="button"
-                              onClick={() => onOpenHistorySkillGroup(group.skillGroupId)}
-                              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-neutral-200 text-neutral-700 hover:bg-neutral-50"
-                            >
-                              Lịch sử
-                            </button>
-                          )}
-                          {status && isVerified && (
-                            <button
-                              type="button"
-                              onClick={() => onInvalidateSkillGroup(group.skillGroupId)}
-                              disabled={!canEdit}
-                              className={`px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 ${
-                                !canEdit ? 'opacity-50 cursor-not-allowed' : ''
-                              }`}
-                              title={!canEdit ? 'Bạn không có quyền hủy đánh giá. Chỉ TA đang quản lý nhân sự này mới được hủy đánh giá.' : ''}
-                            >
-                              Hủy đánh giá
-                            </button>
-                          )}
-                        </>
+                        </div>
                       )}
                     </div>
                   </div>

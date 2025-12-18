@@ -161,9 +161,6 @@ export default function TalentCVCreatePage() {
     
     // Nếu chưa có CV nào cho jobRoleLevelId này, chỉ cho phép version = 1
     if (existingCVsList.length === 0) {
-      if (version !== 1) {
-        return "Chưa có CV nào cho vị trí công việc này. Vui lòng tạo version 1 trước.";
-      }
       return "";
     }
     
@@ -641,7 +638,7 @@ export default function TalentCVCreatePage() {
         }, 1500);
       } else if (talentId) {
         setTimeout(() => {
-          navigate(`/ta/developers/${talentId}`, { replace: true });
+          navigate(`/ta/talents/${talentId}`, { replace: true });
         }, 1500);
       } else {
         setTimeout(() => {
@@ -665,8 +662,8 @@ export default function TalentCVCreatePage() {
         <div className="mb-8 animate-slide-up">
           <Breadcrumb
             items={[
-              { label: "Nhân sự", to: "/ta/developers" },
-              { label: talentId ? `Chi tiết nhân sự` : "Chi tiết", to: `/ta/developers/${talentId}` },
+              { label: "Nhân sự", to: "/ta/talents" },
+              { label: talentId ? `Chi tiết nhân sự` : "Chi tiết", to: `/ta/talents/${talentId}` },
               { label: "Thêm CV" }
             ]}
           />
@@ -1160,7 +1157,7 @@ export default function TalentCVCreatePage() {
           {/* Action Buttons */}
           <div className="flex justify-end gap-4 pt-6">
             <Link
-              to={`/ta/developers/${talentId}`}
+              to={`/ta/talents/${talentId}`}
               onClick={handleNavigation}
               className="group flex items-center gap-2 px-6 py-3 border border-neutral-300 rounded-xl text-neutral-700 hover:bg-neutral-50 hover:border-neutral-400 transition-all duration-300 hover:scale-105 transform"
             >
