@@ -15,7 +15,6 @@ import {
   StickyNote,
   XCircle,
   Ban,
-  Loader2,
   X,
   Eye,
   Download,
@@ -222,11 +221,29 @@ export default function ClientContractDetailPage() {
 
   // Modal states
   const [showApproveContractModal, setShowApproveContractModal] = useState(false);
+  const [showApproveConfirmation, setShowApproveConfirmation] = useState(false);
   const [showRejectContractModal, setShowRejectContractModal] = useState(false);
+  const [showRejectConfirmation, setShowRejectConfirmation] = useState(false);
+
+  // Success message state
+  const [showSuccessMessage, setShowSuccessMessage] = useState<false | "approve" | "reject">(false);
 
   // Form states
   const [approveForm, setApproveForm] = useState<ApproveContractModel>({ notes: null });
   const [rejectForm, setRejectForm] = useState<RejectContractModel>({ rejectionReason: "" });
+
+  // Rejection reason templates for Manager
+  const managerRejectionReasonTemplates = [
+    "Thông tin hợp đồng không chính xác hoặc thiếu sót",
+    "Điều khoản thanh toán không phù hợp với chính sách công ty",
+    "Giá trị hợp đồng quá cao so với thị trường",
+    "Thời hạn hợp đồng không hợp lý",
+    "Thiếu thông tin về phạm vi công việc chi tiết",
+    "Yêu cầu kỹ năng không phù hợp với khả năng cung cấp",
+    "Hợp đồng vi phạm các quy định pháp lý",
+    "Cần thêm thời gian để đánh giá và xem xét",
+    "Không phù hợp với chiến lược kinh doanh hiện tại"
+  ];
 
   // Loading states
   const [isProcessing, setIsProcessing] = useState(false);
@@ -412,10 +429,14 @@ export default function ClientContractDetailPage() {
         notes: approveForm.notes || null,
       };
       await clientContractPaymentService.approveContract(Number(id), payload);
-      alert("Duyệt hợp đồng thành công!");
+
+      // Hiển thị success message và tự động ẩn sau 3 giây
+      setShowSuccessMessage("approve");
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+
       await refreshContractPayment();
       setShowApproveContractModal(false);
-      setApproveForm({ notes: null });
+      setShowApproveConfirmation(false);
     } catch (err: unknown) {
       // Xử lý lỗi từ backend
       let errorMessage = "Lỗi khi duyệt hợp đồng";
@@ -554,10 +575,13 @@ export default function ClientContractDetailPage() {
         }
       }
       
-      alert("Đã từ chối hợp đồng thành công!");
+      // Hiển thị success message và tự động ẩn sau 3 giây
+      setShowSuccessMessage("reject");
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+
       await refreshContractPayment();
       setShowRejectContractModal(false);
-      setRejectForm({ rejectionReason: "" });
+      setShowRejectConfirmation(false);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Lỗi khi từ chối hợp đồng");
     } finally {
@@ -1178,11 +1202,119 @@ export default function ClientContractDetailPage() {
                 Hủy
               </button>
               <button
-                onClick={handleApproveContract}
+                onClick={() => setShowApproveConfirmation(true)}
                 disabled={isProcessing}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
               >
-                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Duyệt"}
+                Duyệt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approve Confirmation Modal */}
+      {showApproveConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Xác nhận duyệt hợp đồng</h3>
+              <button
+                onClick={() => setShowApproveConfirmation(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-green-800 mb-2">
+                      Bạn có chắc chắn muốn duyệt hợp đồng này?
+                    </p>
+                    <div className="text-sm text-green-700 space-y-1">
+                      <p>• Hợp đồng sẽ chuyển sang trạng thái "Đã duyệt"</p>
+                      <p>• Hợp đồng sẽ được chuyển cho bước thực hiện tiếp theo</p>
+                      <p>• Không thể hoàn tác hành động này</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600">
+                Hợp đồng đã được kiểm tra kỹ lưỡng và sẵn sàng để triển khai.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => setShowApproveConfirmation(false)}
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => {
+                  setShowApproveConfirmation(false);
+                  handleApproveContract();
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                Xác nhận duyệt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Confirmation Modal */}
+      {showRejectConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Xác nhận từ chối hợp đồng</h3>
+              <button
+                onClick={() => setShowRejectConfirmation(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-800 mb-2">
+                      Bạn có chắc chắn muốn từ chối hợp đồng này?
+                    </p>
+                    <div className="text-sm text-red-700 space-y-1">
+                      <p>• Hợp đồng sẽ quay về trạng thái "Nháp"</p>
+                      <p>• Tất cả tài liệu liên quan sẽ bị xóa</p>
+                      <p>• Lý do từ chối: <span className="font-medium">{rejectForm.rejectionReason}</span></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600">
+                Hành động này không thể hoàn tác. Hợp đồng sẽ cần được chỉnh sửa và gửi lại.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => setShowRejectConfirmation(false)}
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => {
+                  setShowRejectConfirmation(false);
+                  handleRejectContract();
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Xác nhận từ chối
               </button>
             </div>
           </div>
@@ -1192,7 +1324,7 @@ export default function ClientContractDetailPage() {
       {/* Reject Contract Modal */}
       {showRejectContractModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Từ chối hợp đồng</h3>
               <button onClick={() => setShowRejectContractModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -1202,6 +1334,22 @@ export default function ClientContractDetailPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Lý do từ chối <span className="text-red-500">*</span></label>
+                <div className="mb-3">
+                  <p className="text-xs text-gray-500 mb-2">Chọn lý do mẫu (click để điền tự động):</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {managerRejectionReasonTemplates.map((reason, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => setRejectForm({ ...rejectForm, rejectionReason: reason })}
+                        className="text-xs px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg border transition-colors text-left"
+                        title={reason}
+                      >
+                        {reason}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <textarea
                   value={rejectForm.rejectionReason}
                   onChange={(e) => setRejectForm({ ...rejectForm, rejectionReason: e.target.value })}
@@ -1222,11 +1370,43 @@ export default function ClientContractDetailPage() {
                 Hủy
               </button>
               <button
-                onClick={handleRejectContract}
+                onClick={() => setShowRejectConfirmation(true)}
                 disabled={isProcessing || !rejectForm.rejectionReason.trim()}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
-                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Từ chối"}
+                Từ chối
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message Toast */}
+      {showSuccessMessage && (
+        <div className="fixed top-4 right-4 z-50 animate-slide-in">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 shadow-lg max-w-sm transform transition-all duration-300 ease-in-out">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-green-800">
+                  {showSuccessMessage === "approve" ? "Duyệt hợp đồng thành công!" :
+                   showSuccessMessage === "reject" ? "Đã từ chối hợp đồng thành công!" :
+                   "Thao tác thành công!"}
+                </p>
+                <p className="text-xs text-green-600 mt-1">
+                  {showSuccessMessage === "approve"
+                    ? "Hợp đồng đã được duyệt và chuyển sang trạng thái tiếp theo."
+                    : showSuccessMessage === "reject"
+                    ? "Hợp đồng đã được từ chối và quay về trạng thái nháp."
+                    : "Thao tác đã được thực hiện thành công."
+                  }
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSuccessMessage(false)}
+                className="text-green-400 hover:text-green-600"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
