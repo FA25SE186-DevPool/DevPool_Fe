@@ -474,7 +474,7 @@ export default function AccountantProjectDetailPage() {
           projectId: Number(id),
           excludeDeleted: true,
         });
-        const openPeriods = allPeriods.filter(p => p.projectId === Number(id) && p.status === "Open");
+        const openPeriods = allPeriods.filter(p => p.projectId === Number(id) && (p.status === "Open" || p.status === "Processing"));
 
         if (openPeriods.length > 0) {
           // Lấy tất cả talent assignments active
@@ -692,8 +692,8 @@ export default function AccountantProjectDetailPage() {
           projectId: Number(id),
           excludeDeleted: true,
         });
-        const openPeriods = allPeriods.filter(p => p.projectId === Number(id) && p.status === "Open");
-        
+        const openPeriods = allPeriods.filter(p => p.projectId === Number(id) && (p.status === "Open" || p.status === "Processing"));
+
         if (openPeriods.length > 0) {
           const assignments = await talentAssignmentService.getAll({
             projectId: Number(id),

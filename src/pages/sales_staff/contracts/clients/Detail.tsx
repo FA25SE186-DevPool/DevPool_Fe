@@ -222,7 +222,6 @@ export default function ClientContractDetailPage() {
     percentageValue: 100,
     fixedAmount: null,
     plannedAmountVND: null,
-    sowDescription: null,
     standardHours: 160, // Always 160, not editable
     notes: null,
   });
@@ -374,6 +373,21 @@ export default function ClientContractDetailPage() {
     loadClientDocuments();
   }, [id]);
 
+  // Refresh client documents
+  const refreshClientDocuments = async () => {
+    if (!id) return;
+    try {
+      const data = await clientDocumentService.getAll({
+        clientContractPaymentId: Number(id),
+        excludeDeleted: true,
+      });
+      const documents = Array.isArray(data) ? data : (data?.items || []);
+      setClientDocuments(documents);
+    } catch (err: unknown) {
+      console.error("❌ Lỗi tải lại tài liệu khách hàng:", err);
+    }
+  };
+
   // Refresh contract payment data
   const refreshContractPayment = async () => {
     if (!id) return;
@@ -476,7 +490,6 @@ export default function ClientContractDetailPage() {
         percentageValue: submitForm.calculationMethod === "Percentage" ? (submitForm.percentageValue ?? 0) : 0,
         fixedAmount: submitForm.calculationMethod === "FixedAmount" ? (submitForm.fixedAmount ?? 0) : 0,
         plannedAmountVND: calculatePlannedAmountVND() ?? 0,
-        sowDescription: submitForm.sowDescription ?? "",
         sowExcelFileUrl: fileUrl, // URL của file đã upload
         standardHours: submitForm.standardHours,
         notes: submitForm.notes ?? "",
@@ -491,18 +504,7 @@ export default function ClientContractDetailPage() {
       setTimeout(() => setShowSuccessMessage(false), 3000);
 
       await refreshContractPayment();
-      
-      // Reload documents để hiển thị đúng
-      try {
-        const data = await clientDocumentService.getAll({
-          clientContractPaymentId: Number(id),
-          excludeDeleted: true,
-        });
-        const documents = Array.isArray(data) ? data : (data?.items || []);
-        setClientDocuments(documents);
-      } catch (err) {
-        console.error("❌ Lỗi reload documents:", err);
-      }
+      await refreshClientDocuments();
       
       setShowSubmitContractModal(false);
       setShowSubmitConfirmation(false);
@@ -514,7 +516,6 @@ export default function ClientContractDetailPage() {
                     percentageValue: 100,
                     fixedAmount: null,
                     plannedAmountVND: null,
-                    sowDescription: null,
                     standardHours: 160, // Always 160, not editable
                     notes: null,
                   });
@@ -639,7 +640,6 @@ export default function ClientContractDetailPage() {
                       percentageValue: method === "Percentage" ? (contractPayment.percentageValue ?? 100) : null,
                       fixedAmount: method === "FixedAmount" ? (contractPayment.fixedAmount ?? contractPayment.unitPriceForeignCurrency ?? null) : null,
                       plannedAmountVND: contractPayment.plannedAmountVND ?? null,
-                      sowDescription: contractPayment.sowDescription ?? null,
                       standardHours: 160, // Always 160, not editable
                       notes: contractPayment.notes ?? null,
                     });
@@ -692,6 +692,17 @@ export default function ClientContractDetailPage() {
               >
                 <FileText className="w-4 h-4" />
                 Tài liệu
+              </button>
+              <button
+                onClick={() => setActiveMainTab("notes")}
+                className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
+                  activeMainTab === "notes"
+                    ? "border-primary-600 text-primary-600 bg-primary-50"
+                    : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
+                }`}
+              >
+                <StickyNote className="w-4 h-4" />
+                Ghi chú
               </button>
             </div>
           </div>
@@ -953,35 +964,7 @@ export default function ClientContractDetailPage() {
                 )}
               </div>
 
-              {contractPayment.sowDescription && (
-                <div className="mt-6 pt-6 border-t border-neutral-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileText className="w-4 h-4 text-neutral-400" />
-                    <p className="text-sm font-medium text-neutral-600">Mô tả SOW</p>
-                  </div>
-                  <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.sowDescription}</p>
-                </div>
-              )}
 
-              {contractPayment.rejectionReason && (
-                <div className="mt-6 pt-6 border-t border-neutral-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <XCircle className="w-4 h-4 text-red-400" />
-                    <p className="text-sm font-medium text-red-600">Lý do từ chối</p>
-                  </div>
-                  <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.rejectionReason}</p>
-                </div>
-              )}
-
-                  {contractPayment.notes && (
-                    <div className="mt-6 pt-6 border-t border-neutral-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <StickyNote className="w-4 h-4 text-neutral-400" />
-                        <p className="text-sm font-medium text-neutral-600">Ghi chú</p>
-                      </div>
-                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.notes}</p>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -1108,6 +1091,48 @@ export default function ClientContractDetailPage() {
                   <div className="text-center py-12">
                     <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500 text-lg">Chưa có tài liệu nào</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab: Ghi chú */}
+            {activeMainTab === "notes" && (
+              <div className="space-y-6">
+                {/* Ghi chú hợp đồng */}
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-yellow-100 rounded-lg">
+                      <StickyNote className="w-5 h-5 text-yellow-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">Ghi chú hợp đồng</h3>
+                  </div>
+
+                  {contractPayment.notes ? (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.notes}</p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200 border-dashed">
+                      <StickyNote className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">Không có ghi chú nào</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Lý do từ chối (nếu có) */}
+                {contractPayment.rejectionReason && (
+                  <div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-red-100 rounded-lg">
+                        <XCircle className="w-5 h-5 text-red-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Lý do từ chối</h3>
+                    </div>
+
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.rejectionReason}</p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1472,16 +1497,6 @@ export default function ClientContractDetailPage() {
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Mô tả SOW</label>
-                <textarea
-                  value={submitForm.sowDescription || ""}
-                  onChange={(e) => setSubmitForm({ ...submitForm, sowDescription: e.target.value || null })}
-                  className="w-full border rounded-lg p-2"
-                  rows={3}
-                  placeholder="Ví dụ: Full month work: Backend development, API integration, testing"
-                />
-              </div>
-              <div>
                 <label className="block text-sm font-medium mb-2">Ghi chú</label>
                 <textarea
                   value={submitForm.notes || ""}
@@ -1552,7 +1567,6 @@ export default function ClientContractDetailPage() {
                     percentageValue: 100,
                     fixedAmount: null,
                     plannedAmountVND: null,
-                    sowDescription: null,
                     standardHours: 160, // Always 160, not editable
                     notes: null,
                   });

@@ -234,7 +234,7 @@ const formatNumberWithoutTrailingZeros = (num: number): string => {
   
   // Nếu có phần thập phân, xử lý riêng
   // Dùng toFixed với độ chính xác cao để giữ lại tất cả chữ số
-  let str = num.toFixed(15);
+  const str = num.toFixed(15);
   
   // Tách phần nguyên và phần thập phân
   const parts = str.split('.');
@@ -420,7 +420,7 @@ export default function ClientContractDetailPage() {
             excludeDeleted: true,
           });
           // Xử lý format dữ liệu trả về (có thể là array hoặc object có items)
-          const partnerPayments = Array.isArray(data) ? data : ((data as any)?.items || []);
+          const partnerPayments = Array.isArray(data) ? data : ((data as { items?: PartnerContractPaymentModel[] })?.items || []);
           if (partnerPayments && partnerPayments.length > 0) {
             setPartnerContractPayment(partnerPayments[0]);
           } else {
@@ -501,7 +501,7 @@ export default function ClientContractDetailPage() {
           typesMap.set(type.id, type);
         });
         setDocumentTypes(typesMap);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("❌ Lỗi tải loại tài liệu:", err);
       }
     };
@@ -519,12 +519,27 @@ export default function ClientContractDetailPage() {
         });
         const documents = Array.isArray(data) ? data : (data?.items || []);
         setClientDocuments(documents);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("❌ Lỗi tải tài liệu khách hàng:", err);
       }
     };
     loadClientDocuments();
   }, [id]);
+
+  // Refresh client documents
+  const refreshClientDocuments = async () => {
+    if (!id) return;
+    try {
+      const data = await clientDocumentService.getAll({
+        clientContractPaymentId: Number(id),
+        excludeDeleted: true,
+      });
+      const documents = Array.isArray(data) ? data : (data?.items || []);
+      setClientDocuments(documents);
+    } catch (err: unknown) {
+      console.error("❌ Lỗi tải lại tài liệu khách hàng:", err);
+    }
+  };
 
   // Refresh contract payment data
   const refreshContractPayment = async () => {
@@ -541,7 +556,7 @@ export default function ClientContractDetailPage() {
             talentAssignmentId: paymentData.talentAssignmentId,
             excludeDeleted: true,
           });
-          const partnerPayments = Array.isArray(data) ? data : ((data as any)?.items || []);
+          const partnerPayments = Array.isArray(data) ? data : ((data as { items?: PartnerContractPaymentModel[] })?.items || []);
           if (partnerPayments && partnerPayments.length > 0) {
             setPartnerContractPayment(partnerPayments[0]);
           } else {
@@ -570,8 +585,8 @@ export default function ClientContractDetailPage() {
       await refreshContractPayment();
       setShowRequestMoreInfoModal(false);
       setRequestMoreInfoForm({ notes: null });
-    } catch (err: any) {
-      alert(err?.message || "Lỗi khi yêu cầu thêm thông tin");
+    } catch (err: unknown) {
+      alert((err as { message?: string })?.message || "Lỗi khi yêu cầu thêm thông tin");
     } finally {
       setIsProcessing(false);
     }
@@ -629,12 +644,14 @@ export default function ClientContractDetailPage() {
       setTimeout(() => setShowSuccessMessage(false), 3000);
 
       await refreshContractPayment();
+      await refreshClientDocuments();
       setShowVerifyContractModal(false);
+      setShowVerifyConfirmation(false);
       setVerifyForm({ notes: null });
       setVerifyContractFile(null);
       setVerifyContractFileError(null);
-    } catch (err: any) {
-      alert(err?.message || "Lỗi khi xác minh hợp đồng");
+    } catch (err: unknown) {
+      alert((err as { message?: string })?.message || "Lỗi khi xác minh hợp đồng");
     } finally {
       setIsProcessing(false);
     }
@@ -764,8 +781,8 @@ export default function ClientContractDetailPage() {
       setShowRejectContractModal(false);
       setShowRejectConfirmation(false);
       setRejectForm({ rejectionReason: "" });
-    } catch (err: any) {
-      alert(err?.message || "Lỗi khi từ chối hợp đồng");
+    } catch (err: unknown) {
+      alert((err as { message?: string })?.message || "Lỗi khi từ chối hợp đồng");
     } finally {
       setIsProcessing(false);
     }
@@ -918,12 +935,13 @@ export default function ClientContractDetailPage() {
       setShowSuccessMessage("billing");
       setTimeout(() => setShowSuccessMessage(false), 3000);
       await refreshContractPayment();
+      await refreshClientDocuments();
       setShowStartBillingModal(false);
       setBillingForm({ billableHours: 0, autoSyncToPartner: true, notes: null });
       setTimesheetFile(null);
       setTimesheetFileError(null);
-    } catch (err: any) {
-      alert(err?.message || "Lỗi khi ghi nhận giờ làm việc");
+    } catch (err: unknown) {
+      alert((err as { message?: string })?.message || "Lỗi khi ghi nhận giờ làm việc");
     } finally {
       setIsProcessing(false);
     }
@@ -1023,6 +1041,7 @@ export default function ClientContractDetailPage() {
       setTimeout(() => setShowSuccessMessage(false), 3000);
 
       await refreshContractPayment();
+      await refreshClientDocuments();
       setShowCreateInvoiceModal(false);
       setInvoiceForm({ invoiceNumber: "", invoiceDate: new Date().toISOString().split('T')[0], notes: null });
       setInvoiceFile(null);
@@ -1138,6 +1157,7 @@ export default function ClientContractDetailPage() {
       setTimeout(() => setShowSuccessMessage(false), 3000);
 
       await refreshContractPayment();
+      await refreshClientDocuments();
       setShowRecordPaymentModal(false);
       setPaymentForm({ receivedAmount: 0, paymentDate: new Date().toISOString().split('T')[0], notes: null });
       setReceiptFile(null);
@@ -1264,7 +1284,7 @@ export default function ClientContractDetailPage() {
                   {contractPayment.contractStatus === "Submitted" && (
                     <>
                       <button
-                        onClick={() => setShowVerifyConfirmation(true)}
+                        onClick={() => setShowVerifyContractModal(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
                       >
                         <CheckCircle className="w-4 h-4" />
@@ -1359,6 +1379,17 @@ export default function ClientContractDetailPage() {
               >
                 <FileText className="w-4 h-4" />
                 Tài liệu
+              </button>
+              <button
+                onClick={() => setActiveMainTab("notes")}
+                className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
+                  activeMainTab === "notes"
+                    ? "border-primary-600 text-primary-600 bg-primary-50"
+                    : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
+                }`}
+              >
+                <StickyNote className="w-4 h-4" />
+                Ghi chú
               </button>
             </div>
           </div>
@@ -1630,25 +1661,7 @@ export default function ClientContractDetailPage() {
                     </div>
                   )}
 
-                  {contractPayment.rejectionReason && (
-                    <div className="mt-6 pt-6 border-t border-neutral-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <XCircle className="w-4 h-4 text-red-400" />
-                        <p className="text-sm font-medium text-red-600">Lý do từ chối</p>
-                      </div>
-                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.rejectionReason}</p>
-                    </div>
-                  )}
 
-                  {contractPayment.notes && (
-                    <div className="mt-6 pt-6 border-t border-neutral-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <StickyNote className="w-4 h-4 text-neutral-400" />
-                        <p className="text-sm font-medium text-neutral-600">Ghi chú</p>
-                      </div>
-                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.notes}</p>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -1779,6 +1792,48 @@ export default function ClientContractDetailPage() {
                 )}
               </div>
             )}
+
+            {/* Tab: Ghi chú */}
+            {activeMainTab === "notes" && (
+              <div className="space-y-6">
+                {/* Ghi chú hợp đồng */}
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-yellow-100 rounded-lg">
+                      <StickyNote className="w-5 h-5 text-yellow-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">Ghi chú hợp đồng</h3>
+                  </div>
+
+                  {contractPayment.notes ? (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.notes}</p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200 border-dashed">
+                      <StickyNote className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">Không có ghi chú nào</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Lý do từ chối (nếu có) */}
+                {contractPayment.rejectionReason && (
+                  <div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-red-100 rounded-lg">
+                        <XCircle className="w-5 h-5 text-red-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Lý do từ chối</h3>
+                    </div>
+
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.rejectionReason}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1905,11 +1960,11 @@ export default function ClientContractDetailPage() {
                 Hủy
               </button>
               <button
-                onClick={handleVerifyContract}
+                onClick={() => setShowVerifyConfirmation(true)}
                 disabled={isProcessing || !verifyContractFile || !!verifyContractFileError}
                 className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
               >
-                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Xác minh"}
+                Xác minh
               </button>
             </div>
           </div>
@@ -2751,7 +2806,13 @@ export default function ClientContractDetailPage() {
             </div>
             <div className="flex gap-3 justify-end mt-6">
               <button
-                onClick={() => setShowVerifyConfirmation(false)}
+                onClick={() => {
+                  setShowVerifyConfirmation(false);
+                  setShowVerifyContractModal(false);
+                  setVerifyForm({ notes: null });
+                  setVerifyContractFile(null);
+                  setVerifyContractFileError(null);
+                }}
                 className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700"
               >
                 Hủy
@@ -2759,11 +2820,11 @@ export default function ClientContractDetailPage() {
               <button
                 onClick={() => {
                   setShowVerifyConfirmation(false);
-                  setShowVerifyContractModal(true);
+                  handleVerifyContract();
                 }}
                 className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
               >
-                Tiếp tục xác minh
+                Xác nhận xác minh
               </button>
             </div>
           </div>

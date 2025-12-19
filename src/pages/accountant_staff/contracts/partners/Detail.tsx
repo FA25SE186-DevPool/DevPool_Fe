@@ -1102,11 +1102,13 @@ export default function PartnerContractDetailPage() {
             <div className="flex items-center gap-3">
               {/* Action Buttons for Accountant */}
               {/* Verify Contract - Draft + Pending */}
-              {/* Chỉ hiển thị nút khi client contract đang ở trạng thái Submitted hoặc Verified */}
-              {contractPayment.contractStatus === "Draft" && 
+              {/* Chỉ hiển thị nút khi client contract đang ở trạng thái Submitted, Verified hoặc Approved */}
+              {contractPayment.contractStatus === "Draft" &&
                contractPayment.paymentStatus === "Pending" &&
-               clientContractPayment && 
-               (clientContractPayment.contractStatus === "Submitted" || clientContractPayment.contractStatus === "Verified") && (
+               clientContractPayment &&
+               (clientContractPayment.contractStatus === "Submitted" ||
+                clientContractPayment.contractStatus === "Verified" ||
+                clientContractPayment.contractStatus === "Approved") && (
                 <button
                   onClick={async () => {
                     // Pre-fill form with contract payment data
@@ -1224,6 +1226,17 @@ export default function PartnerContractDetailPage() {
               >
                 <FileText className="w-4 h-4" />
                 Tài liệu
+              </button>
+              <button
+                onClick={() => setActiveMainTab("notes")}
+                className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
+                  activeMainTab === "notes"
+                    ? "border-primary-600 text-primary-600 bg-primary-50"
+                    : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
+                }`}
+              >
+                <StickyNote className="w-4 h-4" />
+                Ghi chú
               </button>
             </div>
           </div>
@@ -1438,25 +1451,6 @@ export default function PartnerContractDetailPage() {
                 )}
                   </div>
 
-                  {contractPayment.rejectionReason && (
-                    <div className="mt-6 pt-6 border-t border-neutral-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <XCircle className="w-4 h-4 text-red-400" />
-                        <p className="text-sm font-medium text-red-600">Lý do từ chối</p>
-                      </div>
-                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.rejectionReason}</p>
-                    </div>
-                  )}
-
-                  {contractPayment.notes && (
-                    <div className="mt-6 pt-6 border-t border-neutral-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <StickyNote className="w-4 h-4 text-neutral-400" />
-                        <p className="text-sm font-medium text-neutral-600">Ghi chú</p>
-                      </div>
-                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.notes}</p>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -1583,6 +1577,48 @@ export default function PartnerContractDetailPage() {
                   <div className="text-center py-12">
                     <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500 text-lg">Chưa có tài liệu nào</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab: Ghi chú */}
+            {activeMainTab === "notes" && (
+              <div className="space-y-6">
+                {/* Ghi chú hợp đồng */}
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-yellow-100 rounded-lg">
+                      <StickyNote className="w-5 h-5 text-yellow-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">Ghi chú hợp đồng</h3>
+                  </div>
+
+                  {contractPayment.notes ? (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.notes}</p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200 border-dashed">
+                      <StickyNote className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">Không có ghi chú nào</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Lý do từ chối (nếu có) */}
+                {contractPayment.rejectionReason && (
+                  <div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-red-100 rounded-lg">
+                        <XCircle className="w-5 h-5 text-red-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Lý do từ chối</h3>
+                    </div>
+
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.rejectionReason}</p>
+                    </div>
                   </div>
                 )}
               </div>
