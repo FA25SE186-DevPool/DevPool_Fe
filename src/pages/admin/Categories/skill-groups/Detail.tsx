@@ -27,6 +27,25 @@ export default function SkillGroupDetailPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState<string>("");
 
+  // Success overlay state
+  const [loadingOverlay, setLoadingOverlay] = useState<{ show: boolean; type: 'loading' | 'success'; message: string }>({
+    show: false,
+    type: 'loading',
+    message: '',
+  });
+
+  const showSuccessOverlay = (message: string) => {
+    setLoadingOverlay({
+      show: true,
+      type: 'success',
+      message,
+    });
+    // Auto hide after 2 seconds
+    setTimeout(() => {
+      setLoadingOverlay({ show: false, type: 'loading', message: '' });
+    }, 2000);
+  };
+
   // Fetch dữ liệu chi tiết
   useEffect(() => {
     const fetchData = async () => {
@@ -57,7 +76,7 @@ export default function SkillGroupDetailPage() {
 
     try {
       await skillGroupService.delete(Number(id));
-      alert("✅ Đã xóa nhóm kỹ năng thành công!");
+      showSuccessOverlay("✅ Đã xóa nhóm kỹ năng thành công!");
       navigate("/admin/categories/skill-groups");
     } catch (err) {
       console.error("❌ Lỗi khi xóa:", err);
@@ -324,11 +343,36 @@ export default function SkillGroupDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Loading/Success Overlay ở giữa màn hình */}
+      {loadingOverlay.show && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-4 min-w-[350px] max-w-[500px]">
+            {loadingOverlay.type === 'loading' ? (
+              <>
+                <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-primary-700 mb-2">Đang xử lý...</p>
+                  <p className="text-neutral-600">{loadingOverlay.message}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 border-4 border-success-200 border-t-success-600 rounded-full animate-spin"></div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-success-700 mb-2">Thành công!</p>
+                  <p className="text-neutral-600 whitespace-pre-line">{loadingOverlay.message}</p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function InfoItem({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
+export function InfoItem({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
     <div className="group">
       <div className="flex items-center gap-2 mb-2">

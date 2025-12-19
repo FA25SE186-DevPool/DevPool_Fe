@@ -1,11 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   LineChart, Line, BarChart, Bar,
   CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
 import {
-  Users, Target, Handshake, FileText,
-  TrendingUp, Clock, Briefcase, AlertCircle, XCircle, Loader2, Calendar, CheckCircle
+  Users, Target, FileText,
+  TrendingUp, Briefcase, AlertCircle, Loader2
 } from "lucide-react";
 import Sidebar from "../../components/common/Sidebar";
 import { sidebarItems } from "../../components/sidebar/sales";
@@ -18,6 +19,7 @@ import { dashboardService, type ProjectAssignmentDashboardModel } from "../../se
 type DashboardTab = 'sales-pipeline' | 'project-assignment';
 
 export default function SalesDashboard() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<DashboardTab>('sales-pipeline');
   
   // Sales Pipeline states
@@ -90,7 +92,7 @@ export default function SalesDashboard() {
       if (err.code === 'NOT_IMPLEMENTED' || err.message?.includes('chưa được triển khai')) {
         setErrorProjectAssignment('NOT_IMPLEMENTED');
       } else {
-        setErrorProjectAssignment(err.message || 'Không thể tải dữ liệu project assignment. Vui lòng thử lại sau.');
+        setErrorProjectAssignment(err.message || 'Không thể tải dữ liệu dự án & phân công. Vui lòng thử lại sau.');
       }
     } finally {
       setLoadingProjectAssignment(false);
@@ -99,8 +101,6 @@ export default function SalesDashboard() {
 
   const totalJobRequests = jobRequests.length;
   const approvedJobRequests = jobRequests.filter(jr => jr.status === JobRequestStatus.Approved).length;
-  const pendingJobRequests = jobRequests.filter(jr => jr.status === JobRequestStatus.Pending).length;
-  const closedJobRequests = jobRequests.filter(jr => jr.status === JobRequestStatus.Closed).length;
 
   const totalApplications = applications.length;
   const interviewScheduledApplications = applications.filter(app => app.status === "Interviewing").length;
@@ -121,7 +121,7 @@ export default function SalesDashboard() {
   }).length;
 
   const totalProjects = projects.length;
-  const activeProjects = projects.filter(project => project.status?.toLowerCase() === "active").length;
+  const activeProjects = projects.filter(project => project.status?.toLowerCase() === "ongoing").length;
 
   const monthlyPipelineData = (() => {
     const map = new Map<string, { pipeline: number; won: number }>();
@@ -164,67 +164,54 @@ export default function SalesDashboard() {
     ? stageFunnelData
     : [{ stage: "Chưa có dữ liệu", count: 0 }];
 
-  const primaryStats = [
+  // Navigation handlers
+  const handleNavigateToJobRequests = () => navigate('/sales/job-requests');
+  const handleNavigateToApplications = () => navigate('/sales/applications');
+  const handleNavigateToClients = () => navigate('/sales/clients');
+  const handleNavigateToProjects = () => navigate('/sales/projects');
+
+  const primaryStats: Array<{
+    title: string;
+    value: string;
+    description: string;
+    icon: any;
+    color: string;
+    onClick?: () => void;
+  }> = [
     {
       title: "Yêu cầu tuyển dụng",
       value: totalJobRequests.toString(),
       description: `${approvedJobRequests} yêu cầu đã duyệt`,
       icon: Target,
-      color: "primary"
+      color: "primary",
+      onClick: handleNavigateToJobRequests
     },
     {
       title: "Hồ sơ ứng tuyển",
       value: totalApplications.toString(),
       description: `${interviewingApplications} hồ sơ đang xử lý`,
       icon: FileText,
-      color: "secondary"
+      color: "secondary",
+      onClick: handleNavigateToApplications
     },
     {
       title: "Công ty khách hàng",
       value: activeClientCompanies.toString(),
       description: `${newClientsThisMonth} công ty mới trong tháng`,
       icon: Users,
-      color: "accent"
+      color: "accent",
+      onClick: handleNavigateToClients
     },
     {
       title: "Dự án đang theo dõi",
       value: totalProjects.toString(),
-      description: `${activeProjects} dự án đang hoạt động`,
+      description: `${activeProjects} đang thực hiện`,
       icon: Briefcase,
-      color: "purple"
+      color: "purple",
+      onClick: handleNavigateToProjects
     }
   ];
 
-  const secondaryStats = [
-    {
-      title: "Hồ sơ đã tuyển",
-      value: hiredApplications.toString(),
-      description: "Ứng viên đã nhận offer",
-      icon: Handshake,
-      color: "green"
-    },
-    {
-      title: "Hồ sơ đã rút",
-      value: withdrawnApplications.toString(),
-      description: "Ứng viên đã rời khỏi quy trình",
-      icon: XCircle,
-      color: "orange"
-    },
-    {
-      title: "Hồ sơ bị từ chối",
-      value: rejectedApplications.toString(),
-      description: "Ứng viên không phù hợp",
-      icon: AlertCircle,
-      color: "red"
-    },
-    {
-      title: "YC chờ duyệt",
-      value: pendingJobRequests.toString(),
-      description: `${closedJobRequests} yêu cầu đã đóng`,
-      icon: Clock,
-      color: "warning"
-    }
-  ];
 
   // Sales Pipeline Dashboard Content
   const renderSalesPipelineDashboard = () => {
@@ -244,7 +231,13 @@ export default function SalesDashboard() {
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-fade-in">
           {primaryStats.map((stat, index) => (
-            <div key={index} className="group bg-white rounded-2xl shadow-soft hover:shadow-medium p-6 transition-all duration-300 transform hover:-translate-y-1 border border-neutral-100 hover:border-primary-200">
+            <div
+              key={index}
+              onClick={stat.onClick}
+              className={`group bg-white rounded-2xl shadow-soft hover:shadow-medium p-6 transition-all duration-300 transform hover:-translate-y-1 border border-neutral-100 hover:border-primary-200 ${
+                stat.onClick ? 'cursor-pointer' : ''
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-neutral-600 group-hover:text-neutral-700 transition-colors duration-300">{stat.title}</p>
@@ -267,31 +260,6 @@ export default function SalesDashboard() {
           ))}
         </div>
 
-        {/* Secondary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-fade-in">
-          {secondaryStats.map((stat, index) => (
-            <div key={index} className="group bg-white rounded-2xl shadow-soft hover:shadow-medium p-6 transition-all duration-300 transform hover:-translate-y-1 border border-neutral-100 hover:border-primary-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600 group-hover:text-neutral-700 transition-colors duration-300">{stat.title}</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2 group-hover:text-primary-700 transition-colors duration-300">{stat.value}</p>
-                </div>
-                <div className={`p-3 rounded-full ${stat.color === 'green' ? 'bg-green-100 text-green-600 group-hover:bg-green-200' :
-                  stat.color === 'orange' ? 'bg-orange-100 text-orange-600 group-hover:bg-orange-200' :
-                    stat.color === 'red' ? 'bg-red-100 text-red-600 group-hover:bg-red-200' :
-                      stat.color === 'warning' ? 'bg-warning-100 text-warning-600 group-hover:bg-warning-200' :
-                        'bg-neutral-100 text-neutral-600 group-hover:bg-neutral-200'
-                  } transition-all duration-300`}>
-                  {stat.icon && <stat.icon className="w-6 h-6 group-hover:scale-110 transition-transform duration-300" />}
-                </div>
-              </div>
-              <p className="text-sm text-secondary-600 mt-4 flex items-center group-hover:text-secondary-700 transition-colors duration-300">
-                <TrendingUp className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform duration-300" />
-                {stat.description}
-              </p>
-            </div>
-          ))}
-        </div>
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -332,7 +300,7 @@ export default function SalesDashboard() {
         <div className="flex justify-center items-center min-h-[400px]">
           <div className="text-center">
             <Loader2 className="w-12 h-12 animate-spin text-primary-600 mx-auto mb-4" />
-            <p className="text-gray-600">Đang tải dữ liệu project & assignment...</p>
+            <p className="text-gray-600">Đang tải dữ liệu dự án & phân công...</p>
           </div>
         </div>
       );
@@ -346,7 +314,7 @@ export default function SalesDashboard() {
               <Briefcase className="w-16 h-16 text-amber-600 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-amber-900 mb-2">Chức năng đang phát triển</h3>
               <p className="text-amber-700 mb-4">
-                Project & Assignment Dashboard đang được phát triển và sẽ sớm có mặt trong phiên bản tiếp theo.
+                Dashboard Dự án & Phân công đang được phát triển và sẽ sớm có mặt trong phiên bản tiếp theo.
               </p>
               <button
                 onClick={() => setActiveTab('sales-pipeline')}
@@ -379,63 +347,58 @@ export default function SalesDashboard() {
 
     return (
       <div className="space-y-6">
-        {/* Project Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {/* Overview Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Projects Overview */}
           <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Tổng Projects</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{projectAssignmentData.totalProjects}</p>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Tổng quan Dự án</h3>
+              <Briefcase className="w-6 h-6 text-primary-600" />
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-neutral-600">Tổng Dự án</span>
+                <span className="text-2xl font-bold text-gray-900">{projectAssignmentData.totalProjects}</span>
               </div>
-              <Briefcase className="w-8 h-8 text-primary-600" />
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-neutral-600">Đang hoạt động</span>
+                <span className="text-lg font-semibold text-green-600">{projectAssignmentData.activeProjects}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-neutral-600">Đã hoàn thành</span>
+                <span className="text-lg font-semibold text-blue-600">{projectAssignmentData.completedProjects}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-neutral-600">Đã lên kế hoạch</span>
+                <span className="text-lg font-semibold text-amber-600">{projectAssignmentData.plannedProjects}</span>
+              </div>
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Projects đang hoạt động</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">{projectAssignmentData.activeProjects}</p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-600" />
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Projects đã hoàn thành</p>
-                <p className="text-3xl font-bold text-blue-600 mt-2">{projectAssignmentData.completedProjects}</p>
-              </div>
-              <FileText className="w-8 h-8 text-blue-600" />
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Total Assignments</p>
-                <p className="text-3xl font-bold text-purple-600 mt-2">{projectAssignmentData.totalAssignments}</p>
-              </div>
-              <Users className="w-8 h-8 text-purple-600" />
-            </div>
-          </div>
-        </div>
 
-        {/* Assignment Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Active Assignments</p>
-            <p className="text-2xl font-bold text-green-600 mt-2">{projectAssignmentData.activeAssignments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Draft Assignments</p>
-            <p className="text-2xl font-bold text-gray-600 mt-2">{projectAssignmentData.draftAssignments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Completed Assignments</p>
-            <p className="text-2xl font-bold text-blue-600 mt-2">{projectAssignmentData.completedAssignments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Planned Projects</p>
-            <p className="text-2xl font-bold text-amber-600 mt-2">{projectAssignmentData.plannedProjects}</p>
+          {/* Assignments Overview */}
+          <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Tổng quan Phân công</h3>
+              <Users className="w-6 h-6 text-purple-600" />
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-neutral-600">Tổng Phân công</span>
+                <span className="text-2xl font-bold text-gray-900">{projectAssignmentData.totalAssignments}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-neutral-600">Đang hoạt động</span>
+                <span className="text-lg font-semibold text-green-600">{projectAssignmentData.activeAssignments}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-neutral-600">Đang soạn thảo</span>
+                <span className="text-lg font-semibold text-gray-600">{projectAssignmentData.draftAssignments}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-neutral-600">Đã hoàn thành</span>
+                <span className="text-lg font-semibold text-blue-600">{projectAssignmentData.completedAssignments}</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -448,9 +411,9 @@ export default function SalesDashboard() {
                 <thead>
                   <tr className="border-b border-neutral-200">
                     <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Tên dự án</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Client</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Công ty</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Trạng thái</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Assignments</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Phân công</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -464,12 +427,12 @@ export default function SalesDashboard() {
                       </td>
                       <td className="py-3 px-4">
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                          {project.status}
+                          {getProjectStatusLabel(project.status)}
                         </span>
                       </td>
                       <td className="py-3 px-4">
                         <p className="text-sm text-neutral-600">
-                          {project.activeAssignmentCount}/{project.assignmentCount} active
+                          {project.activeAssignmentCount}/{project.assignmentCount} hoạt động
                         </p>
                       </td>
                     </tr>
@@ -480,51 +443,20 @@ export default function SalesDashboard() {
           </div>
         )}
 
-        {/* Upcoming Deadlines */}
-        {projectAssignmentData.upcomingDeadlines && projectAssignmentData.upcomingDeadlines.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Deadline sắp tới</h2>
-            <div className="space-y-3">
-              {projectAssignmentData.upcomingDeadlines.slice(0, 5).map((deadline) => (
-                <div key={deadline.projectId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Calendar className={`w-5 h-5 ${deadline.daysUntilDeadline <= 7 ? 'text-red-600' : deadline.daysUntilDeadline <= 30 ? 'text-amber-600' : 'text-gray-600'}`} />
-                    <div>
-                      <p className="font-medium text-gray-900">{deadline.projectName}</p>
-                      <p className="text-sm text-neutral-600">{deadline.deadlineType}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`font-semibold ${deadline.daysUntilDeadline <= 7 ? 'text-red-600' : deadline.daysUntilDeadline <= 30 ? 'text-amber-600' : 'text-gray-600'}`}>
-                      {deadline.daysUntilDeadline} ngày
-                    </p>
-                    <p className="text-xs text-neutral-500">{new Date(deadline.deadlineDate).toLocaleDateString('vi-VN')}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* Projects by Client */}
-        {projectAssignmentData.projectsByClient && projectAssignmentData.projectsByClient.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Projects theo Client</h2>
-            <div className="space-y-3">
-              {projectAssignmentData.projectsByClient.slice(0, 5).map((client) => (
-                <div key={client.clientId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{client.clientName}</p>
-                    <p className="text-sm text-neutral-600">{client.activeProjectCount} active / {client.projectCount} total projects</p>
-                  </div>
-                  <p className="font-semibold text-gray-900">{client.assignmentCount} assignments</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     );
+  };
+
+  const getProjectStatusLabel = (status: string): string => {
+    const statusMap: Record<string, string> = {
+      Ongoing: "Đang thực hiện",
+      Planned: "Đã lên kế hoạch",
+      Completed: "Đã hoàn thành",
+      OnHold: "Tạm dừng",
+      Cancelled: "Đã hủy"
+    };
+    return statusMap[status] || status;
   };
 
   return (
@@ -559,7 +491,7 @@ export default function SalesDashboard() {
                   : 'border-transparent text-neutral-600 hover:text-neutral-900'
               }`}
             >
-              Project & Assignment
+              Dự án & Phân công
             </button>
           </div>
         </div>

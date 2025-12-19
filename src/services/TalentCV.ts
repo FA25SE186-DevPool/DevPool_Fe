@@ -6,6 +6,7 @@ import type {
   TalentCVCreate,
   TalentCVMatchResult,
   TalentCVJobRequestFilter,
+  TalentCVManualSearchModel,
   TalentCVExtractResponse,
   BasicInfoData,
   BasicInfoComparison,
@@ -56,6 +57,7 @@ export type {
   TalentCVCreate,
   TalentCVMatchResult,
   TalentCVJobRequestFilter,
+  TalentCVManualSearchModel,
   TalentCVExtractResponse,
   BasicInfoData,
   BasicInfoComparison,
@@ -210,6 +212,22 @@ export const talentCVService = {
     } catch (error: unknown) {
       if (error instanceof AxiosError)
         throw error.response?.data || { message: "Failed to fetch CV matches for job request" };
+      throw { message: "Unexpected error occurred" };
+    }
+  },
+
+  async manualSearch(filter: TalentCVManualSearchModel) {
+    try {
+      const params = new URLSearchParams();
+      params.append("JobRequestId", filter.jobRequestId.toString());
+      params.append("SearchQuery", filter.searchQuery);
+      if (filter.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted.toString());
+      const url = `/talentcv/manual-search${params.toString() ? `?${params}` : ""}`;
+      const response = await apiClient.get(url);
+      return response.data;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError)
+        throw error.response?.data || { message: "Failed to manual search CVs for job request" };
       throw { message: "Unexpected error occurred" };
     }
   },

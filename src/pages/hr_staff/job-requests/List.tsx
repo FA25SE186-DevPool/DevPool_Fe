@@ -15,7 +15,9 @@ import {
     ClipboardList,
     ChevronDown,
     ChevronUp,
-    X
+    X,
+  FileText,
+  Clock
 } from "lucide-react";
 import Sidebar from "../../../components/common/Sidebar";
 import { sidebarItems } from "../../../components/sidebar/ta_staff";
@@ -63,6 +65,14 @@ const statusLabelDisplay: Record<string, string> = {
     Rejected: "Từ chối"
 };
 
+const applicationStatusColors: Record<string, string> = {
+  Submitted: "bg-sky-100 text-sky-700",
+  Interviewing: "bg-cyan-100 text-cyan-700",
+  Hired: "bg-purple-100 text-purple-700",
+  Rejected: "bg-red-100 text-red-700",
+  Withdrawn: "bg-gray-100 text-gray-700",
+};
+
 export default function HRJobRequestList() {
     const navigate = useNavigate();
     const [requests, setRequests] = useState<HRJobRequest[]>([]);
@@ -75,6 +85,7 @@ export default function HRJobRequestList() {
     const [applicationsLoading, setApplicationsLoading] = useState(false);
     const [applicationsError, setApplicationsError] = useState<string | null>(null);
     const [applications, setApplications] = useState<TalentApplicationDetailed[]>([]);
+    const [applicationsStatusFilter, setApplicationsStatusFilter] = useState<string>("");
 
     const applicationStatusLabel: Record<string, string> = {
         Submitted: "Đã nộp",
@@ -297,6 +308,7 @@ const stats = [
         setApplications([]);
         setApplicationsError(null);
         setApplicationsLoading(false);
+        setApplicationsStatusFilter("");
     };
 
     const openApplicationsPopup = async (req: HRJobRequest) => {
@@ -501,6 +513,43 @@ const stats = [
                                     </div>
                                 ) : null}
 
+                                {/* Status Tabs */}
+                                <div className="mb-6">
+                                    <div className="flex gap-0 border-b border-gray-200">
+                                        <button
+                                            onClick={() => setApplicationsStatusFilter("")}
+                                            className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
+                                                applicationsStatusFilter === ""
+                                                    ? "border-blue-600 text-blue-600 bg-blue-50"
+                                                    : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                                            }`}
+                                        >
+                                            <FileText className="w-4 h-4" />
+                                            Tất cả ({applications.length})
+                                        </button>
+                                        {[
+                                            { value: "Submitted", label: "Đã nộp hồ sơ", icon: FileText },
+                                            { value: "Interviewing", label: "Đang xem xét phỏng vấn", icon: Clock },
+                                        ].map(({ value, label, icon: Icon }) => {
+                                            const count = applications.filter(app => app.status === value).length;
+                                            return (
+                                                <button
+                                                    key={value}
+                                                    onClick={() => setApplicationsStatusFilter(value)}
+                                                    className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
+                                                        applicationsStatusFilter === value
+                                                            ? "border-blue-600 text-blue-600 bg-blue-50"
+                                                            : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                                                    }`}
+                                                >
+                                                    <Icon className="w-4 h-4" />
+                                                    {label} ({count})
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
                                 {applicationsLoading ? (
                                     <div className="space-y-3">
                                         {Array.from({ length: 5 }).map((_, idx) => (
@@ -527,9 +576,22 @@ const stats = [
                                 ) : applications.length === 0 ? (
                                     <div className="py-10 text-center text-sm text-neutral-600">Không có dữ liệu hồ sơ.</div>
                                 ) : (
-                                    <div className="max-h-[62vh] overflow-auto pr-1">
+                                    <div className="max-h-[50vh] overflow-auto pr-1">
                                         <div className="space-y-3">
-                                            {applications.map((app) => {
+                                            {applications
+                                                .filter(app => !applicationsStatusFilter || app.status === applicationsStatusFilter)
+                                                .sort((a, b) => {
+                                                    if (!applicationsStatusFilter) {
+                                                        // For "Tất cả" tab, prioritize by status: Submitted first, then Interviewing
+                                                        const statusPriority = { "Submitted": 1, "Interviewing": 2 };
+                                                        const aPriority = statusPriority[a.status as keyof typeof statusPriority] || 99;
+                                                        const bPriority = statusPriority[b.status as keyof typeof statusPriority] || 99;
+                                                        if (aPriority !== bPriority) return aPriority - bPriority;
+                                                    }
+                                                    // Default sort by creation date (newest first)
+                                                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                                                })
+                                                .map((app) => {
                                                 const talentName = app.talentName || app.talent?.fullName || `Talent #${app.talent?.id ?? "—"}`;
                                                 const submitter = app.submitterName || app.submittedBy || "—";
                                                 const createdAt = app.createdAt ? new Date(app.createdAt).toLocaleString("vi-VN") : "—";
@@ -543,7 +605,7 @@ const stats = [
                                                             <div className="min-w-0">
                                                                 <div className="flex flex-wrap items-center gap-2">
                                                                     <p className="text-sm font-semibold text-neutral-900">{talentName}</p>
-                                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border border-neutral-200 bg-neutral-50 text-neutral-700">
+                                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${applicationStatusColors[app.status] ?? "bg-neutral-100 text-neutral-600"}`}>
                                                                         {statusLabel}
                                                                     </span>
                                                                 </div>

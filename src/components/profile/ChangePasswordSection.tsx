@@ -1,17 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AlertCircle, CheckCircle, KeyRound, X } from "lucide-react";
 import { userService } from "../../services/User";
+import { getPassword } from "../../utils/storage";
 
 export function ChangePasswordSection({ userId }: { userId: string | null }) {
   const [open, setOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  // Load password từ localStorage khi component mount
+  useEffect(() => {
+    const savedPassword = getPassword();
+    if (savedPassword) {
+      setCurrentPassword(savedPassword);
+    }
+  }, []);
+
   const close = () => {
     setOpen(false);
+    setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
     setError("");
@@ -29,9 +40,21 @@ export function ChangePasswordSection({ userId }: { userId: string | null }) {
       return;
     }
 
+    const currentPwd = currentPassword.trim();
     const pwd = newPassword.trim();
     const confirm = confirmPassword.trim();
 
+    if (!currentPwd) {
+      setError("Vui lòng nhập mật khẩu hiện tại.");
+      return;
+    }
+
+    // Kiểm tra mật khẩu hiện tại có khớp với mật khẩu lưu trong localStorage (nếu có)
+    const savedPassword = getPassword();
+    if (savedPassword && currentPwd !== savedPassword) {
+      setError("Mật khẩu hiện tại không đúng. Vui lòng nhập lại mật khẩu hiện tại.");
+      return;
+    }
     if (!pwd) {
       setError("Vui lòng nhập mật khẩu mới.");
       return;
@@ -47,11 +70,26 @@ export function ChangePasswordSection({ userId }: { userId: string | null }) {
 
     try {
       setSaving(true);
-      await userService.resetPassword(userId, pwd);
+      await userService.changePassword(userId, {
+        currentPassword: currentPwd,
+        newPassword: pwd,
+        confirmPassword: confirm
+      });
       setSuccess(true);
       setTimeout(() => close(), 900);
     } catch (err: any) {
-      setError(err?.message || "Không thể đổi mật khẩu.");
+      // Xử lý thông báo lỗi từ backend
+      let errorMessage = err?.message || "Không thể đổi mật khẩu.";
+
+      // Nếu lỗi liên quan đến mật khẩu hiện tại không đúng
+      if (errorMessage.toLowerCase().includes('current password') ||
+          errorMessage.toLowerCase().includes('mật khẩu hiện tại') ||
+          errorMessage.toLowerCase().includes('wrong password') ||
+          errorMessage.toLowerCase().includes('incorrect password')) {
+        errorMessage = "Mật khẩu hiện tại không đúng. Vui lòng kiểm tra lại.";
+      }
+
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -119,6 +157,18 @@ export function ChangePasswordSection({ userId }: { userId: string | null }) {
                 </div>
               ) : null}
 
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-2">Mật khẩu hiện tại</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                  placeholder="Nhập mật khẩu hiện tại"
+                  autoComplete="current-password"
+                  disabled={saving}
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-2">Mật khẩu mới</label>
                 <input

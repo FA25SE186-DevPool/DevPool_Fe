@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { applyActivityService, type ApplyActivity, ApplyActivityStatus, ApplyActivityType } from "../../../services/ApplyActivity";
+import { applyActivityService, getActivityStatusString, type ApplyActivity, ApplyActivityStatus, ApplyActivityType } from "../../../services/ApplyActivity";
 import { applyProcessStepService, type ApplyProcessStep } from "../../../services/ApplyProcessStep";
 import { applyService } from "../../../services/Apply";
 import { talentApplicationService, type TalentApplicationDetailed } from "../../../services/TalentApplication";
@@ -108,6 +108,11 @@ export default function ApplyActivityDetailPanel({
   const [noteDialogTargetStatus, setNoteDialogTargetStatus] = useState<ApplyActivityStatus | null>(null);
   const [noteInput, setNoteInput] = useState("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [loadingOverlay, setLoadingOverlay] = useState<{ show: boolean; type: 'loading' | 'success'; message: string }>({
+    show: false,
+    type: 'loading',
+    message: '',
+  });
 
   // Blacklist modal state
   const [showBlacklistModal, setShowBlacklistModal] = useState(false);
@@ -117,6 +122,31 @@ export default function ApplyActivityDetailPanel({
   const [talent, setTalent] = useState<any>(null);
   const [clientCompanyId, setClientCompanyId] = useState<number | null>(null);
   const [showProcessStepsList, setShowProcessStepsList] = useState(false);
+
+  // Helper functions for overlay
+  const showLoadingOverlay = (message: string = 'Đang xử lý...') => {
+    setLoadingOverlay({
+      show: true,
+      type: 'loading',
+      message,
+    });
+  };
+
+  const showSuccessOverlay = (message: string) => {
+    setLoadingOverlay({
+      show: true,
+      type: 'success',
+      message,
+    });
+    // Auto hide after 2 seconds
+    setTimeout(() => {
+      setLoadingOverlay({ show: false, type: 'loading', message: '' });
+    }, 2000);
+  };
+
+  const hideOverlay = () => {
+    setLoadingOverlay({ show: false, type: 'loading', message: '' });
+  };
 
   const quickRejectNotes = [
     "Ứng viên không đáp ứng yêu cầu kỹ năng kỹ thuật.",
@@ -312,6 +342,7 @@ export default function ApplyActivityDetailPanel({
     if (!activity) return;
     try {
       setIsUpdatingStatus(true);
+      showLoadingOverlay('Đang cập nhật trạng thái...');
 
       if (newStatus === ApplyActivityStatus.Completed && currentStepOrder > 1) {
         const canUpdate = await checkCanUpdateStep(currentStepOrder);
@@ -321,12 +352,12 @@ export default function ApplyActivityDetailPanel({
         }
       }
 
-      await applyActivityService.updateStatus(activityId, { status: newStatus, ...(notes ? { notes } : {}) });
+      await applyActivityService.changeStatus(activityId, { NewStatus: getActivityStatusString(newStatus), ...(notes ? { Notes: notes } : {}) });
 
       // Nếu activity "Không đạt" -> cập nhật luôn trạng thái hồ sơ sang Rejected
       if (newStatus === ApplyActivityStatus.Failed && activity.applicationInfo) {
         try {
-          await applyService.updateStatus(activity.applicationInfo.id, { status: "Rejected" });
+          await talentApplicationService.changeStatus(activity.applicationInfo.id, { NewStatus: "Rejected" });
         } catch (err) {
           console.error("❌ Lỗi cập nhật trạng thái hồ sơ:", err);
         }
@@ -362,7 +393,7 @@ export default function ApplyActivityDetailPanel({
             currentAppStatus !== "Rejected" &&
             currentAppStatus !== "Withdrawn"
           ) {
-            await applyService.updateStatus(activity.applicationInfo.id, { status: "Interviewing" });
+            await talentApplicationService.changeStatus(activity.applicationInfo.id, { NewStatus: "Interviewing" });
           }
         } catch (err) {
           console.error("❌ Lỗi cập nhật trạng thái application:", err);
@@ -410,8 +441,8 @@ export default function ApplyActivityDetailPanel({
           }
 
           if (allStepsPassed && activity.applicationInfo.status === "Interviewing") {
-            await applyService.updateStatus(activity.applicationInfo.id, { status: "Hired" });
-            alert("✅ Đã cập nhật trạng thái thành công!\n🎉 Tất cả các bước đã hoàn thành, tự động chuyển application sang trạng thái Hired (Đã tuyển)!");
+            await talentApplicationService.changeStatus(activity.applicationInfo.id, { NewStatus: "Hired" });
+            showSuccessOverlay("✅ Đã cập nhật trạng thái thành công!\n🎉 Tất cả các bước đã hoàn thành, tự động chuyển application sang trạng thái Hired (Đã tuyển)!");
             await fetchData();
             return;
           }
@@ -421,9 +452,10 @@ export default function ApplyActivityDetailPanel({
       }
 
       await fetchData();
-      alert("✅ Đã cập nhật trạng thái thành công!");
+      showSuccessOverlay("✅ Đã cập nhật trạng thái thành công!");
     } catch (err) {
       console.error("❌ Lỗi cập nhật trạng thái:", err);
+      hideOverlay();
       alert("Không thể cập nhật trạng thái!");
     } finally {
       setIsUpdatingStatus(false);
@@ -680,7 +712,7 @@ export default function ApplyActivityDetailPanel({
             {activity.processStepName ? (
               <InfoItem label="Bước quy trình" value={activity.processStepName} icon={<Briefcase className="w-4 h-4" />} />
             ) : null}
-            <InfoItem label="Ngày lên lịch" value={formattedDate} icon={<Calendar className="w-4 h-4" />} />
+            <InfoItem label="Thông tin lịch trình" value={formattedDate} icon={<Calendar className="w-4 h-4" />} />
             {processSteps.length > 0 ? (
               <div className="group">
                 <div className="flex items-center gap-2 mb-2">
@@ -921,6 +953,31 @@ export default function ApplyActivityDetailPanel({
                 )}
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading/Success Overlay ở giữa màn hình */}
+      {loadingOverlay.show && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-4 min-w-[350px] max-w-[500px]">
+            {loadingOverlay.type === 'loading' ? (
+              <>
+                <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-primary-700 mb-2">Đang xử lý...</p>
+                  <p className="text-neutral-600">{loadingOverlay.message}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 border-4 border-success-200 border-t-success-600 rounded-full animate-spin"></div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-success-700 mb-2">Thành công!</p>
+                  <p className="text-neutral-600 whitespace-pre-line">{loadingOverlay.message}</p>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

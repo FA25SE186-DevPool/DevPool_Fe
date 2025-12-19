@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { X, User, Star, Briefcase, FolderOpen, Award, FileText, ChevronDown, Upload } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
 import { sidebarItems } from '../../../components/sidebar/ta_staff';
@@ -23,6 +23,8 @@ import { masterDataService } from '../../../services/MasterData';
 // import { userService } from '../../../services/User'; // Tạm thời comment vì Extracted Data Sidebar đã bị ẩn
 
 export default function CreateTalent() {
+  const navigate = useNavigate();
+
   const [showModalCVPreview, setShowModalCVPreview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); // State để quản lý loading khi submit
   const [submittingMessage, setSubmittingMessage] = useState('Đang xử lý...'); // Message hiển thị khi đang submit
@@ -33,6 +35,27 @@ export default function CreateTalent() {
     message: '',
   });
   const autoSkillToastTimerRef = useRef<number | null>(null);
+
+  // Success overlay state
+  const [loadingOverlay, setLoadingOverlay] = useState<{ show: boolean; type: 'loading' | 'success'; message: string }>({
+    show: false,
+    type: 'loading',
+    message: '',
+  });
+
+  // Helper functions for overlay
+
+  const showSuccessOverlay = (message: string) => {
+    setLoadingOverlay({
+      show: true,
+      type: 'success',
+      message,
+    });
+    // Auto hide after 2 seconds
+    setTimeout(() => {
+      setLoadingOverlay({ show: false, type: 'loading', message: '' });
+    }, 2000);
+  };
   
   // Main hook for form management
   const {
@@ -257,7 +280,7 @@ export default function CreateTalent() {
             category,
           },
         }));
-        alert(`✅ Đã gửi ${notificationIds.length} đề xuất cho admin!`);
+        showSuccessOverlay(`✅ Đã gửi ${notificationIds.length} đề xuất cho admin!`);
       }
     } catch (error) {
       console.error('Lỗi khi gửi đề xuất:', error);
@@ -838,7 +861,42 @@ export default function CreateTalent() {
                 // Bước 3: Sau khi upload CV thành công và đảm bảo state đã được cập nhật, gọi performSubmit để submit form
                 // Truyền uploadedCVUrl trực tiếp vào performSubmit để đảm bảo CV URL được sử dụng
                 setSubmittingMessage('Đang tạo nhân sự...');
-                await performSubmit(uploadedCVUrl);
+                const result = await performSubmit(uploadedCVUrl);
+
+                // Success - hiển thị overlay và navigate
+                showSuccessOverlay('✅ Tạo nhân sự thành công!');
+
+                // Kiểm tra result trước khi navigate
+                let talentId = null;
+
+                // Handle different response formats
+                if (result && typeof result === 'object') {
+                  // Check for direct id field
+                  if (result.id && typeof result.id === 'number') {
+                    talentId = result.id;
+                  }
+                  // Check for nested data.id
+                  else if (result.data && result.data.id && typeof result.data.id === 'number') {
+                    talentId = result.data.id;
+                  }
+                  // Check for nested talent.id
+                  else if (result.talent && result.talent.id && typeof result.talent.id === 'number') {
+                    talentId = result.talent.id;
+                  }
+                }
+
+                if (talentId) {
+                  console.log('✅ Navigate to talent detail:', talentId);
+                  setTimeout(() => {
+                    navigate(`/ta/talents/${talentId}`);
+                  }, 2000);
+                } else {
+                  console.error('❌ Không thể lấy ID từ result:', result);
+                  alert('❌ Tạo nhân sự thành công nhưng không thể chuyển hướng. Vui lòng truy cập trang danh sách để xem nhân sự mới.');
+                  setTimeout(() => {
+                    navigate('/ta/talents');
+                  }, 2000);
+                }
                 } catch (error: any) {
                   // Xử lý lỗi nếu có
                   console.error('❌ Lỗi khi xử lý form:', error);
@@ -980,6 +1038,12 @@ export default function CreateTalent() {
                           setSkillSearchQuery={filters.setSkillSearchQuery}
                           isSkillDropdownOpen={filters.isSkillDropdownOpen}
                           setIsSkillDropdownOpen={filters.setIsSkillDropdownOpen}
+                          skillGroupSearchQuery={filters.skillGroupSearchQuery}
+                          setSkillGroupSearchQuery={filters.setSkillGroupSearchQuery}
+                          isSkillGroupDropdownOpen={filters.isSkillGroupDropdownOpen}
+                          setIsSkillGroupDropdownOpen={filters.setIsSkillGroupDropdownOpen}
+                          selectedSkillGroupId={filters.selectedSkillGroupId}
+                          setSelectedSkillGroupId={filters.setSelectedSkillGroupId}
                           onAdd={handlers.addSkill}
                           onRemove={handlers.removeSkill}
                           onUpdate={handlers.updateSkill}
@@ -1572,6 +1636,31 @@ export default function CreateTalent() {
             <div className="p-6">
               <iframe src={cvModal.cvPreviewUrl} className="w-full h-[70vh] border border-neutral-300 rounded-lg" />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading/Success Overlay ở giữa màn hình */}
+      {loadingOverlay.show && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-4 min-w-[350px] max-w-[500px]">
+            {loadingOverlay.type === 'loading' ? (
+              <>
+                <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-primary-700 mb-2">Đang xử lý...</p>
+                  <p className="text-neutral-600">{loadingOverlay.message}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 border-4 border-success-200 border-t-success-600 rounded-full animate-spin"></div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-success-700 mb-2">Thành công!</p>
+                  <p className="text-neutral-600 whitespace-pre-line">{loadingOverlay.message}</p>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

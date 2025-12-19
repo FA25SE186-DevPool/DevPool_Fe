@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Star } from 'lucide-react';
+import { Plus, X, Star, ChevronDown, Search } from 'lucide-react';
 import { Button } from '../../ui/button';
 import { SectionPagination } from './SectionPagination';
 import { type TalentSkillCreateModel } from '../../../services/Talent';
 import { type Skill } from '../../../services/Skill';
+import { skillGroupService, type SkillGroup } from '../../../services/SkillGroup';
 
 interface TalentSkillsSectionProps {
   talentSkills: TalentSkillCreateModel[];
@@ -12,6 +13,12 @@ interface TalentSkillsSectionProps {
   setSkillSearchQuery: (query: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => void;
   isSkillDropdownOpen: Record<number, boolean>;
   setIsSkillDropdownOpen: (open: Record<number, boolean> | ((prev: Record<number, boolean>) => Record<number, boolean>)) => void;
+  skillGroupSearchQuery: string;
+  setSkillGroupSearchQuery: (query: string) => void;
+  isSkillGroupDropdownOpen: boolean;
+  setIsSkillGroupDropdownOpen: (open: boolean) => void;
+  selectedSkillGroupId: number | undefined;
+  setSelectedSkillGroupId: (id: number | undefined) => void;
   errors: Record<string, string>;
   onAdd: () => void;
   onRemove: (index: number) => void;
@@ -28,6 +35,12 @@ export function TalentSkillsSection({
   setSkillSearchQuery,
   isSkillDropdownOpen,
   setIsSkillDropdownOpen,
+  skillGroupSearchQuery,
+  setSkillGroupSearchQuery,
+  isSkillGroupDropdownOpen,
+  setIsSkillGroupDropdownOpen,
+  selectedSkillGroupId,
+  setSelectedSkillGroupId,
   errors,
   onAdd,
   onRemove,
@@ -37,8 +50,38 @@ export function TalentSkillsSection({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
 
-  // Không lọc theo nhóm kỹ năng ở form này (hiển thị tất cả kỹ năng)
-  const filteredSkills = skills;
+  // Skill groups state
+  const [skillGroups, setSkillGroups] = useState<SkillGroup[]>([]);
+
+  // Load skill groups
+  useEffect(() => {
+    const loadSkillGroups = async () => {
+      try {
+        const groups = await skillGroupService.getAll();
+        setSkillGroups(groups);
+      } catch (error) {
+        console.error('Error loading skill groups:', error);
+      }
+    };
+    loadSkillGroups();
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isSkillGroupDropdownOpen && !(event.target as Element).closest('.skill-group-dropdown')) {
+        setIsSkillGroupDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isSkillGroupDropdownOpen, setIsSkillGroupDropdownOpen]);
+
+  // Lọc kỹ năng theo nhóm được chọn
+  const filteredSkills = selectedSkillGroupId
+    ? skills.filter(skill => skill.skillGroupId === selectedSkillGroupId)
+    : skills;
 
   // Calculate pagination
   const totalPages = Math.ceil(talentSkills.length / itemsPerPage);
@@ -76,6 +119,96 @@ export function TalentSkillsSection({
             <Plus className="w-3.5 h-3.5" />
             Thêm kỹ năng
           </Button>
+        </div>
+      </div>
+
+      {/* Skill Group Filter */}
+      <div className="px-4 py-3 border-b border-neutral-200 bg-neutral-50/50">
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-md skill-group-dropdown">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Lọc theo nhóm kỹ năng
+            </label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsSkillGroupDropdownOpen(!isSkillGroupDropdownOpen)}
+                className="w-full flex items-center justify-between px-3 py-2 border border-neutral-200 rounded-lg bg-white hover:border-primary-300 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
+              >
+                <span className="text-sm text-gray-900 truncate">
+                  {selectedSkillGroupId
+                    ? skillGroups.find(g => g.id === selectedSkillGroupId)?.name || "Chọn nhóm kỹ năng"
+                    : "Tất cả nhóm kỹ năng"
+                  }
+                </span>
+                <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform ${isSkillGroupDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isSkillGroupDropdownOpen && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-neutral-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  <div className="p-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                      <input
+                        type="text"
+                        placeholder="Tìm nhóm kỹ năng..."
+                        value={skillGroupSearchQuery}
+                        onChange={(e) => setSkillGroupSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 border border-neutral-200 rounded-md text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="border-t border-neutral-200">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedSkillGroupId(undefined);
+                        setIsSkillGroupDropdownOpen(false);
+                        setSkillGroupSearchQuery('');
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                    >
+                      Tất cả nhóm kỹ năng
+                    </button>
+
+                    {skillGroups
+                      .filter(group =>
+                        group.name.toLowerCase().includes(skillGroupSearchQuery.toLowerCase())
+                      )
+                      .map((group) => (
+                        <button
+                          key={group.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedSkillGroupId(group.id);
+                            setIsSkillGroupDropdownOpen(false);
+                            setSkillGroupSearchQuery('');
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                        >
+                          {group.name}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {selectedSkillGroupId && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedSkillGroupId(undefined);
+                setSkillGroupSearchQuery('');
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors mt-6"
+            >
+              <X className="w-4 h-4" />
+              Xóa bộ lọc
+            </button>
+          )}
         </div>
       </div>
 

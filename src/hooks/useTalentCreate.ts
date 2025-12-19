@@ -142,7 +142,21 @@ export function useTalentCreate() {
       newErrors.workingMode = 'Vui lòng chọn chế độ làm việc';
     }
 
-    if (!basicFormData.locationId) {
+    // Only validate location when working mode requires it (Hybrid is optional)
+    const shouldValidateLocation = () => {
+      switch (basicFormData.workingMode) {
+        case 1: // Onsite (Tại văn phòng) - Required
+          return true;
+        case 4: // Hybrid (Kết hợp) - Optional
+          return false;
+        case 2: // Remote (Từ xa) - Not shown
+        case 4: // Flexible (Linh hoạt) - Not shown
+        default:
+          return false;
+      }
+    };
+
+    if (shouldValidateLocation() && !basicFormData.locationId) {
       newErrors.locationId = 'Vui lòng chọn khu vực làm việc';
     }
 
@@ -308,7 +322,21 @@ export function useTalentCreate() {
         newErrors.workingMode = 'Vui lòng chọn chế độ làm việc';
       }
 
-      if (!basicFormData.locationId) {
+      // Only validate location when working mode requires it (Hybrid is optional)
+      const shouldValidateLocation = () => {
+        switch (basicFormData.workingMode) {
+          case 1: // Onsite (Tại văn phòng) - Required
+            return true;
+          case 4: // Hybrid (Kết hợp) - Optional
+            return false;
+          case 2: // Remote (Từ xa) - Not shown
+          case 4: // Flexible (Linh hoạt) - Not shown
+          default:
+            return false;
+        }
+      };
+
+      if (shouldValidateLocation() && !basicFormData.locationId) {
         newErrors.locationId = 'Vui lòng chọn khu vực làm việc';
       }
 
@@ -533,8 +561,13 @@ export function useTalentCreate() {
         };
 
         const result = await talentService.createWithRelatedData(payload);
-        alert('✅ Tạo nhân sự thành công!');
-        navigate(`/ta/talents/${result.id}`);
+        console.log('✅ API createWithRelatedData result:', result);
+        console.log('✅ Result type:', typeof result);
+        console.log('✅ Result keys:', result && typeof result === 'object' ? Object.keys(result) : 'Not an object');
+        console.log('✅ Result ID (direct):', result?.id);
+        console.log('✅ Result data.id:', result?.data?.id);
+        console.log('✅ Result talent.id:', result?.talent?.id);
+        return result;
       } catch (err: any) {
         console.error('❌ Lỗi khi tạo nhân sự:', err);
         console.error('❌ Error response:', err?.response);

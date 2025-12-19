@@ -98,6 +98,29 @@ export default function JobRequestDetailHRPage() {
     const [projectDetail, setProjectDetail] = useState<any>(null);
     const [projectDetailLoading, setProjectDetailLoading] = useState(false);
 
+    // Project status labels and colors (matching /sales/projects)
+    const projectStatusLabels: Record<string, string> = {
+      Planned: "Đã lên kế hoạch",
+      Ongoing: "Đang thực hiện",
+      OnHold: "Tạm dừng",
+      Completed: "Đã hoàn thành"
+    };
+
+    const getProjectStatusStyle = (status: string) => {
+      switch (status) {
+        case 'Ongoing':
+          return 'bg-blue-100 text-blue-800';
+        case 'Planned':
+          return 'bg-yellow-100 text-yellow-800';
+        case 'OnHold':
+          return 'bg-purple-100 text-purple-800';
+        case 'Completed':
+          return 'bg-green-100 text-green-800';
+        default:
+          return 'bg-gray-100 text-gray-800';
+      }
+    };
+
     // Applications state
     const [applications, setApplications] = useState<any[]>([]);
     const [applicationsLoading, setApplicationsLoading] = useState(false);
@@ -105,6 +128,27 @@ export default function JobRequestDetailHRPage() {
     const [filterStatus, setFilterStatus] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
+
+    // Success overlay state
+    const [loadingOverlay, setLoadingOverlay] = useState<{ show: boolean; type: 'loading' | 'success'; message: string }>({
+      show: false,
+      type: 'loading',
+      message: '',
+    });
+
+    // Helper functions for overlay
+
+    const showSuccessOverlay = (message: string) => {
+      setLoadingOverlay({
+        show: true,
+        type: 'success',
+        message,
+      });
+      // Auto hide after 2 seconds
+      setTimeout(() => {
+        setLoadingOverlay({ show: false, type: 'loading', message: '' });
+      }, 2000);
+    };
 
     const workingModeLabels: Record<number, string> = {
         0: "Không xác định",
@@ -131,20 +175,6 @@ export default function JobRequestDetailHRPage() {
     };
 
   // Format date and time as "07:00 18/12/2025"
-  const formatDateTime = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
-      const day = date.getDate().toString().padStart(2, '0');
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const year = date.getFullYear();
-
-      return `${hours}:${minutes} ${day}/${month}/${year}`;
-    } catch {
-      return dateString; // fallback to original string
-    }
-  };
 
   // Helper function to ensure data is an array
   const ensureArray = <T,>(data: unknown): T[] => {
@@ -390,7 +420,7 @@ export default function JobRequestDetailHRPage() {
                 ...(status === 3 ? { notes: trimmedNote } : {}),
             });
             const statusMessage = status === 1 ? 'Đã duyệt' : status === 3 ? 'Đã từ chối' : status === 2 ? 'Đã đóng' : 'Cập nhật';
-            alert(`✅ ${statusMessage} yêu cầu tuyển dụng thành công!`);
+            showSuccessOverlay(`✅ ${statusMessage} yêu cầu tuyển dụng thành công!`);
             // Reload dữ liệu để cập nhật trạng thái mới
             await fetchData();
         } catch (err) {
@@ -697,17 +727,6 @@ export default function JobRequestDetailHRPage() {
                                 Thông tin chung
                             </button>
                             <button
-                                onClick={() => setActiveTab("description")}
-                                className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
-                                    activeTab === "description"
-                                        ? "border-primary-600 text-primary-600 bg-primary-50"
-                                        : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
-                                }`}
-                            >
-                                <FileType className="w-4 h-4" />
-                                Mô tả công việc
-                            </button>
-                            <button
                                 onClick={() => setActiveTab("requirements")}
                                 className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
                                     activeTab === "requirements"
@@ -793,21 +812,27 @@ export default function JobRequestDetailHRPage() {
                             </div>
                         )}
 
-                        {activeTab === "description" && (
-                            <div className="prose prose-sm max-w-none animate-fade-in">
-                                {jobRequest.description ? (
-                                    <div 
-                                        className="text-gray-700 leading-relaxed"
-                                        dangerouslySetInnerHTML={{ __html: jobRequest.description }}
-                                    />
-                                ) : (
-                                    <p className="text-gray-500 italic">Chưa có mô tả công việc cụ thể</p>
-                                )}
-                            </div>
-                        )}
 
                         {activeTab === "requirements" && (
                             <div className="space-y-6 animate-fade-in">
+                                {/* Mô tả công việc */}
+                                <div className="rounded-2xl border border-neutral-100 bg-white p-5">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <FileType className="w-4 h-4 text-primary-600" />
+                                        <p className="text-sm font-semibold text-neutral-800">Mô tả công việc</p>
+                                    </div>
+                                    <div className="prose prose-sm max-w-none">
+                                        {jobRequest.description ? (
+                                            <div
+                                                className="text-gray-700 leading-relaxed"
+                                                dangerouslySetInnerHTML={{ __html: jobRequest.description }}
+                                            />
+                                        ) : (
+                                            <p className="text-gray-500 italic">Chưa có mô tả công việc cụ thể</p>
+                                        )}
+                                    </div>
+                                </div>
+
                                 {/* Yêu cầu ứng viên */}
                                 <div className="rounded-2xl border border-neutral-100 bg-white p-5">
                                     <div className="flex items-center gap-2 mb-3">
@@ -1131,80 +1156,74 @@ export default function JobRequestDetailHRPage() {
 
             {/* Project Info Popup */}
             {isProjectPopupOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={closeProjectPopup}>
-                <div
-                  className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between z-10">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary-100 rounded-lg">
-                        <Layers className="w-5 h-5 text-primary-600" />
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-900">Thông tin dự án</h3>
+              <div
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                role="dialog"
+                aria-modal="true"
+                onMouseDown={(e) => {
+                  if (e.target === e.currentTarget) closeProjectPopup();
+                }}
+              >
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-fade-in overflow-hidden border border-neutral-200">
+                  <div className="p-5 border-b border-neutral-200 bg-gradient-to-r from-neutral-50 to-primary-50 flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <h3 className="text-base font-semibold text-neutral-900">Thông tin dự án</h3>
+                      <p className="text-sm font-semibold text-gray-900 mt-1 truncate">
+                        {projectDetail?.name || "Đang tải..."}
+                      </p>
                     </div>
                     <button
+                      type="button"
                       onClick={closeProjectPopup}
-                      className="text-neutral-400 hover:text-neutral-600 transition-colors p-1 rounded hover:bg-neutral-100"
+                      className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-neutral-600 hover:bg-neutral-100"
+                      aria-label="Đóng"
+                      title="Đóng"
                     >
                       <X className="w-5 h-5" />
                     </button>
                   </div>
 
-                  <div className="p-6">
+                  <div className="p-5">
                     {projectDetailLoading ? (
-                      <div className="flex justify-center items-center py-12">
-                        <div className="text-center">
-                          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mx-auto mb-4"></div>
-                          <p className="text-neutral-600">Đang tải thông tin...</p>
-                        </div>
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
                       </div>
                     ) : projectDetail ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-6">
-                          <div>
-                            <p className="text-sm font-medium text-neutral-500 mb-2">Mã dự án</p>
-                            <p className="text-gray-900 font-semibold">{projectDetail.code || '—'}</p>
-                          </div>
-
-                          <div>
+                        {/* Cột 1: Mã dự án, Trạng thái */}
+                        <div className="space-y-4">
+                          <InfoRow label="Mã dự án" value={projectDetail.code || "—"} icon={<Layers className="w-4 h-4" />} />
+                          <div className="group">
                             <div className="flex items-center gap-2 mb-2">
-                              <Layers className="w-4 h-4 text-neutral-400" />
-                              <p className="text-sm font-medium text-neutral-500">Tên dự án</p>
+                              <div className="text-neutral-400">
+                                <AlertCircle className="w-4 h-4" />
+                              </div>
+                              <p className="text-neutral-500 text-sm font-medium">Trạng thái</p>
                             </div>
-                            <p className="text-gray-900 font-semibold">{projectDetail.name || '—'}</p>
+                            <span
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getProjectStatusStyle(projectDetail.status)}`}
+                            >
+                              {projectStatusLabels[projectDetail.status] || projectDetail.status || "—"}
+                            </span>
                           </div>
                         </div>
 
-                        <div className="space-y-6">
-                          <div>
-                            <div className="flex items-center gap-2 mb-2">
-                              <Calendar className="w-4 h-4 text-neutral-400" />
-                              <p className="text-sm font-medium text-neutral-500">Ngày bắt đầu</p>
-                            </div>
-                            <p className="text-gray-900 font-semibold">
-                              {projectDetail.startDate ? formatDateTime(projectDetail.startDate) : '—'}
-                            </p>
-                          </div>
-
-                          <div>
-                            <div className="flex items-center gap-2 mb-2">
-                              <Calendar className="w-4 h-4 text-neutral-400" />
-                              <p className="text-sm font-medium text-neutral-500">Ngày kết thúc</p>
-                            </div>
-                            <p className="text-gray-900 font-semibold">
-                              {projectDetail.endDate ? formatDateTime(projectDetail.endDate) : '—'}
-                            </p>
-                          </div>
+                        {/* Cột 2: Ngày bắt đầu, Ngày kết thúc */}
+                        <div className="space-y-4">
+                          <InfoRow
+                            label="Ngày bắt đầu"
+                            value={projectDetail.startDate ? new Date(projectDetail.startDate).toLocaleDateString('vi-VN') : "—"}
+                            icon={<Calendar className="w-4 h-4" />}
+                          />
+                          <InfoRow
+                            label="Ngày kết thúc"
+                            value={projectDetail.endDate ? new Date(projectDetail.endDate).toLocaleDateString('vi-VN') : "—"}
+                            icon={<Calendar className="w-4 h-4" />}
+                          />
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center py-12">
-                        <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Layers className="w-8 h-8 text-neutral-400" />
-                        </div>
-                        <p className="text-neutral-500 text-lg font-medium">Không tìm thấy thông tin dự án</p>
-                      </div>
+                      <p className="text-neutral-600">Không thể tải thông tin dự án.</p>
                     )}
                   </div>
                 </div>
@@ -1213,94 +1232,54 @@ export default function JobRequestDetailHRPage() {
 
             {/* Client Company Info Popup */}
             {isClientCompanyPopupOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={closeClientCompanyPopup}>
-                <div
-                  className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between z-10">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary-100 rounded-lg">
-                        <Building2 className="w-5 h-5 text-primary-600" />
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-900">Thông tin công ty khách hàng</h3>
+              <div
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                role="dialog"
+                aria-modal="true"
+                onMouseDown={(e) => {
+                  if (e.target === e.currentTarget) closeClientCompanyPopup();
+                }}
+              >
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-fade-in overflow-hidden border border-neutral-200">
+                  <div className="p-5 border-b border-neutral-200 bg-gradient-to-r from-neutral-50 to-primary-50 flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <h3 className="text-base font-semibold text-neutral-900">Thông tin công ty</h3>
+                      <p className="text-sm font-semibold text-gray-900 mt-1 truncate">
+                        {clientCompanyDetail?.name || "Đang tải..."}
+                      </p>
                     </div>
                     <button
+                      type="button"
                       onClick={closeClientCompanyPopup}
-                      className="text-neutral-400 hover:text-neutral-600 transition-colors p-1 rounded hover:bg-neutral-100"
+                      className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-neutral-600 hover:bg-neutral-100"
+                      aria-label="Đóng"
+                      title="Đóng"
                     >
                       <X className="w-5 h-5" />
                     </button>
                   </div>
 
-                  <div className="p-6">
+                  <div className="p-5">
                     {clientCompanyDetailLoading ? (
-                      <div className="flex justify-center items-center py-12">
-                        <div className="text-center">
-                          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mx-auto mb-4"></div>
-                          <p className="text-neutral-600">Đang tải thông tin...</p>
-                        </div>
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
                       </div>
                     ) : clientCompanyDetail ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-6">
-                          <div>
-                            <p className="text-sm font-medium text-neutral-500 mb-2">Mã công ty</p>
-                            <p className="text-gray-900 font-semibold">{clientCompanyDetail.code || '—'}</p>
-                          </div>
-
-                          <div>
-                            <div className="flex items-center gap-2 mb-2">
-                              <Building2 className="w-4 h-4 text-neutral-400" />
-                              <p className="text-sm font-medium text-neutral-500">Tên công ty</p>
-                            </div>
-                            <p className="text-gray-900 font-semibold">{clientCompanyDetail.name || '—'}</p>
-                          </div>
-
-                          <div>
-                            <p className="text-sm font-medium text-neutral-500 mb-2">Mã số thuế</p>
-                            <p className="text-gray-900 font-semibold">{clientCompanyDetail.taxCode || '—'}</p>
-                          </div>
+                        {/* Cột 1: Mã công ty, Địa chỉ */}
+                        <div className="space-y-4">
+                          <InfoRow label="Mã công ty" value={clientCompanyDetail.code || "—"} icon={<Building2 className="w-4 h-4" />} />
+                          <InfoRow label="Địa chỉ" value={clientCompanyDetail.address || "—"} icon={<MapPin className="w-4 h-4" />} />
                         </div>
 
-                        <div className="space-y-6">
-                          <div>
-                            <p className="text-sm font-medium text-neutral-500 mb-2">Người đại diện</p>
-                            <p className="text-gray-900 font-semibold">{clientCompanyDetail.contactPerson || '—'}</p>
-                          </div>
-
-                          <div>
-                            <div className="flex items-center gap-2 mb-2">
-                              <Mail className="w-4 h-4 text-neutral-400" />
-                              <p className="text-sm font-medium text-neutral-500">Email</p>
-                            </div>
-                            <p className="text-gray-900 font-semibold">{clientCompanyDetail.email || '—'}</p>
-                          </div>
-
-                          <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <Phone className="w-4 h-4 text-neutral-400" />
-                            <p className="text-sm font-medium text-neutral-500">Số điện thoại</p>
-                          </div>
-                          <p className="text-gray-900 font-semibold">{clientCompanyDetail.phone || '—'}</p>
-                          </div>
-
-                          <div>
-                            <div className="flex items-center gap-2 mb-2">
-                              <MapPin className="w-4 h-4 text-neutral-400" />
-                              <p className="text-sm font-medium text-neutral-500">Địa chỉ</p>
-                            </div>
-                            <p className="text-gray-900 font-semibold">{clientCompanyDetail.address || '—'}</p>
-                          </div>
+                        {/* Cột 2: Email, Số điện thoại */}
+                        <div className="space-y-4">
+                          <InfoRow label="Email" value={clientCompanyDetail.email || "—"} icon={<Mail className="w-4 h-4" />} />
+                          <InfoRow label="Số điện thoại" value={clientCompanyDetail.phone || "—"} icon={<Phone className="w-4 h-4" />} />
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center py-12">
-                        <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Building2 className="w-8 h-8 text-neutral-400" />
-                        </div>
-                        <p className="text-neutral-500 text-lg font-medium">Không tìm thấy thông tin công ty</p>
-                      </div>
+                      <p className="text-neutral-600">Không thể tải thông tin công ty.</p>
                     )}
                   </div>
                 </div>
@@ -1363,6 +1342,31 @@ export default function JobRequestDetailHRPage() {
                     </div>
                 </div>
             )}
+
+            {/* Loading/Success Overlay ở giữa màn hình */}
+            {loadingOverlay.show && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center">
+                    <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-4 min-w-[350px] max-w-[500px]">
+                        {loadingOverlay.type === 'loading' ? (
+                            <>
+                                <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+                                <div className="text-center">
+                                    <p className="text-xl font-bold text-primary-700 mb-2">Đang xử lý...</p>
+                                    <p className="text-neutral-600">{loadingOverlay.message}</p>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="w-16 h-16 border-4 border-success-200 border-t-success-600 rounded-full animate-spin"></div>
+                                <div className="text-center">
+                                    <p className="text-xl font-bold text-success-700 mb-2">Thành công!</p>
+                                    <p className="text-neutral-600 whitespace-pre-line">{loadingOverlay.message}</p>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -1377,11 +1381,35 @@ function InfoItem({ label, value, icon, onClick }: { label: string; value: strin
       </div>
       <p className={`font-semibold transition-colors duration-300 ${
         onClick
-          ? 'text-primary-600 hover:text-primary-800'
+          ? 'text-primary-700 hover:text-primary-800'
           : 'text-gray-900 group-hover:text-primary-700'
       }`}>
         {value || "—"}
       </p>
+    </div>
+  );
+}
+
+function InfoRow({ label, value, icon, onClick }: { label: string; value: React.ReactNode; icon?: React.ReactNode; onClick?: () => void }) {
+  return (
+    <div className={`group ${onClick ? 'cursor-pointer' : ''}`} onClick={onClick}>
+      {label ? (
+        <div className="flex items-center gap-2 mb-2">
+          {icon && <div className="text-neutral-400">{icon}</div>}
+          <p className="text-neutral-500 text-sm font-medium">{label}</p>
+        </div>
+      ) : null}
+      {typeof value === "string" ? (
+        <p className={`font-semibold transition-colors duration-300 ${
+          onClick
+            ? 'text-primary-700 hover:text-primary-800'
+            : 'text-gray-900 group-hover:text-primary-700'
+        }`}>
+          {value || "—"}
+        </p>
+      ) : (
+        <div className="text-gray-900">{value}</div>
+      )}
     </div>
   );
 }

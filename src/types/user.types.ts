@@ -48,6 +48,12 @@ export interface UserFilter {
   pageSize?: number;
 }
 
+export interface UserChangePassword {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 // PagedResult đã được chuyển sang common.types.ts
 export type { PagedResult } from './common.types';
 

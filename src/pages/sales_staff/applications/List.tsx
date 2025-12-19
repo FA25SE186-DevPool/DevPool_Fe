@@ -24,6 +24,7 @@ import {
   XCircle,
   X,
   AlertTriangle,
+  Clock,
 } from "lucide-react";
 
 type SalesTalentApplication = TalentApplication & {
@@ -54,7 +55,6 @@ const statusColors: Record<string, string> = {
   Interviewing: "bg-cyan-100 text-cyan-700",
   Hired: "bg-purple-100 text-purple-700",
   Rejected: "bg-red-100 text-red-700",
-  Withdrawn: "bg-gray-100 text-gray-700",
 };
 
 interface JobRequestWithRelations extends JobRequest {
@@ -100,7 +100,6 @@ export default function SalesApplicationListPage() {
   const [jobRequestTitle, setJobRequestTitle] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [showStats, setShowStats] = useState(false);
-  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -322,7 +321,6 @@ export default function SalesApplicationListPage() {
     setStatusFilter("");
     setFilterJobRequestId("");
     setJobRequestTitle("");
-    setIsStatusDropdownOpen(false);
     setCurrentPage(1);
     const newParams = new URLSearchParams(searchParams);
     newParams.delete("jobRequestId");
@@ -331,10 +329,6 @@ export default function SalesApplicationListPage() {
 
   const hasActiveFilters = Boolean(searchTerm || statusFilter || filterJobRequestId);
 
-  const getStatusDisplayText = () => {
-    if (!statusFilter) return "Tất cả trạng thái";
-    return statusLabels[statusFilter] ?? statusFilter;
-  };
 
   return (
     <div className="flex bg-gray-50 min-h-screen">
@@ -344,26 +338,21 @@ export default function SalesApplicationListPage() {
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Hồ sơ ứng tuyển</h1>
-              <p className="text-neutral-600 mt-1">Tổng quan các hồ sơ ứng viên Sales có thể theo dõi</p>
+              <div className="flex items-center gap-3 mt-1">
+                <p className="text-neutral-600">Tổng quan các hồ sơ ứng viên Sales có thể theo dõi</p>
+                <button
+                  onClick={() => setShowStats(!showStats)}
+                  className="flex items-center justify-center w-7 h-7 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors duration-300"
+                  title={showStats ? "Ẩn thống kê" : "Hiện thống kê"}
+                >
+                  {showStats ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="mb-8 animate-fade-in">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <Briefcase className="w-5 h-5 text-primary-600" />
-                <h2 className="text-xl font-semibold text-gray-900">Thống kê hồ sơ</h2>
-              </div>
-              <button
-                onClick={() => setShowStats(!showStats)}
-                className="flex items-center justify-center w-7 h-7 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors duration-300"
-                title={showStats ? "Ẩn thống kê" : "Hiện thống kê"}
-              >
-                {showStats ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-            </div>
-
-            {showStats && (
+          {showStats && (
+            <div className="mb-8 animate-fade-in">
               <div className="relative">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {statsSlice.map((stat, idx) => (
@@ -434,8 +423,8 @@ export default function SalesApplicationListPage() {
                   </>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {canShowStatsNav && (
               <div className="mt-3 flex justify-end text-xs text-neutral-500 lg:hidden">
@@ -471,23 +460,17 @@ export default function SalesApplicationListPage() {
             )}
 
           {filterJobRequestId && (
-            <div className="mb-6 bg-primary-50 border border-primary-200 rounded-xl p-4 animate-fade-in">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <Briefcase className="w-5 h-5 text-primary-600" />
-                  <div>
-                    <p className="text-sm font-medium text-primary-900">Đang lọc theo yêu cầu tuyển dụng</p>
-                    <p className="text-lg font-semibold text-primary-700 mt-1">
-                      {jobRequestTitle || `Job Request #${filterJobRequestId}`}
-                    </p>
-                  </div>
+            <div className="mb-6 animate-fade-in">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-2 bg-primary-50 border border-primary-200 rounded-lg">
+                  <Briefcase className="w-4 h-4 text-primary-600" />
+                  <span className="text-sm font-medium text-primary-900">
+                    Yêu cầu tuyển dụng:
+                  </span>
+                  <span className="text-sm font-semibold text-primary-700">
+                    {jobRequestTitle || `Job Request #${filterJobRequestId}`}
+                  </span>
                 </div>
-                <button
-                  onClick={handleResetFilters}
-                  className="px-4 py-2 text-sm font-medium text-primary-700 hover:bg-primary-100 rounded-lg transition-all duration-300"
-                >
-                  Xóa bộ lọc
-                </button>
               </div>
             </div>
           )}
@@ -527,53 +510,47 @@ export default function SalesApplicationListPage() {
 
             {showFilters && (
               <div className="mt-6 pt-6 border-t border-neutral-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-                      className="w-full flex items-center justify-between px-4 py-2 border border-neutral-200 rounded-lg bg-white text-left focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300"
-                    >
-                      <span className="text-sm text-neutral-700">{getStatusDisplayText()}</span>
-                      <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    {isStatusDropdownOpen && (
-                      <div className="absolute z-20 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg">
-                        <div className="max-h-56 overflow-y-auto">
+                <div className="space-y-4">
+                  {/* Status Filter Tabs */}
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-3">
+                      Trạng thái
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setStatusFilter("")}
+                        className={`flex items-center gap-2 px-4 py-2 font-medium text-sm transition-all duration-300 whitespace-nowrap rounded-xl border-2 ${
+                          statusFilter === ""
+                            ? "border-blue-600 text-blue-600 bg-blue-50"
+                            : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
+                        }`}
+                      >
+                        <FileText className="w-4 h-4" />
+                        Tất cả
+                      </button>
+                      {[
+                        { value: "Submitted", label: "Đã nộp hồ sơ", icon: FileText },
+                        { value: "Interviewing", label: "Đang xem xét phỏng vấn", icon: Clock },
+                        { value: "Hired", label: "Đã tuyển", icon: CheckCircle },
+                        { value: "Rejected", label: "Đã từ chối", icon: XCircle },
+                      ].map(({ value, label, icon: Icon }) => {
+                        const count = applications.filter(app => app.status === value).length;
+                        return (
                           <button
-                            type="button"
-                            onClick={() => {
-                              setStatusFilter("");
-                              setIsStatusDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-4 py-2 text-sm ${
-                              !statusFilter
-                                ? 'bg-primary-50 text-primary-700'
-                                : 'hover:bg-neutral-50 text-neutral-700'
+                            key={value}
+                            onClick={() => setStatusFilter(value)}
+                            className={`flex items-center gap-2 px-4 py-2 font-medium text-sm transition-all duration-300 whitespace-nowrap rounded-xl border-2 ${
+                              statusFilter === value
+                                ? "border-blue-600 text-blue-600 bg-blue-50"
+                                : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
                             }`}
                           >
-                            Tất cả trạng thái
+                            <Icon className="w-4 h-4" />
+                            {label} ({count})
                           </button>
-                          {Object.entries(statusLabels).map(([value, label]) => (
-                            <button
-                              key={value}
-                              type="button"
-                              onClick={() => {
-                                setStatusFilter(value);
-                                setIsStatusDropdownOpen(false);
-                              }}
-                              className={`w-full text-left px-4 py-2 text-sm ${
-                                statusFilter === value
-                                  ? 'bg-primary-50 text-primary-700'
-                                  : 'hover:bg-neutral-50 text-neutral-700'
-                              }`}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <button

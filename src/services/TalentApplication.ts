@@ -2,8 +2,14 @@ import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import { TalentApplicationStatusConstants, type TalentApplication, type TalentApplicationCreate, type TalentApplicationFilter, type TalentApplicationStatusUpdate, type TalentApplicationStatusTransitionResult, type TalentApplicationUpdate, type TalentApplicationDetailed, type TalentApplicationsByJobRequestResponse, type ApplicationOwnershipTransferModel, type BulkApplicationOwnershipTransferModel, type ApplicationOwnershipTransferResult, type BulkApplicationOwnershipTransferResult } from "../types/talentapplication.types";
 
+// Local types for advanced status update API
+interface TalentApplicationStatusUpdateModel {
+  NewStatus: string;
+  Note?: string;
+}
+
 export { TalentApplicationStatusConstants };
-export type { TalentApplication, TalentApplicationCreate, TalentApplicationFilter, TalentApplicationStatusUpdate, TalentApplicationStatusTransitionResult, TalentApplicationUpdate, TalentApplicationDetailed, TalentApplicationsByJobRequestResponse, ApplicationOwnershipTransferModel, BulkApplicationOwnershipTransferModel, ApplicationOwnershipTransferResult, BulkApplicationOwnershipTransferResult };
+export type { TalentApplication, TalentApplicationCreate, TalentApplicationFilter, TalentApplicationStatusUpdate, TalentApplicationStatusTransitionResult, TalentApplicationUpdate, TalentApplicationDetailed, TalentApplicationsByJobRequestResponse, ApplicationOwnershipTransferModel, BulkApplicationOwnershipTransferModel, ApplicationOwnershipTransferResult, BulkApplicationOwnershipTransferResult, TalentApplicationStatusUpdateModel };
 
 export const talentApplicationService = {
   async getAll(filter?: TalentApplicationFilter) {
@@ -114,6 +120,17 @@ export const talentApplicationService = {
       if (error instanceof AxiosError)
         throw error.response?.data || { message: "Không thể cập nhật trạng thái đơn ứng tuyển" };
       throw { message: "Lỗi không xác định khi cập nhật trạng thái" };
+    }
+  },
+
+  async changeStatus(id: number, payload: TalentApplicationStatusUpdateModel) {
+    try {
+      const response = await apiClient.patch(`/talentapplication/${id}/change-status`, payload);
+      return response.data as TalentApplicationStatusTransitionResult;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError)
+        throw error.response?.data || { message: "Không thể thay đổi trạng thái đơn ứng tuyển" };
+      throw { message: "Lỗi không xác định khi thay đổi trạng thái" };
     }
   },
 

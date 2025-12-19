@@ -199,7 +199,29 @@ export default function ProjectDetailPage() {
   });
   const [extendErrors, setExtendErrors] = useState<{ endDate?: string }>({});
   const [submittingExtend, setSubmittingExtend] = useState(false);
-  
+
+  // Success overlay state
+  const [loadingOverlay, setLoadingOverlay] = useState<{ show: boolean; type: 'loading' | 'success'; message: string }>({
+    show: false,
+    type: 'loading',
+    message: '',
+  });
+
+  // Helper functions for overlay
+
+  const showSuccessOverlay = (message: string) => {
+    setLoadingOverlay({
+      show: true,
+      type: 'success',
+      message,
+    });
+    // Auto hide after 2 seconds
+    setTimeout(() => {
+      setLoadingOverlay({ show: false, type: 'loading', message: '' });
+    }, 2000);
+  };
+
+
   // Helper function to ensure data is an array
   const ensureArray = <T,>(data: unknown): T[] => {
     if (Array.isArray(data)) return data as T[];
@@ -571,7 +593,7 @@ export default function ProjectDetailPage() {
       });
       setDirectBookingErrors({});
 
-      alert("✅ Thuê lại nhân sự thành công!");
+      showSuccessOverlay("✅ Thuê lại nhân sự thành công!");
     } catch (error: unknown) {
       console.error("❌ Lỗi khi thuê lại (Direct Booking):", error);
       const message =
@@ -690,7 +712,7 @@ export default function ProjectDetailPage() {
 
     try {
       await projectService.delete(Number(id));
-      alert("✅ Đã xóa dự án thành công!");
+      showSuccessOverlay("✅ Đã xóa dự án thành công!");
       navigate("/sales/projects");
     } catch (err) {
       console.error("❌ Lỗi khi xóa dự án:", err);
@@ -911,7 +933,7 @@ export default function ProjectDetailPage() {
       setCompletedActivityDate(null);
       setShowCreateAssignmentModal(false);
 
-      alert("✅ Tạo phân công nhân sự thành công!");
+      showSuccessOverlay("✅ Tạo phân công nhân sự thành công!");
     } catch (error: unknown) {
       console.error("❌ Lỗi khi tạo phân công:", error);
       const message =
@@ -1104,7 +1126,7 @@ export default function ProjectDetailPage() {
       setSelectedAssignment(null);
       setShowUpdateAssignmentModal(false);
 
-      alert("✅ Cập nhật phân công nhân sự thành công!");
+      showSuccessOverlay("✅ Cập nhật phân công nhân sự thành công!");
     } catch (error: unknown) {
       console.error("❌ Lỗi khi cập nhật phân công:", error);
       const message =
@@ -1204,7 +1226,7 @@ export default function ProjectDetailPage() {
       setShowDetailAssignmentModal(false);
       setSelectedAssignment(null);
 
-      alert("✅ Chấm dứt phân công nhân sự thành công!");
+      showSuccessOverlay("✅ Chấm dứt phân công nhân sự thành công!");
     } catch (error: unknown) {
       console.error("❌ Lỗi khi chấm dứt phân công:", error);
       const message =
@@ -1334,7 +1356,7 @@ export default function ProjectDetailPage() {
       setShowDetailAssignmentModal(false);
       setSelectedAssignment(null);
 
-      alert("✅ Gia hạn phân công nhân sự thành công!");
+      showSuccessOverlay("✅ Gia hạn phân công nhân sự thành công!");
     } catch (error: unknown) {
       console.error("❌ Lỗi khi gia hạn phân công:", error);
       const message =
@@ -1516,7 +1538,7 @@ export default function ProjectDetailPage() {
       setCancelForm({ cancelReason: "", addToBlacklist: false, blacklistReason: "" });
       setCancelErrors({});
 
-      alert("✅ Đã hủy phân công nhân sự!");
+      showSuccessOverlay("✅ Đã hủy phân công nhân sự!");
     } catch (error: unknown) {
       console.error("❌ Lỗi khi hủy phân công:", error);
       const message =
@@ -4523,6 +4545,31 @@ export default function ProjectDetailPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Loading/Success Overlay ở giữa màn hình */}
+      {loadingOverlay.show && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-4 min-w-[350px] max-w-[500px]">
+            {loadingOverlay.type === 'loading' ? (
+              <>
+                <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-primary-700 mb-2">Đang xử lý...</p>
+                  <p className="text-neutral-600">{loadingOverlay.message}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 border-4 border-success-200 border-t-success-600 rounded-full animate-spin"></div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-success-700 mb-2">Thành công!</p>
+                  <p className="text-neutral-600 whitespace-pre-line">{loadingOverlay.message}</p>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

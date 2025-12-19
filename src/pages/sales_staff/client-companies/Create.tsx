@@ -263,7 +263,7 @@ export default function ClientCompanyCreatePage() {
         <div className="mb-8 animate-slide-up">
           <Breadcrumb
             items={[
-              { label: "Công ty khách hàng", to: "/sales/clients" },
+              { label: "Công ty", to: "/sales/clients" },
               { label: "Tạo mới" }
             ]}
           />

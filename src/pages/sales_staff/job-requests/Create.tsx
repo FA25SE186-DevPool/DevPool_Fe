@@ -13,7 +13,6 @@ import { locationService, type Location } from "../../../services/location";
 import { applyProcessTemplateService, type ApplyProcessTemplate } from "../../../services/ApplyProcessTemplate";
 import { applyProcessStepService, type ApplyProcessStep } from "../../../services/ApplyProcessStep";
 import {
-  Plus,
   Save,
   Briefcase,
   Users,
@@ -615,13 +614,6 @@ export default function JobRequestCreatePage() {
                 Nhập thông tin chi tiết để tạo yêu cầu tuyển dụng cho khách hàng
               </p>
 
-              {/* Status Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-50 border border-primary-200">
-                <Plus className="w-4 h-4 text-primary-600" />
-                <span className="text-sm font-medium text-primary-800">
-                  Tạo yêu cầu tuyển dụng mới
-                </span>
-              </div>
             </div>
           </div>
         </div>

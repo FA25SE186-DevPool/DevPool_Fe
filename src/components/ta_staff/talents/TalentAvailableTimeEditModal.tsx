@@ -46,14 +46,61 @@ export function TalentAvailableTimeEditModal({
     if (!dateTime) return false;
     const startDateTime = new Date(dateTime);
     const now = new Date();
-    return startDateTime > now;
+
+    // Start ≥ now (cho phép thời gian hiện tại)
+    if (startDateTime < now) return false;
+
+    // Start ≤ now + 6 tháng (không quá xa trong tương lai)
+    const sixMonthsFromNow = new Date(now);
+    sixMonthsFromNow.setMonth(now.getMonth() + 6);
+    return startDateTime <= sixMonthsFromNow;
   };
 
   const validateEndTime = (startDateTime: string, endDateTime: string | undefined): boolean => {
     if (!endDateTime) return true;
     const start = new Date(startDateTime);
     const end = new Date(endDateTime);
-    return end > start;
+
+    // End > start (cơ bản)
+    if (end <= start) return false;
+
+    // End ≤ start + 6 tháng (không quá xa từ start)
+    const sixMonthsFromStart = new Date(start);
+    sixMonthsFromStart.setMonth(start.getMonth() + 6);
+    return end <= sixMonthsFromStart;
+  };
+
+  // Tính max date cho start time (now + 6 tháng)
+  const getStartTimeMax = () => {
+    const maxDate = new Date();
+    const currentYear = maxDate.getFullYear();
+    const currentMonth = maxDate.getMonth();
+
+    // Tính tháng và năm mới
+    const newMonth = currentMonth + 6;
+    const newYear = currentYear + Math.floor(newMonth / 12);
+    const finalMonth = newMonth % 12;
+
+    maxDate.setFullYear(newYear, finalMonth);
+    const result = maxDate.toISOString().slice(0, 16);
+    console.log('Start time max:', result); // Debug
+    return result;
+  };
+
+  // Tính max date cho end time (start + 6 tháng)
+  const getEndTimeMax = () => {
+    if (!formData.startTime) return undefined;
+    const startDate = new Date(formData.startTime);
+    const currentYear = startDate.getFullYear();
+    const currentMonth = startDate.getMonth();
+
+    // Tính tháng và năm mới
+    const newMonth = currentMonth + 6;
+    const newYear = currentYear + Math.floor(newMonth / 12);
+    const finalMonth = newMonth % 12;
+
+    startDate.setFullYear(newYear, finalMonth);
+    return startDate.toISOString().slice(0, 16);
   };
 
   const formatDateTime = (value?: string) => {
@@ -135,8 +182,31 @@ export function TalentAvailableTimeEditModal({
     const newErrors = { ...errors };
 
     if (name === 'startTime') {
-      if (value && !validateStartTime(value)) newErrors.startTime = 'Thời gian bắt đầu phải trong tương lai';
-      else delete newErrors.startTime;
+      // Kiểm tra và force về max date nếu vượt quá
+      if (value) {
+        const selectedDate = new Date(value);
+        const maxDate = new Date(getStartTimeMax());
+
+        if (selectedDate > maxDate) {
+          // Tự động reset về max date
+          const maxValue = getStartTimeMax();
+          setFormData((prev) => ({ ...prev, [name]: maxValue }));
+          newErrors.startTime = 'Thời gian bắt đầu không được quá 6 tháng từ hiện tại';
+          return; // Không cập nhật value mới
+        }
+
+        if (!validateStartTime(value)) {
+          const startDate = new Date(value);
+          const now = new Date();
+          if (startDate < now) {
+            newErrors.startTime = 'Thời gian bắt đầu phải từ thời điểm hiện tại trở đi';
+          }
+        } else {
+          delete newErrors.startTime;
+        }
+      } else {
+        delete newErrors.startTime;
+      }
 
       if (formData.endTime && value) {
         if (!validateEndTime(value, formData.endTime)) newErrors.endTime = 'Thời gian kết thúc phải sau thời gian bắt đầu';
@@ -146,8 +216,29 @@ export function TalentAvailableTimeEditModal({
 
     if (name === 'endTime') {
       if (value && formData.startTime) {
-        if (!validateEndTime(formData.startTime, value)) newErrors.endTime = 'Thời gian kết thúc phải sau thời gian bắt đầu';
-        else delete newErrors.endTime;
+        // Kiểm tra và force về max date nếu vượt quá
+        const selectedDate = new Date(value);
+        const maxDate = new Date(getEndTimeMax() || '');
+
+        if (maxDate && selectedDate > maxDate) {
+          // Tự động reset về max date
+          const maxValue = getEndTimeMax();
+          setFormData((prev) => ({ ...prev, [name]: maxValue }));
+          newErrors.endTime = 'Thời gian kết thúc không được quá 6 tháng từ thời gian bắt đầu';
+          return; // Không cập nhật value mới
+        }
+
+        if (!validateEndTime(formData.startTime, value)) {
+          const start = new Date(formData.startTime);
+          const end = new Date(value);
+          if (end <= start) {
+            newErrors.endTime = 'Thời gian kết thúc phải sau thời gian bắt đầu';
+          } else {
+            newErrors.endTime = 'Thời gian kết thúc không được quá 6 tháng từ thời gian bắt đầu';
+          }
+        } else {
+          delete newErrors.endTime;
+        }
       } else if (value && !formData.startTime) {
         newErrors.endTime = 'Vui lòng chọn thời gian bắt đầu trước';
       } else {
@@ -176,7 +267,7 @@ export function TalentAvailableTimeEditModal({
       return;
     }
     if (!validateStartTime(formData.startTime)) {
-      alert('⚠️ Thời gian bắt đầu phải nằm trong tương lai!');
+      alert('⚠️ Thời gian bắt đầu phải từ thời điểm hiện tại trở đi!');
       return;
     }
     if (formData.endTime && !validateEndTime(formData.startTime, formData.endTime)) {
@@ -276,6 +367,7 @@ export function TalentAvailableTimeEditModal({
                     onChange={handleChange}
                     required
                     min={new Date().toISOString().slice(0, 16)}
+                    max={getStartTimeMax()}
                     disabled={!canEdit}
                     className="w-full focus:ring-primary-500 rounded-xl border-neutral-200 focus:border-primary-500"
                   />
@@ -302,6 +394,7 @@ export function TalentAvailableTimeEditModal({
                           })()
                         : undefined
                     }
+                    max={getEndTimeMax()}
                     className="w-full focus:ring-primary-500 rounded-xl border-neutral-200 focus:border-primary-500"
                   />
                   {errors.endTime && <p className="text-xs text-red-600 mt-1">{errors.endTime}</p>}
