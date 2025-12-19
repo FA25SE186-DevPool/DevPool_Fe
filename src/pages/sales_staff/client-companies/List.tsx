@@ -145,7 +145,7 @@ export default function ClientCompanyListPage() {
         <div className="mb-8 animate-slide-up">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Công ty khách hàng</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Công ty</h1>
               <p className="text-neutral-600 mt-1">Quản lý và theo dõi các công ty khách hàng</p>
             </div>
             <Link to="/sales/clients/create">

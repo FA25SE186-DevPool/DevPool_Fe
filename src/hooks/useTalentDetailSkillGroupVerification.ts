@@ -14,7 +14,8 @@ import { type TalentSkill } from '../services/TalentSkill';
  * Hook để quản lý Skill Group Verification logic cho Talent Detail page
  */
 export function useTalentDetailSkillGroupVerification(
-  talentSkills?: (TalentSkill & { skillName: string; skillGroupId?: number })[]
+  talentSkills?: (TalentSkill & { skillName: string; skillGroupId?: number })[],
+  showSuccessOverlay?: (message: string) => void
 ) {
   const { id } = useParams<{ id: string }>();
 
@@ -193,7 +194,7 @@ export function useTalentDetailSkillGroupVerification(
 
         handleCloseVerifySkillGroupModal();
 
-        alert(
+        showSuccessOverlay?.(
           verifyResult
             ? '✅ Đã verify nhóm kỹ năng thành công (Pass)!'
             : '⚠️ Đã đánh dấu nhóm kỹ năng không hợp lệ (Fail)!'
@@ -368,7 +369,7 @@ export function useTalentDetailSkillGroupVerification(
           }
         }
 
-        alert('✅ Đã vô hiệu hóa đánh giá nhóm kỹ năng thành công!');
+        showSuccessOverlay?.('✅ Đã vô hiệu hóa đánh giá nhóm kỹ năng thành công!');
       } catch (err) {
         console.error('❌ Lỗi khi invalidate assessment:', err);
         alert('Không thể vô hiệu hóa đánh giá, vui lòng thử lại.');

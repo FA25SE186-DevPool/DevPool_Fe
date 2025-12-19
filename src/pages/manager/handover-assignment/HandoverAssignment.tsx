@@ -8,8 +8,6 @@ import { jobRequestService, type OwnershipTransferModel, type JobRequest } from 
 import { talentApplicationService, type TalentApplication, type BulkApplicationOwnershipTransferModel } from "../../../services/TalentApplication";
 import { talentCVService } from "../../../services/TalentCV";
 import { jobRoleLevelService } from "../../../services/JobRoleLevel";
-import { JobRequestStatus } from "../../../types/jobrequest.types";
-import { WorkingMode } from "../../../constants/WORKING_MODE";
 import {
   Search,
   UserCog,
@@ -25,6 +23,7 @@ import {
   FileText,
   FileUser,
   ChevronDown,
+  User as UserIcon,
 } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 
@@ -69,6 +68,19 @@ export default function HandoverAssignmentPage() {
   const [transferReason, setTransferReason] = useState<string>("");
   const [transferLoading, setTransferLoading] = useState(false);
   const [jobRequestSearchTerm, setJobRequestSearchTerm] = useState("");
+
+  // Sales dropdown states
+  const [salesSearch, setSalesSearch] = useState("");
+  const [isSalesDropdownOpen, setIsSalesDropdownOpen] = useState(false);
+
+  // TA dropdown states (for talent handover)
+  const [taSearch, setTaSearch] = useState("");
+  const [isTaDropdownOpen, setIsTaDropdownOpen] = useState(false);
+
+  // TA dropdown states (for talent application handover)
+  const [applicationTaSearch, setApplicationTaSearch] = useState("");
+  const [isApplicationTaDropdownOpen, setIsApplicationTaDropdownOpen] = useState(false);
+  const [jobRequestStatusFilter, setJobRequestStatusFilter] = useState<"all" | "pending" | "approved" | "rejected" | "closed">("all");
 
   // Hồ sơ ứng tuyển transfer states
   const [talentApplications, setTalentApplications] = useState<TalentApplication[]>([]);
@@ -140,50 +152,8 @@ export default function HandoverAssignmentPage() {
           (user: User) => user.roles.includes("Sale")
         );
 
-        // Always show mock data for testing (remove this after API is working)
-        const mockJobRequests = [
-          {
-            id: 1,
-            code: "JR-2024-001",
-            title: "Frontend Developer",
-            projectId: 1,
-            jobRoleLevelId: 1,
-            applyProcessTemplateId: 1,
-            clientCompanyCVTemplateId: 1,
-            description: "Frontend Developer position",
-            requirements: "React, TypeScript, HTML/CSS",
-            quantity: 1,
-            locationId: 1,
-            workingMode: WorkingMode.Onsite,
-            budgetPerMonth: 15000000,
-            status: JobRequestStatus.Pending,
-            jobSkills: [],
-            ownerId: "user-1",
-            ownerName: "Nguyễn Văn A"
-          },
-          {
-            id: 2,
-            code: "JR-2024-002",
-            title: "Backend Developer",
-            projectId: 2,
-            jobRoleLevelId: 2,
-            applyProcessTemplateId: 1,
-            clientCompanyCVTemplateId: 1,
-            description: "Backend Developer position",
-            requirements: "Node.js, PostgreSQL, REST API",
-            quantity: 1,
-            locationId: 1,
-            workingMode: WorkingMode.Onsite,
-            budgetPerMonth: 18000000,
-            status: JobRequestStatus.Pending,
-            jobSkills: [],
-            ownerId: "user-2",
-            ownerName: "Trần Thị B"
-          }
-        ];
-
-        // Use API data if available, otherwise use mock data
-        const finalJobRequests = jobRequestsArray.length > 0 ? jobRequestsArray : mockJobRequests;
+        // Use API data
+        const finalJobRequests = jobRequestsArray;
 
         setTalents(talentsArray);
         setTaStaff(taStaffList);
@@ -192,6 +162,7 @@ export default function HandoverAssignmentPage() {
         setFilteredTalents(talentsArray);
         setJobRequests(finalJobRequests);
         setFilteredJobRequests(finalJobRequests);
+        console.log('Talent Applications loaded:', applicationsArray);
         setTalentApplications(applicationsArray);
         setFilteredTalentApplications(applicationsArray);
       } catch (err: any) {
@@ -250,12 +221,21 @@ export default function HandoverAssignmentPage() {
     setFilteredTalents(filtered);
   }, [searchTerm, filterTaId, talents, talentToTaMap]);
 
-  // Filter job requests to show only approved (status = 1) and by search term
+  // Filter job requests by status and search term
   useEffect(() => {
     let filtered = jobRequests;
 
-    // Only show approved job requests (status = 1)
-    filtered = filtered.filter(jobRequest => jobRequest.status === 1);
+    // Filter by status
+    if (jobRequestStatusFilter === "pending") {
+      filtered = filtered.filter(jobRequest => jobRequest.status === 0); // Pending
+    } else if (jobRequestStatusFilter === "approved") {
+      filtered = filtered.filter(jobRequest => jobRequest.status === 1); // Approved
+    } else if (jobRequestStatusFilter === "rejected") {
+      filtered = filtered.filter(jobRequest => jobRequest.status === 3); // Rejected
+    } else if (jobRequestStatusFilter === "closed") {
+      filtered = filtered.filter(jobRequest => jobRequest.status === 2); // Closed
+    }
+    // If "all", show all job requests (pending, approved, rejected, closed)
 
     // Filter by search term
     if (jobRequestSearchTerm.trim()) {
@@ -267,21 +247,29 @@ export default function HandoverAssignmentPage() {
     }
 
     setFilteredJobRequests(filtered);
-  }, [jobRequestSearchTerm, jobRequests]);
+  }, [jobRequestSearchTerm, jobRequests, jobRequestStatusFilter]);
 
   // Filter talent applications by status, job request, and search term
   useEffect(() => {
     let filtered = talentApplications;
+    console.log('Filtering talent applications:', {
+      totalApplications: talentApplications.length,
+      selectedJobRequestFilter,
+      originalApplications: talentApplications
+    });
 
-    // Only show applications with "Submitted" status (đã nộp hồ sơ)
-    filtered = filtered.filter(application => application.status === 'Submitted');
+    // Show all applications for now to debug (temporarily remove status filter)
+    // filtered = filtered.filter(application => application.status === 'Submitted');
+    console.log('All status values:', [...new Set(talentApplications.map(app => app.status))]);
+    console.log('After status filter (all for now):', filtered.length);
 
     // Filter by selected job request
     if (selectedJobRequestFilter) {
       filtered = filtered.filter(application => application.jobRequestId.toString() === selectedJobRequestFilter);
+      console.log('After job request filter:', filtered.length, 'jobRequestId:', selectedJobRequestFilter);
     }
 
-
+    console.log('Final filtered applications:', filtered);
     setFilteredTalentApplications(filtered);
   }, [selectedJobRequestFilter, talentApplications]);
 
@@ -338,6 +326,8 @@ export default function HandoverAssignmentPage() {
       setApplicationTransferToUserId("");
       setApplicationTransferReason("");
       setIsTalentApplicationPopupOpen(false);
+      // Reset job request status filter to "all" when switching to job request tab
+      setJobRequestStatusFilter("all");
     } else if (activeTab === "talentapplication") {
       setSelectedTalentId(null);
       setSelectedToUserId("");
@@ -528,6 +518,30 @@ export default function HandoverAssignmentPage() {
 
     const selectedJobRequest = jobRequests.find(jr => jr.id.toString() === selectedJobRequestFilter);
     return selectedJobRequest ? `${selectedJobRequest.title} (#${selectedJobRequest.code})` : "Tất cả yêu cầu tuyển dụng";
+  };
+
+  // Get display text for selected sales
+  const getSalesDisplayText = () => {
+    if (!transferToUserId) return "Chọn Sales";
+
+    const selectedSales = salesStaff.find(s => s.id === transferToUserId);
+    return selectedSales ? `${selectedSales.fullName} (${selectedSales.email})` : "Chọn Sales";
+  };
+
+  // Get display text for selected TA
+  const getTaDisplayText = () => {
+    if (!selectedToUserId) return "Chọn TA";
+
+    const selectedTa = taStaff.find(ta => ta.id === selectedToUserId);
+    return selectedTa ? `${selectedTa.fullName} (${selectedTa.email})` : "Chọn TA";
+  };
+
+  // Get display text for selected TA (for application handover)
+  const getApplicationTaDisplayText = () => {
+    if (!applicationTransferToUserId) return "Chọn TA";
+
+    const selectedTa = taStaff.find(ta => ta.id === applicationTransferToUserId);
+    return selectedTa ? `${selectedTa.fullName} (${selectedTa.email})` : "Chọn TA";
   };
 
   // Function to get user name by ID
@@ -895,19 +909,83 @@ export default function HandoverAssignmentPage() {
                             <label className="block text-sm font-medium text-gray-700">
                               Chọn TA nhận quyền quản lý <span className="text-red-500">*</span>
                             </label>
-                            <select
-                              value={selectedToUserId}
-                              onChange={(e) => setSelectedToUserId(e.target.value)}
-                              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
-                              required
-                            >
-                              <option value="">-- Chọn TA --</option>
-                              {availableTaStaff.map((ta) => (
-                                <option key={ta.id} value={ta.id}>
-                                  {ta.fullName} ({ta.email})
-                                </option>
-                              ))}
-                            </select>
+                            <div className="relative">
+                              <UserCog className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4 z-10" />
+                              <button
+                                type="button"
+                                onClick={() => setIsTaDropdownOpen(!isTaDropdownOpen)}
+                                className="w-full flex items-center justify-between pl-10 pr-3 py-3 border-2 border-gray-300 rounded-lg bg-white text-left hover:border-blue-300 transition-colors"
+                              >
+                                <span className="text-sm text-gray-700">{getTaDisplayText()}</span>
+                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isTaDropdownOpen ? 'rotate-180' : ''}`} />
+                              </button>
+                              {isTaDropdownOpen && (
+                                <div
+                                  className="absolute z-50 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg"
+                                  onMouseLeave={() => {
+                                    setIsTaDropdownOpen(false);
+                                    setTaSearch("");
+                                  }}
+                                >
+                                  <div className="p-3 border-b border-gray-100">
+                                    <div className="relative">
+                                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                      <input
+                                        type="text"
+                                        value={taSearch}
+                                        onChange={(e) => setTaSearch(e.target.value)}
+                                        placeholder="Tìm tên hoặc email..."
+                                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="max-h-56 overflow-y-auto">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedToUserId("");
+                                        setIsTaDropdownOpen(false);
+                                        setTaSearch("");
+                                      }}
+                                      className={`w-full text-left px-4 py-2.5 text-sm ${
+                                        !selectedToUserId
+                                          ? 'bg-blue-50 text-blue-700'
+                                          : 'hover:bg-gray-50 text-gray-700'
+                                      }`}
+                                    >
+                                      Chọn TA
+                                    </button>
+                                    {availableTaStaff
+                                      .filter((ta) =>
+                                        !taSearch ||
+                                        ta.fullName.toLowerCase().includes(taSearch.toLowerCase()) ||
+                                        ta.email.toLowerCase().includes(taSearch.toLowerCase())
+                                      )
+                                      .map((ta) => (
+                                        <button
+                                          key={ta.id}
+                                          type="button"
+                                          onClick={() => {
+                                            setSelectedToUserId(ta.id);
+                                            setIsTaDropdownOpen(false);
+                                            setTaSearch("");
+                                          }}
+                                          className={`w-full text-left px-4 py-2.5 text-sm ${
+                                            selectedToUserId === ta.id
+                                              ? 'bg-blue-50 text-blue-700'
+                                              : 'hover:bg-gray-50 text-gray-700'
+                                          }`}
+                                        >
+                                          <div className="flex flex-col">
+                                            <span className="font-medium">{ta.fullName}</span>
+                                            <span className="text-xs text-gray-500">{ta.email}</span>
+                                          </div>
+                                        </button>
+                                      ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                             {selectedTalentId && currentTa && availableTaStaff.length === 0 && (
                               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                                 <p className="text-sm text-yellow-800">
@@ -1324,21 +1402,107 @@ export default function HandoverAssignmentPage() {
                             <label className="block text-sm font-medium text-gray-700">
                                   Chọn Sales nhận quyền quản lý <span className="text-red-500">*</span>
                             </label>
-                            <select
-                                  value={transferToUserId}
-                                  onChange={(e) => setTransferToUserId(e.target.value)}
-                                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-base"
-                              required
-                            >
-                                  <option value="">-- Chọn Sales --</option>
-                                {salesStaff.map((user) => (
-                                  <option key={user.id} value={user.id}>
-                                    {user.fullName} ({user.email})
-                                </option>
-                              ))}
-                            </select>
+                            <div className="relative">
+                              <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4 z-10" />
+                              <button
+                                type="button"
+                                onClick={() => setIsSalesDropdownOpen(!isSalesDropdownOpen)}
+                                className="w-full flex items-center justify-between pl-10 pr-3 py-3 border-2 border-gray-300 rounded-lg bg-white text-left hover:border-green-300 transition-colors"
+                              >
+                                <span className="text-sm text-gray-700">{getSalesDisplayText()}</span>
+                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isSalesDropdownOpen ? 'rotate-180' : ''}`} />
+                              </button>
+                              {isSalesDropdownOpen && (
+                                <div
+                                  className="absolute z-50 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg"
+                                  onMouseLeave={() => {
+                                    setIsSalesDropdownOpen(false);
+                                    setSalesSearch("");
+                                  }}
+                                >
+                                  <div className="p-3 border-b border-gray-100">
+                                    <div className="relative">
+                                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                      <input
+                                        type="text"
+                                        value={salesSearch}
+                                        onChange={(e) => setSalesSearch(e.target.value)}
+                                        placeholder="Tìm tên hoặc email..."
+                                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-green-500 focus:ring-green-500"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="max-h-56 overflow-y-auto">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setTransferToUserId("");
+                                        setIsSalesDropdownOpen(false);
+                                        setSalesSearch("");
+                                      }}
+                                      className={`w-full text-left px-4 py-2.5 text-sm ${
+                                        !transferToUserId
+                                          ? 'bg-green-50 text-green-700'
+                                          : 'hover:bg-gray-50 text-gray-700'
+                                      }`}
+                                    >
+                                      Chọn Sales
+                                    </button>
+                                    {(() => {
+                                      const selectedJobRequest = jobRequests.find(jr => jr.id === selectedJobRequestId);
+                                      console.log('Filter sales for transfer:', {
+                                        selectedJobRequestId,
+                                        selectedJobRequest: selectedJobRequest ? { id: selectedJobRequest.id, ownerId: selectedJobRequest.ownerId } : null,
+                                        allSalesCount: salesStaff.length,
+                                        filteredSales: salesStaff.filter((user) => {
+                                          const shouldInclude = !selectedJobRequest || user.id !== selectedJobRequest.ownerId;
+                                          return shouldInclude;
+                                        })
+                                      });
+                                      return salesStaff
+                                        .filter((user) => {
+                                          // Loại trừ Sales hiện tại đang sở hữu jobrequest được chọn
+                                          const selectedJobRequest = jobRequests.find(jr => jr.id === selectedJobRequestId);
+                                          const shouldInclude = !selectedJobRequest || user.id !== selectedJobRequest.ownerId;
+                                          // Filter theo search term
+                                          const matchesSearch = !salesSearch ||
+                                            user.fullName.toLowerCase().includes(salesSearch.toLowerCase()) ||
+                                            user.email.toLowerCase().includes(salesSearch.toLowerCase());
+                                          return shouldInclude && matchesSearch;
+                                        })
+                                        .map((user) => (
+                                          <button
+                                            key={user.id}
+                                            type="button"
+                                            onClick={() => {
+                                              setTransferToUserId(user.id);
+                                              setIsSalesDropdownOpen(false);
+                                              setSalesSearch("");
+                                            }}
+                                            className={`w-full text-left px-4 py-2.5 text-sm ${
+                                              transferToUserId === user.id
+                                                ? 'bg-green-50 text-green-700'
+                                                : 'hover:bg-gray-50 text-gray-700'
+                                            }`}
+                                          >
+                                            <div className="flex flex-col">
+                                              <span className="font-medium">{user.fullName}</span>
+                                              <span className="text-xs text-gray-500">{user.email}</span>
+                                            </div>
+                                          </button>
+                                        ));
+                                    })()}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                               <p className="text-xs text-gray-500 mt-1">
-                                Có {salesStaff.length} Sales khả dụng
+                                Có {(() => {
+                                  const selectedJobRequest = jobRequests.find(jr => jr.id === selectedJobRequestId);
+                                  return salesStaff.filter((user) => {
+                                    return !selectedJobRequest || user.id !== selectedJobRequest.ownerId;
+                                  }).length;
+                                })()} Sales khả dụng
                               </p>
                               </div>
                             </>
@@ -1437,6 +1601,77 @@ export default function HandoverAssignmentPage() {
                                     onChange={(e) => setJobRequestSearchTerm(e.target.value)}
                                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                                   />
+                                </div>
+                              </div>
+
+                              {/* Status Filter Tabs */}
+                              <div className="mb-4">
+                                <div className="flex gap-2 border-b border-gray-200">
+                                  <button
+                                    onClick={() => setJobRequestStatusFilter("all")}
+                                    className={`px-4 py-2 font-medium text-sm transition-all duration-300 border-b-2 ${
+                                      jobRequestStatusFilter === "all"
+                                        ? "border-blue-600 text-blue-600 bg-blue-50"
+                                        : "border-transparent text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                                    }`}
+                                  >
+                                    Tất cả
+                                    <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-gray-200 text-gray-700">
+                                      {jobRequests.length}
+                                    </span>
+                                  </button>
+                                  <button
+                                    onClick={() => setJobRequestStatusFilter("pending")}
+                                    className={`px-4 py-2 font-medium text-sm transition-all duration-300 border-b-2 ${
+                                      jobRequestStatusFilter === "pending"
+                                        ? "border-orange-600 text-orange-600 bg-orange-50"
+                                        : "border-transparent text-gray-600 hover:text-orange-600 hover:bg-orange-50"
+                                    }`}
+                                  >
+                                    Chờ duyệt
+                                    <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-orange-200 text-orange-700">
+                                      {jobRequests.filter(jr => jr.status === 0).length}
+                                    </span>
+                                  </button>
+                                  <button
+                                    onClick={() => setJobRequestStatusFilter("approved")}
+                                    className={`px-4 py-2 font-medium text-sm transition-all duration-300 border-b-2 ${
+                                      jobRequestStatusFilter === "approved"
+                                        ? "border-green-600 text-green-600 bg-green-50"
+                                        : "border-transparent text-gray-600 hover:text-green-600 hover:bg-green-50"
+                                    }`}
+                                  >
+                                    Đã duyệt
+                                    <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-green-200 text-green-700">
+                                      {jobRequests.filter(jr => jr.status === 1).length}
+                                    </span>
+                                  </button>
+                                  <button
+                                    onClick={() => setJobRequestStatusFilter("rejected")}
+                                    className={`px-4 py-2 font-medium text-sm transition-all duration-300 border-b-2 ${
+                                      jobRequestStatusFilter === "rejected"
+                                        ? "border-red-600 text-red-600 bg-red-50"
+                                        : "border-transparent text-gray-600 hover:text-red-600 hover:bg-red-50"
+                                    }`}
+                                  >
+                                    Bị từ chối
+                                    <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-red-200 text-red-700">
+                                      {jobRequests.filter(jr => jr.status === 3).length}
+                                    </span>
+                                  </button>
+                                  <button
+                                    onClick={() => setJobRequestStatusFilter("closed")}
+                                    className={`px-4 py-2 font-medium text-sm transition-all duration-300 border-b-2 ${
+                                      jobRequestStatusFilter === "closed"
+                                        ? "border-gray-600 text-gray-600 bg-gray-50"
+                                        : "border-transparent text-gray-600 hover:text-gray-600 hover:bg-gray-50"
+                                    }`}
+                                  >
+                                    Đã đóng
+                                    <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-gray-200 text-gray-700">
+                                      {jobRequests.filter(jr => jr.status === 2).length}
+                                    </span>
+                                  </button>
                                 </div>
                               </div>
 
@@ -1711,19 +1946,83 @@ export default function HandoverAssignmentPage() {
                                 <label className="block text-sm font-medium text-gray-700">
                                   Chọn TA nhận quyền quản lý <span className="text-red-500">*</span>
                                 </label>
-                                <select
-                                  value={applicationTransferToUserId}
-                                  onChange={(e) => setApplicationTransferToUserId(e.target.value)}
-                                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base"
-                                  required
-                                >
-                                  <option value="">-- Chọn TA --</option>
-                                  {taStaff.map((ta) => (
-                                    <option key={ta.id} value={ta.id}>
-                                      {ta.fullName} ({ta.email})
-                                    </option>
-                                  ))}
-                                </select>
+                                <div className="relative">
+                                  <UserCog className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4 z-10" />
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsApplicationTaDropdownOpen(!isApplicationTaDropdownOpen)}
+                                    className="w-full flex items-center justify-between pl-10 pr-3 py-3 border-2 border-gray-300 rounded-lg bg-white text-left hover:border-purple-300 transition-colors"
+                                  >
+                                    <span className="text-sm text-gray-700">{getApplicationTaDisplayText()}</span>
+                                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isApplicationTaDropdownOpen ? 'rotate-180' : ''}`} />
+                                  </button>
+                                  {isApplicationTaDropdownOpen && (
+                                    <div
+                                      className="absolute z-50 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg"
+                                      onMouseLeave={() => {
+                                        setIsApplicationTaDropdownOpen(false);
+                                        setApplicationTaSearch("");
+                                      }}
+                                    >
+                                      <div className="p-3 border-b border-gray-100">
+                                        <div className="relative">
+                                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                          <input
+                                            type="text"
+                                            value={applicationTaSearch}
+                                            onChange={(e) => setApplicationTaSearch(e.target.value)}
+                                            placeholder="Tìm tên hoặc email..."
+                                            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-purple-500 focus:ring-purple-500"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="max-h-56 overflow-y-auto">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setApplicationTransferToUserId("");
+                                            setIsApplicationTaDropdownOpen(false);
+                                            setApplicationTaSearch("");
+                                          }}
+                                          className={`w-full text-left px-4 py-2.5 text-sm ${
+                                            !applicationTransferToUserId
+                                              ? 'bg-purple-50 text-purple-700'
+                                              : 'hover:bg-gray-50 text-gray-700'
+                                          }`}
+                                        >
+                                          Chọn TA
+                                        </button>
+                                        {taStaff
+                                          .filter((ta) =>
+                                            !applicationTaSearch ||
+                                            ta.fullName.toLowerCase().includes(applicationTaSearch.toLowerCase()) ||
+                                            ta.email.toLowerCase().includes(applicationTaSearch.toLowerCase())
+                                          )
+                                          .map((ta) => (
+                                            <button
+                                              key={ta.id}
+                                              type="button"
+                                              onClick={() => {
+                                                setApplicationTransferToUserId(ta.id);
+                                                setIsApplicationTaDropdownOpen(false);
+                                                setApplicationTaSearch("");
+                                              }}
+                                              className={`w-full text-left px-4 py-2.5 text-sm ${
+                                                applicationTransferToUserId === ta.id
+                                                  ? 'bg-purple-50 text-purple-700'
+                                                  : 'hover:bg-gray-50 text-gray-700'
+                                              }`}
+                                            >
+                                              <div className="flex flex-col">
+                                                <span className="font-medium">{ta.fullName}</span>
+                                                <span className="text-xs text-gray-500">{ta.email}</span>
+                                              </div>
+                                            </button>
+                                          ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
                                 <p className="text-xs text-gray-500 mt-1">
                                   Có {taStaff.length} TA khả dụng
                                 </p>

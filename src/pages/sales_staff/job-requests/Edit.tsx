@@ -615,7 +615,7 @@ export default function JobRequestEditPage() {
       console.log("Payload gửi đi:", payload);
       await jobRequestService.update(Number(id), payload);
 
-      alert("✅ Cập nhật yêu cầu tuyển dụng thành công!");
+      // TODO: Add overlay for success message
       navigate(`/sales/job-requests/${id}`);
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật:", err);

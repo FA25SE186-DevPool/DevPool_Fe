@@ -35,6 +35,19 @@ export function useFileUpload() {
         return null;
       }
 
+      // Validate file type (PDF, DOC, DOCX, TXT)
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('⚠️ Vui lòng chọn file CV có định dạng PDF, DOC, DOCX hoặc TXT');
+        return null;
+      }
+
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('⚠️ Kích thước file CV không được vượt quá 10MB');
+        return null;
+      }
+
       if (!version || version <= 0) {
         alert('Vui lòng nhập version CV trước khi upload!');
         return null;

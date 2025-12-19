@@ -54,6 +54,12 @@ export interface TalentCVJobRequestFilter {
   maxResults?: number;
 }
 
+export interface TalentCVManualSearchModel {
+  jobRequestId: number;
+  searchQuery: string;
+  excludeDeleted?: boolean;
+}
+
 export interface TalentCVExtractResponse {
   originalText: string;
   generateText: string;

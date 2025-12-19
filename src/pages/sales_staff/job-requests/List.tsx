@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
 import { sidebarItems } from "../../../components/sidebar/sales";
 import { Button } from "../../../components/ui/button";
 import { jobRequestService, type JobRequest, JobRequestStatus } from "../../../services/JobRequest";
+import { useAuth } from "../../../context/AuthContext";
 import { clientCompanyService, type ClientCompany } from "../../../services/ClientCompany";
 import { projectService, type Project } from "../../../services/Project";
 import { jobRoleLevelService, type JobRoleLevel } from "../../../services/JobRoleLevel";
@@ -24,7 +25,9 @@ import {
   ClipboardList,
   ChevronDown,
   ChevronUp,
-  X
+  X,
+  FileText,
+  Clock
 } from "lucide-react";
 
 type AugmentedJobRequest = JobRequest & {
@@ -49,11 +52,37 @@ const statusLabelDisplay: Record<string, string> = {
   Rejected: "Bị từ chối"
 };
 
+const applicationStatusColors: Record<string, string> = {
+  Submitted: "bg-sky-100 text-sky-700",
+  Interviewing: "bg-cyan-100 text-cyan-700",
+  Hired: "bg-purple-100 text-purple-700",
+  Rejected: "bg-red-100 text-red-700",
+  Withdrawn: "bg-gray-100 text-gray-700",
+};
+
 export default function JobRequestListPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<AugmentedJobRequest[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<AugmentedJobRequest[]>([]);
+  const [activeTab, setActiveTab] = useState<"all" | "my">("my");
+
+  // Tính toán danh sách requests theo tab
+  const currentRequestsList = useMemo(() =>
+    activeTab === "all"
+      ? requests
+      : requests.filter(r => r.ownerId === user?.id),
+    [activeTab, requests, user?.id]
+  );
+
+  // Tính toán số lượng cho tabs (không phụ thuộc vào activeTab)
+  const myRequestsCount = useMemo(() =>
+    requests.filter(r => r.ownerId === user?.id).length,
+    [requests, user?.id]
+  );
+  const allRequestsCount = requests.length;
+
   const [showFilters, setShowFilters] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -77,6 +106,7 @@ export default function JobRequestListPage() {
   const [applicationsLoading, setApplicationsLoading] = useState(false);
   const [applicationsError, setApplicationsError] = useState<string | null>(null);
   const [applications, setApplications] = useState<TalentApplicationDetailed[]>([]);
+  const [applicationsStatusFilter, setApplicationsStatusFilter] = useState<string>("");
 
   const applicationStatusLabel: Record<string, string> = {
     Submitted: "Đã nộp",
@@ -123,38 +153,38 @@ export default function JobRequestListPage() {
   };
 
   // Stats data
-  const stats = [
+  const stats = useMemo(() => [
     {
-      title: 'Tổng Yêu Cầu',
-      value: requests.length.toString(),
+      title: activeTab === "all" ? 'Tổng Yêu Cầu' : 'YCTD của tôi',
+      value: currentRequestsList.length.toString(),
       color: 'blue',
       icon: <Briefcase className="w-6 h-6" />
     },
     {
       title: 'Chưa Duyệt',
-      value: requests.filter(r => r.status === JobRequestStatus.Pending).length.toString(),
+      value: currentRequestsList.filter(r => r.status === JobRequestStatus.Pending).length.toString(),
       color: 'orange',
       icon: <Target className="w-6 h-6" />
     },
     {
       title: 'Đã Duyệt',
-      value: requests.filter(r => r.status === JobRequestStatus.Approved).length.toString(),
+      value: currentRequestsList.filter(r => r.status === JobRequestStatus.Approved).length.toString(),
       color: 'purple',
       icon: <Users className="w-6 h-6" />
     },
     {
       title: 'Đã từ chối',
-      value: requests.filter(r => r.status === JobRequestStatus.Rejected).length.toString(),
+      value: currentRequestsList.filter(r => r.status === JobRequestStatus.Rejected).length.toString(),
       color: 'red',
       icon: <XCircle className="w-6 h-6" />
     },
     {
       title: 'Đã đóng',
-      value: requests.filter(r => r.status === JobRequestStatus.Closed).length.toString(),
+      value: currentRequestsList.filter(r => r.status === JobRequestStatus.Closed).length.toString(),
       color: 'gray',
       icon: <Briefcase className="w-6 h-6" />
     }
-  ];
+  ], [currentRequestsList, activeTab]);
 
   useEffect(() => {
     const maxIndex = Math.max(0, stats.length - statsPageSize);
@@ -254,6 +284,7 @@ export default function JobRequestListPage() {
     setApplications([]);
     setApplicationsError(null);
     setApplicationsLoading(false);
+    setApplicationsStatusFilter("");
   };
 
   const openApplicationsPopup = async (req: AugmentedJobRequest) => {
@@ -282,8 +313,8 @@ export default function JobRequestListPage() {
   };
 
   // 🧮 Lọc dữ liệu theo điều kiện
-  useEffect(() => {
-    let filtered = [...requests];
+  const filteredRequestsMemo = useMemo(() => {
+    let filtered = [...currentRequestsList];
 
     if (searchTerm) {
       filtered = filtered.filter(
@@ -307,9 +338,13 @@ export default function JobRequestListPage() {
     if (filterStatus)
       filtered = filtered.filter((r) => r.status === Number(filterStatus));
 
-    setFilteredRequests(filtered);
+    return filtered;
+  }, [currentRequestsList, searchTerm, filterCompany, filterProject, filterPosition, filterStatus]);
+
+  useEffect(() => {
+    setFilteredRequests(filteredRequestsMemo);
     setCurrentPage(1); // Reset về trang đầu khi filter thay đổi
-  }, [searchTerm, filterCompany, filterProject, filterPosition, filterStatus, requests]);
+  }, [filteredRequestsMemo]);
 
   // Tính toán pagination
   const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
@@ -330,13 +365,14 @@ export default function JobRequestListPage() {
     });
   };
 
-  const statsSlice = stats.slice(
+  const statsSlice = useMemo(() => stats.slice(
     statsStartIndex,
     Math.min(statsStartIndex + statsPageSize, stats.length)
-  );
-  const canShowStatsNav = stats.length > statsPageSize;
-  const canGoPrev = canShowStatsNav && statsStartIndex > 0;
-  const canGoNext = canShowStatsNav && statsStartIndex + statsPageSize < stats.length;
+  ), [stats, statsStartIndex, statsPageSize]);
+
+  const canShowStatsNav = useMemo(() => stats.length > statsPageSize, [stats.length, statsPageSize]);
+  const canGoPrev = useMemo(() => canShowStatsNav && statsStartIndex > 0, [canShowStatsNav, statsStartIndex]);
+  const canGoNext = useMemo(() => canShowStatsNav && statsStartIndex + statsPageSize < stats.length, [canShowStatsNav, statsStartIndex, statsPageSize, stats.length]);
 
   const handleResetFilters = () => {
     setSearchTerm("");
@@ -459,6 +495,43 @@ export default function JobRequestListPage() {
                   </div>
                 ) : null}
 
+                                {/* Status Tabs */}
+                                <div className="mb-6">
+                                    <div className="flex gap-0 border-b border-gray-200">
+                                        <button
+                                            onClick={() => setApplicationsStatusFilter("")}
+                                            className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
+                                                applicationsStatusFilter === ""
+                                                    ? "border-blue-600 text-blue-600 bg-blue-50"
+                                                    : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                                            }`}
+                                        >
+                                            <FileText className="w-4 h-4" />
+                                            Tất cả ({applications.length})
+                                        </button>
+                                        {[
+                                            { value: "Submitted", label: "Đã nộp hồ sơ", icon: FileText },
+                                            { value: "Interviewing", label: "Đang xem xét phỏng vấn", icon: Clock },
+                                        ].map(({ value, label, icon: Icon }) => {
+                                            const count = applications.filter(app => app.status === value).length;
+                                            return (
+                                                <button
+                                                    key={value}
+                                                    onClick={() => setApplicationsStatusFilter(value)}
+                                                    className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
+                                                        applicationsStatusFilter === value
+                                                            ? "border-blue-600 text-blue-600 bg-blue-50"
+                                                            : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                                                    }`}
+                                                >
+                                                    <Icon className="w-4 h-4" />
+                                                    {label} ({count})
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
                 {applicationsLoading ? (
                   <div className="space-y-3">
                     {Array.from({ length: 5 }).map((_, idx) => (
@@ -485,9 +558,22 @@ export default function JobRequestListPage() {
                 ) : applications.length === 0 ? (
                   <div className="py-10 text-center text-sm text-neutral-600">Không có dữ liệu hồ sơ.</div>
                 ) : (
-                  <div className="max-h-[62vh] overflow-auto pr-1">
+                  <div className="max-h-[50vh] overflow-auto pr-1">
                     <div className="space-y-3">
-                      {applications.map((app) => {
+                      {applications
+                        .filter(app => !applicationsStatusFilter || app.status === applicationsStatusFilter)
+                        .sort((a, b) => {
+                          if (!applicationsStatusFilter) {
+                            // For "Tất cả" tab, prioritize by status: Submitted first, then Interviewing
+                            const statusPriority = { "Submitted": 1, "Interviewing": 2 };
+                            const aPriority = statusPriority[a.status as keyof typeof statusPriority] || 99;
+                            const bPriority = statusPriority[b.status as keyof typeof statusPriority] || 99;
+                            if (aPriority !== bPriority) return aPriority - bPriority;
+                          }
+                          // Default sort by creation date (newest first)
+                          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                        })
+                        .map((app) => {
                         const talentName = app.talentName || app.talent?.fullName || `Talent #${app.talent?.id ?? "—"}`;
                         const submitter = app.submitterName || app.submittedBy || "—";
                         const createdAt = app.createdAt ? new Date(app.createdAt).toLocaleString("vi-VN") : "—";
@@ -501,7 +587,7 @@ export default function JobRequestListPage() {
                               <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p className="text-sm font-semibold text-neutral-900">{talentName}</p>
-                                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border border-neutral-200 bg-neutral-50 text-neutral-700">
+                                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${applicationStatusColors[app.status] ?? "bg-neutral-100 text-neutral-600"}`}>
                                     {statusLabel}
                                   </span>
                                 </div>
@@ -510,13 +596,14 @@ export default function JobRequestListPage() {
                                   <span>Ngày nộp: {createdAt}</span>
                                 </div>
                               </div>
-                              <Link
-                                to={`/sales/applications/${app.id}`}
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/sales/applications/${app.id}`)}
                                 className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-primary-700 hover:text-primary-800 hover:bg-primary-50 transition-all"
                               >
                                 <Eye className="w-4 h-4" />
                                 Xem
-                              </Link>
+                              </button>
                             </div>
                           </div>
                         );
@@ -551,6 +638,38 @@ export default function JobRequestListPage() {
                 Tạo yêu cầu mới
               </Button>
             </Link>
+          </div>
+
+          {/* Tabs */}
+          <div className="mb-6">
+            <div className="flex gap-2 border-b border-neutral-200">
+              <button
+                onClick={() => setActiveTab("my")}
+                className={`px-6 py-3 font-medium text-sm transition-all duration-300 border-b-2 ${
+                  activeTab === "my"
+                    ? "border-primary-600 text-primary-600 bg-primary-50"
+                    : "border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-50"
+                }`}
+              >
+                YCTD của tôi
+                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-neutral-200 text-neutral-700">
+                  {myRequestsCount}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab("all")}
+                className={`px-6 py-3 font-medium text-sm transition-all duration-300 border-b-2 ${
+                  activeTab === "all"
+                    ? "border-primary-600 text-primary-600 bg-primary-50"
+                    : "border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-50"
+                }`}
+              >
+                Tất cả YCTD
+                <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-neutral-200 text-neutral-700">
+                  {allRequestsCount}
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* Stats Cards */}
@@ -1068,15 +1187,9 @@ export default function JobRequestListPage() {
                           </div>
                         </td>
                         <td className="py-4 px-6">
-                          <Link
-                            to={`/sales/job-requests/${req.id}`}
-                            className="block"
-                            title={req.title || "(Chưa có tiêu đề)"}
-                          >
-                            <div className="text-sm font-medium text-primary-700 hover:text-primary-800 transition-colors duration-300 line-clamp-3">
-                              {req.title || "(Chưa có tiêu đề)"}
-                            </div>
-                          </Link>
+                          <div className="text-sm font-medium text-primary-700 hover:text-primary-800 transition-colors duration-300 line-clamp-3" title={req.title || "(Chưa có tiêu đề)"}>
+                            {req.title || "(Chưa có tiêu đề)"}
+                          </div>
                         </td>
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-2">

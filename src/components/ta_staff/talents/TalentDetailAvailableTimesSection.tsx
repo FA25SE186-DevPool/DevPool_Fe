@@ -98,7 +98,13 @@ export function TalentDetailAvailableTimesSection({
                     setInlineAvailableTimeForm({ ...inlineAvailableTimeForm, startTime: value });
                     const newErrors = { ...availableTimeFormErrors };
                     if (value && !validateStartTime(value)) {
-                      newErrors.startTime = '⚠️ Thời gian bắt đầu phải nằm trong tương lai.';
+                      const startDate = new Date(value);
+                      const now = new Date();
+                      if (startDate < now) {
+                        newErrors.startTime = '⚠️ Thời gian bắt đầu phải từ thời điểm hiện tại trở đi.';
+                      } else {
+                        newErrors.startTime = '⚠️ Thời gian bắt đầu không được quá 6 tháng từ hiện tại.';
+                      }
                     } else {
                       delete newErrors.startTime;
                     }
@@ -121,7 +127,7 @@ export function TalentDetailAvailableTimesSection({
                   <p className="text-xs text-red-600 mt-1">{availableTimeFormErrors.startTime}</p>
                 )}
                 <p className="text-xs text-neutral-500 mt-1">
-                  Chọn ngày và giờ bắt đầu có sẵn (phải lớn hơn thời điểm hiện tại)
+                  Chọn ngày và giờ bắt đầu có sẵn (từ thời điểm hiện tại trở đi)
                 </p>
               </div>
               <div>
@@ -144,7 +150,13 @@ export function TalentDetailAvailableTimesSection({
                     const newErrors = { ...availableTimeFormErrors };
                     if (value && inlineAvailableTimeForm.startTime) {
                       if (!validateEndTime(inlineAvailableTimeForm.startTime, value)) {
-                        newErrors.endTime = '⚠️ Thời gian kết thúc phải sau thời gian bắt đầu.';
+                        const start = new Date(inlineAvailableTimeForm.startTime);
+                        const end = new Date(value);
+                        if (end <= start) {
+                          newErrors.endTime = '⚠️ Thời gian kết thúc phải sau thời gian bắt đầu.';
+                        } else {
+                          newErrors.endTime = '⚠️ Thời gian kết thúc không được quá 6 tháng từ thời gian bắt đầu.';
+                        }
                       } else {
                         delete newErrors.endTime;
                       }

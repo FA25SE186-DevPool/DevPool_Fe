@@ -28,7 +28,7 @@ export const sidebarItems = [
     section: "main" as const,
   },
   {
-    label: "Công Ty KH",
+    label: "Công ty",
     href: "/sales/clients",
     icon: Building,
     section: "main" as const,

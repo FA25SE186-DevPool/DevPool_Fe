@@ -103,8 +103,22 @@ export default function TalentDetailPage() {
     talentCVs
   );
 
+  // Helper functions for overlay
+
+  const showSuccessOverlay = (message: string) => {
+    setLoadingOverlay({
+      show: true,
+      type: 'success',
+      message,
+    });
+    // Auto hide after 2 seconds
+    setTimeout(() => {
+      setLoadingOverlay({ show: false, type: 'loading', message: '' });
+    }, 2000);
+  };
+
   // Skill Group Verification
-  const skillGroupVerification = useTalentDetailSkillGroupVerification(talentSkills);
+  const skillGroupVerification = useTalentDetailSkillGroupVerification(talentSkills, showSuccessOverlay);
 
   // Pagination
   const pagination = useTalentDetailPagination();
@@ -146,6 +160,13 @@ export default function TalentDetailPage() {
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [partnerInfo, setPartnerInfo] = useState<PartnerDetailedModel | null>(null);
   const [partnerLoading, setPartnerLoading] = useState(false);
+
+  // Loading overlay state
+  const [loadingOverlay, setLoadingOverlay] = useState<{ show: boolean; type: 'loading' | 'success'; message: string }>({
+    show: false,
+    type: 'loading',
+    message: '',
+  });
 
   // Tính toán danh sách vị trí từ CVs đã được tạo
   const availablePositions = useMemo(() => {
@@ -195,6 +216,8 @@ export default function TalentDetailPage() {
   const [selectedJobRoleFilterId, setSelectedJobRoleFilterId] = useState<number | undefined>(undefined);
   const [jobRoleFilterSearch, setJobRoleFilterSearch] = useState<string>('');
   const [isJobRoleFilterDropdownOpen, setIsJobRoleFilterDropdownOpen] = useState(false);
+
+  // Success overlay state
 
   // Skill actions (must be after state declarations)
   const skillActions = useTalentDetailSkillActions({
@@ -289,7 +312,7 @@ export default function TalentDetailPage() {
 
       const updated = await talentService.getById(Number(id));
       setTalent(updated);
-      alert(`✅ Đã chuyển trạng thái sang "${nextStatusLabel}"!`);
+      showSuccessOverlay(`✅ Đã chuyển trạng thái sang "${nextStatusLabel}"!`);
     } catch (err) {
       console.error('❌ Lỗi khi đổi trạng thái:', err);
       alert('Không thể thay đổi trạng thái nhân sự!');
@@ -1173,6 +1196,31 @@ export default function TalentDetailPage() {
         loading={partnerLoading}
         onClose={() => setIsPartnerModalOpen(false)}
       />
+
+      {/* Loading/Success Overlay ở giữa màn hình */}
+      {loadingOverlay.show && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-4 min-w-[350px] max-w-[500px]">
+            {loadingOverlay.type === 'loading' ? (
+              <>
+                <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-primary-700 mb-2">Đang xử lý...</p>
+                  <p className="text-neutral-600">{loadingOverlay.message}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 border-4 border-success-200 border-t-success-600 rounded-full animate-spin"></div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-success-700 mb-2">Thành công!</p>
+                  <p className="text-neutral-600 whitespace-pre-line">{loadingOverlay.message}</p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

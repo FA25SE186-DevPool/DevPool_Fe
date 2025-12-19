@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { authService, getRoleFromToken, authenticateWithFirebase } from '../../services/Auth';
 import { startNotificationConnection, onReceiveNotification, onUnreadCountUpdated, getUnreadCount } from '../../services/notificationHub';
 import { useNotification } from '../../context/NotificationContext';
-import { setTokens, setUser, getUser, getAccessToken } from '../../utils/storage';
+import { setTokens, setUser, getUser, getAccessToken, setPassword as setPasswordToStorage } from '../../utils/storage';
 import logoDevPool from '../../assets/images/logo-DevPool.jpg';
 import FaceIDLogin from './FaceIDLogin';
 
@@ -75,6 +75,9 @@ export default function LoginForm() {
       // Lưu tokens vào storage dựa trên rememberMe
       // Lưu ý: Token cũ sẽ bị ghi đè, tài khoản cũ sẽ bị logout
       setTokens(response.accessToken, response.refreshToken, rememberMe);
+
+      // Lưu password vào localStorage để sử dụng cho thay đổi mật khẩu
+      setPasswordToStorage(password);
 
       // Phát sự kiện để các tab khác biết token đã thay đổi
       window.dispatchEvent(new Event('storage'));

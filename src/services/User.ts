@@ -1,8 +1,8 @@
 import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
-import type { User, UserCreate, UserUpdate, UserUpdateRole, UserRegister, UserFilter, PagedResult } from "../types/user.types";
+import type { User, UserCreate, UserUpdate, UserUpdateRole, UserRegister, UserFilter, UserChangePassword, PagedResult } from "../types/user.types";
 
-export type { User, UserCreate, UserUpdate, UserUpdateRole, UserRegister, UserFilter, PagedResult };
+export type { User, UserCreate, UserUpdate, UserUpdateRole, UserRegister, UserFilter, UserChangePassword, PagedResult };
 
 export const userService = {
   async getAll(filter?: UserFilter): Promise<PagedResult<User>> {
@@ -98,13 +98,13 @@ export const userService = {
     }
   },
 
-  async resetPassword(id: string, newPassword: string): Promise<void> {
+  async changePassword(id: string, payload: UserChangePassword): Promise<void> {
     try {
-      await apiClient.put(`/user/${id}/reset-password`, { password: newPassword });
+      await apiClient.patch(`/user/${id}/change-password`, payload);
     } catch (error: unknown) {
       if (error instanceof AxiosError)
-        throw error.response?.data || { message: "Không thể đặt lại mật khẩu" };
-      throw { message: "Lỗi không xác định khi đặt lại mật khẩu" };
+        throw error.response?.data || { message: "Không thể thay đổi mật khẩu" };
+      throw { message: "Lỗi không xác định khi thay đổi mật khẩu" };
     }
   },
 

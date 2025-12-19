@@ -8,6 +8,7 @@ const TOKEN_KEYS = {
   REFRESH_TOKEN: 'refreshToken',
   USER: 'devpool_user',
   REMEMBER_ME: 'remember_me',
+  PASSWORD: 'user_password',
 } as const;
 
 /**
@@ -75,7 +76,8 @@ export const clearAuthData = (): void => {
   localStorage.removeItem(TOKEN_KEYS.REFRESH_TOKEN);
   localStorage.removeItem(TOKEN_KEYS.USER);
   localStorage.removeItem(TOKEN_KEYS.REMEMBER_ME);
-  
+  localStorage.removeItem(TOKEN_KEYS.PASSWORD);
+
   // Xóa từ sessionStorage để đảm bảo (nếu có)
   sessionStorage.removeItem(TOKEN_KEYS.ACCESS_TOKEN);
   sessionStorage.removeItem(TOKEN_KEYS.REFRESH_TOKEN);
@@ -87,5 +89,19 @@ export const clearAuthData = (): void => {
  */
 export const isRememberMe = (): boolean => {
   return localStorage.getItem(TOKEN_KEYS.REMEMBER_ME) === 'true';
+};
+
+/**
+ * Lưu password vào localStorage
+ */
+export const setPassword = (password: string): void => {
+  localStorage.setItem(TOKEN_KEYS.PASSWORD, password);
+};
+
+/**
+ * Lấy password từ localStorage
+ */
+export const getPassword = (): string | null => {
+  return localStorage.getItem(TOKEN_KEYS.PASSWORD);
 };
 

@@ -7,11 +7,11 @@ import { jobRequestService, type JobRequest } from "../../../services/JobRequest
 import { talentCVService, type TalentCV } from "../../../services/TalentCV";
 import { userService, type User } from "../../../services/User";
 import { talentService, type Talent } from "../../../services/Talent";
-import { 
-  Search, 
-  Filter, 
-  Eye, 
-  Briefcase, 
+import {
+  Search,
+  Filter,
+  Eye,
+  Briefcase,
   FileText,
   User as UserIcon,
   CheckCircle,
@@ -23,7 +23,8 @@ import {
   ChevronDown,
   UserStar,
   FileUser,
-  AlertTriangle
+  AlertTriangle,
+  Clock
 } from "lucide-react";
 
 type AugmentedTalentApplication = TalentApplication & {
@@ -55,7 +56,6 @@ const statusColors: Record<string, string> = {
   Interviewing: "bg-cyan-100 text-cyan-800",
   Hired: "bg-purple-100 text-purple-800",
   Rejected: "bg-red-100 text-red-800",
-  Withdrawn: "bg-gray-100 text-gray-800",
 };
 
 export default function TalentCVApplicationPage() {
@@ -71,7 +71,6 @@ export default function TalentCVApplicationPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterJobRequestId, setFilterJobRequestId] = useState<string>(jobRequestIdFromQuery || "");
   const [jobRequestTitle, setJobRequestTitle] = useState<string>("");
-  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -293,15 +292,10 @@ export default function TalentCVApplicationPage() {
     setSearchTerm("");
     setFilterStatus("");
     setFilterJobRequestId("");
-    setIsStatusDropdownOpen(false);
   };
 
   const hasActiveFilters = Boolean(searchTerm || filterStatus || filterJobRequestId);
 
-  const getStatusDisplayText = () => {
-    if (!filterStatus) return "Tất cả trạng thái";
-    return statusLabels[filterStatus] ?? filterStatus;
-  };
 
   if (loading)
     return (
@@ -340,25 +334,17 @@ export default function TalentCVApplicationPage() {
 
           {/* Filter Info Banner */}
           {filterJobRequestId && jobRequestTitle && (
-            <div className="mb-6 bg-primary-50 border border-primary-200 rounded-xl p-4 animate-fade-in">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Briefcase className="w-5 h-5 text-primary-600" />
-                  <div>
-                    <p className="text-sm font-medium text-primary-900">
-                      Đang lọc theo yêu cầu tuyển dụng:
-                    </p>
-                    <p className="text-lg font-semibold text-primary-700 mt-1">
-                      {jobRequestTitle}
-                    </p>
-                  </div>
+            <div className="mb-6 animate-fade-in">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-2 bg-primary-50 border border-primary-200 rounded-lg">
+                  <Briefcase className="w-4 h-4 text-primary-600" />
+                  <span className="text-sm font-medium text-primary-900">
+                    Yêu cầu tuyển dụng:
+                  </span>
+                  <span className="text-sm font-semibold text-primary-700">
+                    {jobRequestTitle}
+                  </span>
                 </div>
-                <button
-                  onClick={handleResetFilters}
-                  className="px-4 py-2 text-sm font-medium text-primary-700 hover:bg-primary-100 rounded-lg transition-all duration-300"
-                >
-                  Xóa bộ lọc
-                </button>
               </div>
             </div>
           )}
@@ -508,60 +494,47 @@ export default function TalentCVApplicationPage() {
 
             {showFilters && (
               <div className="mt-6 pt-6 border-t border-neutral-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-                      className="w-full flex items-center justify-between px-4 py-2 border border-neutral-200 rounded-lg bg-white text-left hover:border-primary-300 transition-colors"
-                    >
-                      <span className="text-sm text-neutral-700">{getStatusDisplayText()}</span>
-                      <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    {isStatusDropdownOpen && (
-                      <div
-                        className="absolute z-50 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
-                        onMouseLeave={() => setIsStatusDropdownOpen(false)}
+                <div className="space-y-4">
+                  {/* Status Filter Tabs */}
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-3">
+                      Trạng thái
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setFilterStatus("")}
+                        className={`flex items-center gap-2 px-4 py-2 font-medium text-sm transition-all duration-300 whitespace-nowrap rounded-xl border-2 ${
+                          filterStatus === ""
+                            ? "border-blue-600 text-blue-600 bg-blue-50"
+                            : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
+                        }`}
                       >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setFilterStatus("");
-                            setIsStatusDropdownOpen(false);
-                          }}
-                          className={`w-full text-left px-4 py-2.5 text-sm ${
-                            !filterStatus
-                              ? 'bg-primary-50 text-primary-700'
-                              : 'hover:bg-neutral-50 text-neutral-700'
-                          }`}
-                        >
-                          Tất cả trạng thái
-                        </button>
-                        {[
-                          { value: "Submitted", label: statusLabels.Submitted },
-                          { value: "Interviewing", label: statusLabels.Interviewing },
-                          { value: "Hired", label: statusLabels.Hired },
-                          { value: "Rejected", label: statusLabels.Rejected },
-                          { value: "Withdrawn", label: statusLabels.Withdrawn },
-                        ].map((opt) => (
+                        <FileText className="w-4 h-4" />
+                        Tất cả
+                      </button>
+                      {[
+                        { value: "Submitted", label: "Đã nộp hồ sơ", icon: FileText },
+                        { value: "Interviewing", label: "Đang xem xét phỏng vấn", icon: Clock },
+                        { value: "Hired", label: "Đã tuyển", icon: CheckCircle },
+                        { value: "Rejected", label: "Đã từ chối", icon: XCircle },
+                      ].map(({ value, label, icon: Icon }) => {
+                        const count = applications.filter(app => app.status === value).length;
+                        return (
                           <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => {
-                              setFilterStatus(opt.value);
-                              setIsStatusDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-4 py-2.5 text-sm ${
-                              filterStatus === opt.value
-                                ? 'bg-primary-50 text-primary-700'
-                                : 'hover:bg-neutral-50 text-neutral-700'
+                            key={value}
+                            onClick={() => setFilterStatus(value)}
+                            className={`flex items-center gap-2 px-4 py-2 font-medium text-sm transition-all duration-300 whitespace-nowrap rounded-xl border-2 ${
+                              filterStatus === value
+                                ? "border-blue-600 text-blue-600 bg-blue-50"
+                                : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
                             }`}
                           >
-                            {opt.label}
+                            <Icon className="w-4 h-4" />
+                            {label} ({count})
                           </button>
-                        ))}
-                      </div>
-                    )}
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>

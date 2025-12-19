@@ -2,8 +2,37 @@ import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import { ApplyActivityType, ApplyActivityStatus, type ApplyActivity, type ApplyActivityCreate, type ApplyActivityStatusUpdate, type ApplyActivityFilter } from "../types/applyactivity.types";
 
+// Local types for advanced status update API
+interface ApplyActivityAdvancedStatusUpdateModel {
+    NewStatus: string;
+    Notes?: string;
+    CompletedDate?: string; // DateTime in ISO string format
+}
+
+export interface ApplyActivityStatusTransitionResult {
+    success: boolean;
+    message: string;
+    oldStatus?: string;
+    newStatus?: string;
+    talentApplicationStatusUpdated: boolean;
+    errors?: string[];
+}
+
 export { ApplyActivityType, ApplyActivityStatus };
-export type { ApplyActivity, ApplyActivityCreate, ApplyActivityStatusUpdate, ApplyActivityFilter };
+export type { ApplyActivity, ApplyActivityCreate, ApplyActivityStatusUpdate, ApplyActivityFilter, ApplyActivityAdvancedStatusUpdateModel };
+
+// Helper function to convert ApplyActivityStatus number to string name for API
+export const getActivityStatusString = (status: ApplyActivityStatus): string => {
+    const statusMap: Record<number, string> = {
+        [ApplyActivityStatus.Scheduled]: "Scheduled",
+        [ApplyActivityStatus.Completed]: "Completed",
+        [ApplyActivityStatus.Passed]: "Passed",
+        [ApplyActivityStatus.Failed]: "Failed",
+        [ApplyActivityStatus.NoShow]: "NoShow"
+    };
+    return statusMap[status] || status.toString();
+};
+
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const applyActivityService = {
@@ -72,6 +101,17 @@ export const applyActivityService = {
             if (error instanceof AxiosError)
                 throw error.response?.data || { message: "Cannot update apply activity status" };
             throw { message: "Unknown error while updating apply activity status" };
+        }
+    },
+
+    async changeStatus(id: number, payload: ApplyActivityAdvancedStatusUpdateModel) {
+        try {
+            const response = await apiClient.patch(`/applyactivity/${id}/change-status`, payload);
+            return response.data as ApplyActivityStatusTransitionResult;
+        } catch (error: unknown) {
+            if (error instanceof AxiosError)
+                throw error.response?.data || { message: "Cannot change apply activity status" };
+            throw { message: "Unknown error while changing apply activity status" };
         }
     },
 

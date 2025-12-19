@@ -101,6 +101,8 @@ export interface TalentApplicationDetailed {
   id: number;
   jobRequestId: number;
   cvId: number;
+  recruiterId: string;
+  recruiterName: string;
   submittedBy: string;
   status: string;
   note: string;

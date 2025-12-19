@@ -60,6 +60,28 @@ export default function ManagerProjectDetailPage() {
   const [talentNamesMap, setTalentNamesMap] = useState<Record<number, string>>({});
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
+  // Success overlay state
+  const [loadingOverlay, setLoadingOverlay] = useState<{ show: boolean; type: 'loading' | 'success'; message: string }>({
+    show: false,
+    type: 'loading',
+    message: '',
+  });
+
+  // Helper functions for overlay
+
+  const showSuccessOverlay = (message: string) => {
+    setLoadingOverlay({
+      show: true,
+      type: 'success',
+      message,
+    });
+    // Auto hide after 2 seconds
+    setTimeout(() => {
+      setLoadingOverlay({ show: false, type: 'loading', message: '' });
+    }, 2000);
+  };
+
+
   // Talent Assignment states (read-only)
   const [talentAssignments, setTalentAssignments] = useState<TalentAssignmentModel[]>([]);
   const [showAllAssignments, setShowAllAssignments] = useState(false);
@@ -405,7 +427,7 @@ export default function ManagerProjectDetailPage() {
       const updatedProject = await projectService.getDetailedById(Number(id));
       setProject(updatedProject);
       
-      alert("✅ Đã thay đổi trạng thái dự án thành công!");
+      showSuccessOverlay("✅ Đã thay đổi trạng thái dự án thành công!");
     } catch (error: any) {
       console.error("❌ Lỗi khi thay đổi trạng thái:", error);
       alert(error.message || "Không thể thay đổi trạng thái dự án");
@@ -1426,6 +1448,31 @@ export default function ManagerProjectDetailPage() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading/Success Overlay ở giữa màn hình */}
+      {loadingOverlay.show && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-4 min-w-[350px] max-w-[500px]">
+            {loadingOverlay.type === 'loading' ? (
+              <>
+                <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-primary-700 mb-2">Đang xử lý...</p>
+                  <p className="text-neutral-600">{loadingOverlay.message}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 border-4 border-success-200 border-t-success-600 rounded-full animate-spin"></div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-success-700 mb-2">Thành công!</p>
+                  <p className="text-neutral-600 whitespace-pre-line">{loadingOverlay.message}</p>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

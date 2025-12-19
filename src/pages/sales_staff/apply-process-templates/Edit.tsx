@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
 import { sidebarItems } from "../../../components/sidebar/sales";
+import Breadcrumb from "../../../components/common/Breadcrumb";
 import { applyProcessTemplateService } from "../../../services/ApplyProcessTemplate";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Textarea } from "../../../components/ui/textarea";
-import { ArrowLeft, Save, X, FileText, AlertCircle } from "lucide-react";
+import { Save, X, FileText, AlertCircle } from "lucide-react";
 
 export default function SalesApplyProcessTemplateEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -87,15 +88,13 @@ export default function SalesApplyProcessTemplateEditPage() {
 
       <div className="flex-1 p-8">
         <div className="mb-8 animate-slide-up">
-          <div className="flex items-center gap-4 mb-6">
-            <Link
-              to={`/sales/apply-process-templates/${id}`}
-              className="group flex items-center gap-2 text-neutral-600 hover:text-primary-600 transition-colors duration-300"
-            >
-              <ArrowLeft className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-              <span className="font-medium">Quay lại chi tiết</span>
-            </Link>
-          </div>
+          <Breadcrumb
+            items={[
+              { label: "Mẫu quy trình", to: "/sales/apply-process-templates" },
+              { label: formData.name || "Template", to: `/sales/apply-process-templates/${id}` },
+              { label: "Chỉnh sửa" }
+            ]}
+          />
 
           <div className="flex justify-between items-start">
             <div className="flex-1">

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { User, Mail, Phone, Calendar, MapPin, Globe, Building2, Github, ExternalLink } from 'lucide-react';
 import { Input } from '../../ui/input';
 import SearchableSelect from '../../common/SearchableSelect';
@@ -26,6 +27,41 @@ export function TalentBasicInfoForm({
   onChange,
   onPartnerChange,
 }: TalentBasicInfoFormProps) {
+  const [showLocationField, setShowLocationField] = useState(false);
+  const [isLocationRequired, setIsLocationRequired] = useState(false);
+
+  // Control hiển thị ô location dựa trên working mode
+  useEffect(() => {
+    const shouldShowLocation = () => {
+      switch (formData.workingMode) {
+        case WorkingMode.Onsite: // Tại văn phòng
+          return true;
+        case WorkingMode.Hybrid: // Kết hợp
+          return true;
+        case WorkingMode.Remote: // Từ xa
+          return false;
+        case WorkingMode.Flexible: // Linh hoạt
+          return false;
+        default:
+          return false;
+      }
+    };
+
+    const shouldRequireLocation = () => {
+      switch (formData.workingMode) {
+        case WorkingMode.Onsite: // Tại văn phòng - Required
+          return true;
+        case WorkingMode.Hybrid: // Kết hợp - Optional
+          return false;
+        default:
+          return false;
+      }
+    };
+
+    setShowLocationField(shouldShowLocation());
+    setIsLocationRequired(shouldRequireLocation());
+  }, [formData.workingMode]);
+
   return (
     <div className="bg-white rounded-2xl shadow-soft border border-neutral-100">
       <div className="p-6 border-b border-neutral-200">
@@ -150,11 +186,36 @@ export function TalentBasicInfoForm({
             {errors.dateOfBirth && <p className="mt-1 text-sm text-red-500">{errors.dateOfBirth}</p>}
           </div>
 
-          {/* Khu vực */}
+          {/* Chế độ làm việc */}
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
+              <Globe className="w-4 h-4" />
+              Chế độ làm việc <span className="text-red-500">*</span>
+            </label>
+            <select
+              name="workingMode"
+              value={formData.workingMode}
+              onChange={onChange}
+              className={`w-full border rounded-xl px-4 py-3 focus:border-primary-500 focus:ring-primary-500 bg-white ${
+                errors.workingMode ? 'border-red-500' : 'border-neutral-200'
+              }`}
+            >
+              <option value={WorkingMode.None}>Không xác định</option>
+              <option value={WorkingMode.Onsite}>Tại văn phòng</option>
+              <option value={WorkingMode.Remote}>Từ xa</option>
+              <option value={WorkingMode.Hybrid}>Kết hợp</option>
+              <option value={WorkingMode.Flexible}>Linh hoạt</option>
+            </select>
+            {errors.workingMode && <p className="mt-1 text-sm text-red-500">{errors.workingMode}</p>}
+          </div>
+        </div>
+
+        {/* Khu vực - chỉ hiển thị khi cần thiết */}
+        {showLocationField && (
           <div>
             <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
               <MapPin className="w-4 h-4" />
-              Khu vực làm việc <span className="text-red-500">*</span>
+              Khu vực làm việc {isLocationRequired && <span className="text-red-500">*</span>}
             </label>
             <select
               name="locationId"
@@ -173,30 +234,7 @@ export function TalentBasicInfoForm({
             </select>
             {errors.locationId && <p className="mt-1 text-sm text-red-500">{errors.locationId}</p>}
           </div>
-        </div>
-
-        {/* Chế độ làm việc */}
-        <div>
-          <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
-            <Globe className="w-4 h-4" />
-            Chế độ làm việc <span className="text-red-500">*</span>
-          </label>
-          <select
-            name="workingMode"
-            value={formData.workingMode}
-            onChange={onChange}
-            className={`w-full border rounded-xl px-4 py-3 focus:border-primary-500 focus:ring-primary-500 bg-white ${
-              errors.workingMode ? 'border-red-500' : 'border-neutral-200'
-            }`}
-          >
-            <option value={WorkingMode.None}>Không xác định</option>
-            <option value={WorkingMode.Onsite}>Tại văn phòng</option>
-            <option value={WorkingMode.Remote}>Từ xa</option>
-            <option value={WorkingMode.Hybrid}>Kết hợp</option>
-            <option value={WorkingMode.Flexible}>Linh hoạt</option>
-          </select>
-          {errors.workingMode && <p className="mt-1 text-sm text-red-500">{errors.workingMode}</p>}
-        </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* GitHub */}

@@ -799,11 +799,24 @@ export function useTalentDetailOperations() {
         if (!dateTime) return false;
         const startDateTime = new Date(dateTime);
         const now = new Date();
-        return startDateTime > now;
+
+        // Start ≥ now (cho phép thời gian hiện tại)
+        if (startDateTime < now) return false;
+
+        // Start ≤ now + 6 tháng (không quá xa trong tương lai)
+        const sixMonthsFromNow = new Date(now);
+        sixMonthsFromNow.setMonth(now.getMonth() + 6);
+        return startDateTime <= sixMonthsFromNow;
       };
 
       if (!validateStartTime(inlineAvailableTimeForm.startTime)) {
-        setAvailableTimeFormErrors({ startTime: '⚠️ Thời gian bắt đầu phải nằm trong tương lai.' });
+        const startDate = new Date(inlineAvailableTimeForm.startTime);
+        const now = new Date();
+        if (startDate < now) {
+          setAvailableTimeFormErrors({ startTime: '⚠️ Thời gian bắt đầu phải từ thời điểm hiện tại trở đi.' });
+        } else {
+          setAvailableTimeFormErrors({ startTime: '⚠️ Thời gian bắt đầu không được quá 6 tháng từ hiện tại.' });
+        }
         return;
       }
 
@@ -812,11 +825,24 @@ export function useTalentDetailOperations() {
         if (!endDateTime) return true;
         const start = new Date(startDateTime);
         const end = new Date(endDateTime);
-        return end > start;
+
+        // End > start (cơ bản)
+        if (end <= start) return false;
+
+        // End ≤ start + 6 tháng (không quá xa từ start)
+        const sixMonthsFromStart = new Date(start);
+        sixMonthsFromStart.setMonth(start.getMonth() + 6);
+        return end <= sixMonthsFromStart;
       };
 
       if (inlineAvailableTimeForm.endTime && !validateEndTime(inlineAvailableTimeForm.startTime, inlineAvailableTimeForm.endTime)) {
-        setAvailableTimeFormErrors({ endTime: '⚠️ Thời gian kết thúc phải sau thời gian bắt đầu.' });
+        const start = new Date(inlineAvailableTimeForm.startTime);
+        const end = new Date(inlineAvailableTimeForm.endTime);
+        if (end <= start) {
+          setAvailableTimeFormErrors({ endTime: '⚠️ Thời gian kết thúc phải sau thời gian bắt đầu.' });
+        } else {
+          setAvailableTimeFormErrors({ endTime: '⚠️ Thời gian kết thúc không được quá 6 tháng từ thời gian bắt đầu.' });
+        }
         return;
       }
 
