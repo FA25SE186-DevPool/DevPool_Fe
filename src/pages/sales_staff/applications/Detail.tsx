@@ -15,6 +15,7 @@ import { locationService } from "../../../services/location";
 import { applyProcessStepService, type ApplyProcessStep } from "../../../services/ApplyProcessStep";
 import { applyActivityService, type ApplyActivity } from "../../../services/ApplyActivity";
 import { WorkingMode as WorkingModeEnum } from "../../../constants/WORKING_MODE";
+import { TalentLevel } from "../../../services/JobRoleLevel";
 import {
   FileText,
   User as UserIcon,
@@ -33,6 +34,17 @@ import {
   GraduationCap,
   Layers,
 } from "lucide-react";
+
+// Helper function to get level text
+const getLevelText = (level: number): string => {
+  const levelMap: Record<number, string> = {
+    [TalentLevel.Junior]: 'Junior',
+    [TalentLevel.Middle]: 'Middle',
+    [TalentLevel.Senior]: 'Senior',
+    [TalentLevel.Lead]: 'Lead',
+  };
+  return levelMap[level] || 'Unknown';
+};
 
 function InfoRow({
   label,
@@ -82,6 +94,7 @@ export default function SalesApplicationDetailPage() {
   const [jobRequest, setJobRequest] = useState<JobRequest | null>(null);
   const [talentCV, setTalentCV] = useState<TalentCV | null>(null);
   const [cvJobRoleLevelName, setCvJobRoleLevelName] = useState<string>("—");
+  const [cvJobRoleLevelDisplay, setCvJobRoleLevelDisplay] = useState<string>("—");
   const [applyProcessTemplateName, setApplyProcessTemplateName] = useState<string>("—");
   const [clientCompanyName, setClientCompanyName] = useState<string>("—");
   const [projectName, setProjectName] = useState<string>("—");
@@ -329,11 +342,15 @@ export default function SalesApplicationDetailPage() {
         if (cvData?.jobRoleLevelId) {
           const cvLevel = await jobRoleLevelService.getById(cvData.jobRoleLevelId);
           setCvJobRoleLevelName(cvLevel?.name ?? "—");
+          const levelText = cvLevel ? getLevelText(cvLevel.level) : "—";
+          setCvJobRoleLevelDisplay(cvLevel ? `${cvLevel.name} - ${levelText}` : "—");
         } else {
           setCvJobRoleLevelName("—");
+          setCvJobRoleLevelDisplay("—");
         }
       } catch {
         setCvJobRoleLevelName("—");
+        setCvJobRoleLevelDisplay("—");
       }
 
       // Enrich JobRequest: client company, job role level/name
@@ -604,14 +621,14 @@ export default function SalesApplicationDetailPage() {
               ] : [
                 { label: "Hồ sơ ứng tuyển", to: "/sales/applications" }
               ]),
-              { label: application ? `Hồ sơ #${application.id}` : "Chi tiết hồ sơ" }
+              { label: application ? `Hồ sơ: ${detailedApplication?.talent?.fullName || application.id}` : "Chi tiết hồ sơ" }
             ]}
           />
         </div>
 
         <div className="flex flex-wrap justify-between items-start gap-4 mb-8">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Hồ sơ #{application.id}</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Hồ sơ: {detailedApplication?.talent?.fullName || application.id}</h1>
               <p className="text-neutral-600 mb-4">Thông tin chi tiết hồ sơ ứng viên</p>
               <div className="flex flex-wrap items-center gap-3">
                 <div
@@ -670,7 +687,7 @@ export default function SalesApplicationDetailPage() {
               </div>
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <InfoRow label="TA phụ trách" value={detailedApplication?.recruiterName || "—"} icon={<UserIcon className="w-4 h-4" />} />
-                <InfoRow label="Vị trí tuyển dụng" value={cvJobRoleLevelName} icon={<Users className="w-4 h-4" />} />
+                <InfoRow label="Vị trí tuyển dụng" value={cvJobRoleLevelDisplay} icon={<Users className="w-4 h-4" />} />
                 <InfoRow
                   label="Tên ứng viên"
                   value={

@@ -69,7 +69,6 @@ export function TalentDetailProjectsSection({
   onSubmit,
   onDelete,
   canEdit,
-  analysisResult,
   onRefreshProjects,
 }: TalentDetailProjectsSectionProps) {
   const [isEditProjectModalOpen, setIsEditProjectModalOpen] = useState(false);
@@ -98,50 +97,6 @@ export function TalentDetailProjectsSection({
         }}
         onSaved={onRefreshProjects}
       />
-      {/* CV Analysis Suggestions */}
-      {analysisResult &&
-        (analysisResult.projects.newEntries.length > 0 || analysisResult.projects.potentialDuplicates.length > 0) && (
-          <div className="mb-4 rounded-xl border border-purple-200 bg-purple-50/80 p-4">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-purple-900 uppercase tracking-wide">Gợi ý từ CV mới</h3>
-              <span className="text-xs text-purple-700">
-                {analysisResult.projects.newEntries.length} dự án mới · {analysisResult.projects.potentialDuplicates.length}{' '}
-                dự án có thể trùng
-              </span>
-            </div>
-            {analysisResult.projects.newEntries.length > 0 && (
-              <div className="mt-3 space-y-2">
-                <p className="text-xs text-purple-700 font-medium">Đề xuất thêm dự án:</p>
-                {analysisResult.projects.newEntries.map((project, index) => (
-                  <div
-                    key={`suggested-project-${index}`}
-                    className="rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm text-purple-900 shadow-sm"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold">{project.projectName}</span>
-                      {project.position && <span className="text-xs text-purple-700">Vai trò: {project.position}</span>}
-                    </div>
-                    {project.technologies && (
-                      <p className="mt-1 text-xs text-purple-600">Công nghệ: {project.technologies}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-            {analysisResult.projects.potentialDuplicates.length > 0 && (
-              <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
-                <p className="font-medium mb-1">Kiểm tra trùng lặp:</p>
-                <ul className="space-y-1">
-                  {analysisResult.projects.potentialDuplicates.map((dup, index) => (
-                    <li key={`dup-project-${index}`}>
-                      - {dup.fromCV.projectName} · Khuyến nghị: <span className="font-semibold">{dup.recommendation}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
 
       {/* Inline Project Form */}
       {showInlineForm && (

@@ -5,7 +5,7 @@ import Breadcrumb from "../../../components/common/Breadcrumb";
 import { jobRequestService, type JobRequestStatus } from "../../../services/JobRequest";
 import { clientCompanyService, type ClientCompany } from "../../../services/ClientCompany";
 import { projectService, type Project } from "../../../services/Project";
-import { jobRoleLevelService, type JobRoleLevel } from "../../../services/JobRoleLevel";
+import { jobRoleLevelService, type JobRoleLevel, TalentLevel } from "../../../services/JobRoleLevel";
 import { skillService, type Skill } from "../../../services/Skill";
 import { locationService } from "../../../services/location";
 import { applyProcessTemplateService } from "../../../services/ApplyProcessTemplate";
@@ -97,6 +97,7 @@ export default function JobRequestDetailHRPage() {
     const [isProjectPopupOpen, setIsProjectPopupOpen] = useState(false);
     const [projectDetail, setProjectDetail] = useState<any>(null);
     const [projectDetailLoading, setProjectDetailLoading] = useState(false);
+    const [jobRoleLevelDisplay, setJobRoleLevelDisplay] = useState<string>("—");
 
     // Project status labels and colors (matching /sales/projects)
     const projectStatusLabels: Record<string, string> = {
@@ -228,7 +229,24 @@ export default function JobRequestDetailHRPage() {
             }
 
             if (position) {
-                // Job role name not needed for display
+                try {
+                    // jobRoleName removed - no longer needed
+
+                    // Format level text
+                    const getLevelText = (level: number): string => {
+                        const levelMap: Record<number, string> = {
+                            [TalentLevel.Junior]: "Junior",
+                            [TalentLevel.Middle]: "Middle",
+                            [TalentLevel.Senior]: "Senior",
+                            [TalentLevel.Lead]: "Lead"
+                        };
+                        return levelMap[level] || "Unknown";
+                    };
+
+                    // Set display text với name và level
+                    const levelText = getLevelText(position.level);
+                    setJobRoleLevelDisplay(`${position.name} - ${levelText}`);
+                } catch {}
             }
 
             if (jobReqData.locationId) {
@@ -778,9 +796,9 @@ export default function JobRequestDetailHRPage() {
 
                                 {/* Cột 2 */}
                                 <div className="space-y-6">
-                                    <InfoItem 
-                                        label="Vị trí tuyển dụng" 
-                                        value={jobRequest.jobPositionName ?? "—"} 
+                                    <InfoItem
+                                        label="Vị trí tuyển dụng"
+                                        value={jobRoleLevelDisplay}
                                         icon={<Users className="w-4 h-4" />}
                                     />
                                     <InfoItem 

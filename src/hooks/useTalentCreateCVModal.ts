@@ -27,6 +27,7 @@ interface UseTalentCreateCVModalProps {
   setUploadedCVUrl: (value: string | null | ((prev: string | null) => string | null)) => void;
   initialCVs: Partial<TalentCVCreate>[];
   deleteCVFile: (index: number, url: string, isFirebase?: boolean) => Promise<boolean>;
+  onFileChange?: (file: File | null) => void;
 }
 
 /**
@@ -47,6 +48,7 @@ export function useTalentCreateCVModal({
   setUploadedCVUrl,
   initialCVs,
   deleteCVFile,
+  onFileChange,
 }: UseTalentCreateCVModalProps) {
   // Modal states
   const [showExtractCVModal, setShowExtractCVModal] = useState(false);
@@ -69,8 +71,11 @@ export function useTalentCreateCVModal({
       setModalCVFile(file);
       const url = URL.createObjectURL(file);
       setModalCVPreviewUrl(url);
+      // Set the main cvFile immediately when file is selected
+      setCvFile(file);
+      onFileChange?.(file);
     }
-  }, [modalCVPreviewUrl]);
+  }, [modalCVPreviewUrl, onFileChange]);
 
   // Handle extract CV from modal
   const handleExtractCVFromModal = useCallback(async () => {
@@ -157,6 +162,7 @@ export function useTalentCreateCVModal({
 
         // Track uploaded CV
         setCvFile(modalCVFile);
+        onFileChange?.(modalCVFile);
         const previewUrl = URL.createObjectURL(modalCVFile);
         setCvPreviewUrl(previewUrl);
 
@@ -195,6 +201,7 @@ export function useTalentCreateCVModal({
 
     // Copy file and preview URL to main page
     setCvFile(modalCVFile);
+    onFileChange?.(modalCVFile);
     if (modalCVPreviewUrl) {
       const newPreviewUrl = URL.createObjectURL(modalCVFile);
       setCvPreviewUrl(newPreviewUrl);

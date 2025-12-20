@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { X, User, Star, Briefcase, FolderOpen, Award, FileText, ChevronDown, Upload } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
@@ -36,6 +36,41 @@ export default function CreateTalent() {
   });
   const autoSkillToastTimerRef = useRef<number | null>(null);
 
+  /**
+   * Các tab có đánh dấu validation:
+   * 🔴 Thông tin cơ bản (required):
+   *    - Họ và tên, Email, Số điện thoại (bắt buộc)
+   *    - Chế độ làm việc, Công ty đối tác (bắt buộc)
+   *    - Khu vực làm việc (bắt buộc khi làm onsite)
+   *    - Chọn file CV (bắt buộc)
+   *    - CV và vị trí công việc (bắt buộc)
+   *    - Cấp độ (bắt buộc khi đã chọn vị trí công việc)
+   * 🔴 Kỹ năng (skills):
+   *    - Mỗi kỹ năng phải chọn kỹ năng từ danh sách
+   * 🔴 Kinh nghiệm (experience):
+   *    - Mỗi kinh nghiệm phải có: Công ty, Vị trí, Ngày bắt đầu
+   * 🔴 Dự án (projects):
+   *    - Mỗi dự án phải có: Tên dự án, Vị trí trong dự án
+   * 🔴 Vị trí (jobRoleLevels):
+   *    - Phải có ít nhất 1 vị trí công việc
+   * 🔴 Chứng chỉ (certificates):
+   *    - Mỗi chứng chỉ phải có: Loại chứng chỉ, Tên chứng chỉ
+   */
+
+  // Tab validation status
+  const [tabValidationStatus, setTabValidationStatus] = useState<Record<string, boolean>>({
+    required: false,
+    cvs: false,
+    skills: false,
+    projects: false,
+    experience: false,
+    jobRoleLevels: false,
+    certificates: false,
+  });
+
+  // Trigger for updating validation status
+  const [validationTrigger, setValidationTrigger] = useState(0);
+
   // Success overlay state
   const [loadingOverlay, setLoadingOverlay] = useState<{ show: boolean; type: 'loading' | 'success'; message: string }>({
     show: false,
@@ -57,6 +92,12 @@ export default function CreateTalent() {
     }, 2000);
   };
   
+  // Filters states - Tách vào hook
+  const filters = useTalentCreateFilters();
+
+  // CV file state for early access
+  const [cvFile, setCvFile] = useState<File | null>(null);
+
   // Main hook for form management
   const {
     formData,
@@ -89,7 +130,8 @@ export default function CreateTalent() {
     setErrors: setFormErrors,
     setFormError: _setFormError,
     validateAllFields,
-  } = useTalentCreate();
+    getTabValidationStatus,
+  } = useTalentCreate(filters.selectedLevel, cvFile);
 
   // Related data management handlers - Tách vào hook
   const handlers = useTalentCreateHandlers({
@@ -112,6 +154,28 @@ export default function CreateTalent() {
     handlers.addSkill();
     didAutoOpenSkillFormRef.current = true;
   }, [activeTab, talentSkills, handlers]);
+
+  // Update tab validation status when form data changes
+  useEffect(() => {
+    const status = getTabValidationStatus();
+    setTabValidationStatus(status);
+  }, [
+    formData,
+    initialCVs,
+    talentSkills,
+    talentProjects,
+    talentWorkExperiences,
+    talentJobRoleLevels,
+    filters.selectedLevel,
+    cvFile,
+    getTabValidationStatus,
+    validationTrigger
+  ]);
+
+  // Function to trigger validation update
+  const triggerValidationUpdate = useCallback(() => {
+    setValidationTrigger(prev => prev + 1);
+  }, []);
 
   // File upload management
   const {
@@ -140,9 +204,6 @@ export default function CreateTalent() {
     jobRoles,
     jobRoleLevels
   );
-
-  // Filters states - Tách vào hook
-  const filters = useTalentCreateFilters();
 
   // Admin users for notifications - Tạm thời comment vì Extracted Data Sidebar đã bị ẩn
   // const [adminUserIds, setAdminUserIds] = useState<string[]>([]);
@@ -374,7 +435,19 @@ export default function CreateTalent() {
     setUploadedCVUrl,
     initialCVs,
     deleteCVFile,
+    onFileChange: (file) => {
+      setCvFile(file);
+      // Trigger validation update when CV file changes
+      setTimeout(triggerValidationUpdate, 100);
+    },
   });
+
+  // Sync cvFile with cvModal.cvFile
+  useEffect(() => {
+    if (cvModal.cvFile !== cvFile) {
+      setCvFile(cvModal.cvFile);
+    }
+  }, [cvModal.cvFile, cvFile]);
 
   // Effects - Tách vào hook
   useTalentCreateEffects({
@@ -950,7 +1023,12 @@ export default function CreateTalent() {
                           : 'border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-100/50'
                       }`}
                     >
-                      <User className="w-4 h-4 flex-shrink-0" />
+                      <div className="relative">
+                        <User className="w-4 h-4 flex-shrink-0" />
+                        {tabValidationStatus.required && (
+                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                        )}
+                      </div>
                       <span className="hidden sm:inline">Thông tin cơ bản</span>
                       <span className="sm:hidden">Thông tin</span>
                     </button>
@@ -964,7 +1042,12 @@ export default function CreateTalent() {
                           : 'border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-100/50'
                       }`}
                     >
-                      <Star className="w-4 h-4 flex-shrink-0" />
+                      <div className="relative">
+                        <Star className="w-4 h-4 flex-shrink-0" />
+                        {tabValidationStatus.skills && (
+                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                        )}
+                      </div>
                       Kỹ năng
                     </button>
                     <button
@@ -977,7 +1060,12 @@ export default function CreateTalent() {
                           : 'border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-100/50'
                       }`}
                     >
-                      <Briefcase className="w-4 h-4 flex-shrink-0" />
+                      <div className="relative">
+                        <Briefcase className="w-4 h-4 flex-shrink-0" />
+                        {tabValidationStatus.experience && (
+                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                        )}
+                      </div>
                       <span className="hidden sm:inline">Kinh nghiệm</span>
                       <span className="sm:hidden">Kinh nghiệm</span>
                     </button>
@@ -991,7 +1079,12 @@ export default function CreateTalent() {
                           : 'border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-100/50'
                       }`}
                     >
-                      <FolderOpen className="w-4 h-4 flex-shrink-0" />
+                      <div className="relative">
+                        <FolderOpen className="w-4 h-4 flex-shrink-0" />
+                        {tabValidationStatus.projects && (
+                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                        )}
+                      </div>
                       Dự án
                     </button>
                     <button
@@ -1004,7 +1097,12 @@ export default function CreateTalent() {
                           : 'border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-100/50'
                       }`}
                     >
-                      <Award className="w-4 h-4 flex-shrink-0" />
+                      <div className="relative">
+                        <Award className="w-4 h-4 flex-shrink-0" />
+                        {tabValidationStatus.certificates && (
+                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                        )}
+                      </div>
                       <span className="hidden sm:inline">Chứng chỉ</span>
                       <span className="sm:hidden">Chứng chỉ</span>
                     </button>
@@ -1021,9 +1119,15 @@ export default function CreateTalent() {
                         partners={partners}
                         locations={locations}
                         errors={errors}
-                        onChange={handleChange}
+                        onChange={(e) => {
+                          handleChange(e);
+                          // Trigger validation update after a short delay to ensure state is updated
+                          setTimeout(triggerValidationUpdate, 100);
+                        }}
                         onPartnerChange={(partnerId) => {
                           updateBasicField('currentPartnerId', partnerId);
+                          // Trigger validation update after a short delay to ensure state is updated
+                          setTimeout(triggerValidationUpdate, 100);
                         }}
                       />
                     )}
@@ -1046,7 +1150,11 @@ export default function CreateTalent() {
                           setSelectedSkillGroupId={filters.setSelectedSkillGroupId}
                           onAdd={handlers.addSkill}
                           onRemove={handlers.removeSkill}
-                          onUpdate={handlers.updateSkill}
+                          onUpdate={(index, field, value) => {
+                            handlers.updateSkill(index, field, value);
+                            // Trigger validation update after a short delay to ensure state is updated
+                            setTimeout(triggerValidationUpdate, 100);
+                          }}
                           errors={errors}
                         />
                       </>
@@ -1065,7 +1173,11 @@ export default function CreateTalent() {
                           setIsWorkExperiencePositionDropdownOpen={filters.setIsWorkExperiencePositionDropdownOpen}
                           onAdd={handlers.addWorkExperience}
                           onRemove={handlers.removeWorkExperience}
-                          onUpdate={handlers.updateWorkExperience}
+                          onUpdate={(index, field, value) => {
+                            handlers.updateWorkExperience(index, field, value);
+                            // Trigger validation update after a short delay to ensure state is updated
+                            setTimeout(triggerValidationUpdate, 100);
+                          }}
                           errors={errors}
                         />
                       </>
@@ -1084,7 +1196,11 @@ export default function CreateTalent() {
                           setIsProjectPositionDropdownOpen={filters.setIsProjectPositionDropdownOpen}
                           onAdd={handlers.addProject}
                           onRemove={handlers.removeProject}
-                          onUpdate={handlers.updateProject}
+                          onUpdate={(index, field, value) => {
+                            handlers.updateProject(index, field, value);
+                            // Trigger validation update after a short delay to ensure state is updated
+                            setTimeout(triggerValidationUpdate, 100);
+                          }}
                           errors={errors}
                         />
                       </>
@@ -1106,7 +1222,11 @@ export default function CreateTalent() {
                           uploadedCertificateUrls={uploadedCertificateUrls}
                           onAdd={handlers.addCertificate}
                           onRemove={handlers.removeCertificate}
-                          onUpdate={handlers.updateCertificate}
+                          onUpdate={(index, field, value) => {
+                            handlers.updateCertificate(index, field, value);
+                            // Trigger validation update after a short delay to ensure state is updated
+                            setTimeout(triggerValidationUpdate, 100);
+                          }}
                           onFileChange={handleFileChangeCertificate}
                           onUploadImage={async (certIndex: number) => {
                             const url = await uploadCertificateImage(certIndex);
@@ -1180,7 +1300,11 @@ export default function CreateTalent() {
                   isUploadedFromFirebase={isUploadedFromFirebase}
                   errors={errors}
                   selectedLevel={filters.selectedLevel}
-                  setSelectedLevel={filters.setSelectedLevel}
+                  setSelectedLevel={(level) => {
+                    filters.setSelectedLevel(level);
+                    // Trigger validation update after a short delay to ensure state is updated
+                    setTimeout(triggerValidationUpdate, 100);
+                  }}
                   isLevelDropdownOpen={filters.isLevelDropdownOpen}
                   setIsLevelDropdownOpen={filters.setIsLevelDropdownOpen}
                   getLevelText={(level: number) => {

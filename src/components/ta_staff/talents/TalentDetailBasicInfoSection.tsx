@@ -50,7 +50,7 @@ export function TalentDetailBasicInfoSection({
               value={
                 talent.dateOfBirth
                   ? new Date(talent.dateOfBirth).toLocaleDateString('vi-VN')
-                  : 'Chưa xác định'
+                  : '—'
               }
               icon={<Calendar className="w-4 h-4" />}
             />

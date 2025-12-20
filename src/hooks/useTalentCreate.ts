@@ -13,11 +13,7 @@ import {
 import { useTalentFormData } from './useTalentFormData';
 import { useTalentForm } from './useTalentForm';
 
-/**
- * Hook để quản lý logic Create Talent
- * Tách logic từ Create.tsx để dễ quản lý và tái sử dụng
- */
-export function useTalentCreate() {
+export function useTalentCreate(selectedLevel?: Record<number, number | undefined>, cvFile?: File | null) {
   const navigate = useNavigate();
   const { loading: loadingFormData, ...formDataState } = useTalentFormData();
   const {
@@ -164,6 +160,11 @@ export function useTalentCreate() {
       newErrors.currentPartnerId = 'Vui lòng chọn đối tác';
     }
 
+    // Validate CV file
+    if (!cvFile) {
+      newErrors.cvFile = 'Vui lòng chọn file CV';
+    }
+
     // Validate CV
     if (initialCVs.length === 0 || !initialCVs[0]) {
       newErrors.cv = 'CV ban đầu là bắt buộc';
@@ -171,6 +172,13 @@ export function useTalentCreate() {
       const cv = initialCVs[0];
       if (cv.jobRoleLevelId === undefined || cv.jobRoleLevelId === null || cv.jobRoleLevelId === 0 || cv.jobRoleLevelId < 0) {
         newErrors.cv = 'Vị trí công việc là bắt buộc';
+      } else {
+        // Validate level: phải được chọn khi có vị trí công việc
+        const cvIndex = 0;
+        const selectedLevelValue = selectedLevel?.[cvIndex];
+        if (selectedLevelValue === undefined || selectedLevelValue === null) {
+          newErrors.level = 'Vui lòng chọn cấp độ cho vị trí công việc';
+        }
       }
     }
 
@@ -742,6 +750,33 @@ export function useTalentCreate() {
     setErrors: setFormErrors,
     setFormError,
     validateAllFields,
+    getTabValidationStatus: useCallback(() => {
+      const validationResult = validateAllFields();
+      const { errors } = validationResult;
+
+      // Additional level validation (not in validateAllFields because it depends on external state)
+      let hasLevelError = false;
+      if (initialCVs.length > 0 && initialCVs[0]) {
+        const cv = initialCVs[0];
+        if (cv.jobRoleLevelId && cv.jobRoleLevelId > 0) {
+          const cvIndex = 0;
+          const selectedLevelValue = selectedLevel?.[cvIndex];
+          if (selectedLevelValue === undefined || selectedLevelValue === null) {
+            hasLevelError = true;
+          }
+        }
+      }
+
+      return {
+        required: !!(errors.fullName || errors.email || errors.phone || errors.workingMode || errors.currentPartnerId || errors.locationId || errors.cv || errors.cvFile || hasLevelError),
+        cvs: false, // CV validation is merged into required tab
+        skills: Object.keys(errors).some(key => key.startsWith('skill_')),
+        projects: Object.keys(errors).some(key => key.startsWith('project_')),
+        experience: Object.keys(errors).some(key => key.startsWith('workexp_')),
+        jobRoleLevels: !!(errors.jobRoleLevels),
+        certificates: Object.keys(errors).some(key => key.startsWith('certificate')),
+      };
+    }, [validateAllFields, initialCVs, selectedLevel]),
   };
 }
 

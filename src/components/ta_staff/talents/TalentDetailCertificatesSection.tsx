@@ -145,7 +145,7 @@ export function TalentDetailCertificatesSection({
               )}
               {certificatesUnmatched.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-amber-800 mb-1.5">Thiếu trong hồ sơ (chưa có trong hệ thống) ({certificatesUnmatched.length})</p>
+                  <p className="text-xs font-semibold text-amber-800 mb-1.5">Cần tạo loại chứng chỉ ({certificatesUnmatched.length})</p>
                   <div className="flex flex-wrap gap-1.5">
                     {certificatesUnmatched.map((suggestion, index) => (
                       <span key={`certificate-unmatched-${index}`} className="inline-flex items-center px-2.5 py-1 bg-white border border-amber-200 rounded-lg text-xs text-amber-900">

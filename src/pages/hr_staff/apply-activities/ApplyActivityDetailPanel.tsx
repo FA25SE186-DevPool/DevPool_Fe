@@ -99,6 +99,7 @@ export default function ApplyActivityDetailPanel({
   const { user } = useAuth();
 
   const [activity, setActivity] = useState<ApplyActivityDetail | null>(null);
+  const [isCurrentUserRecruiter, setIsCurrentUserRecruiter] = useState(false);
   const [loading, setLoading] = useState(true);
   const [allActivities, setAllActivities] = useState<ApplyActivity[]>([]);
   const [currentStepOrder, setCurrentStepOrder] = useState<number>(0);
@@ -192,6 +193,13 @@ export default function ApplyActivityDetailPanel({
           console.error("⚠️ Không thể tải thông tin talent:", err);
         }
 
+        // Update permission check after data loads
+        if (detailedApp) {
+          setIsCurrentUserRecruiter(detailedApp.recruiterId === user?.id);
+        } else {
+          setIsCurrentUserRecruiter(false);
+        }
+
         let resolvedSteps: ApplyProcessStep[] = [];
         try {
           const jobReq = await jobRequestService.getById(app.jobRequestId);
@@ -265,6 +273,13 @@ export default function ApplyActivityDetailPanel({
 
   const handleEdit = () => {
     if (!activity) return;
+
+    // Check if current user is the recruiter
+    if (!isCurrentUserRecruiter) {
+      alert("Bạn không có quyền chỉnh sửa hoạt động này vì không phải người phụ trách hồ sơ!");
+      return;
+    }
+
     const canEdit =
       (activity.applicationInfo?.status === "Interviewing" || activity.applicationInfo?.status === "Submitted") &&
       activity.status === ApplyActivityStatus.Scheduled;
@@ -465,6 +480,12 @@ export default function ApplyActivityDetailPanel({
   const handleStatusUpdate = async (newStatus: ApplyActivityStatus) => {
     if (!activity) return;
 
+    // Check if current user is the recruiter
+    if (!isCurrentUserRecruiter) {
+      alert("Bạn không có quyền thay đổi trạng thái hoạt động này vì không phải người phụ trách hồ sơ!");
+      return;
+    }
+
     if (!activity.scheduledDate) {
       alert("⚠️ Vui lòng chỉnh sửa và thêm ngày lên lịch trước khi thay đổi trạng thái!");
       navigate(`/ta/apply-activities/edit/${activityId}`);
@@ -519,6 +540,12 @@ export default function ApplyActivityDetailPanel({
   };
 
   const handleAddToBlacklist = async () => {
+    // Check if current user is the recruiter
+    if (!isCurrentUserRecruiter) {
+      alert("Bạn không có quyền thêm hồ sơ này vào blacklist vì không phải người phụ trách!");
+      return;
+    }
+
     if (!clientCompanyId || !talent?.id) {
       alert("⚠️ Không thể thêm vào blacklist: Thiếu thông tin Client hoặc Talent!");
       return;
@@ -574,7 +601,7 @@ export default function ApplyActivityDetailPanel({
       })
     : "—";
 
-  const canModifyActivity = activity.status === ApplyActivityStatus.Scheduled;
+  const canModifyActivity = activity.status === ApplyActivityStatus.Scheduled && isCurrentUserRecruiter;
 
   return (
     <div className="p-6">
@@ -653,8 +680,12 @@ export default function ApplyActivityDetailPanel({
                 {allowedStatuses.includes(ApplyActivityStatus.Completed) && (
                   <button
                     onClick={() => handleStatusUpdate(ApplyActivityStatus.Completed)}
-                    disabled={isUpdatingStatus}
-                    className="group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isUpdatingStatus || !isCurrentUserRecruiter}
+                    className={`group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 ${
+                      isUpdatingStatus || !isCurrentUserRecruiter
+                        ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
+                        : "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
+                    }`}
                   >
                     <CheckCircle className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
                     Hoàn thành
@@ -663,8 +694,12 @@ export default function ApplyActivityDetailPanel({
                 {allowedStatuses.includes(ApplyActivityStatus.Passed) && (
                   <button
                     onClick={() => handleStatusUpdate(ApplyActivityStatus.Passed)}
-                    disabled={isUpdatingStatus}
-                    className="group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isUpdatingStatus || !isCurrentUserRecruiter}
+                    className={`group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 ${
+                      isUpdatingStatus || !isCurrentUserRecruiter
+                        ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
+                        : "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
+                    }`}
                   >
                     <CheckCircle className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
                     Đạt
@@ -673,8 +708,12 @@ export default function ApplyActivityDetailPanel({
                 {allowedStatuses.includes(ApplyActivityStatus.Failed) && (
                   <button
                     onClick={() => handleStatusUpdate(ApplyActivityStatus.Failed)}
-                    disabled={isUpdatingStatus}
-                    className="group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isUpdatingStatus || !isCurrentUserRecruiter}
+                    className={`group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 ${
+                      isUpdatingStatus || !isCurrentUserRecruiter
+                        ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
+                        : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
+                    }`}
                   >
                     <AlertCircle className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
                     Không đạt
@@ -683,8 +722,12 @@ export default function ApplyActivityDetailPanel({
                 {allowedStatuses.includes(ApplyActivityStatus.NoShow) && (
                   <button
                     onClick={() => handleStatusUpdate(ApplyActivityStatus.NoShow)}
-                    disabled={isUpdatingStatus}
-                    className="group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isUpdatingStatus || !isCurrentUserRecruiter}
+                    className={`group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 ${
+                      isUpdatingStatus || !isCurrentUserRecruiter
+                        ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
+                        : "bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white"
+                    }`}
                   >
                     <AlertCircle className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
                     Không có mặt
