@@ -1014,6 +1014,24 @@ export default function ProjectDetailPage() {
         }
       }
     }
+
+    // Khi ở trạng thái Draft: ngày bắt đầu phải > ngày bắt đầu của dự án (nếu dự án có ngày bắt đầu)
+    if (selectedAssignment.status === "Draft" && project?.startDate) {
+      const effectiveStartIso = updateForm.startDate || selectedAssignment.startDate;
+      if (effectiveStartIso && isValidDate(effectiveStartIso)) {
+        const effectiveStart = new Date(effectiveStartIso);
+        const projectStartDate = new Date(project.startDate);
+        effectiveStart.setHours(0, 0, 0, 0);
+        projectStartDate.setHours(0, 0, 0, 0);
+
+        if (effectiveStart < projectStartDate) {
+          setUpdateErrors({
+            startDate: `Ngày bắt đầu phải lớn hơn hoặc bằng ngày bắt đầu dự án (${formatViDate(project.startDate)})`
+          });
+          return;
+        }
+      }
+    }
     
     // Check if end date >= start date
     const startDateToCheck = selectedAssignment.status === "Draft" 
@@ -3671,7 +3689,16 @@ export default function ProjectDetailPage() {
                           setUpdateErrors({ ...updateErrors, startDate: undefined });
                         }
                       }}
-                      min={editLastActivityScheduledDate ? toVietnamDateInputValue(editLastActivityScheduledDate) : undefined}
+                      min={(() => {
+                        // Min date should be the later of: last activity date or project start date
+                        const lastActivityDate = editLastActivityScheduledDate ? toVietnamDateInputValue(editLastActivityScheduledDate) : null;
+                        const projectStartDate = project?.startDate ? toVietnamDateInputValue(project.startDate) : null;
+
+                        if (lastActivityDate && projectStartDate) {
+                          return new Date(lastActivityDate) > new Date(projectStartDate) ? lastActivityDate : projectStartDate;
+                        }
+                        return lastActivityDate || projectStartDate || undefined;
+                      })()}
                       required
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-primary-500 ${
                         updateErrors.startDate 
@@ -3682,10 +3709,19 @@ export default function ProjectDetailPage() {
                     {updateErrors.startDate && (
                       <p className="mt-1 text-sm text-red-500">{updateErrors.startDate}</p>
                     )}
-                    {editLastActivityScheduledDate && !updateErrors.startDate && (
-                      <p className="mt-1 text-sm text-neutral-500">
-                        Ngày bắt đầu phải lớn hơn hoặc bằng ngày lên lịch của hoạt động cuối cùng ({formatViDate(editLastActivityScheduledDate)})
-                      </p>
+                    {!updateErrors.startDate && (
+                      <div className="mt-1 space-y-1">
+                        {editLastActivityScheduledDate && (
+                          <p className="text-sm text-neutral-500">
+                            Ngày bắt đầu phải lớn hơn hoặc bằng ngày lên lịch của hoạt động cuối cùng ({formatViDate(editLastActivityScheduledDate)})
+                          </p>
+                        )}
+                        {project?.startDate && (
+                          <p className="text-sm text-neutral-500">
+                            Ngày bắt đầu phải lớn hơn ngày bắt đầu dự án ({formatViDate(project.startDate)})
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </>
