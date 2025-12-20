@@ -205,7 +205,7 @@ export function TalentDetailJobRoleLevelsSection({
                             onClick={() => onQuickCreateJobRoleLevel(jobRole)}
                             className="px-2 py-0.5 bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors text-xs font-medium"
                           >
-                            Tạo nhanh
+                            Gợi ý
                           </button>
                         )}
                       </li>
@@ -236,7 +236,7 @@ export function TalentDetailJobRoleLevelsSection({
                             })}
                             className="px-2 py-0.5 bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors text-xs font-medium"
                           >
-                            Tạo nhanh
+                            Gợi ý
                           </button>
                         )}
                       </li>

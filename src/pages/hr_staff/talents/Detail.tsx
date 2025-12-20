@@ -33,7 +33,7 @@ import { talentJobRoleLevelService, type TalentJobRoleLevel } from '../../../ser
 import { talentSkillService, type TalentSkill } from '../../../services/TalentSkill';
 import { skillService, type Skill } from '../../../services/Skill';
 import { WorkingMode } from '../../../constants/WORKING_MODE';
-import { formatLinkDisplay as formatLinkDisplayUtil, getLevelTextForSkills, getTalentLevelName } from '../../../utils/talentHelpers';
+import { formatLinkDisplay as formatLinkDisplayUtil, getTalentLevelName } from '../../../utils/talentHelpers';
 import { validateIssuedDate, validateStartTime, validateEndTime } from '../../../utils/validators';
 import { getStatusConfig } from '../../../utils/talentStatus';
 import { TalentDetailHeader } from '../../../components/ta_staff/talents/TalentDetailHeader';
@@ -584,10 +584,10 @@ export default function TalentDetailPage() {
   }, [operations, setWorkExperiences]);
 
   const handleDeleteJobRoleLevels = useCallback(async () => {
-    await operations.handleDeleteJobRoleLevels((jobRoleLevels) => {
+    await operations.handleDeleteJobRoleLevels(talentCVs, (jobRoleLevels) => {
       setJobRoleLevels(jobRoleLevels);
     });
-  }, [operations, setJobRoleLevels]);
+  }, [operations, talentCVs, setJobRoleLevels]);
 
   const handleDeleteCertificates = useCallback(async () => {
     await operations.handleDeleteCertificates((certificates) => {
@@ -640,13 +640,22 @@ export default function TalentDetailPage() {
   }, [cvAnalysis, canEdit, operations, cvForm]);
 
 
-  // Use getLevelTextForSkills from utils
-  const getLevelTextForSkillsWrapper = useCallback(
-    (level: string): string => {
-      return getLevelTextForSkills(level, getLevelText);
-    },
-    [getLevelText]
-  );
+  // Function to convert skill level strings to Vietnamese text
+  const getSkillLevelText = useCallback((level: string | number): string => {
+    // If level is a number, map it directly to getLevelText (job role levels)
+    if (typeof level === 'number') {
+      return getLevelText(level);
+    }
+
+    // If level is a string, it's a skill level - convert to Vietnamese
+    const skillLevelMap: Record<string, string> = {
+      'Beginner': 'Cơ bản',
+      'Intermediate': 'Trung cấp',
+      'Advanced': 'Nâng cao',
+      'Expert': 'Chuyên gia',
+    };
+    return skillLevelMap[level] || level;
+  }, [getLevelText]);
 
   // Helper function to check if values are different
   const isValueDifferent = useCallback((current: string | null | undefined, suggested: string | null | undefined): boolean => {
@@ -658,12 +667,12 @@ export default function TalentDetailPage() {
   // Helper function to get level label
   const getLevelLabel = useCallback((level: string | null | undefined): string => {
     const levelMap: { [key: string]: string } = {
-      'Beginner': 'Mới bắt đầu',
-      'Intermediate': 'Trung bình',
+      'Beginner': 'Cơ bản',
+      'Intermediate': 'Trung cấp',
       'Advanced': 'Nâng cao',
       'Expert': 'Chuyên gia',
     };
-    return levelMap[level || 'Beginner'] || 'Mới bắt đầu';
+    return levelMap[level || 'Beginner'] || 'Cơ bản';
   }, []);
 
   // Skill actions are now in useTalentDetailSkillActions hook
@@ -833,6 +842,7 @@ export default function TalentDetailPage() {
           onPartnerClick={handlePartnerClick}
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          hasNewPositionFromCVs={cvAnalysis.matchedJobRoleLevelsNotInProfile && cvAnalysis.matchedJobRoleLevelsNotInProfile.length > 0}
           tabContent={
             <>
             {/* Tab: Projects */}
@@ -1021,7 +1031,7 @@ export default function TalentDetailPage() {
                   )
                 }
                 canEdit={canEdit}
-                getLevelText={getLevelTextForSkillsWrapper}
+                getLevelText={getSkillLevelText}
                 getLevelLabel={getLevelLabel}
                 onRefreshSkills={handleRefreshSkills}
               />
@@ -1163,7 +1173,7 @@ export default function TalentDetailPage() {
         showAllSkillsInVerifyModal={skillGroupVerification.showAllSkillsInVerifyModal}
         setShowAllSkillsInVerifyModal={skillGroupVerification.setShowAllSkillsInVerifyModal}
         isVerifyingSkillGroup={skillGroupVerification.isVerifyingSkillGroup}
-        getLevelLabel={getLevelTextForSkillsWrapper}
+        getLevelLabel={getSkillLevelText}
         onClose={skillGroupVerification.handleCloseVerifySkillGroupModal}
         onSubmit={() =>
           skillGroupVerification.handleSubmitVerifySkillGroup(

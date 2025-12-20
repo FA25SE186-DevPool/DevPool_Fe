@@ -3,6 +3,8 @@ export interface Apply {
   jobRequestId: number;
   cvId: number;
   submittedBy: string;
+  recruiterId: string;
+  recruiterName: string;
   status: string;
   note: string;
   convertedCVPath?: string;

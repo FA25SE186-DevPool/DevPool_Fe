@@ -16,6 +16,7 @@ interface TalentDetailBasicInfoTabsProps {
   activeTab: TalentDetailTab | null;
   onTabChange: (tab: TalentDetailTab | null) => void;
   tabContent?: React.ReactNode;
+  hasNewPositionFromCVs?: boolean;
 }
 
 export function TalentDetailBasicInfoTabs({
@@ -29,6 +30,7 @@ export function TalentDetailBasicInfoTabs({
   activeTab,
   onTabChange,
   tabContent,
+  hasNewPositionFromCVs = false,
 }: TalentDetailBasicInfoTabsProps) {
   const [basicInfoTab, setBasicInfoTab] = useState<'info'>('info');
 
@@ -84,7 +86,12 @@ export function TalentDetailBasicInfoTabs({
                   : 'border-transparent text-neutral-600 hover:text-primary-600 hover:bg-neutral-50'
               }`}
             >
-              {tab.icon}
+              <div className="relative">
+                {tab.icon}
+                {tab.id === 'jobRoleLevels' && hasNewPositionFromCVs && (
+                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                )}
+              </div>
               {tab.label}
             </button>
           ))}

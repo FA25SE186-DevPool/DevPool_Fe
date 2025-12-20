@@ -104,7 +104,7 @@ interface TalentDetailSkillsSectionProps {
   canEdit: boolean;
 
   // Helpers
-  getLevelText: (level: string) => string;
+  getLevelText: (level: string | number) => string;
 
   // Refresh callback
   onRefreshSkills?: () => void;
@@ -308,7 +308,7 @@ export function TalentDetailSkillsSection({
                             })}
                             className="px-2 py-0.5 bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors text-xs font-medium"
                           >
-                            Tạo nhanh
+                            Gợi ý
                           </button>
                         )}
                       </div>
@@ -545,8 +545,8 @@ export function TalentDetailSkillsSection({
                 onChange={(e) => setInlineSkillForm({ ...inlineSkillForm, level: e.target.value })}
                 className="w-full px-4 py-2 border rounded-lg bg-white border-neutral-300 focus:ring-2 focus:ring-secondary-500/20 focus:border-secondary-500"
               >
-                <option value="Beginner">Mới bắt đầu</option>
-                <option value="Intermediate">Trung bình</option>
+                <option value="Beginner">Cơ bản</option>
+                <option value="Intermediate">Trung cấp</option>
                 <option value="Advanced">Nâng cao</option>
                 <option value="Expert">Chuyên gia</option>
               </select>
@@ -921,7 +921,7 @@ export function TalentDetailSkillsSection({
                           <div>
                             <div className="text-sm font-medium text-neutral-900">{skill.skillName}</div>
                             <div className="text-xs text-neutral-500">
-                              Level: {getLevelText(skill.level)} · {skill.yearsExp} năm
+                              Trình độ: {getLevelText(skill.level)}
                             </div>
                           </div>
                         </div>

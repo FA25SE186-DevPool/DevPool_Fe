@@ -21,6 +21,7 @@ import ApplyActivityDetailPanel from "../apply-activities/ApplyActivityDetailPan
 import ApplyActivityCreatePage from "../apply-activities/Create";
 import { clientTalentBlacklistService, type ClientTalentBlacklistCreate } from "../../../services/ClientTalentBlacklist";
 import { useAuth } from "../../../context/AuthContext";
+import { TalentLevel } from "../../../services/JobRoleLevel";
 import {
   XCircle,
   FileText,
@@ -44,6 +45,17 @@ import {
   Ban,
   Layers,
 } from "lucide-react";
+
+// Helper function to get level text
+const getLevelText = (level: number): string => {
+  const levelMap: Record<number, string> = {
+    [TalentLevel.Junior]: 'Junior',
+    [TalentLevel.Middle]: 'Middle',
+    [TalentLevel.Senior]: 'Senior',
+    [TalentLevel.Lead]: 'Lead',
+  };
+  return levelMap[level] || 'Unknown';
+};
 
 const talentStatusLabels: Record<string, string> = {
   Available: "Sẵn sàng làm việc",
@@ -90,6 +102,7 @@ export default function TalentCVApplicationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const { user } = useAuth();
+
   const [application, setApplication] = useState<Apply | null>(null);
   const [jobRequest, setJobRequest] = useState<JobRequest | null>(null);
   const [talentCV, setTalentCV] = useState<TalentCV | null>(null);
@@ -97,6 +110,10 @@ export default function TalentCVApplicationDetailPage() {
   const [processSteps, setProcessSteps] = useState<Record<number, ApplyProcessStep>>({});
   const [templateSteps, setTemplateSteps] = useState<ApplyProcessStep[]>([]);
   const [detailedApplication, setDetailedApplication] = useState<TalentApplicationDetailed | null>(null);
+
+  // Check if current user is the recruiter for this application
+  const isCurrentUserRecruiter = detailedApplication?.recruiterId === user?.id;
+
   const [talentLocationName, setTalentLocationName] = useState<string>("—");
   const [loading, setLoading] = useState(true);
 
@@ -134,7 +151,7 @@ export default function TalentCVApplicationDetailPage() {
   };
   const [autoCreating, setAutoCreating] = useState(false);
   const [clientCompanyName, setClientCompanyName] = useState<string>("—");
-  const [cvJobRoleLevelName, setCvJobRoleLevelName] = useState<string>("—");
+  const [cvJobRoleLevelDisplay, setCvJobRoleLevelDisplay] = useState<string>("—");
   const [projectName, setProjectName] = useState<string>("—");
   const [jobRequestLocationName, setJobRequestLocationName] = useState<string>("—");
   const [showJobSection, setShowJobSection] = useState(false);
@@ -586,12 +603,16 @@ export default function TalentCVApplicationDetailPage() {
       try {
         if (cvData?.jobRoleLevelId) {
           const cvLevel = await jobRoleLevelService.getById(cvData.jobRoleLevelId);
-          setCvJobRoleLevelName(cvLevel?.name ?? "—");
+          // setCvJobRoleLevelName(cvLevel?.name ?? "—");
+          const levelText = cvLevel ? getLevelText(cvLevel.level) : "—";
+          setCvJobRoleLevelDisplay(cvLevel ? `${cvLevel.name} - ${levelText}` : "—");
         } else {
-          setCvJobRoleLevelName("—");
+          // setCvJobRoleLevelName("—");
+          setCvJobRoleLevelDisplay("—");
         }
       } catch {
-        setCvJobRoleLevelName("—");
+        // setCvJobRoleLevelName("—");
+        setCvJobRoleLevelDisplay("—");
       }
 
       let fetchedTemplateSteps: ApplyProcessStep[] = [];
@@ -649,12 +670,16 @@ export default function TalentCVApplicationDetailPage() {
         if (jobReqData.jobRoleLevelId) {
           try {
             const level = await jobRoleLevelService.getById(jobReqData.jobRoleLevelId);
-            setCvJobRoleLevelName(level?.name ?? "—");
+            // setCvJobRoleLevelName(level?.name ?? "—");
+            const levelText = level ? getLevelText(level.level) : "—";
+            setCvJobRoleLevelDisplay(level ? `${level.name} - ${levelText}` : "—");
           } catch {
-            setCvJobRoleLevelName("—");
+            // setCvJobRoleLevelName("—");
+            setCvJobRoleLevelDisplay("—");
           }
         } else {
-          setCvJobRoleLevelName("—");
+          // setCvJobRoleLevelName("—");
+          setCvJobRoleLevelDisplay("—");
         }
 
         // Apply process template name
@@ -973,6 +998,12 @@ export default function TalentCVApplicationDetailPage() {
   const handleStatusUpdate = async (newStatus: string) => {
     if (!id || !application) return;
 
+    // Check if current user is the recruiter
+    if (!isCurrentUserRecruiter) {
+      alert("Bạn không có quyền thay đổi trạng thái hồ sơ này vì không phải người phụ trách!");
+      return;
+    }
+
     try {
       if (newStatus === "Rejected") {
         const ok = window.confirm("Bạn có chắc chắn muốn TỪ CHỐI hồ sơ này không?");
@@ -1030,6 +1061,12 @@ export default function TalentCVApplicationDetailPage() {
 
   // Blacklist handlers
   const handleOpenBlacklistModal = () => {
+    // Check if current user is the recruiter
+    if (!isCurrentUserRecruiter) {
+      alert("Bạn không có quyền thêm hồ sơ này vào blacklist vì không phải người phụ trách!");
+      return;
+    }
+
     if (!clientCompanyId || !talentId) {
       alert("⚠️ Không thể thêm vào blacklist: Thiếu thông tin Client hoặc Talent!");
       return;
@@ -1178,7 +1215,7 @@ export default function TalentCVApplicationDetailPage() {
     application.status !== "ClosedBySystem";
 
   // Cho phép tạo hoạt động (thủ công) khi còn bước chưa tạo và trạng thái cho phép
-  const canCreateNextActivity = statusAllowsActivityCreation && hasRemainingSteps;
+  const canCreateNextActivity = statusAllowsActivityCreation && hasRemainingSteps && isCurrentUserRecruiter;
 
   // Chỉ cho phép tự động tạo khi chưa có hoạt động nào
   const canAutoCreateActivities = canCreateNextActivity && activities.length === 0;
@@ -1303,7 +1340,7 @@ export default function TalentCVApplicationDetailPage() {
               ] : [
                 { label: "Hồ sơ ứng tuyển", to: "/ta/applications" }
               ]),
-              { label: application ? `Hồ sơ #${application.id}` : "Chi tiết hồ sơ" }
+              { label: application ? `Hồ sơ: ${detailedApplication?.talent?.fullName || application.id}` : "Chi tiết hồ sơ" }
             ]}
           />
 
@@ -1326,10 +1363,10 @@ export default function TalentCVApplicationDetailPage() {
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-4 mb-2">
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">Hồ sơ #{application.id}</h1>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">Hồ sơ: {detailedApplication?.talent?.fullName || application.id}</h1>
                   <p className="text-neutral-600 mb-4">Thông tin chi tiết hồ sơ ứng viên</p>
                 </div>
-                {TalentApplicationStatusConstants.isTerminalStatus(application.status) ? !isBlacklisted : (hasFailedActivity() && clientCompanyId && talentId && !isBlacklisted) && (
+                {TalentApplicationStatusConstants.isTerminalStatus(application.status) ? !isBlacklisted : (hasFailedActivity() && clientCompanyId && talentId && !isBlacklisted && isCurrentUserRecruiter) && (
                   <Button
                     onClick={handleOpenBlacklistModal}
                     className="group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft transform hover:scale-105 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white flex-shrink-0"
@@ -1368,7 +1405,7 @@ export default function TalentCVApplicationDetailPage() {
             </div>
 
             <div className="flex gap-3 flex-wrap">
-              {application.status === 'Submitted' ? (
+              {application.status === 'Submitted' && isCurrentUserRecruiter ? (
                 <Button
                   onClick={() => {
                     const ok = window.confirm("Bạn có chắc chắn muốn rút hồ sơ ứng tuyển này không?");
@@ -1382,7 +1419,7 @@ export default function TalentCVApplicationDetailPage() {
                 </Button>
               ) : application.status === 'Interviewing' ? (
                 <>
-                  {hasFailedActivity() && (
+                  {hasFailedActivity() && isCurrentUserRecruiter && (
                     <Button
                       onClick={() => handleStatusUpdate('Rejected')}
                       className="group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
@@ -1391,17 +1428,19 @@ export default function TalentCVApplicationDetailPage() {
                       Từ chối
                     </Button>
                   )}
-                  <Button
-                    onClick={() => {
-                      const ok = window.confirm("Bạn có chắc chắn muốn rút hồ sơ ứng tuyển này không?");
-                      if (!ok) return;
-                      handleStatusUpdate('Withdrawn');
-                    }}
-                    className="group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft transform hover:scale-105 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white"
-                  >
+                  {isCurrentUserRecruiter && (
+                    <Button
+                      onClick={() => {
+                        const ok = window.confirm("Bạn có chắc chắn muốn rút hồ sơ ứng tuyển này không?");
+                        if (!ok) return;
+                        handleStatusUpdate('Withdrawn');
+                      }}
+                      className="group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft transform hover:scale-105 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white"
+                    >
                     <X className="w-4 h-4 group-hover:scale-110 transition-transform" />
                     Rút hồ sơ
                   </Button>
+                  )}
                 </>
               ) : null}
             </div>
@@ -1449,7 +1488,7 @@ export default function TalentCVApplicationDetailPage() {
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <InfoRow label="TA phụ trách" value={detailedApplication?.recruiterName || "—"} icon={<UserIcon className="w-4 h-4" />} />
-              <InfoRow label="Vị trí tuyển dụng" value={cvJobRoleLevelName} icon={<Users className="w-4 h-4" />} />
+              <InfoRow label="Vị trí tuyển dụng" value={cvJobRoleLevelDisplay} icon={<Users className="w-4 h-4" />} />
               <InfoRow
                  label="Tên ứng viên"
                 value={
@@ -1617,9 +1656,9 @@ export default function TalentCVApplicationDetailPage() {
                     <>
                       <Button
                         onClick={() => setShowCreateActivityModal(true)}
-                        disabled={!statusAllowsActivityCreation}
+                        disabled={!statusAllowsActivityCreation || !isCurrentUserRecruiter}
                         className={`group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 ${
-                          !statusAllowsActivityCreation
+                          !statusAllowsActivityCreation || !isCurrentUserRecruiter
                             ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
                             : "bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white"
                         }`}
@@ -1647,9 +1686,9 @@ export default function TalentCVApplicationDetailPage() {
                   {activities.length > 0 && !hasCompletedActivity && (
                     <Button
                       onClick={handleDeleteAllActivities}
-                      disabled={deletingAll}
+                      disabled={deletingAll || !isCurrentUserRecruiter}
                       className={`group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 ${
-                        deletingAll
+                        deletingAll || !isCurrentUserRecruiter
                           ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
                           : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
                       }`}
@@ -1710,7 +1749,8 @@ export default function TalentCVApplicationDetailPage() {
                             {activity.status !== ApplyActivityStatus.Failed &&
                               activity.status !== ApplyActivityStatus.Passed &&
                               activity.status !== ApplyActivityStatus.Completed &&
-                              activity.status !== ApplyActivityStatus.NoShow && (
+                              activity.status !== ApplyActivityStatus.NoShow &&
+                              isCurrentUserRecruiter && (
                               <Button
                                 onClick={async (e) => {
                                   e.preventDefault();

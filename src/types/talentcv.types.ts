@@ -46,6 +46,12 @@ export interface TalentCVMatchResult {
   missingSkills: string[];
   levelMatch: boolean;
   matchSummary: string;
+  /** True nếu Talent đã có Application cho JobRequest này nhưng đã Withdrawn hoặc Rejected */
+  hasFailedApplication?: boolean;
+  /** Trạng thái của Application đã failed (Withdrawn/Rejected) */
+  failedApplicationStatus?: string | null;
+  /** ID của Application đã failed */
+  failedApplicationId?: number | null;
 }
 
 export interface TalentCVJobRequestFilter {

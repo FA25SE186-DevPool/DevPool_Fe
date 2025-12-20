@@ -123,19 +123,6 @@ export function TalentDetailExperiencesSection({
                 ))}
               </div>
             )}
-            {analysisResult.workExperiences.potentialDuplicates.length > 0 && (
-              <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
-                <p className="font-medium mb-1">Mục cần rà soát trùng lặp:</p>
-                <ul className="space-y-1">
-                  {analysisResult.workExperiences.potentialDuplicates.map((dup, index) => (
-                    <li key={`dup-exp-${index}`}>
-                      - {dup.fromCV.position} tại {dup.fromCV.company} · Khuyến nghị:{' '}
-                      <span className="font-semibold">{dup.recommendation}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
         )}
 

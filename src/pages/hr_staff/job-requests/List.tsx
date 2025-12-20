@@ -1,23 +1,22 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../../context/AuthContext";
 import {
-    Search,
-    Filter,
-    Users,
-    Briefcase,
-    Building2,
-    Target,
-    Eye,
-    ChevronLeft,
-    ChevronRight,
-    XCircle,
-    Layers,
-    ClipboardList,
-    ChevronDown,
-    ChevronUp,
-    X,
-  FileText,
-  Clock
+  Search,
+  Filter,
+  Users,
+  Briefcase,
+  Building2,
+  Target,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+  XCircle,
+  Layers,
+  ClipboardList,
+  ChevronDown,
+  ChevronUp,
+  X
 } from "lucide-react";
 import Sidebar from "../../../components/common/Sidebar";
 import { sidebarItems } from "../../../components/sidebar/ta_staff";
@@ -65,16 +64,76 @@ const statusLabelDisplay: Record<string, string> = {
     Rejected: "Từ chối"
 };
 
-const applicationStatusColors: Record<string, string> = {
-  Submitted: "bg-sky-100 text-sky-700",
-  Interviewing: "bg-cyan-100 text-cyan-700",
-  Hired: "bg-purple-100 text-purple-700",
-  Rejected: "bg-red-100 text-red-700",
-  Withdrawn: "bg-gray-100 text-gray-700",
+// Helper function to get status config (synced with applications detail page)
+interface StatusConfig {
+  label: string;
+  color: string;
+  bgColor: string;
+}
+
+const getStatusConfig = (status: string): StatusConfig => {
+  const configs: Record<string, StatusConfig> = {
+    "Interviewing": {
+      label: "Đang xem xét phỏng vấn",
+      color: "bg-cyan-100 text-cyan-800",
+      bgColor: "bg-cyan-50"
+    },
+    "Submitted": {
+      label: "Đã nộp hồ sơ",
+      color: "bg-sky-100 text-sky-800",
+      bgColor: "bg-sky-50"
+    },
+    "Hired": {
+      label: "Đã tuyển",
+      color: "bg-purple-100 text-purple-800",
+      bgColor: "bg-purple-50"
+    },
+    "Rejected": {
+      label: "Từ chối",
+      color: "bg-red-100 text-red-800",
+      bgColor: "bg-red-50"
+    },
+    "Withdrawn": {
+      label: "Đã rút hồ sơ",
+      color: "bg-orange-100 text-orange-800",
+      bgColor: "bg-orange-50"
+    },
+    "Expired": {
+      label: "Đã hết hạn",
+      color: "bg-gray-100 text-gray-800",
+      bgColor: "bg-gray-50"
+    },
+    "ClosedBySystem": {
+      label: "Đã đóng",
+      color: "bg-gray-100 text-gray-800",
+      bgColor: "bg-gray-50"
+    },
+    "OfferPending": {
+      label: "Đang chờ offer",
+      color: "bg-teal-100 text-teal-800",
+      bgColor: "bg-teal-50"
+    },
+    "OnProject": {
+      label: "Đang làm việc",
+      color: "bg-indigo-100 text-indigo-800",
+      bgColor: "bg-indigo-50"
+    },
+    "Inactive": {
+      label: "Không hoạt động",
+      color: "bg-neutral-100 text-neutral-800",
+      bgColor: "bg-neutral-50"
+    }
+  };
+  return configs[status] || {
+    label: status,
+    color: "bg-neutral-100 text-neutral-800",
+    bgColor: "bg-neutral-50"
+  };
 };
 
 export default function HRJobRequestList() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [requests, setRequests] = useState<HRJobRequest[]>([]);
     const [filteredRequests, setFilteredRequests] = useState<HRJobRequest[]>([]);
     const [loading, setLoading] = useState(true);
@@ -85,16 +144,8 @@ export default function HRJobRequestList() {
     const [applicationsLoading, setApplicationsLoading] = useState(false);
     const [applicationsError, setApplicationsError] = useState<string | null>(null);
     const [applications, setApplications] = useState<TalentApplicationDetailed[]>([]);
-    const [applicationsStatusFilter, setApplicationsStatusFilter] = useState<string>("");
+    const [applicationsTabFilter, setApplicationsTabFilter] = useState<"all" | "my-responsible">("all");
 
-    const applicationStatusLabel: Record<string, string> = {
-        Submitted: "Đã nộp",
-        Interviewing: "Đang phỏng vấn",
-        Hired: "Đạt",
-        Rejected: "Không đạt",
-        Withdrawn: "Rút hồ sơ",
-        Pending: "Chờ xử lý",
-    };
 
     // Đóng popup bằng phím ESC
     useEffect(() => {
@@ -308,7 +359,7 @@ const stats = [
         setApplications([]);
         setApplicationsError(null);
         setApplicationsLoading(false);
-        setApplicationsStatusFilter("");
+        setApplicationsTabFilter("all");
     };
 
     const openApplicationsPopup = async (req: HRJobRequest) => {
@@ -480,7 +531,7 @@ const stats = [
                                         ) : null}
                                     </div>
                                     <p className="text-xs text-neutral-600 mt-1 line-clamp-2">
-                                        {selectedRequest ? (selectedRequest.title || "(Chưa có tiêu đề)") : null}
+                                        {selectedRequest ? `Job Request: ${selectedRequest.title || "(Chưa có tiêu đề)"} | CV: ${selectedRequest.positionName || "—"}` : null}
                                     </p>
                                 </div>
                                 <button
@@ -504,7 +555,7 @@ const stats = [
                                         <div className="flex items-center gap-2">
                                             <Link
                                                 to={`/ta/applications?jobRequestId=${selectedRequest.id}`}
-                                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-primary-700 hover:text-primary-800 hover:bg-primary-50 transition-all"
+                                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100 hover:border-primary-300 transition-all duration-300 hover:scale-105 transform"
                                             >
                                                 <Eye className="w-4 h-4" />
                                                 Mở trang danh sách
@@ -513,40 +564,29 @@ const stats = [
                                     </div>
                                 ) : null}
 
-                                {/* Status Tabs */}
-                                <div className="mb-6">
-                                    <div className="flex gap-0 border-b border-gray-200">
+                                {/* Application Tabs */}
+                                <div className="mb-4">
+                                    <div className="flex gap-2 border-b border-gray-200">
                                         <button
-                                            onClick={() => setApplicationsStatusFilter("")}
-                                            className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
-                                                applicationsStatusFilter === ""
+                                            onClick={() => setApplicationsTabFilter("all")}
+                                            className={`px-6 py-3 font-medium text-sm transition-all duration-300 border-b-2 ${
+                                                applicationsTabFilter === "all"
                                                     ? "border-blue-600 text-blue-600 bg-blue-50"
-                                                    : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                                                    : "border-transparent text-gray-600 hover:text-blue-600 hover:bg-blue-50"
                                             }`}
                                         >
-                                            <FileText className="w-4 h-4" />
-                                            Tất cả ({applications.length})
+                                            Tất cả hồ sơ ({applications.length})
                                         </button>
-                                        {[
-                                            { value: "Submitted", label: "Đã nộp hồ sơ", icon: FileText },
-                                            { value: "Interviewing", label: "Đang xem xét phỏng vấn", icon: Clock },
-                                        ].map(({ value, label, icon: Icon }) => {
-                                            const count = applications.filter(app => app.status === value).length;
-                                            return (
-                                                <button
-                                                    key={value}
-                                                    onClick={() => setApplicationsStatusFilter(value)}
-                                                    className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
-                                                        applicationsStatusFilter === value
-                                                            ? "border-blue-600 text-blue-600 bg-blue-50"
-                                                            : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                                                    }`}
-                                                >
-                                                    <Icon className="w-4 h-4" />
-                                                    {label} ({count})
-                                                </button>
-                                            );
-                                        })}
+                                        <button
+                                            onClick={() => setApplicationsTabFilter("my-responsible")}
+                                            className={`px-6 py-3 font-medium text-sm transition-all duration-300 border-b-2 ${
+                                                applicationsTabFilter === "my-responsible"
+                                                    ? "border-purple-600 text-purple-600 bg-purple-50"
+                                                    : "border-transparent text-gray-600 hover:text-purple-600 hover:bg-purple-50"
+                                            }`}
+                                        >
+                                            Hồ sơ của tôi phụ trách ({applications.filter(app => app.recruiterId === user?.id).length})
+                                        </button>
                                     </div>
                                 </div>
 
@@ -579,15 +619,14 @@ const stats = [
                                     <div className="max-h-[50vh] overflow-auto pr-1">
                                         <div className="space-y-3">
                                             {applications
-                                                .filter(app => !applicationsStatusFilter || app.status === applicationsStatusFilter)
-                                                .sort((a, b) => {
-                                                    if (!applicationsStatusFilter) {
-                                                        // For "Tất cả" tab, prioritize by status: Submitted first, then Interviewing
-                                                        const statusPriority = { "Submitted": 1, "Interviewing": 2 };
-                                                        const aPriority = statusPriority[a.status as keyof typeof statusPriority] || 99;
-                                                        const bPriority = statusPriority[b.status as keyof typeof statusPriority] || 99;
-                                                        if (aPriority !== bPriority) return aPriority - bPriority;
+                                                .filter(app => {
+                                                    // Filter by tab selection
+                                                    if (applicationsTabFilter === "my-responsible") {
+                                                        return app.recruiterId === user?.id;
                                                     }
+                                                    return true;
+                                                })
+                                                .sort((a, b) => {
                                                     // Default sort by creation date (newest first)
                                                     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
                                                 })
@@ -595,7 +634,7 @@ const stats = [
                                                 const talentName = app.talentName || app.talent?.fullName || `Talent #${app.talent?.id ?? "—"}`;
                                                 const submitter = app.submitterName || app.submittedBy || "—";
                                                 const createdAt = app.createdAt ? new Date(app.createdAt).toLocaleString("vi-VN") : "—";
-                                                const statusLabel = app.status ? (applicationStatusLabel[app.status] ?? app.status) : "—";
+                                                const statusLabel = app.status ? getStatusConfig(app.status).label : "—";
                                                 return (
                                                     <div
                                                         key={app.id}
@@ -605,7 +644,7 @@ const stats = [
                                                             <div className="min-w-0">
                                                                 <div className="flex flex-wrap items-center gap-2">
                                                                     <p className="text-sm font-semibold text-neutral-900">{talentName}</p>
-                                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${applicationStatusColors[app.status] ?? "bg-neutral-100 text-neutral-600"}`}>
+                                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusConfig(app.status).color}`}>
                                                                         {statusLabel}
                                                                     </span>
                                                                 </div>
@@ -616,7 +655,7 @@ const stats = [
                                                             </div>
                                                             <Link
                                                                 to={`/ta/applications/${app.id}`}
-                                                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-primary-700 hover:text-primary-800 hover:bg-primary-50 transition-all"
+                                                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100 hover:border-primary-300 transition-all duration-300 hover:scale-105 transform"
                                                             >
                                                                 <Eye className="w-4 h-4" />
                                                                 Xem

@@ -692,6 +692,7 @@ export function useTalentDetailOperations() {
 
   const handleDeleteJobRoleLevels = useCallback(
     async (
+      talentCVs: (TalentCV & { jobRoleLevelName?: string })[],
       onSuccess: (jobRoleLevels: (TalentJobRoleLevel & { jobRoleLevelName: string; jobRoleLevelLevel: string })[]) => void
     ) => {
       if (!id) return;
@@ -699,18 +700,54 @@ export function useTalentDetailOperations() {
         alert('⚠️ Vui lòng chọn vị trí để xóa!');
         return;
       }
-      const confirm = window.confirm(`⚠️ Bạn có chắc muốn xóa ${selectedJobRoleLevels.length} vị trí đã chọn?`);
+
+      // Kiểm tra xem các jobrolelevel name có đang được sử dụng trong CV không
+      const jobRoleLevelsData = await talentJobRoleLevelService.getAll({
+        talentId: Number(id),
+        excludeDeleted: true,
+      });
+      const allJobRoleLevels = await jobRoleLevelService.getAll({ excludeDeleted: true });
+
+      // Lấy danh sách jobrolelevel name từ các jobrolelevel được chọn
+      const selectedJobRoleLevelNames = selectedJobRoleLevels
+        .map((jrlId: number) => {
+          const jrl = jobRoleLevelsData.find((item: TalentJobRoleLevel) => item.id === jrlId);
+          if (!jrl) return null;
+          const jobRoleLevelInfo = allJobRoleLevels.find((j: JobRoleLevel) => j.id === jrl.jobRoleLevelId);
+          return jobRoleLevelInfo?.name;
+        })
+        .filter(name => name && name.trim() !== '')
+        .filter((name, index, self) => self.indexOf(name) === index); // Unique names
+
+      // Kiểm tra xem có CV nào sử dụng các jobrolelevel name này không
+      const usedInCVs: string[] = [];
+      if (Array.isArray(talentCVs)) {
+        selectedJobRoleLevelNames.forEach(name => {
+          const cvUsingThisName = talentCVs.find(cv => cv.jobRoleLevelName === name);
+          if (cvUsingThisName) {
+            usedInCVs.push(name);
+          }
+        });
+      }
+
+      let confirmMessage = `⚠️ Bạn có chắc muốn xóa ${selectedJobRoleLevels.length} vị trí đã chọn?\n\nHiện tại CV có vị trí này.`;
+
+      if (usedInCVs.length > 0) {
+        confirmMessage = `⚠️ CẢNH BÁO: Các vị trí sau đang được sử dụng trong CV:\n${usedInCVs.map(name => `• ${name}`).join('\n')}\n\nBạn có chắc muốn xóa ${selectedJobRoleLevels.length} vị trí đã chọn?`;
+      }
+
+      const confirm = window.confirm(confirmMessage);
       if (!confirm) return;
+
       try {
         await Promise.all(selectedJobRoleLevels.map((jrlId) => talentJobRoleLevelService.deleteById(jrlId)));
         alert('✅ Đã xóa vị trí thành công!');
         setSelectedJobRoleLevels([]);
-        const jobRoleLevelsData = await talentJobRoleLevelService.getAll({
+        const updatedJobRoleLevelsData = await talentJobRoleLevelService.getAll({
           talentId: Number(id),
           excludeDeleted: true,
         });
-        const allJobRoleLevels = await jobRoleLevelService.getAll({ excludeDeleted: true });
-        const jobRoleLevelsWithNames = jobRoleLevelsData.map((jrl: TalentJobRoleLevel) => {
+        const jobRoleLevelsWithNames = updatedJobRoleLevelsData.map((jrl: TalentJobRoleLevel) => {
           const jobRoleLevelInfo = allJobRoleLevels.find((j: JobRoleLevel) => j.id === jrl.jobRoleLevelId);
           if (!jobRoleLevelInfo) {
             return { ...jrl, jobRoleLevelName: 'Unknown Level', jobRoleLevelLevel: '—' };
@@ -718,7 +755,9 @@ export function useTalentDetailOperations() {
           const levelText = getLevelText(jobRoleLevelInfo.level);
           return { ...jrl, jobRoleLevelName: jobRoleLevelInfo.name || '—', jobRoleLevelLevel: levelText };
         });
-        onSuccess(jobRoleLevelsWithNames);
+        if (typeof onSuccess === 'function') {
+          onSuccess(jobRoleLevelsWithNames);
+        }
       } catch (err) {
         console.error('❌ Lỗi khi xóa vị trí:', err);
         alert('Không thể xóa vị trí!');

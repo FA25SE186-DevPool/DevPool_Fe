@@ -477,8 +477,8 @@ export function TalentSkillEditModal({
                     className="w-full border border-neutral-200 rounded-xl px-4 py-3 focus:border-primary-500 focus:ring-primary-500 bg-white"
                   >
                     <option value="">-- Chọn trình độ --</option>
-                    <option value="Beginner">Mới bắt đầu</option>
-                    <option value="Intermediate">Trung bình</option>
+                    <option value="Beginner">Cơ bản</option>
+                    <option value="Intermediate">Trung cấp</option>
                     <option value="Advanced">Nâng cao</option>
                     <option value="Expert">Chuyên gia</option>
                   </select>

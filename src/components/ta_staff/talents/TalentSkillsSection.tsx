@@ -348,8 +348,8 @@ export function TalentSkillsSection({
                       onChange={(e) => onUpdate(globalIndex, 'level', e.target.value)}
                       className="w-full px-3 py-2 text-sm text-neutral-700 border border-neutral-300 rounded-lg bg-white focus:border-primary-500 focus:ring-primary-500"
                     >
-                      <option value="Beginner">Mới bắt đầu</option>
-                      <option value="Intermediate">Trung bình</option>
+                      <option value="Beginner">Cơ bản</option>
+                      <option value="Intermediate">Trung cấp</option>
                       <option value="Advanced">Nâng cao</option>
                       <option value="Expert">Chuyên gia</option>
                     </select>

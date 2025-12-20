@@ -5,7 +5,8 @@ import { talentService, type Talent, type HandoverTalentRequest } from "../../..
 import { userService, type User } from "../../../services/User";
 import { talentStaffAssignmentService, type TalentStaffAssignment, AssignmentResponsibility } from "../../../services/TalentStaffAssignment";
 import { jobRequestService, type OwnershipTransferModel, type JobRequest } from "../../../services/JobRequest";
-import { talentApplicationService, type TalentApplication, type BulkApplicationOwnershipTransferModel } from "../../../services/TalentApplication";
+import { talentApplicationService, type BulkApplicationOwnershipTransferModel } from "../../../services/TalentApplication";
+import { applyService, type Apply } from "../../../services/Apply";
 import { talentCVService } from "../../../services/TalentCV";
 import { jobRoleLevelService } from "../../../services/JobRoleLevel";
 import {
@@ -83,8 +84,8 @@ export default function HandoverAssignmentPage() {
   const [jobRequestStatusFilter, setJobRequestStatusFilter] = useState<"all" | "pending" | "approved" | "rejected" | "closed">("all");
 
   // Hồ sơ ứng tuyển transfer states
-  const [talentApplications, setTalentApplications] = useState<TalentApplication[]>([]);
-  const [filteredTalentApplications, setFilteredTalentApplications] = useState<TalentApplication[]>([]);
+  const [talentApplications, setTalentApplications] = useState<Apply[]>([]);
+  const [filteredTalentApplications, setFilteredTalentApplications] = useState<Apply[]>([]);
   const [selectedTalentApplicationIds, setSelectedTalentApplicationIds] = useState<number[]>([]);
   const [applicationTransferToUserId, setApplicationTransferToUserId] = useState<string>("");
   const [applicationTransferReason, setApplicationTransferReason] = useState<string>("");
@@ -92,6 +93,7 @@ export default function HandoverAssignmentPage() {
   const [selectedJobRequestFilter, setSelectedJobRequestFilter] = useState<string>("");
   const [jobRequestFilterSearch, setJobRequestFilterSearch] = useState<string>("");
   const [isJobRequestDropdownOpen, setIsJobRequestDropdownOpen] = useState<boolean>(false);
+  const [talentApplicationStatusFilter, setTalentApplicationStatusFilter] = useState<string>("all");
 
   // Cache for submittedBy names (userId -> userName)
   const [submittedByNames, setSubmittedByNames] = useState<Record<string, string>>({});
@@ -101,6 +103,9 @@ export default function HandoverAssignmentPage() {
 
   // Cache for CV job role level names (cvId -> jobRoleLevelName)
   const [cvJobRoleNames, setCvJobRoleNames] = useState<Record<number, string>>({});
+
+  // Cache for talent names (cvId -> talentName)
+  const [talentNames, setTalentNames] = useState<Record<number, string>>({});
 
   // Helper function to ensure data is an array
   const ensureArray = <T,>(data: unknown): T[] => {
@@ -130,7 +135,7 @@ export default function HandoverAssignmentPage() {
             excludeDeleted: true 
           }),
           jobRequestService.getAll({ excludeDeleted: false }),
-          talentApplicationService.getAll({ excludeDeleted: true }),
+          applyService.getAll(),
         ]);
 
         // Ensure all data are arrays - handle PagedResult with Items/items or direct array
@@ -138,7 +143,7 @@ export default function HandoverAssignmentPage() {
         const usersArray = ensureArray<User>(usersData);
         const assignmentsArray = ensureArray<TalentStaffAssignment>(assignmentsData);
         const jobRequestsArray = ensureArray<JobRequest>(jobRequestsData);
-        const applicationsArray = ensureArray<TalentApplication>(applicationsData);
+        const applicationsArray = ensureArray<Apply>(applicationsData);
 
         // Data processing
 
@@ -269,9 +274,15 @@ export default function HandoverAssignmentPage() {
       console.log('After job request filter:', filtered.length, 'jobRequestId:', selectedJobRequestFilter);
     }
 
+    // Filter by status
+    if (talentApplicationStatusFilter !== "all") {
+      filtered = filtered.filter(application => application.status === talentApplicationStatusFilter);
+      console.log('After status filter:', filtered.length, 'status:', talentApplicationStatusFilter);
+    }
+
     console.log('Final filtered applications:', filtered);
     setFilteredTalentApplications(filtered);
-  }, [selectedJobRequestFilter, talentApplications]);
+  }, [selectedJobRequestFilter, talentApplications, talentApplicationStatusFilter]);
 
   // Fetch names when talent applications change
   useEffect(() => {
@@ -299,6 +310,13 @@ export default function HandoverAssignmentPage() {
           await getCvJobRoleNameById(cvId);
         }
       }
+
+      // Fetch talent names
+      for (const cvId of uniqueCvIds) {
+        if (!talentNames[cvId]) {
+          await getTalentNameByCvId(cvId);
+        }
+      }
     };
 
     if (talentApplications.length > 0) {
@@ -317,6 +335,7 @@ export default function HandoverAssignmentPage() {
       setApplicationTransferToUserId("");
       setApplicationTransferReason("");
       setIsTalentApplicationPopupOpen(false);
+      setTalentApplicationStatusFilter("all");
     } else if (activeTab === "jobrequest") {
       setSelectedTalentId(null);
       setSelectedToUserId("");
@@ -326,6 +345,7 @@ export default function HandoverAssignmentPage() {
       setApplicationTransferToUserId("");
       setApplicationTransferReason("");
       setIsTalentApplicationPopupOpen(false);
+      setTalentApplicationStatusFilter("all");
       // Reset job request status filter to "all" when switching to job request tab
       setJobRequestStatusFilter("all");
     } else if (activeTab === "talentapplication") {
@@ -475,7 +495,7 @@ export default function HandoverAssignmentPage() {
 
       // Refresh talent applications
       const applicationsData = await talentApplicationService.getAll({ excludeDeleted: true });
-      const applicationsArray = ensureArray<TalentApplication>(applicationsData);
+      const applicationsArray = ensureArray<Apply>(applicationsData);
       setTalentApplications(applicationsArray);
     } catch (err: any) {
       console.error("❌ Lỗi khi chuyển nhượng:", err);
@@ -514,10 +534,10 @@ export default function HandoverAssignmentPage() {
 
   // Get display text for selected job request
   const getJobRequestDisplayText = () => {
-    if (!selectedJobRequestFilter) return "Tất cả yêu cầu tuyển dụng";
+    if (!selectedJobRequestFilter) return "Chọn yêu cầu tuyển dụng";
 
     const selectedJobRequest = jobRequests.find(jr => jr.id.toString() === selectedJobRequestFilter);
-    return selectedJobRequest ? `${selectedJobRequest.title} (#${selectedJobRequest.code})` : "Tất cả yêu cầu tuyển dụng";
+    return selectedJobRequest ? `${selectedJobRequest.title} (#${selectedJobRequest.code})` : "Chọn yêu cầu tuyển dụng";
   };
 
   // Get display text for selected sales
@@ -602,6 +622,30 @@ export default function HandoverAssignmentPage() {
     } catch (error) {
       console.error('Error getting CV job role name:', error);
       return `CV ${cvId}`; // Fallback
+    }
+  };
+
+  // Function to get talent name by CV ID
+  const getTalentNameByCvId = async (cvId: number) => {
+    if (talentNames[cvId]) {
+      return talentNames[cvId];
+    }
+
+    try {
+      // Get CV details first to get talentId
+      const cv = await talentCVService.getById(cvId);
+      if (cv.talentId) {
+        // Then get talent name
+        const talent = await talentService.getById(cv.talentId);
+        const talentName = talent.fullName || talent.email || `Talent ${cv.talentId}`;
+        setTalentNames(prev => ({ ...prev, [cvId]: talentName }));
+        return talentName;
+      }
+
+      return `Talent #${cvId}`; // Fallback if no talent
+    } catch (error) {
+      console.error('Error getting talent name:', error);
+      return `Talent #${cvId}`; // Fallback
     }
   };
   const currentTaUserId = selectedTalentId ? talentToTaMap.get(selectedTalentId) : null;
@@ -993,11 +1037,28 @@ export default function HandoverAssignmentPage() {
                                 </p>
                               </div>
                             )}
-                            {availableTaStaff.length > 0 && (
-                              <p className="text-xs text-gray-500 mt-1">
-                                Có {availableTaStaff.length} TA khả dụng
-                              </p>
-                            )}
+                            {(() => {
+                              // Get current TA for selected talent
+                              const currentTaName = selectedTalentId && currentTa ? currentTa.fullName : null;
+
+                              if (currentTaName) {
+                                return (
+                                  <p className="text-xs text-blue-600 mt-1">
+                                    👤 Người phụ trách hiện tại: {currentTaName}
+                                  </p>
+                                );
+                              }
+
+                              if (availableTaStaff.length > 0) {
+                                return (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Có {availableTaStaff.length} TA khả dụng
+                                  </p>
+                                );
+                              }
+
+                              return null;
+                            })()}
                           </div>
                         </>
                       ) : (
@@ -1018,9 +1079,9 @@ export default function HandoverAssignmentPage() {
                   {/* Talent Selection Popup */}
                   {isTalentPopupOpen && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+                      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
                         {/* Header */}
-                        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
                           <div className="flex items-center gap-3">
                             <div className="p-2 bg-blue-100 rounded-lg">
                               <Users className="w-5 h-5 text-blue-600" />
@@ -1044,7 +1105,7 @@ export default function HandoverAssignmentPage() {
                         </div>
 
                         {/* Content */}
-                        <div className="px-6 py-4">
+                        <div className="flex-1 px-6 py-4 overflow-y-auto">
                           {/* Filters */}
                           <div className="space-y-4 mb-6">
                       {/* Filter by TA */}
@@ -1088,18 +1149,18 @@ export default function HandoverAssignmentPage() {
 
                       {/* Talent List */}
                       <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                        <label className="block text-sm font-medium text-gray-700">
-                                Danh sách nhân sự
-                        </label>
-                              <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                                {filteredTalents.length} / {talents.length}
-                              </span>
-                            </div>
-                        <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-lg bg-white">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-sm font-medium text-gray-700">
+                            Danh sách nhân sự
+                          </label>
+                          <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                            {filteredTalents.length} / {talents.length}
+                          </span>
+                        </div>
+                        <div className="border border-gray-200 rounded-lg bg-white">
                           {filteredTalents.length === 0 ? (
                             <div className="p-8 text-center text-gray-500">
-                                  <p className="text-sm">Không tìm thấy nhân sự nào</p>
+                              <p className="text-sm">Không tìm thấy nhân sự nào</p>
                               <p className="text-xs mt-1">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
                             </div>
                           ) : (
@@ -1113,10 +1174,10 @@ export default function HandoverAssignmentPage() {
                                   <button
                                     key={talent.id}
                                     type="button"
-                                        onClick={() => {
-                                          setSelectedTalentId(talent.id);
-                                          setIsTalentPopupOpen(false);
-                                        }}
+                                    onClick={() => {
+                                      setSelectedTalentId(talent.id);
+                                      setIsTalentPopupOpen(false);
+                                    }}
                                     className={`w-full p-4 text-left hover:bg-blue-50 transition-all ${
                                       isSelected
                                         ? "bg-blue-50 border-l-4 border-blue-500 shadow-sm"
@@ -1496,14 +1557,28 @@ export default function HandoverAssignmentPage() {
                                 </div>
                               )}
                             </div>
-                              <p className="text-xs text-gray-500 mt-1">
-                                Có {(() => {
-                                  const selectedJobRequest = jobRequests.find(jr => jr.id === selectedJobRequestId);
-                                  return salesStaff.filter((user) => {
-                                    return !selectedJobRequest || user.id !== selectedJobRequest.ownerId;
-                                  }).length;
-                                })()} Sales khả dụng
-                              </p>
+                              {(() => {
+                                const selectedJobRequest = jobRequests.find(jr => jr.id === selectedJobRequestId);
+                                const currentOwner = selectedJobRequest?.ownerName;
+
+                                if (currentOwner) {
+                                  return (
+                                    <p className="text-xs text-blue-600 mt-1">
+                                      👤 Người phụ trách hiện tại: {currentOwner}
+                                    </p>
+                                  );
+                                }
+
+                                return (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Có {(() => {
+                                      return salesStaff.filter((user) => {
+                                        return !selectedJobRequest || user.id !== selectedJobRequest.ownerId;
+                                      }).length;
+                                    })()} Sales khả dụng
+                                  </p>
+                                );
+                              })()}
                               </div>
                             </>
                           ) : (
@@ -1558,10 +1633,10 @@ export default function HandoverAssignmentPage() {
 
                       {/* Job Request Selection Popup */}
                       {isJobRequestPopupOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4" style={{ display: 'flex' }}>
-                              <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden">
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
+                              <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col">
                             {/* Header */}
-                            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
                               <div className="flex items-center gap-3">
                                 <div className="p-2 bg-green-100 rounded-lg">
                                   <FileText className="w-5 h-5 text-green-600" />
@@ -1585,7 +1660,7 @@ export default function HandoverAssignmentPage() {
                             </div>
 
                             {/* Content */}
-                            <div className="px-6 py-4">
+                            <div className="flex-1 px-6 py-4 overflow-y-auto">
                               {/* Search Job Request */}
                               <div className="space-y-2 mb-6">
                                 <label className="block text-sm font-medium text-gray-700">
@@ -1685,7 +1760,7 @@ export default function HandoverAssignmentPage() {
                                     {filteredJobRequests.length} / {jobRequests.length}
                                   </span>
                                 </div>
-                                <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-lg bg-white">
+                                <div className="border border-gray-200 rounded-lg bg-white">
                                   {filteredJobRequests.length === 0 ? (
                                     <div className="p-8 text-center text-gray-500">
                                       <p className="text-sm">Không tìm thấy yêu cầu tuyển dụng nào</p>
@@ -1852,12 +1927,28 @@ export default function HandoverAssignmentPage() {
                                       <p className="text-xs text-purple-700 font-medium mb-1">
                                         Hồ sơ ứng tuyển đã chọn
                                       </p>
-                                      <p className="font-medium text-purple-900">
-                                        {selectedTalentApplicationIds.length} hồ sơ ứng tuyển
-                                      </p>
-                                      <p className="text-sm text-purple-700 mt-1">
-                                        ID: {selectedTalentApplicationIds.join(', ')}
-                                      </p>
+                                      {selectedTalentApplicationIds.length === 1 ? (
+                                        (() => {
+                                          const selectedApp = talentApplications.find(app => app.id === selectedTalentApplicationIds[0]);
+                                          const talentName = selectedApp ? talentNames[selectedApp.cvId] || `Talent #${selectedApp.cvId}` : `Hồ sơ #${selectedTalentApplicationIds[0]}`;
+                                          return (
+                                            <>
+                                              <p className="font-medium text-purple-900">
+                                                Hồ sơ #{talentName}
+                                              </p>
+                                            </>
+                                          );
+                                        })()
+                                      ) : (
+                                        <>
+                                          <p className="font-medium text-purple-900">
+                                            {selectedTalentApplicationIds.length} hồ sơ ứng tuyển
+                                          </p>
+                                          <p className="text-sm text-purple-700 mt-1">
+                                            ID: {selectedTalentApplicationIds.join(', ')}
+                                          </p>
+                                        </>
+                                      )}
                                     </div>
                                     <button
                                       type="button"
@@ -1993,11 +2084,21 @@ export default function HandoverAssignmentPage() {
                                           Chọn TA
                                         </button>
                                         {taStaff
-                                          .filter((ta) =>
-                                            !applicationTaSearch ||
-                                            ta.fullName.toLowerCase().includes(applicationTaSearch.toLowerCase()) ||
-                                            ta.email.toLowerCase().includes(applicationTaSearch.toLowerCase())
-                                          )
+                                          .filter((ta) => {
+                                            // Lọc theo search term
+                                            const matchesSearch = !applicationTaSearch ||
+                                              ta.fullName.toLowerCase().includes(applicationTaSearch.toLowerCase()) ||
+                                              ta.email.toLowerCase().includes(applicationTaSearch.toLowerCase());
+
+                                            // Lọc bỏ những TA đang phụ trách hồ sơ đã chọn
+                                            const selectedApplications = talentApplications.filter(app =>
+                                              selectedTalentApplicationIds.includes(app.id)
+                                            );
+                                            const currentRecruiterIds = selectedApplications.map(app => app.recruiterId);
+                                            const isNotCurrentRecruiter = !currentRecruiterIds.includes(ta.id);
+
+                                            return matchesSearch && isNotCurrentRecruiter;
+                                          })
                                           .map((ta) => (
                                             <button
                                               key={ta.id}
@@ -2023,9 +2124,28 @@ export default function HandoverAssignmentPage() {
                                     </div>
                                   )}
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Có {taStaff.length} TA khả dụng
-                                </p>
+                                {(() => {
+                                  const selectedApps = talentApplications.filter(app =>
+                                    selectedTalentApplicationIds.includes(app.id)
+                                  );
+                                  const currentRecruiters = selectedApps
+                                    .map(app => app.recruiterName)
+                                    .filter(name => name)
+                                    .filter((name, index, arr) => arr.indexOf(name) === index); // unique names
+
+                                  if (currentRecruiters.length > 0) {
+                                    return (
+                                      <p className="text-xs text-blue-600 mt-1">
+                                        👤 Người phụ trách hiện tại: {currentRecruiters.join(', ')}
+                                      </p>
+                                    );
+                                  }
+                                  return (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      Có {taStaff.length} TA khả dụng
+                                    </p>
+                                  );
+                                })()}
                           </div>
                         </>
                       ) : (
@@ -2046,40 +2166,41 @@ export default function HandoverAssignmentPage() {
                       {/* Talent Application Selection Popup */}
                       {isTalentApplicationPopupOpen && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl animate-fade-in overflow-hidden border border-neutral-200">
+                          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl animate-fade-in border border-neutral-200 flex flex-col max-h-[90vh]">
                             {/* Header */}
-                            <div className="px-6 py-4 border-b border-neutral-200 bg-gradient-to-r from-neutral-50 to-purple-50 flex items-start justify-between gap-4">
+                            <div className="px-6 py-4 border-b border-neutral-200 bg-gradient-to-r from-neutral-50 to-purple-50 flex items-start justify-between gap-4 flex-shrink-0">
                               <div className="min-w-0">
                                 <h3 className="text-base font-semibold text-neutral-900">Chọn hồ sơ ứng tuyển</h3>
                                 <p className="text-sm text-gray-500 mt-1">Chọn các hồ sơ ứng tuyển cần bàn giao quản lý</p>
-                      </div>
+                              </div>
                               <button type="button" onClick={() => {
                                 setTempSelectedTalentApplicationIds([...selectedTalentApplicationIds]);
                                 setIsTalentApplicationPopupOpen(false);
+                                setTalentApplicationStatusFilter("all");
                               }} className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-neutral-600 hover:bg-neutral-100" aria-label="Đóng" title="Đóng">
                                 <X className="w-5 h-5" />
                               </button>
                             </div>
 
                             {/* Filter by Job Request */}
-                            <div className="px-6 py-4 border-b border-gray-200">
+                            <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0">
                               <div className="space-y-3">
-                                <label className="block text-sm font-medium text-gray-700">
+                                {/* <label className="block text-sm font-medium text-gray-700">
                                   <Filter className="w-4 h-4 inline mr-1" />
-                                  Lọc theo yêu cầu tuyển dụng (đã duyệt)
-                                </label>
+                                  Chọn yêu cầu tuyển dụng
+                                </label> */}
 
                                 {/* Dropdown Button */}
                                 <div className="relative">
                                   <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
-                      <button
-                        type="button"
+                                  <button
+                                    type="button"
                                     onClick={() => setIsJobRequestDropdownOpen(!isJobRequestDropdownOpen)}
                                     className="w-full flex items-center justify-between pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white text-left hover:border-purple-300 transition-colors text-sm"
-                      >
+                                  >
                                     <span className="text-gray-700">{getJobRequestDisplayText()}</span>
                                     <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isJobRequestDropdownOpen ? 'rotate-180' : ''}`} />
-                      </button>
+                                  </button>
 
                                   {/* Dropdown Popup */}
                                   {isJobRequestDropdownOpen && (
@@ -2119,7 +2240,7 @@ export default function HandoverAssignmentPage() {
                                               : 'hover:bg-gray-50 text-gray-700'
                                           }`}
                                         >
-                                          Tất cả yêu cầu tuyển dụng
+                                          Tất cả
                                         </button>
 
                                         {filteredJobRequestsForDropdown.map((jobRequest) => (
@@ -2150,9 +2271,79 @@ export default function HandoverAssignmentPage() {
                               </div>
                             </div>
 
+                            {/* Status Filter Tabs - Only show when job request is selected */}
+                            {selectedJobRequestFilter && (
+                              <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0">
+                                <div className="flex gap-2 border-b border-gray-200">
+                                <button
+                                  onClick={() => setTalentApplicationStatusFilter("all")}
+                                  className={`px-4 py-2 font-medium text-sm transition-all duration-300 border-b-2 ${
+                                    talentApplicationStatusFilter === "all"
+                                      ? "border-blue-600 text-blue-600 bg-blue-50"
+                                      : "border-transparent text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                                  }`}
+                                >
+                                  Tất cả
+                                  <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-gray-200 text-gray-700">
+                                    {filteredTalentApplications.length}
+                                  </span>
+                                </button>
+                                <button
+                                  onClick={() => setTalentApplicationStatusFilter("Submitted")}
+                                  className={`px-4 py-2 font-medium text-sm transition-all duration-300 border-b-2 ${
+                                    talentApplicationStatusFilter === "Submitted"
+                                      ? "border-sky-600 text-sky-600 bg-sky-50"
+                                      : "border-transparent text-gray-600 hover:text-sky-600 hover:bg-sky-50"
+                                  }`}
+                                >
+                                  Đã nộp
+                                  <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-sky-200 text-sky-700">
+                                    {filteredTalentApplications.filter(app => app.status === "Submitted").length}
+                                  </span>
+                                </button>
+                                <button
+                                  onClick={() => setTalentApplicationStatusFilter("Interviewing")}
+                                  className={`px-4 py-2 font-medium text-sm transition-all duration-300 border-b-2 ${
+                                    talentApplicationStatusFilter === "Interviewing"
+                                      ? "border-cyan-600 text-cyan-600 bg-cyan-50"
+                                      : "border-transparent text-gray-600 hover:text-cyan-600 hover:bg-cyan-50"
+                                  }`}
+                                >
+                                  Phỏng vấn
+                                  <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-cyan-200 text-cyan-700">
+                                    {filteredTalentApplications.filter(app => app.status === "Interviewing").length}
+                                  </span>
+                                </button>
+                                <button
+                                  onClick={() => setTalentApplicationStatusFilter("Hired")}
+                                  className={`px-4 py-2 font-medium text-sm transition-all duration-300 border-b-2 ${
+                                    talentApplicationStatusFilter === "Hired"
+                                      ? "border-purple-600 text-purple-600 bg-purple-50"
+                                      : "border-transparent text-gray-600 hover:text-purple-600 hover:bg-purple-50"
+                                  }`}
+                                >
+                                  Đã tuyển
+                                  <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-purple-200 text-purple-700">
+                                    {filteredTalentApplications.filter(app => app.status === "Hired").length}
+                                  </span>
+                                </button>
+                              </div>
+                            </div>
+                            )}
+
                             {/* Content */}
-                            <div className="max-h-96 overflow-y-auto">
-                              {filteredTalentApplications.length === 0 ? (
+                            <div className="flex-1 overflow-y-auto">
+                              {!selectedJobRequestFilter ? (
+                                <div className="p-8 text-center text-gray-500">
+                                  <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                  <p className="text-lg font-medium text-gray-700 mb-2">
+                                    Vui lòng chọn yêu cầu tuyển dụng trước
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    Chọn job request ở trên để xem danh sách hồ sơ ứng tuyển
+                                  </p>
+                                </div>
+                              ) : filteredTalentApplications.length === 0 ? (
                                 <div className="p-8 text-center text-gray-500">
                                   <p className="text-sm">Không tìm thấy hồ sơ ứng tuyển nào</p>
                                   <p className="text-xs mt-1">Thử thay đổi từ khóa tìm kiếm</p>
@@ -2165,27 +2356,33 @@ export default function HandoverAssignmentPage() {
                                     return (
                                       <div
                                         key={application.id}
-                                        className={`p-4 hover:bg-gray-50 ${
+                                        className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
                                           isSelected ? 'bg-purple-50 border-l-4 border-purple-500' : ''
                                         }`}
+                                        onClick={() => {
+                                          if (tempSelectedTalentApplicationIds.includes(application.id)) {
+                                            setTempSelectedTalentApplicationIds(prev => prev.filter(id => id !== application.id));
+                                          } else {
+                                            setTempSelectedTalentApplicationIds(prev => [...prev, application.id]);
+                                          }
+                                        }}
                                       >
                                         <div className="flex items-center justify-between">
                                           <div className="flex items-center gap-3">
-                                            <input
-                                              type="checkbox"
-                                              checked={tempSelectedTalentApplicationIds.includes(application.id)}
-                                              onChange={(e) => {
-                                                if (e.target.checked) {
-                                                  setTempSelectedTalentApplicationIds(prev => [...prev, application.id]);
-                                                } else {
-                                                  setTempSelectedTalentApplicationIds(prev => prev.filter(id => id !== application.id));
-                                                }
-                                              }}
-                                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                                            />
+                                            <div
+                                              className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                                                tempSelectedTalentApplicationIds.includes(application.id)
+                                                  ? 'bg-purple-600 border-purple-600'
+                                                  : 'border-gray-300'
+                                              }`}
+                                            >
+                                              {tempSelectedTalentApplicationIds.includes(application.id) && (
+                                                <CheckCircle2 className="w-3 h-3 text-white" />
+                                              )}
+                                            </div>
                                             <div>
                                               <p className="font-medium text-gray-900">
-                                                Hồ sơ #{application.id}
+                                                Hồ sơ #{talentNames[application.cvId] || `Talent #${application.cvId}`}
                                               </p>
                                               <p className="text-sm text-gray-500">
                                                 Job Request: {jobRequestNames[application.jobRequestId] || `Job Request ${application.jobRequestId}`} | CV: {cvJobRoleNames[application.cvId] || `CV ${application.cvId}`}
@@ -2193,12 +2390,12 @@ export default function HandoverAssignmentPage() {
                                               <p className="text-xs text-gray-400 mt-1">
                                                 Trạng thái: {getTalentApplicationStatusText(application.status)} | {new Date(application.createdAt).toLocaleDateString('vi-VN')}
                                               </p>
-                                              {application.submittedBy && (
+                                              {application.recruiterName && (
                                                 <p className="text-xs text-purple-600 mt-1">
-                                                  Người nộp: {submittedByNames[application.submittedBy] || application.submittedBy}
+                                                  Người phụ trách: {application.recruiterName}
                                                 </p>
                                               )}
-                      </div>
+                                            </div>
                                           </div>
                                           {isSelected && (
                                             <CheckCircle2 className="w-5 h-5 text-purple-600" />
@@ -2212,13 +2409,14 @@ export default function HandoverAssignmentPage() {
                             </div>
 
                             {/* Footer */}
-                            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">
+                            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50 flex-shrink-0">
                               <Button
                         type="button"
                                 variant="outline"
                                 onClick={() => {
                                   setTempSelectedTalentApplicationIds([...selectedTalentApplicationIds]);
                                   setIsTalentApplicationPopupOpen(false);
+                                  setTalentApplicationStatusFilter("all");
                                 }}
                               >
                                 Đóng
