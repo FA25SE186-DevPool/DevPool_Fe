@@ -20,7 +20,7 @@ export default function Footer() {
               <span className="font-bold text-xl">DevPool</span>
             </div>
             <p className="text-gray-300">
-              Nền tảng kết nối doanh nghiệp với chuyên gia IT hàng đầu Việt Nam.
+              Nền tảng kết nối doanh nghiệp với nhân sự DevPool hàng đầu Việt Nam.
               Giải pháp tuyển dụng thông minh cho thời đại số.
             </p>
             <div className="flex space-x-4">

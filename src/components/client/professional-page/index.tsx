@@ -9,6 +9,7 @@ import { skillService } from "../../../services/Skill";
 import { locationService } from "../../../services/location";
 import { jobRoleLevelService } from "../../../services/JobRoleLevel";
 import { jobRoleService } from "../../../services/JobRole";
+import { partnerService } from "../../../services/Partner";
 import type { Professional } from "./types";
 
 // Helper functions for filter
@@ -31,7 +32,7 @@ const formatStatusForFilter = (status: string): string => {
         'Working': 'Đang làm việc',
         'Available': 'Sẵn sàng',
         'Busy': 'Bận',
-        'Unavailable': 'Không rảnh',
+        'Unavailable': 'Tạm ngưng',
     };
     return statusMap[status] || status;
 };
@@ -45,12 +46,18 @@ export default function ProfessionalClientPage() {
     const [selectedLocation, setSelectedLocation] = useState("Tất cả");
     const [selectedWorkingMode, setSelectedWorkingMode] = useState("Tất cả");
     const [selectedStatus, setSelectedStatus] = useState("Tất cả");
-    const [selectedExperience, setSelectedExperience] = useState("Tất cả");
     const [showFilters, setShowFilters] = useState(false);
     const [favorites, setFavorites] = useState<Set<string>>(new Set());
     const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
     const [selectedForContact, setSelectedForContact] = useState<Set<string>>(new Set());
     const [sortBy, setSortBy] = useState("projects");
+    const [displayCount, setDisplayCount] = useState(9); // Hiển thị 9 items ban đầu
+    const [devpoolPartnerId, setDevpoolPartnerId] = useState<number | null>(null);
+
+    // Load more function - thêm 3 items mỗi lần nhấn
+    const loadMore = () => {
+        setDisplayCount(prev => prev + 3);
+    };
 
     // Load favorites từ localStorage khi component mount
     useEffect(() => {
@@ -65,6 +72,42 @@ export default function ProfessionalClientPage() {
         }
     }, []);
 
+    // Fetch DEVPOOL partner ID
+    useEffect(() => {
+        const fetchDevpoolPartner = async () => {
+            try {
+                const partners = await partnerService.getAll({ excludeDeleted: true });
+                let partnersArray: any[] = [];
+
+                if (Array.isArray(partners)) {
+                    partnersArray = partners;
+                } else if (partners && typeof partners === 'object') {
+                    const obj = partners as any;
+                    if (obj.data && Array.isArray(obj.data)) {
+                        partnersArray = obj.data;
+                    } else if (obj.items && Array.isArray(obj.items)) {
+                        partnersArray = obj.items;
+                    }
+                }
+
+                const devpoolPartner = partnersArray.find((partner: any) =>
+                    partner.code === 'DEVPOOL' || partner.code?.toUpperCase() === 'DEVPOOL'
+                );
+
+                if (devpoolPartner) {
+                    console.log("✅ Tìm thấy partner DEVPOOL:", devpoolPartner);
+                    setDevpoolPartnerId(devpoolPartner.id);
+                } else {
+                    console.warn("⚠️ Không tìm thấy partner có code DEVPOOL. Danh sách partners:", partnersArray);
+                }
+            } catch (error) {
+                console.error("❌ Lỗi khi tải partner DEVPOOL:", error);
+            }
+        };
+
+        fetchDevpoolPartner();
+    }, []);
+
     // Fetch data from API
     useEffect(() => {
         const fetchData = async () => {
@@ -72,9 +115,32 @@ export default function ProfessionalClientPage() {
                 setLoading(true);
                 setError("");
 
-                // Fetch talents with detailed data
-                const talentsData = await talentService.getAllDetailed({ excludeDeleted: true });
-                
+                // Fetch talents with detailed data and basic talent info for codes
+                const [talentsData, talentsBasicData] = await Promise.all([
+                    talentService.getAllDetailed({ excludeDeleted: true }),
+                    talentService.getAll({ excludeDeleted: true, pageSize: 1000 }) // Get more data to ensure we have codes
+                ]);
+
+                // Create code mapping from basic talent data
+                const talentCodeMap = new Map<number, string>();
+                let talentsBasicArray: any[] = [];
+
+                if (Array.isArray(talentsBasicData)) {
+                    talentsBasicArray = talentsBasicData;
+                } else if (talentsBasicData && typeof talentsBasicData === 'object') {
+                    if (talentsBasicData.data && Array.isArray(talentsBasicData.data)) {
+                        talentsBasicArray = talentsBasicData.data;
+                    } else if (talentsBasicData.items && Array.isArray(talentsBasicData.items)) {
+                        talentsBasicArray = talentsBasicData.items;
+                    }
+                }
+
+                talentsBasicArray.forEach((talent: any) => {
+                    if (talent.id && talent.code) {
+                        talentCodeMap.set(talent.id, talent.code);
+                    }
+                });
+
                 // Fetch lookup data
                 const [skillsData, locationsData, jobRoleLevelsData, jobRolesData] = await Promise.all([
                     skillService.getAll({ excludeDeleted: true }),
@@ -109,12 +175,25 @@ export default function ProfessionalClientPage() {
                     jobRolesMap.set(jr.id, jr);
                 });
 
+                // Ensure talentsData is an array
+                let talentsArray: any[] = [];
+                if (Array.isArray(talentsData)) {
+                    talentsArray = talentsData;
+                } else if (talentsData && typeof talentsData === 'object') {
+                    const obj = talentsData as any;
+                    if (obj.data && Array.isArray(obj.data)) {
+                        talentsArray = obj.data;
+                    } else if (obj.items && Array.isArray(obj.items)) {
+                        talentsArray = obj.items;
+                    }
+                }
+
                 // Map TalentDetailedModel to Professional
-                const mappedProfessionals: Professional[] = (talentsData || []).map((talent: TalentDetailedModel) => {
-                    // Get location name
-                    const locationName = talent.locationName || 
-                        (talent.locationId ? locationsMap.get(talent.locationId)?.name : null) || 
-                        "—";
+                let mappedProfessionals: Professional[] = talentsArray.map((talent: TalentDetailedModel) => {
+                    // Get location name - return undefined if no location
+                    const locationName = talent.locationName ||
+                        (talent.locationId ? locationsMap.get(talent.locationId)?.name : null) ||
+                        undefined;
 
                     // Get position from jobRoleLevels (first active one)
                     const activeJobRoleLevel = talent.jobRoleLevels?.[0];
@@ -122,7 +201,20 @@ export default function ProfessionalClientPage() {
                     if (activeJobRoleLevel) {
                         const jrl = jobRoleLevelsMap.get(activeJobRoleLevel.jobRoleLevelId);
                         const jr = jrl ? jobRolesMap.get(jrl.jobRoleId) : null;
-                        position = jr ? `${jr.name} - ${jrl.name}` : (jrl?.name || "—");
+
+                        // Convert level enum to display name
+                        let levelDisplay = "—";
+                        if (jrl?.level !== undefined) {
+                            const levelMap: Record<number, string> = {
+                                0: "Junior",
+                                1: "Middle",
+                                2: "Senior",
+                                3: "Lead"
+                            };
+                            levelDisplay = levelMap[jrl.level] || `Level ${jrl.level}`;
+                        }
+
+                        position = jr ? `${jr.name} - ${levelDisplay}` : (jrl?.name || "—");
                     }
 
                     // Map skills
@@ -132,7 +224,7 @@ export default function ProfessionalClientPage() {
                         let level: 'Cơ bản' | 'Khá' | 'Giỏi' | 'Chuyên gia' = 'Cơ bản';
                         if (skill.level) {
                             const levelStr = String(skill.level).toLowerCase();
-                            if (levelStr.includes('expert') || levelStr.includes('senior') || levelStr.includes('chuyên gia')) {
+                            if (levelStr.includes('expert')) {
                                 level = 'Chuyên gia';
                             } else if (levelStr.includes('advanced') || levelStr.includes('giỏi')) {
                                 level = 'Giỏi';
@@ -170,6 +262,20 @@ export default function ProfessionalClientPage() {
                     const avatar = talent.profilePictureUrl || 
                         `https://ui-avatars.com/api/?name=${encodeURIComponent(talent.fullName)}&background=6366f1&color=fff&size=150`;
 
+                    // Try to get code from different sources
+                    let talentCode = talentCodeMap.get(talent.id);
+
+                    // If no code from basic API, try to generate from userId or create a meaningful code
+                    if (!talentCode) {
+                        if (talent.userId) {
+                            // Use userId as base for code
+                            talentCode = `USR${talent.userId.slice(-3).toUpperCase()}`;
+                        } else {
+                            // Fallback to ID-based code
+                            talentCode = `EMP${String(talent.id).padStart(3, '0')}`;
+                        }
+                    }
+
                     return {
                         id: String(talent.id),
                         name: talent.fullName,
@@ -194,11 +300,40 @@ export default function ProfessionalClientPage() {
                         languages: [],
                         certifications: [],
                         responseTime: "< 24 giờ",
-                        successRate: 95
+                        successRate: 95,
+                        code: talentCode // Add real talent code
                     };
                 });
 
-                setProfessionals(mappedProfessionals);
+                // Apply base filters: only DEVPOOL partners and not Unavailable
+                let filteredProfessionals = mappedProfessionals.filter((professional) => {
+                    const talent = talentsArray.find(t => String(t.id) === professional.id);
+
+                    // Filter: Only show talents with DEVPOOL partner
+                    if (devpoolPartnerId !== null && talent?.currentPartnerId !== devpoolPartnerId) {
+                        console.log(`❌ Loại bỏ talent ${professional.name} (ID: ${professional.id}): partner ID ${talent?.currentPartnerId} !== DEVPOOL ID ${devpoolPartnerId}`);
+                        return false;
+                    }
+
+                    // Filter: Exclude talents with Unavailable status
+                    if (professional.availability === 'unavailable') {
+                        console.log(`❌ Loại bỏ talent ${professional.name} (ID: ${professional.id}): availability = ${professional.availability}`);
+                        return false;
+                    }
+
+                    console.log(`✅ Giữ lại talent ${professional.name} (ID: ${professional.id}): partner OK, availability = ${professional.availability}`);
+                    return true;
+                });
+
+                // TEMPORARY: If no DEVPOOL talents found, show all talents (for debugging)
+                if (filteredProfessionals.length === 0 && mappedProfessionals.length > 0) {
+                    console.warn("⚠️ Không có talent DEVPOOL nào. Temporarily showing all talents for debugging...");
+                    filteredProfessionals = mappedProfessionals.filter(professional => professional.availability !== 'unavailable');
+                }
+
+                console.log(`📊 Tổng kết filter: ${mappedProfessionals.length} talent gốc → ${filteredProfessionals.length} talent sau filter DEVPOOL`);
+
+                setProfessionals(filteredProfessionals);
             } catch (err: any) {
                 console.error("❌ Lỗi tải dữ liệu professionals:", err);
                 setError(err.message || "Không thể tải dữ liệu. Vui lòng thử lại sau.");
@@ -208,9 +343,9 @@ export default function ProfessionalClientPage() {
         };
 
         fetchData();
-    }, []);
+    }, [devpoolPartnerId]);
 
-    const filteredProfessionals = useMemo(() => {
+    const allFilteredProfessionals = useMemo(() => {
         const filtered = professionals.filter((professional) => {
             // Filter: Chỉ hiển thị favorites nếu showOnlyFavorites = true
             if (showOnlyFavorites && !favorites.has(professional.id)) {
@@ -219,10 +354,7 @@ export default function ProfessionalClientPage() {
 
             const matchesSearch =
                 professional.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                professional.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                professional.skills.some((skill) =>
-                    skill.name.toLowerCase().includes(searchTerm.toLowerCase())
-                );
+                (professional.code && professional.code.toLowerCase().includes(searchTerm.toLowerCase()));
 
             const matchesLocation =
                 selectedLocation === "Tất cả" ||
@@ -238,25 +370,12 @@ export default function ProfessionalClientPage() {
                 !professional.status ||
                 formatStatusForFilter(professional.status) === selectedStatus;
 
-            const matchesExperience =
-                selectedExperience === "Tất cả" ||
-                (selectedExperience === "1-3 năm" &&
-                    professional.experience >= 1 &&
-                    professional.experience <= 3) ||
-                (selectedExperience === "3-5 năm" &&
-                    professional.experience >= 3 &&
-                    professional.experience <= 5) ||
-                (selectedExperience === "5-8 năm" &&
-                    professional.experience >= 5 &&
-                    professional.experience <= 8) ||
-                (selectedExperience === "8+ năm" && professional.experience >= 8);
 
             return (
                 matchesSearch &&
                 matchesLocation &&
                 matchesWorkingMode &&
-                matchesStatus &&
-                matchesExperience
+                matchesStatus
             );
         });
 
@@ -273,8 +392,6 @@ export default function ProfessionalClientPage() {
             switch (sortBy) {
                 case "name":
                     return a.name.localeCompare(b.name, 'vi');
-                case "experience":
-                    return b.experience - a.experience;
                 case "projects":
                     return (b.completedProjects || b.workExperiences || 0) - (a.completedProjects || a.workExperiences || 0);
                 case "skills":
@@ -290,12 +407,15 @@ export default function ProfessionalClientPage() {
         selectedLocation,
         selectedWorkingMode,
         selectedStatus,
-        selectedExperience,
-        sortBy,
-        professionals,
-        favorites,
         showOnlyFavorites,
+        favorites,
+        sortBy,
+        professionals
     ]);
+
+    const filteredProfessionals = useMemo(() => {
+        return allFilteredProfessionals.slice(0, displayCount);
+    }, [allFilteredProfessionals, displayCount]);
 
     // Các hàm xử lý sự kiện
     const toggleFavorite = (professionalId: string) => {
@@ -334,11 +454,17 @@ export default function ProfessionalClientPage() {
         setSelectedLocation("Tất cả");
         setSelectedWorkingMode("Tất cả");
         setSelectedStatus("Tất cả");
-        setSelectedExperience("Tất cả");
         setSearchTerm("");
         setShowOnlyFavorites(false);
         setSelectedForContact(new Set());
     };
+
+    // Check if any filters are active
+    const hasActiveFilters = searchTerm !== "" ||
+                            selectedLocation !== "Tất cả" ||
+                            selectedWorkingMode !== "Tất cả" ||
+                            selectedStatus !== "Tất cả" ||
+                            showOnlyFavorites === true;
 
     // Toggle chọn nhân sự để liên hệ
     const toggleSelectForContact = (id: string) => {
@@ -421,7 +547,7 @@ export default function ProfessionalClientPage() {
                 {/* Header */}
                 <div className="text-center mb-12 animate-fade-in-up">
                     <h1 className="text-5xl font-bold leading-normal bg-gradient-to-r from-neutral-900 via-primary-700 to-secondary-700 bg-clip-text text-transparent mb-4">
-                        Tìm Nhân Sự IT
+                        Nhân Sự DevPool
                     </h1>
                     <p className="text-xl text-neutral-600 max-w-3xl mx-auto leading-relaxed">
                         Khám phá các lập trình viên tài năng sẵn sàng tham gia dự án của bạn
@@ -441,8 +567,6 @@ export default function ProfessionalClientPage() {
                     setSelectedWorkingMode={setSelectedWorkingMode}
                     selectedStatus={selectedStatus}
                     setSelectedStatus={setSelectedStatus}
-                    selectedExperience={selectedExperience}
-                    setSelectedExperience={setSelectedExperience}
                     locations={locations}
                     clearFilters={clearFilters}
                 />
@@ -455,7 +579,7 @@ export default function ProfessionalClientPage() {
                             <span className="font-bold text-primary-600">
                                 {filteredProfessionals.length}
                             </span>{" "}
-                            chuyên gia IT
+                            Nhân sự DevPool
                         </p>
                         {favorites.size > 0 && (
                             <p className="text-neutral-600 font-medium">
@@ -526,14 +650,17 @@ export default function ProfessionalClientPage() {
                         onToggleSelectForContact={toggleSelectForContact}
                     />
                 ) : (
-                    <EmptyState onClearFilters={clearFilters} />
+                    <EmptyState onClearFilters={clearFilters} hasActiveFilters={hasActiveFilters} />
                 )}
 
                 {/* Load More Button */}
-                {filteredProfessionals.length > 0 && (
+                {filteredProfessionals.length > 0 && allFilteredProfessionals.length > displayCount && (
                     <div className="text-center mt-12 animate-fade-in">
-                        <button className="bg-gradient-to-r from-secondary-600 to-secondary-700 text-white px-8 py-4 rounded-2xl hover:from-secondary-700 hover:to-secondary-800 font-semibold text-lg transition-all duration-300 shadow-glow-green hover:shadow-glow-lg transform hover:scale-105">
-                            Xem thêm chuyên gia IT
+                        <button
+                            onClick={loadMore}
+                            className="bg-gradient-to-r from-secondary-600 to-secondary-700 text-white px-8 py-4 rounded-2xl hover:from-secondary-700 hover:to-secondary-800 font-semibold text-lg transition-all duration-300 shadow-glow-green hover:shadow-glow-lg transform hover:scale-105"
+                        >
+                            Xem thêm nhân sự DevPool  
                         </button>
                     </div>
                 )}

@@ -570,10 +570,8 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
     }
     
     await logout();
-    // Đợi một chút để đảm bảo storage đã được clear
-    await new Promise(resolve => setTimeout(resolve, 100));
-    // Reload trang để reset tất cả state và đảm bảo Header được remount
-    window.location.href = ROUTES.GUEST.LOGIN;
+    // Navigate đến trang login thay vì reload trang
+    navigate(ROUTES.GUEST.LOGIN);
   };
 
   const desktopLinks = showPublicBranding

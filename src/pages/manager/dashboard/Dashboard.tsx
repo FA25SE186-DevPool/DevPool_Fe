@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TrendingUp, Users, DollarSign, Briefcase, Building2, UserCheck, Loader2, AlertCircle, BarChart3, TrendingDown, Minus, Calendar, CheckCircle, FileText } from 'lucide-react';
+import { TrendingUp, Loader2, AlertCircle, BarChart3, TrendingDown, Minus, Calendar } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
 import { sidebarItems } from '../../../components/sidebar/manager';
 import { dashboardService, type ExecutiveDashboardModel, type AnalyticsReportsModel, type ProjectAssignmentDashboardModel, type TalentManagementDashboardModel, type FinancialDashboardModel } from '../../../services/Dashboard';
@@ -164,6 +164,53 @@ export default function ManagerDashboard() {
     return `${value >= 0 ? '+' : ''}${value.toFixed(decimals)}%`;
   };
 
+  const translateStatus = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'ongoing':
+      case 'in progress':
+        return 'Đang thực hiện';
+      case 'completed':
+        return 'Hoàn thành';
+      case 'on hold':
+      case 'paused':
+        return 'Tạm dừng';
+      case 'cancelled':
+        return 'Đã hủy';
+      case 'draft':
+        return 'Bản nháp';
+      default:
+        return status;
+    }
+  };
+
+  const translateMetricName = (metricName: string) => {
+    switch (metricName.toLowerCase()) {
+      case 'revenue':
+        return 'Doanh thu';
+      case 'costs':
+        return 'Chi phí';
+      case 'talents':
+        return 'nhân sự';
+      default:
+        return metricName;
+    }
+  };
+
+  const translateTrendDirection = (direction: string) => {
+    switch (direction.toLowerCase()) {
+      case 'stable':
+        return 'Ổn định';
+      case 'up':
+      case 'increasing':
+        return 'Tăng';
+      case 'down':
+      case 'decreasing':
+        return 'Giảm';
+      default:
+        return direction;
+    }
+  };
+
   // Executive Dashboard Content
   const renderExecutiveDashboard = () => {
     if (loadingExecutive) {
@@ -197,85 +244,8 @@ export default function ManagerDashboard() {
 
     if (!executiveData) return null;
 
-    const statsCards = [
-      {
-        title: 'Doanh thu tổng',
-        value: formatCurrency(executiveData.totalRevenue),
-        change: formatPercentage(executiveData.revenueGrowth),
-        changeLabel: 'so với tháng trước',
-        color: 'blue',
-        icon: DollarSign
-      },
-      {
-        title: 'Lợi nhuận ròng',
-        value: formatCurrency(executiveData.netProfit),
-        change: `${executiveData.profitMargin.toFixed(1)}%`,
-        changeLabel: 'tỷ suất lợi nhuận',
-        color: 'green',
-        icon: TrendingUp
-      },
-      {
-        title: 'Dự án đang hoạt động',
-        value: executiveData.activeProjects.toString(),
-        change: '',
-        changeLabel: '',
-        color: 'purple',
-        icon: Briefcase
-      },
-      {
-        title: 'Assignments đang hoạt động',
-        value: executiveData.activeAssignments.toString(),
-        change: '',
-        changeLabel: '',
-        color: 'blue',
-        icon: UserCheck
-      },
-      {
-        title: 'Tổng Clients',
-        value: executiveData.totalClients.toString(),
-        change: '',
-        changeLabel: '',
-        color: 'orange',
-        icon: Building2
-      },
-      {
-        title: 'Tổng Talents',
-        value: executiveData.totalTalents.toString(),
-        change: '',
-        changeLabel: '',
-        color: 'green',
-        icon: Users
-      }
-    ];
-
     return (
       <div className="space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 animate-fade-in">
-          {statsCards.map((stat, index) => (
-            <div key={index} className="group bg-white rounded-2xl shadow-soft hover:shadow-medium p-6 transition-all duration-300 transform hover:-translate-y-1 border border-neutral-100 hover:border-primary-200">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-neutral-600 group-hover:text-neutral-700 transition-colors duration-300">{stat.title}</p>
-                  <p className="text-2xl lg:text-3xl font-bold text-gray-900 mt-2 group-hover:text-primary-700 transition-colors duration-300 break-words leading-tight">{stat.value}</p>
-                </div>
-                <div className={`p-3 rounded-full flex-shrink-0 ${stat.color === 'blue' ? 'bg-primary-100 text-primary-600 group-hover:bg-primary-200' :
-                  stat.color === 'green' ? 'bg-secondary-100 text-secondary-600 group-hover:bg-secondary-200' :
-                    stat.color === 'purple' ? 'bg-accent-100 text-accent-600 group-hover:bg-accent-200' :
-                      'bg-warning-100 text-warning-600 group-hover:bg-warning-200'
-                } transition-all duration-300`}>
-                  {stat.icon && <stat.icon className="w-6 h-6 group-hover:scale-110 transition-transform duration-300" />}
-                </div>
-              </div>
-              {stat.change && (
-                <p className="text-sm text-secondary-600 mt-4 flex items-center group-hover:text-secondary-700 transition-colors duration-300">
-                  <TrendingUp className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform duration-300" />
-                  {stat.change} {stat.changeLabel}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
 
         {/* Charts - Chỉ hiển thị khi có dữ liệu */}
         {executiveData.revenueTrend && executiveData.revenueTrend.length > 0 && (
@@ -314,7 +284,7 @@ export default function ManagerDashboard() {
         {/* Top Clients & Top Projects */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white rounded-2xl shadow-soft p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Top Clients (theo doanh thu)</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Top công ty khách hàng (theo doanh thu)</h2>
             <div className="space-y-3">
               {executiveData.topClients.length > 0 ? (
                 executiveData.topClients.slice(0, 5).map((client, index) => (
@@ -336,7 +306,7 @@ export default function ManagerDashboard() {
           </div>
 
           <div className="bg-white rounded-2xl shadow-soft p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Top Projects (theo doanh thu)</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Top dự án (theo doanh thu)</h2>
             <div className="space-y-3">
               {executiveData.topProjects.length > 0 ? (
                 executiveData.topProjects.slice(0, 5).map((project, index) => (
@@ -345,7 +315,7 @@ export default function ManagerDashboard() {
                       <span className="text-lg font-bold text-primary-600 flex-shrink-0">#{index + 1}</span>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">{project.projectName}</p>
-                        <p className="text-sm text-gray-500">{project.clientName} • {project.assignmentCount} assignments</p>
+                        <p className="text-sm text-gray-500">{project.clientName} • {project.assignmentCount} phân công</p>
                       </div>
                     </div>
                     <p className="font-semibold text-gray-900 ml-3 flex-shrink-0">{formatCurrency(project.totalRevenue)}</p>
@@ -441,11 +411,11 @@ export default function ManagerDashboard() {
                 <p className="text-2xl font-bold text-gray-900 mt-1">{formatPercentage(analyticsData.revenueAnalytics.revenueGrowthRate)}</p>
               </div>
               <div className="p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-neutral-600">TB/Project</p>
+                <p className="text-sm text-neutral-600">TB/Dự án</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(analyticsData.revenueAnalytics.averageRevenuePerProject)}</p>
               </div>
               <div className="p-4 bg-purple-50 rounded-lg">
-                <p className="text-sm text-neutral-600">TB/Client</p>
+                <p className="text-sm text-neutral-600">TB/Công ty khách hàng</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(analyticsData.revenueAnalytics.averageRevenuePerClient)}</p>
               </div>
             </div>
@@ -476,126 +446,18 @@ export default function ManagerDashboard() {
               {analyticsData.trendAnalysis.map((trend, index) => (
                 <div key={index} className="p-4 border border-neutral-200 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium text-gray-900">{trend.metricName}</p>
+                    <p className="font-medium text-gray-900">{translateMetricName(trend.metricName)}</p>
                     {getTrendIcon(trend.trendDirection)}
                   </div>
                   <p className="text-2xl font-bold text-gray-900">{formatPercentage(trend.trendPercentage)}</p>
-                  <p className="text-sm text-neutral-500 mt-1">Xu hướng: {trend.trendDirection}</p>
+                  <p className="text-sm text-neutral-500 mt-1">Xu hướng: {translateTrendDirection(trend.trendDirection)}</p>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Forecasting */}
-        {analyticsData.forecasting && (
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">Dự báo</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <h3 className="text-sm font-medium text-neutral-600 mb-3">Doanh thu dự báo</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center p-2 bg-blue-50 rounded">
-                    <span className="text-sm text-neutral-600">Tháng tới</span>
-                    <span className="font-semibold">{formatCurrency(analyticsData.forecasting.forecastedRevenueNextMonth)}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-blue-50 rounded">
-                    <span className="text-sm text-neutral-600">Quý tới</span>
-                    <span className="font-semibold">{formatCurrency(analyticsData.forecasting.forecastedRevenueNextQuarter)}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-blue-50 rounded">
-                    <span className="text-sm text-neutral-600">Năm tới</span>
-                    <span className="font-semibold">{formatCurrency(analyticsData.forecasting.forecastedRevenueNextYear)}</span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-neutral-600 mb-3">Chi phí dự báo</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center p-2 bg-red-50 rounded">
-                    <span className="text-sm text-neutral-600">Tháng tới</span>
-                    <span className="font-semibold">{formatCurrency(analyticsData.forecasting.forecastedCostsNextMonth)}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-red-50 rounded">
-                    <span className="text-sm text-neutral-600">Quý tới</span>
-                    <span className="font-semibold">{formatCurrency(analyticsData.forecasting.forecastedCostsNextQuarter)}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-red-50 rounded">
-                    <span className="text-sm text-neutral-600">Năm tới</span>
-                    <span className="font-semibold">{formatCurrency(analyticsData.forecasting.forecastedCostsNextYear)}</span>
-                  </div>
-                </div>
-              </div>
-              {analyticsData.forecasting.forecastDataPoints && analyticsData.forecasting.forecastDataPoints.length > 0 && (
-                <div className="md:col-span-1">
-                  <h3 className="text-sm font-medium text-neutral-600 mb-3">Biểu đồ dự báo</h3>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={analyticsData.forecasting.forecastDataPoints}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis />
-                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                      <Legend />
-                      <Line type="monotone" dataKey="forecastedValue" name="Dự báo" stroke="#6366f1" strokeWidth={2} strokeDasharray="5 5" />
-                      {analyticsData.forecasting.forecastDataPoints.some(dp => dp.actualValue) && (
-                        <Line type="monotone" dataKey="actualValue" name="Thực tế" stroke="#22c55e" strokeWidth={2} />
-                      )}
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
-        {/* Comparative Analysis */}
-        {analyticsData.comparativeAnalysis && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {analyticsData.comparativeAnalysis.periodComparison && analyticsData.comparativeAnalysis.periodComparison.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-soft p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">So sánh theo Kỳ</h2>
-                <div className="space-y-3">
-                  {analyticsData.comparativeAnalysis.periodComparison.map((comp, index) => (
-                    <div key={index} className="p-3 bg-gray-50 rounded-lg">
-                      <p className="font-medium text-gray-900 mb-2">{comp.periodName}</p>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-neutral-600">Hiện tại: {formatCurrency(comp.currentValue)}</span>
-                        <span className={`font-semibold ${comp.changePercentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {formatPercentage(comp.changePercentage)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {analyticsData.comparativeAnalysis.clientComparison && analyticsData.comparativeAnalysis.clientComparison.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-soft p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">So sánh Clients</h2>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {analyticsData.comparativeAnalysis.clientComparison.slice(0, 5).map((client) => (
-                    <div key={client.clientId} className="p-3 bg-gray-50 rounded-lg">
-                      <p className="font-medium text-gray-900 mb-2">{client.clientName}</p>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="text-neutral-600">Doanh thu: </span>
-                          <span className="font-semibold">{formatCurrency(client.revenue)}</span>
-                        </div>
-                        <div>
-                          <span className="text-neutral-600">Lợi nhuận: </span>
-                          <span className={`font-semibold ${client.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {formatCurrency(client.profit)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     );
   };
@@ -658,74 +520,9 @@ export default function ManagerDashboard() {
 
     if (!projectAssignmentData) return null;
 
-    const getHealthStatusColor = (status: string) => {
-      if (status === 'Healthy') return 'text-green-600 bg-green-50';
-      if (status === 'At Risk') return 'text-amber-600 bg-amber-50';
-      if (status === 'Critical') return 'text-red-600 bg-red-50';
-      return 'text-gray-600 bg-gray-50';
-    };
 
     return (
       <div className="space-y-6">
-        {/* Project Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Tổng Projects</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{projectAssignmentData.totalProjects}</p>
-              </div>
-              <Briefcase className="w-8 h-8 text-primary-600" />
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Projects đang hoạt động</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">{projectAssignmentData.activeProjects}</p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-600" />
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Projects đã hoàn thành</p>
-                <p className="text-3xl font-bold text-blue-600 mt-2">{projectAssignmentData.completedProjects}</p>
-              </div>
-              <FileText className="w-8 h-8 text-blue-600" />
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Total Assignments</p>
-                <p className="text-3xl font-bold text-purple-600 mt-2">{projectAssignmentData.totalAssignments}</p>
-              </div>
-              <Users className="w-8 h-8 text-purple-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Assignment Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Active Assignments</p>
-            <p className="text-2xl font-bold text-green-600 mt-2">{projectAssignmentData.activeAssignments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Draft Assignments</p>
-            <p className="text-2xl font-bold text-gray-600 mt-2">{projectAssignmentData.draftAssignments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Completed Assignments</p>
-            <p className="text-2xl font-bold text-blue-600 mt-2">{projectAssignmentData.completedAssignments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Planned Projects</p>
-            <p className="text-2xl font-bold text-amber-600 mt-2">{projectAssignmentData.plannedProjects}</p>
-          </div>
-        </div>
 
         {/* Active Projects Details */}
         {projectAssignmentData.activeProjectsDetails && projectAssignmentData.activeProjectsDetails.length > 0 && (
@@ -736,13 +533,13 @@ export default function ManagerDashboard() {
                 <thead>
                   <tr className="border-b border-neutral-200">
                     <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Tên dự án</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Client</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Công ty khách hàng</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Trạng thái</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Assignments</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Phân công</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {projectAssignmentData.activeProjectsDetails.slice(0, 10).map((project) => (
+                  {projectAssignmentData.activeProjectsDetails.slice(0, 5).map((project) => (
                     <tr key={project.projectId} className="border-b border-neutral-100 hover:bg-gray-50">
                       <td className="py-3 px-4">
                         <p className="font-medium text-gray-900">{project.projectName}</p>
@@ -752,12 +549,12 @@ export default function ManagerDashboard() {
                       </td>
                       <td className="py-3 px-4">
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                          {project.status}
+                          {translateStatus(project.status)}
                         </span>
                       </td>
                       <td className="py-3 px-4">
                         <p className="text-sm text-neutral-600">
-                          {project.activeAssignmentCount}/{project.assignmentCount} active
+                          {project.activeAssignmentCount}/{project.assignmentCount} hoạt động
                         </p>
                       </td>
                     </tr>
@@ -794,41 +591,19 @@ export default function ManagerDashboard() {
           </div>
         )}
 
-        {/* Project Health */}
-        {projectAssignmentData.projectHealth && projectAssignmentData.projectHealth.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Tình trạng dự án</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {projectAssignmentData.projectHealth.slice(0, 6).map((project) => (
-                <div key={project.projectId} className="p-4 border border-neutral-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium text-gray-900 truncate">{project.projectName}</p>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getHealthStatusColor(project.healthStatus)}`}>
-                      {project.healthStatus}
-                    </span>
-                  </div>
-                  <div className="text-sm text-neutral-600">
-                    <p>Completion: {project.completionRate.toFixed(1)}%</p>
-                    <p>Active: {project.activeAssignments} | Completed: {project.completedAssignments}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Projects by Client */}
         {projectAssignmentData.projectsByClient && projectAssignmentData.projectsByClient.length > 0 && (
           <div className="bg-white rounded-2xl shadow-soft p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Projects theo Client</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Dự án theo công ty khách hàng</h2>
             <div className="space-y-3">
               {projectAssignmentData.projectsByClient.slice(0, 5).map((client) => (
                 <div key={client.clientId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-900">{client.clientName}</p>
-                    <p className="text-sm text-neutral-600">{client.activeProjectCount} active / {client.projectCount} total projects</p>
+                    <p className="text-sm text-neutral-600">{client.activeProjectCount} hoạt động / {client.projectCount} tổng dự án</p>
                   </div>
-                  <p className="font-semibold text-gray-900">{client.assignmentCount} assignments</p>
+                  <p className="font-semibold text-gray-900">{client.assignmentCount} phân công</p>
                 </div>
               ))}
             </div>
@@ -892,77 +667,12 @@ export default function ManagerDashboard() {
 
     return (
       <div className="space-y-6">
-        {/* Talent Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Tổng Talents</p>
-            <p className="text-3xl font-bold text-gray-900 mt-2">{talentManagementData.totalTalents}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Active</p>
-            <p className="text-3xl font-bold text-green-600 mt-2">{talentManagementData.activeTalents}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Available</p>
-            <p className="text-3xl font-bold text-blue-600 mt-2">{talentManagementData.availableTalents}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Onboarding</p>
-            <p className="text-3xl font-bold text-amber-600 mt-2">{talentManagementData.onboardingTalents}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Inactive</p>
-            <p className="text-3xl font-bold text-gray-600 mt-2">{talentManagementData.inactiveTalents}</p>
-          </div>
-        </div>
 
-        {/* Assignment Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Total Assignments</p>
-            <p className="text-2xl font-bold text-gray-900 mt-2">{talentManagementData.totalAssignments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Active</p>
-            <p className="text-2xl font-bold text-green-600 mt-2">{talentManagementData.activeAssignments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Completed</p>
-            <p className="text-2xl font-bold text-blue-600 mt-2">{talentManagementData.completedAssignments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Utilization Rate</p>
-            <p className="text-2xl font-bold text-purple-600 mt-2">{talentManagementData.averageUtilizationRate.toFixed(1)}%</p>
-          </div>
-        </div>
-
-        {/* Top Talents */}
-        {talentManagementData.topTalents && talentManagementData.topTalents.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Top Performing Talents</h2>
-            <div className="space-y-3">
-              {talentManagementData.topTalents.slice(0, 5).map((talent, index) => (
-                <div key={talent.talentId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg font-bold text-primary-600">#{index + 1}</span>
-                    <div>
-                      <p className="font-medium text-gray-900">{talent.talentName}</p>
-                      <p className="text-sm text-neutral-600">{talent.totalAssignments} assignments • {talent.completedAssignments} completed</p>
-                    </div>
-                  </div>
-                  {talent.averageRating > 0 && (
-                    <p className="font-semibold text-gray-900">⭐ {talent.averageRating.toFixed(1)}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* New Talents Trend */}
         {talentManagementData.newTalentsTrend && talentManagementData.newTalentsTrend.length > 0 && (
           <div className="bg-white rounded-2xl shadow-soft p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Xu hướng Talents mới (3 tháng)</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Xu hướng nhân sự mới (3 tháng)</h2>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={talentManagementData.newTalentsTrend}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -970,8 +680,8 @@ export default function ManagerDashboard() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="newTalents" name="Talents mới" fill="#22c55e" />
-                <Bar dataKey="leavingTalents" name="Talents rời" fill="#f43f5e" />
+                <Bar dataKey="newTalents" name="nhân sự mới" fill="#22c55e" />
+                <Bar dataKey="leavingTalents" name="nhân sự rời" fill="#f43f5e" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -1034,49 +744,6 @@ export default function ManagerDashboard() {
 
     return (
       <div className="space-y-6">
-        {/* Financial Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Tổng Doanh thu</p>
-            <p className="text-2xl font-bold text-green-600 mt-2">{formatCurrency(financialData.totalRevenue)}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Tổng Chi phí</p>
-            <p className="text-2xl font-bold text-red-600 mt-2">{formatCurrency(financialData.totalCosts)}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Lợi nhuận ròng</p>
-            <p className="text-2xl font-bold text-primary-600 mt-2">{formatCurrency(financialData.netProfit)}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Tỷ suất lợi nhuận</p>
-            <p className="text-2xl font-bold text-purple-600 mt-2">{financialData.profitMargin.toFixed(1)}%</p>
-          </div>
-        </div>
-
-        {/* Payment Status */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Đã xuất hóa đơn</p>
-            <p className="text-xl font-bold text-gray-900 mt-2">{formatCurrency(financialData.totalInvoiced)}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Đã thanh toán</p>
-            <p className="text-xl font-bold text-green-600 mt-2">{formatCurrency(financialData.totalPaid)}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Đang chờ</p>
-            <p className="text-xl font-bold text-amber-600 mt-2">{formatCurrency(financialData.totalPending)}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Quá hạn</p>
-            <p className="text-xl font-bold text-red-600 mt-2">{formatCurrency(financialData.totalOverdue)}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Tỷ lệ thu</p>
-            <p className="text-xl font-bold text-blue-600 mt-2">{financialData.collectionRate.toFixed(1)}%</p>
-          </div>
-        </div>
 
         {/* Monthly Financial Trend */}
         {financialData.monthlyTrend && financialData.monthlyTrend.length > 0 && (
@@ -1101,13 +768,13 @@ export default function ManagerDashboard() {
         {financialData.revenueByClient && financialData.revenueByClient.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white rounded-2xl shadow-soft p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Doanh thu theo Client</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Doanh thu theo Công ty khách hàng</h2>
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {financialData.revenueByClient.slice(0, 10).map((client) => (
                   <div key={client.clientId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div>
                       <p className="font-medium text-gray-900">{client.clientName}</p>
-                      <p className="text-sm text-neutral-600">{client.contractCount} contracts</p>
+                      <p className="text-sm text-neutral-600">{client.contractCount} hợp đồng</p>
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-gray-900">{formatCurrency(client.totalRevenue)}</p>
@@ -1121,13 +788,13 @@ export default function ManagerDashboard() {
             {/* Costs by Partner */}
             {financialData.costsByPartner && financialData.costsByPartner.length > 0 && (
               <div className="bg-white rounded-2xl shadow-soft p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Chi phí theo Partner</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Chi phí theo Đối tác</h2>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {financialData.costsByPartner.slice(0, 10).map((partner) => (
                     <div key={partner.partnerId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div>
                         <p className="font-medium text-gray-900">{partner.partnerName}</p>
-                        <p className="text-sm text-neutral-600">{partner.contractCount} contracts</p>
+                        <p className="text-sm text-neutral-600">{partner.contractCount} hợp đồng</p>
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-gray-900">{formatCurrency(partner.totalCosts)}</p>
@@ -1151,7 +818,7 @@ export default function ManagerDashboard() {
       <div className="flex-1 p-8">
         <div className="mb-8 animate-slide-up">
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-neutral-600 mt-1">Tổng quan hoạt động kinh doanh</p>
+          <p className="text-neutral-600 mt-1">Tổng quan kinh doanh và hoạt động</p>
         </div>
 
         {/* Tabs */}
@@ -1165,7 +832,7 @@ export default function ManagerDashboard() {
                   : 'border-transparent text-neutral-600 hover:text-neutral-900'
               }`}
             >
-              Executive Dashboard
+              Tổng quan
             </button>
             <button
               onClick={() => setActiveTab('analytics')}
@@ -1175,7 +842,7 @@ export default function ManagerDashboard() {
                   : 'border-transparent text-neutral-600 hover:text-neutral-900'
               }`}
             >
-              Analytics & Reports
+              Phân tích & Báo cáo
             </button>
             <button
               onClick={() => setActiveTab('project-assignment')}
@@ -1185,7 +852,7 @@ export default function ManagerDashboard() {
                   : 'border-transparent text-neutral-600 hover:text-neutral-900'
               }`}
             >
-              Project & Assignment
+              Dự án & Phân công
             </button>
             <button
               onClick={() => setActiveTab('talent-management')}
@@ -1195,7 +862,7 @@ export default function ManagerDashboard() {
                   : 'border-transparent text-neutral-600 hover:text-neutral-900'
               }`}
             >
-              Talent Management
+              Nhân sự
             </button>
             <button
               onClick={() => setActiveTab('financial')}
@@ -1205,7 +872,7 @@ export default function ManagerDashboard() {
                   : 'border-transparent text-neutral-600 hover:text-neutral-900'
               }`}
             >
-              Financial
+              Tài chính
             </button>
           </div>
         </div>

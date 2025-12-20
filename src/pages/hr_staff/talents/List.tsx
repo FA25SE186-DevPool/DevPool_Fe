@@ -206,7 +206,7 @@ export default function ListDev() {
               <h1 className="text-3xl font-bold text-gray-900">Danh Sách Nhân Sự</h1>
               <div className="flex items-center gap-3 mt-1">
                 <p className="text-neutral-600">
-                  Quản lý và theo dõi developer trong hệ thống DevPool
+                  Quản lý và theo dõi nhân sự trong hệ thống DevPool
                 </p>
                 <button
                   onClick={() => setShowStats(!showStats)}

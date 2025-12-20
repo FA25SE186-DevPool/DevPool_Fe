@@ -1,4 +1,4 @@
-import { Building2, Users } from "lucide-react"
+import { Building2 } from "lucide-react"
 import type React from "react"
 import { Link } from "react-router-dom"
 
@@ -30,7 +30,7 @@ const CTASection: React.FC = () => {
           style={{ animationDelay: "0.4s" }}
         >
           <Link
-            to="/register"
+            to="/contact"
             className="group relative bg-gradient-to-r from-primary-500 to-primary-600 text-white px-10 py-5 rounded-2xl font-semibold text-lg shadow-glow hover:shadow-glow-lg transform hover:scale-103 transition-all duration-400 overflow-hidden"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-primary-400 to-primary-500 opacity-0 group-hover:opacity-100 transition-opacity duration-400"></div>
@@ -40,13 +40,6 @@ const CTASection: React.FC = () => {
             </span>
 
           </Link>
-
-          <button className="group bg-white/80 backdrop-blur-sm text-blue-600 px-10 py-5 rounded-2xl font-semibold text-lg border-2 border-blue-200 hover:border-blue-300 shadow-md hover:shadow-lg transform hover:scale-[1.02] transition-all duration-300 hover:bg-white">
-            <span className="flex items-center justify-center gap-2">
-              <Users className="w-5 h-5" />
-              Developer Gia Nhập
-            </span>
-          </button>
         </div>
         <div className="mt-12 text-gray-500">
           <p>📧 contact@devpool.asia | 📞 1900 xxxx</p>

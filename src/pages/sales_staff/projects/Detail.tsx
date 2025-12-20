@@ -2005,7 +2005,7 @@ export default function ProjectDetailPage() {
                       disabled={!company}
                       className={`text-left font-semibold ${
                         (project.clientCompanyName || company?.name)
-                          ? "text-primary-600 hover:text-primary-800 cursor-pointer"
+                          ? "text-primary-700 hover:text-primary-800 cursor-pointer"
                           : "text-gray-900 cursor-default"
                       }`}
                     >
@@ -2035,7 +2035,7 @@ export default function ProjectDetailPage() {
                       disabled={!project.industryNames || project.industryNames.length === 0}
                       className={`text-left font-semibold ${
                         project.industryNames && project.industryNames.length > 0
-                          ? "text-primary-600 hover:text-primary-800 cursor-pointer"
+                          ? "text-primary-700 hover:text-primary-800 cursor-pointer"
                           : "text-gray-900 cursor-default"
                       }`}
                     >

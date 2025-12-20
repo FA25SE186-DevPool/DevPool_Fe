@@ -64,6 +64,7 @@ export interface ContactInquiryFilterModel {
 export interface ContactInquiryStatusUpdateModel {
   newStatus: ContactInquiryStatusType | number; // Can be string or enum number (1, 2, 3)
   responseNotes?: string | null;
+  jobRequestId?: string;
 }
 
 export interface ContactInquiryClaimResult {

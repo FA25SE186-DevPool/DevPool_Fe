@@ -1,194 +1,328 @@
 import type React from "react"
-import { MapPin, Star, Clock, CheckCircle } from "lucide-react"
-
-interface Expert {
-  id: number
-  avatar: string
-  name: string
-  title: string
-  location: string
-  rating: number
-  reviewCount: number
-  hourlyRate: string
-  skills: Array<{
-    name: string
-    level: "expert" | "good" | "intermediate"
-  }>
-  description: string
-  status: "available" | "busy"
-  matchPercentage: number
-}
+import { useState, useEffect } from "react"
+import { CheckCircle } from "lucide-react"
+import ProfessionalCard from "../client/professional-page/ProfessionalCard"
+import type { Professional } from "../client/professional-page/types"
+import { talentService, type TalentDetailedModel } from "../../services/Talent"
+import { skillService } from "../../services/Skill"
+import { locationService } from "../../services/location"
+import { jobRoleLevelService } from "../../services/JobRoleLevel"
+import { jobRoleService } from "../../services/JobRole"
 
 const ExpertsSection: React.FC = () => {
-  const experts: Expert[] = [
-    {
-      id: 1,
-      avatar:
-        "https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop",
-      name: "Nguyễn Thành",
-      title: "Senior Full-stack Developer",
-      location: "Hồ Chí Minh",
-      rating: 4.9,
-      reviewCount: 127,
-      hourlyRate: "800k VNĐ/giờ",
-      skills: [
-        { name: "ReactJS", level: "expert" },
-        { name: "MongoDB", level: "good" },
-        { name: "NodeJS", level: "expert" },
-        { name: "TypeScript", level: "good" },
-      ],
-      description:
-        "Chuyên gia phát triển ứng dụng web với 8+ năm kinh nghiệm. Đã hoàn thành 200+ dự án thành công cho các startup và doanh nghiệp lớn.",
-      status: "available",
-      matchPercentage: 95,
-    },
-    {
-      id: 2,
-      avatar:
-        "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop",
-      name: "Trần Minh Anh",
-      title: "Mobile App Developer",
-      location: "Hà Nội",
-      rating: 4.8,
-      reviewCount: 89,
-      hourlyRate: "750k VNĐ/giờ",
-      skills: [
-        { name: "Flutter", level: "expert" },
-        { name: "React Native", level: "good" },
-        { name: "Firebase", level: "expert" },
-        { name: "Kotlin", level: "intermediate" },
-      ],
-      description:
-        "Chuyên gia phát triển ứng dụng di động cross-platform. Tập trung vào UX/UI và performance optimization cho mobile apps.",
-      status: "busy",
-      matchPercentage: 88,
-    },
-    {
-      id: 3,
-      avatar:
-        "https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop",
-      name: "Lê Hoàng Nam",
-      title: "DevOps Engineer",
-      location: "Đà Nẵng",
-      rating: 4.9,
-      reviewCount: 156,
-      hourlyRate: "900k VNĐ/giờ",
-      skills: [
-        { name: "AWS", level: "expert" },
-        { name: "Docker", level: "expert" },
-        { name: "Kubernetes", level: "good" },
-        { name: "Terraform", level: "good" },
-      ],
-      description:
-        "Chuyên gia DevOps với kinh nghiệm triển khai hệ thống cloud-native. Đảm bảo tính ổn định và bảo mật cho infrastructure.",
-      status: "available",
-      matchPercentage: 92,
-    },
-  ]
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const getSkillColor = (level: string) => {
-    switch (level) {
-      case "expert":
-        return "bg-green-100 text-green-700 border-green-200"
-      case "good":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200"
-      case "intermediate":
-        return "bg-blue-100 text-blue-700 border-blue-200"
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200"
+  // Load favorites từ localStorage
+  useEffect(() => {
+    try {
+      const savedFavorites = localStorage.getItem('professional_favorites');
+      if (savedFavorites) {
+        const favoritesArray = JSON.parse(savedFavorites);
+        setFavorites(new Set(favoritesArray));
+      }
+    } catch (error) {
+      console.error("❌ Lỗi khi tải favorites từ localStorage:", error);
     }
+  }, []);
+
+  // Fetch top 3 professionals
+  useEffect(() => {
+    const fetchTopProfessionals = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch talents with detailed data
+        const [talentsData, talentsBasicData] = await Promise.all([
+          talentService.getAllDetailed({ excludeDeleted: true }),
+          talentService.getAll({ excludeDeleted: true, pageSize: 1000 }) // Get more data to ensure we have codes
+        ]);
+
+        // Create code mapping from basic talent data
+        const talentCodeMap = new Map<number, string>();
+        let talentsBasicArray: any[] = [];
+
+        if (Array.isArray(talentsBasicData)) {
+          talentsBasicArray = talentsBasicData;
+        } else if (talentsBasicData && typeof talentsBasicData === 'object') {
+          const obj = talentsBasicData as any;
+          if (obj.data && Array.isArray(obj.data)) {
+            talentsBasicArray = obj.data;
+          } else if (obj.items && Array.isArray(obj.items)) {
+            talentsBasicArray = obj.items;
+          }
+        }
+
+        talentsBasicArray.forEach((talent: any) => {
+          if (talent.id && talent.code) {
+            talentCodeMap.set(talent.id, talent.code);
+          }
+        });
+
+        // Fetch lookup data
+        const [skillsData, locationsData, jobRoleLevelsData, jobRolesData] = await Promise.all([
+          skillService.getAll({ excludeDeleted: true }),
+          locationService.getAll({ excludeDeleted: true }),
+          jobRoleLevelService.getAll({ excludeDeleted: true }),
+          jobRoleService.getAll({ excludeDeleted: true })
+        ]);
+
+        // Create lookup maps
+        const skillsMap = new Map();
+        (skillsData || []).forEach((skill: any) => {
+          skillsMap.set(skill.id, skill);
+        });
+
+        const locationsMap = new Map();
+        const uniqueLocations = new Set<string>();
+        (locationsData || []).forEach((location: any) => {
+          locationsMap.set(location.id, location);
+          if (location.name) {
+            uniqueLocations.add(location.name);
+          }
+        });
+
+        const jobRoleLevelsMap = new Map();
+        (jobRoleLevelsData || []).forEach((jrl: any) => {
+          jobRoleLevelsMap.set(jrl.id, jrl);
+        });
+
+        const jobRolesMap = new Map();
+        (jobRolesData || []).forEach((jr: any) => {
+          jobRolesMap.set(jr.id, jr);
+        });
+
+        // Ensure talentsData is an array
+        let talentsArray: TalentDetailedModel[] = [];
+        if (Array.isArray(talentsData)) {
+          talentsArray = talentsData;
+        } else if (talentsData && typeof talentsData === 'object') {
+          const obj = talentsData as any;
+          if (obj.data && Array.isArray(obj.data)) {
+            talentsArray = obj.data;
+          } else if (obj.items && Array.isArray(obj.items)) {
+            talentsArray = obj.items;
+          }
+        }
+
+        // Map TalentDetailedModel to Professional
+        const mappedProfessionals: Professional[] = talentsArray.map((talent: TalentDetailedModel) => {
+          // Get location name - return undefined if no location
+          const locationName = talent.locationName ||
+            (talent.locationId ? locationsMap.get(talent.locationId)?.name : null) ||
+            undefined;
+
+          // Get position from jobRoleLevels (first active one)
+          const activeJobRoleLevel = talent.jobRoleLevels?.[0];
+          let position = "—";
+          if (activeJobRoleLevel) {
+            const jrl = jobRoleLevelsMap.get(activeJobRoleLevel.jobRoleLevelId);
+            const jr = jrl ? jobRolesMap.get(jrl.jobRoleId) : null;
+
+            // Convert level enum to display name
+            let levelDisplay = "—";
+            if (jrl?.level !== undefined) {
+              const levelMap: Record<number, string> = {
+                0: "Junior",
+                1: "Middle",
+                2: "Senior",
+                3: "Lead"
+              };
+              levelDisplay = levelMap[jrl.level] || `Level ${jrl.level}`;
+            }
+
+            position = jr ? `${jr.name} - ${levelDisplay}` : (jrl?.name || "—");
+          }
+
+          // Map skills
+          const mappedSkills = (talent.skills || []).map((skill: any) => {
+            const skillInfo = skillsMap.get(skill.skillId);
+            // Map level from number/string to Vietnamese
+            let level: 'Cơ bản' | 'Khá' | 'Giỏi' | 'Chuyên gia' = 'Cơ bản';
+            if (skill.level) {
+              const levelStr = String(skill.level).toLowerCase();
+              if (levelStr.includes('expert')) {
+                level = 'Chuyên gia';
+              } else if (levelStr.includes('advanced') || levelStr.includes('giỏi')) {
+                level = 'Giỏi';
+              } else if (levelStr.includes('intermediate') || levelStr.includes('khá')) {
+                level = 'Khá';
+              } else {
+                level = 'Cơ bản';
+              }
+            }
+            return {
+              name: skillInfo?.name || `Skill #${skill.skillId}`,
+              level,
+              yearsExp: skill.yearsExp || 0
+            };
+          });
+
+          // Calculate total projects from workExperiences
+          const totalProjects = talent.projects?.length || 0;
+          const totalWorkExperiences = talent.workExperiences?.length || 0;
+
+          // Determine availability based on status
+          let availability: 'available' | 'busy' | 'unavailable' = 'available';
+          if (talent.status) {
+            const statusLower = talent.status.toLowerCase();
+            if (statusLower.includes('working') || statusLower.includes('available')) {
+              availability = 'available';
+            } else if (statusLower.includes('busy')) {
+              availability = 'busy';
+            } else {
+              availability = 'unavailable';
+            }
+          }
+
+          // Get avatar (profilePictureUrl or default)
+          const avatar = talent.profilePictureUrl ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(talent.fullName)}&background=6366f1&color=fff&size=150`;
+
+          // Try to get code from different sources
+          let talentCode = talentCodeMap.get(talent.id);
+
+          // If no code from basic API, try to generate from userId or create a meaningful code
+          if (!talentCode) {
+            if (talent.userId) {
+              // Use userId as base for code
+              talentCode = `USR${talent.userId.slice(-3).toUpperCase()}`;
+            } else {
+              // Fallback to ID-based code
+              talentCode = `EMP${String(talent.id).padStart(3, '0')}`;
+            }
+          }
+
+          return {
+            id: String(talent.id),
+            name: talent.fullName,
+            title: position,
+            avatar,
+            location: locationName,
+            workingMode: talent.workingMode || undefined,
+            status: talent.status || undefined,
+            bio: talent.bio || undefined,
+            phoneNumber: talent.phoneNumber || undefined,
+            hourlyRate: 0, // Not available in talent data
+            rating: 4.5, // Default rating
+            reviewCount: 0, // Not available
+            skills: mappedSkills,
+            availability,
+            completedProjects: totalProjects,
+            description: talent.bio || "",
+            isOnline: false, // Not available
+            experience: activeJobRoleLevel?.yearsOfExp || 0,
+            category: "IT", // Default category
+            languages: [],
+            certifications: [],
+            responseTime: "< 24 giờ",
+            successRate: 95,
+            workExperiences: totalWorkExperiences, // Tổng số dự án từ work experiences
+            code: talentCode // Add real talent code
+          };
+        });
+
+        // Filter out unavailable talents and sort by projects + skills
+        const availableProfessionals = mappedProfessionals.filter(p => p.availability !== 'unavailable');
+
+        // Sort by combined score: projects * 2 + skills (to give more weight to projects)
+        const sortedProfessionals = availableProfessionals.sort((a, b) => {
+          const scoreA = (a.completedProjects || 0) * 2 + a.skills.length;
+          const scoreB = (b.completedProjects || 0) * 2 + b.skills.length;
+          return scoreB - scoreA; // Descending order
+        });
+
+        // Take top 3
+        const topProfessionals = sortedProfessionals.slice(0, 3);
+
+        setProfessionals(topProfessionals);
+      } catch (err: any) {
+        console.error("❌ Lỗi tải top professionals:", err);
+        setError(err.message || "Không thể tải dữ liệu chuyên gia");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTopProfessionals();
+  }, []);
+
+  // Toggle favorite
+  const toggleFavorite = (professionalId: string) => {
+    const newFavorites = new Set(favorites);
+    if (newFavorites.has(professionalId)) {
+      newFavorites.delete(professionalId);
+    } else {
+      newFavorites.add(professionalId);
+    }
+    setFavorites(newFavorites);
+
+    // Save to localStorage
+    try {
+      localStorage.setItem('professional_favorites', JSON.stringify(Array.from(newFavorites)));
+    } catch (error) {
+      console.error("❌ Lỗi khi lưu favorites:", error);
+    }
+  };
+
+  // Toggle select for contact
+  const toggleSelectForContact = (_professionalId: string) => {
+    // This is just for compatibility, not used in homepage
+  };
+
+  if (loading) {
+    return (
+      <section className="py-20 bg-gradient-to-br from-gray-50 to-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">Nhân sự DevPool Nổi Bật</h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">Kết nối với những tài năng hàng đầu trong ngành IT</p>
+          </div>
+          <div className="flex justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+          </div>
+        </div>
+      </section>
+    );
   }
 
-  const getSkillLevelText = (level: string) => {
-    switch (level) {
-      case "expert":
-        return "Chuyên gia"
-      case "good":
-        return "Giỏi"
-      case "intermediate":
-        return "Trung bình"
-      default:
-        return ""
-    }
+  if (error) {
+    return (
+      <section className="py-20 bg-gradient-to-br from-gray-50 to-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">Nhân sự DevPool Nổi Bật</h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">Kết nối với những tài năng hàng đầu trong ngành IT</p>
+          </div>
+          <div className="text-center">
+            <CheckCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600">{error}</p>
+          </div>
+        </div>
+      </section>
+    );
   }
 
   return (
     <section className="py-20 bg-gradient-to-br from-gray-50 to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">Chuyên Gia IT Nổi Bật</h2>
+          <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">Nhân sự DevPool Nổi Bật</h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">Kết nối với những tài năng hàng đầu trong ngành IT</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {experts.map((expert) => (
-            <div
-              key={expert.id}
-              className="bg-white rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-300 p-6 border border-gray-100 relative overflow-hidden"
-            >
-              <div className="absolute top-4 right-4 bg-gradient-to-r from-purple-100 to-blue-100 text-purple-700 px-3 py-1 rounded-full text-sm font-semibold border border-purple-200">
-                {expert.matchPercentage}% phù hợp
-              </div>
-
-              <div className="flex items-center space-x-4 mb-6">
-                <img
-                  src={expert.avatar || "/placeholder.svg"}
-                  alt={expert.name}
-                  className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
-                />
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-gray-900">{expert.name}</h3>
-                  <p className="text-gray-600 font-medium">{expert.title}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2 mb-4">
-                <MapPin className="w-4 h-4 text-gray-500" />
-                <span className="text-gray-600">{expert.location}</span>
-              </div>
-
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-2">
-                  <div className="flex items-center space-x-1">
-                    <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                    <span className="font-semibold text-gray-900">{expert.rating}</span>
-                  </div>
-                  <span className="text-gray-500">({expert.reviewCount} đánh giá)</span>
-                </div>
-                <div className="text-right">
-                  <div className="font-bold text-purple-600">{expert.hourlyRate}</div>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <div className="flex flex-wrap gap-2">
-                  {expert.skills.map((skill, skillIndex) => (
-                    <span
-                      key={skillIndex}
-                      className={`px-3 py-1.5 text-sm font-medium rounded-full border ${getSkillColor(skill.level)} transition-colors`}
-                    >
-                      {skill.name} ({getSkillLevelText(skill.level)})
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <p className="text-gray-600 leading-relaxed mb-6 text-sm">{expert.description}</p>
-
-              <div className="flex items-center space-x-2 mb-4">
-                {expert.status === "available" ? (
-                  <>
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                    <span className="text-green-600 font-medium">Có thể làm việc ngay</span>
-                  </>
-                ) : (
-                  <>
-                    <Clock className="w-5 h-5 text-orange-500" />
-                    <span className="text-orange-600 font-medium">Hiện tại bận</span>
-                  </>
-                )}
-              </div>
-            </div>
+          {professionals.map((professional) => (
+            <ProfessionalCard
+              key={professional.id}
+              professional={professional}
+              isFavorite={favorites.has(professional.id)}
+              onToggleFavorite={toggleFavorite}
+              onToggleSelectForContact={toggleSelectForContact}
+            />
           ))}
         </div>
       </div>

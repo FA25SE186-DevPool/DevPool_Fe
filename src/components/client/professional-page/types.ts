@@ -1,9 +1,10 @@
 export interface Professional {
   id: string;
+  code?: string; // Mã nhân sự thực tế
   name: string; // Full name
   title: string; // Position
   avatar: string;
-  location: string; // LocationName
+  location?: string; // LocationName
   workingMode?: string; // WorkingMode: Onsite, Remote, Hybrid, Flexible
   status?: string; // Status
   bio?: string; // Giới thiệu ngắn
@@ -11,8 +12,8 @@ export interface Professional {
   hourlyRate: number;
   rating: number;
   reviewCount: number;
-  skills: Array<{ 
-    name: string; 
+  skills: Array<{
+    name: string;
     level: 'Cơ bản' | 'Khá' | 'Giỏi' | 'Chuyên gia';
     yearsExp?: number; // Years of experience for this skill
   }>;
