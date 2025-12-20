@@ -1,20 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  Mail, 
-  Calendar, 
+import { useNavigate } from 'react-router-dom';
+import {
+  Mail,
+  Calendar,
   User,
   Building2,
-  Filter, 
-  Search, 
-  Eye,
+  Filter,
+  Search,
   CheckCircle,
   AlertCircle,
   Clock,
   ChevronLeft,
   ChevronRight,
-  MessageSquare,
-  UserCheck
+  MessageSquare
 } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
 import { sidebarItems } from '../../../components/sidebar/sales';
@@ -27,12 +25,12 @@ import {
 } from '../../../services/ContactInquiry';
 
 export default function ContactInquiryListPage() {
+  const navigate = useNavigate();
   const [inquiries, setInquiries] = useState<ContactInquiryModel[]>([]);
   const [filteredInquiries, setFilteredInquiries] = useState<ContactInquiryModel[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filterStatus, setFilterStatus] = useState<ContactInquiryStatusType | ''>('');
-  const [filterAssignedTo, setFilterAssignedTo] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const statsPageSize = 4;
@@ -121,7 +119,6 @@ export default function ContactInquiryListPage() {
           pageNumber: pageNumber,
           pageSize: pageSize,
           status: filterStatus || undefined,
-          assignedTo: filterAssignedTo || undefined,
           fullName: searchTerm || undefined,
           email: searchTerm || undefined,
           subject: searchTerm || undefined
@@ -140,7 +137,7 @@ export default function ContactInquiryListPage() {
     };
 
     fetchData();
-  }, [pageNumber, pageSize, filterStatus, filterAssignedTo, searchTerm]);
+  }, [pageNumber, pageSize, filterStatus, searchTerm]);
 
   // Client-side filtering for search
   useEffect(() => {
@@ -188,7 +185,6 @@ export default function ContactInquiryListPage() {
   const handleResetFilters = () => {
     setSearchTerm('');
     setFilterStatus('');
-    setFilterAssignedTo('');
     setPageNumber(1);
   };
 
@@ -382,17 +378,6 @@ export default function ContactInquiryListPage() {
                     </select>
                   </div>
 
-                  {/* Filter by Assigned To */}
-                  <div className="relative">
-                    <UserCheck className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
-                    <input
-                      type="text"
-                      placeholder="Lọc theo người được giao"
-                      className="w-full pl-10 pr-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300"
-                      value={filterAssignedTo}
-                      onChange={(e) => setFilterAssignedTo(e.target.value)}
-                    />
-                  </div>
 
                   {/* Reset Filters */}
                   <div className="flex items-end">
@@ -460,22 +445,24 @@ export default function ContactInquiryListPage() {
                   <th className="py-3 px-3 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider hidden lg:table-cell">Công ty</th>
                   <th className="py-3 px-3 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Tiêu đề</th>
                   <th className="py-3 px-3 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">Trạng thái</th>
-                  <th className="py-3 px-3 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider hidden lg:table-cell">Người được giao</th>
                   <th className="py-3 px-3 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider hidden md:table-cell">Ngày tạo</th>
-                  <th className="py-3 px-3 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-200">
                 {paginatedInquiries.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-neutral-500">
+                    <td colSpan={6} className="py-12 text-center text-neutral-500">
                       <MessageSquare className="w-12 h-12 mx-auto mb-4 text-neutral-300" />
                       <p>Không có yêu cầu liên hệ nào</p>
                     </td>
                   </tr>
                 ) : (
                   paginatedInquiries.map((inquiry, index) => (
-                    <tr key={inquiry.id} className="group hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 transition-all duration-300">
+                    <tr
+                      key={inquiry.id}
+                      className="group hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 transition-all duration-300 cursor-pointer"
+                      onClick={() => navigate(`/sales/contact-inquiries/${inquiry.id}`)}
+                    >
                       <td className="py-3 px-3 text-sm font-medium text-neutral-900">{startIndex + index + 1}</td>
                       <td className="py-3 px-3">
                         <div className="flex items-center gap-1.5 min-w-0">
@@ -508,14 +495,6 @@ export default function ContactInquiryListPage() {
                           );
                         })()}
                       </td>
-                      <td className="py-3 px-3 hidden lg:table-cell">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <UserCheck className="w-4 h-4 text-neutral-400 flex-shrink-0" />
-                          <span className="text-sm text-neutral-700 truncate" title={inquiry.assignedToName || '—'}>
-                            {inquiry.assignedToName || '—'}
-                          </span>
-                        </div>
-                      </td>
                       <td className="py-3 px-3 hidden md:table-cell">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <Calendar className="w-4 h-4 text-neutral-400 flex-shrink-0" />
@@ -523,15 +502,6 @@ export default function ContactInquiryListPage() {
                             {formatDate(inquiry.createdAt)}
                           </span>
                         </div>
-                      </td>
-                      <td className="py-3 px-3 text-center">
-                        <Link
-                          to={`/sales/contact-inquiries/${inquiry.id}`}
-                          className="group inline-flex items-center gap-1 px-2 py-1.5 text-primary-600 hover:text-primary-800 hover:bg-primary-50 rounded-lg transition-all duration-300 hover:scale-105 transform"
-                        >
-                          <Eye className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-                          <span className="text-xs font-medium hidden sm:inline">Xem</span>
-                        </Link>
                       </td>
                     </tr>
                   ))

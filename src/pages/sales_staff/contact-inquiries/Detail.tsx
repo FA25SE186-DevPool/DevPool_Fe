@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Sidebar from '../../../components/common/Sidebar';
+import Breadcrumb from '../../../components/common/Breadcrumb';
 import { sidebarItems } from '../../../components/sidebar/sales';
-import { 
-  Mail, 
-  ArrowLeft, 
-  Building2, 
+import {
+  Mail,
+  Building2,
   User,
   Calendar,
   MessageSquare,
@@ -14,17 +14,17 @@ import {
   Clock,
   UserCheck,
   Send,
-  XCircle,
   FileText,
   Briefcase
 } from 'lucide-react';
-import { 
-  contactInquiryService, 
+import {
+  contactInquiryService,
   type ContactInquiryModel,
   ContactInquiryStatus,
   type ContactInquiryStatusType,
   type ContactInquiryStatusUpdateModel
 } from '../../../services/ContactInquiry';
+import { jobRequestService } from '../../../services/JobRequest';
 import { useAuth } from '../../../context/AuthContext';
 
 export default function ContactInquiryDetailPage() {
@@ -39,7 +39,10 @@ export default function ContactInquiryDetailPage() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState<ContactInquiryStatusType>(ContactInquiryStatus.Closed);
   const [responseNotes, setResponseNotes] = useState('');
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [jobRequestCode, setJobRequestCode] = useState('');
+  const [jobRequestCodeError, setJobRequestCodeError] = useState('');
+  const [jobRequestCodes, setJobRequestCodes] = useState<string[]>([]);
+  const [showSuccessLoading, setShowSuccessLoading] = useState(false);
 
   const statusLabels: Record<ContactInquiryStatusType, string> = {
     New: "Mới",
@@ -81,16 +84,16 @@ export default function ContactInquiryDetailPage() {
   useEffect(() => {
     const fetchData = async () => {
       if (!id) return;
-      
+
       try {
         setLoading(true);
         setError('');
-        
+
         const [inquiryData, transitions] = await Promise.all([
           contactInquiryService.getById(Number(id)),
           contactInquiryService.getAvailableStatusTransitions(Number(id))
         ]);
-        
+
         setInquiry(inquiryData);
         setAvailableTransitions(transitions);
       } catch (err: any) {
@@ -104,6 +107,33 @@ export default function ContactInquiryDetailPage() {
     fetchData();
   }, [id]);
 
+  useEffect(() => {
+    const fetchJobRequestCodes = async () => {
+      try {
+        const jobRequests = await jobRequestService.getAll();
+        // Extract codes from job requests
+        let codes: string[] = [];
+        if (Array.isArray(jobRequests)) {
+          codes = jobRequests.map((jr: any) => jr.code || jr.id?.toString());
+        } else if (jobRequests && typeof jobRequests === 'object') {
+          const obj = jobRequests as any;
+          if (obj.data && Array.isArray(obj.data)) {
+            codes = obj.data.map((jr: any) => jr.code || jr.id?.toString());
+          } else if (obj.items && Array.isArray(obj.items)) {
+            codes = obj.items.map((jr: any) => jr.code || jr.id?.toString());
+          }
+        }
+        setJobRequestCodes(codes);
+      } catch (error) {
+        console.error("❌ Lỗi tải danh sách mã yêu cầu tuyển dụng:", error);
+        // Set empty array if error
+        setJobRequestCodes([]);
+      }
+    };
+
+    fetchJobRequestCodes();
+  }, []);
+
   const handleClaim = async () => {
     if (!id) return;
     
@@ -115,11 +145,10 @@ export default function ContactInquiryDetailPage() {
 
     try {
       setIsClaiming(true);
-      setSuccessMessage(null);
       const result = await contactInquiryService.claimInquiry(Number(id));
       
       if (result.isSuccess) {
-        setSuccessMessage(result.message || 'Nhận yêu cầu thành công!');
+        setShowSuccessLoading(true);
         // Reload data
         const [inquiryData, transitions] = await Promise.all([
           contactInquiryService.getById(Number(id)),
@@ -127,6 +156,8 @@ export default function ContactInquiryDetailPage() {
         ]);
         setInquiry(inquiryData);
         setAvailableTransitions(transitions);
+        // Auto hide after 2 seconds
+        setTimeout(() => setShowSuccessLoading(false), 2000);
       } else {
         alert(result.message || 'Không thể nhận yêu cầu');
       }
@@ -146,25 +177,53 @@ export default function ContactInquiryDetailPage() {
     return 1; // Default to New
   };
 
+  const validateJobRequestCode = (code: string): boolean => {
+    if (!code.trim()) {
+      setJobRequestCodeError('Vui lòng nhập mã yêu cầu tuyển dụng');
+      return false;
+    }
+
+    setJobRequestCodeError('');
+
+    const trimmedCode = code.trim();
+
+    // Check if code exists in the loaded list
+    const exists = jobRequestCodes.includes(trimmedCode);
+    if (!exists) {
+      setJobRequestCodeError('Mã yêu cầu tuyển dụng không tồn tại');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleUpdateStatus = async () => {
     if (!id || !inquiry) return;
 
+    // Validate job request code
+    const isCodeValid = validateJobRequestCode(jobRequestCode);
+    if (!isCodeValid) {
+      return;
+    }
+
     try {
       setIsUpdatingStatus(true);
-      setSuccessMessage(null);
-      
+
       const payload: ContactInquiryStatusUpdateModel = {
         newStatus: statusToEnumNumber(newStatus), // Convert to enum number (1, 2, 3)
-        responseNotes: responseNotes || null
+        responseNotes: responseNotes || null,
+        jobRequestId: jobRequestCode.trim()
       };
 
       const result = await contactInquiryService.updateStatus(Number(id), payload);
       
       if (result.isSuccess) {
-        setSuccessMessage(result.message || 'Cập nhật trạng thái thành công!');
+        setShowSuccessLoading(true);
         setShowStatusModal(false);
         setResponseNotes('');
-        
+        setJobRequestCode('');
+        setJobRequestCodeError('');
+
         // Reload data
         const [inquiryData, transitions] = await Promise.all([
           contactInquiryService.getById(Number(id)),
@@ -172,6 +231,8 @@ export default function ContactInquiryDetailPage() {
         ]);
         setInquiry(inquiryData);
         setAvailableTransitions(transitions);
+        // Auto hide after 2 seconds
+        setTimeout(() => setShowSuccessLoading(false), 2000);
       } else {
         alert(result.message || 'Không thể cập nhật trạng thái');
       }
@@ -202,6 +263,7 @@ export default function ContactInquiryDetailPage() {
   const canClaim = inquiry && normalizeStatus(inquiry.status) === ContactInquiryStatus.New && !inquiry.assignedTo;
   const isAssignedToMe = inquiry?.assignedTo === user?.id;
   const canUpdateStatus = isAssignedToMe && availableTransitions.length > 0;
+  const canCreateJobRequest = inquiry && normalizeStatus(inquiry.status) === ContactInquiryStatus.InProgress && isAssignedToMe;
 
   if (loading) {
     return (
@@ -246,17 +308,15 @@ export default function ContactInquiryDetailPage() {
       <Sidebar items={sidebarItems} title="Sales Staff" />
 
       <div className="flex-1 p-8">
+        <Breadcrumb
+          items={[
+            { label: "Yêu cầu liên hệ", to: "/sales/contact-inquiries" },
+            { label: `Chi tiết yêu cầu #${inquiry.id}` }
+          ]}
+        />
+
         {/* Header */}
         <div className="mb-8 animate-slide-up">
-          <div className="flex items-center gap-4 mb-6">
-            <Link 
-              to="/sales/contact-inquiries"
-              className="group flex items-center gap-2 text-neutral-600 hover:text-primary-600 transition-colors duration-300"
-            >
-              <ArrowLeft className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-              <span className="font-medium">Quay lại danh sách</span>
-            </Link>
-          </div>
 
           <div className="flex justify-between items-start">
             <div className="flex-1">
@@ -266,16 +326,14 @@ export default function ContactInquiryDetailPage() {
               </p>
               
               {/* Status Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-neutral-200 bg-white">
-                {(() => {
-                  const normalizedStatus = normalizeStatus(inquiry.status);
-                  return (
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusColors[normalizedStatus] || 'bg-gray-100 text-gray-800'}`}>
-                      {statusLabels[normalizedStatus] || normalizedStatus}
-                    </span>
-                  );
-                })()}
-              </div>
+              {(() => {
+                const normalizedStatus = normalizeStatus(inquiry.status);
+                return (
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusColors[normalizedStatus] || 'bg-gray-100 text-gray-800'}`}>
+                    {statusLabels[normalizedStatus] || normalizedStatus}
+                  </span>
+                );
+              })()}
             </div>
 
             <div className="flex gap-3">
@@ -299,25 +357,23 @@ export default function ContactInquiryDetailPage() {
                   className="flex items-center gap-2 px-6 py-3 bg-secondary-600 hover:bg-secondary-700 text-white rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow"
                 >
                   <Send className="w-5 h-5" />
-                  Cập nhật trạng thái
+                  Đóng Yêu Cầu
                 </button>
+              )}
+
+              {canCreateJobRequest && (
+                <Link
+                  to={`/sales/job-requests/create?contactInquiryId=${inquiry.id}&title=${encodeURIComponent(inquiry.subject)}&description=${encodeURIComponent(inquiry.content)}&requirements=${encodeURIComponent(inquiry.content)}&company=${inquiry.company ? encodeURIComponent(inquiry.company) : ''}`}
+                  className="flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105"
+                >
+                  <Briefcase className="w-5 h-5" />
+                  Tạo Yêu Cầu
+                </Link>
               )}
             </div>
           </div>
         </div>
 
-        {successMessage && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3 animate-fade-in">
-            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-            <p className="text-green-800">{successMessage}</p>
-            <button
-              onClick={() => setSuccessMessage(null)}
-              className="ml-auto text-green-600 hover:text-green-800"
-            >
-              <XCircle className="w-5 h-5" />
-            </button>
-          </div>
-        )}
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -385,30 +441,6 @@ export default function ContactInquiryDetailPage() {
               </div>
             )}
 
-            {/* Create Job Request Section - Only show when Closed and assigned to current user */}
-            {(() => {
-              const normalizedStatus = normalizeStatus(inquiry.status);
-              const isClosed = normalizedStatus === ContactInquiryStatus.Closed;
-              return isClosed && isAssignedToMe ? (
-                <div className="bg-gradient-to-r from-primary-50 to-secondary-50 rounded-2xl shadow-soft border-2 border-primary-200 p-6 animate-fade-in">
-                  <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Briefcase className="w-6 h-6 text-primary-600" />
-                    Tạo Yêu Cầu Tuyển Dụng
-                  </h2>
-                  <p className="text-neutral-600 mb-6">
-                    Yêu cầu liên hệ đã được đóng. Bạn có thể tạo yêu cầu tuyển dụng từ thông tin này. 
-                    Nội dung yêu cầu sẽ được tự động điền vào "Mô tả công việc" và "Yêu cầu ứng viên".
-                  </p>
-                  <Link
-                    to={`/sales/job-requests/create?contactInquiryId=${inquiry.id}&title=${encodeURIComponent(inquiry.subject)}&description=${encodeURIComponent(inquiry.content)}&requirements=${encodeURIComponent(inquiry.content)}&company=${inquiry.company ? encodeURIComponent(inquiry.company) : ''}`}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105"
-                  >
-                    <Briefcase className="w-5 h-5" />
-                    Tạo Yêu Cầu Tuyển Dụng
-                  </Link>
-                </div>
-              ) : null;
-            })()}
           </div>
 
           {/* Right Column - Metadata */}
@@ -503,6 +535,25 @@ export default function ContactInquiryDetailPage() {
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-2">
+                  Mã yêu cầu tuyển dụng <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={jobRequestCode}
+                  onChange={(e) => setJobRequestCode(e.target.value)}
+                  onBlur={() => validateJobRequestCode(jobRequestCode)}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                    jobRequestCodeError ? 'border-red-300' : 'border-neutral-200'
+                  }`}
+                  placeholder="Nhập mã yêu cầu tuyển dụng"
+                />
+                {jobRequestCodeError && (
+                  <p className="text-red-500 text-sm mt-1">{jobRequestCodeError}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
                   Trạng thái mới
                 </label>
                 <select
@@ -537,6 +588,8 @@ export default function ContactInquiryDetailPage() {
                 onClick={() => {
                   setShowStatusModal(false);
                   setResponseNotes('');
+                  setJobRequestCode('');
+                  setJobRequestCodeError('');
                 }}
                 className="px-4 py-2 text-neutral-600 hover:text-neutral-800 border border-neutral-200 rounded-lg transition-colors duration-200"
               >
@@ -550,6 +603,19 @@ export default function ContactInquiryDetailPage() {
                 {isUpdatingStatus ? 'Đang cập nhật...' : 'Cập nhật'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Loading Overlay */}
+      {showSuccessLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center gap-4 animate-fade-in">
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900">Thành công!</h3>
+            <p className="text-gray-600 text-center">Trạng thái đã được cập nhật thành công.</p>
           </div>
         </div>
       )}

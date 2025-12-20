@@ -2,13 +2,6 @@
 
 import { Search, Filter, ChevronDown, X } from "lucide-react";
 
-const experienceLevels = [
-  "Tất cả",
-  "1-3 năm",
-  "3-5 năm",
-  "5-8 năm",
-  "8+ năm",
-];
 
 const workingModes = [
   "Tất cả",
@@ -23,7 +16,6 @@ const statuses = [
   "Đang làm việc",
   "Sẵn sàng",
   "Bận",
-  "Không rảnh",
 ];
 
 // Định nghĩa interface cho props của component này
@@ -40,8 +32,6 @@ interface ProfessionalFilterBarProps {
   setSelectedWorkingMode: (value: string) => void;
   selectedStatus: string;
   setSelectedStatus: (value: string) => void;
-  selectedExperience: string;
-  setSelectedExperience: (value: string) => void;
   locations: string[];
   clearFilters: () => void;
 }
@@ -62,8 +52,6 @@ export default function ProfessionalFilterBar(
     setSelectedWorkingMode,
     selectedStatus,
     setSelectedStatus,
-    selectedExperience,
-    setSelectedExperience,
     locations,
     clearFilters,
   } = props;
@@ -74,7 +62,7 @@ export default function ProfessionalFilterBar(
         <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-neutral-400 w-6 h-6" />
         <input
           type="text"
-          placeholder="Tìm kiếm theo tên, kỹ năng, chuyên môn..."
+          placeholder="Tìm kiếm theo tên, mã nhân sự..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full pl-12 pr-4 py-4 border border-neutral-300 rounded-2xl bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-300 hover:border-neutral-400 hover:shadow-soft text-neutral-900 placeholder-neutral-500 text-lg"
@@ -103,7 +91,6 @@ export default function ProfessionalFilterBar(
             className="border border-neutral-300 rounded-xl px-3 py-2 bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-300"
           >
             <option value="name">Tên A-Z</option>
-            <option value="experience">Kinh nghiệm nhiều nhất</option>
             <option value="projects">Dự án nhiều nhất</option>
             <option value="skills">Kỹ năng nhiều nhất</option>
           </select>
@@ -167,23 +154,6 @@ export default function ProfessionalFilterBar(
             </select>
           </div>
 
-          {/* Experience Filter */}
-          <div>
-            <label className="block text-sm font-semibold text-neutral-700 mb-2">
-              Kinh nghiệm
-            </label>
-            <select
-              value={selectedExperience}
-              onChange={(e) => setSelectedExperience(e.target.value)}
-              className="w-full border border-neutral-300 rounded-xl px-3 py-2 bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-300"
-            >
-              {experienceLevels.map((level) => (
-                <option key={level} value={level}>
-                  {level}
-                </option>
-              ))}
-            </select>
-          </div>
 
           {/* Clear Filters */}
           <div className="md:col-span-2 lg:col-span-3 xl:col-span-4 flex items-end">

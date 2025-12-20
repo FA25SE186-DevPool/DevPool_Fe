@@ -452,7 +452,7 @@ export default function ClientCompanyDetailPage() {
       };
 
       await clientTalentBlacklistService.add(payload);
-      showSuccessOverlay("✅ Đã thêm talent vào blacklist thành công!");
+      showSuccessOverlay("✅ Đã thêm nhân sự vào blacklist thành công!");
       
       // Refresh blacklist
       const data = await clientTalentBlacklistService.getByClientId(Number(id), true);
@@ -497,7 +497,7 @@ export default function ClientCompanyDetailPage() {
       };
 
       await clientTalentBlacklistService.removeBlacklist(selectedBlacklistId, payload);
-      showSuccessOverlay("✅ Đã gỡ bỏ talent khỏi blacklist thành công!");
+      showSuccessOverlay("✅ Đã gỡ bỏ nhân sự khỏi blacklist thành công!");
       
       // Refresh blacklist
       const data = await clientTalentBlacklistService.getByClientId(Number(id), true);
@@ -971,7 +971,7 @@ export default function ClientCompanyDetailPage() {
                   <div className="p-2 bg-red-100 rounded-lg">
                     <Ban className="w-5 h-5 text-red-600" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900">Thêm Talent vào Blacklist</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Thêm nhân sự vào Blacklist</h3>
                 </div>
                 <button
                   onClick={handleCloseAddBlacklistModal}
@@ -986,7 +986,7 @@ export default function ClientCompanyDetailPage() {
               <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tìm kiếm Talent <span className="text-red-500">*</span>
+                    Tìm kiếm nhân sự <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400" />
@@ -1132,7 +1132,7 @@ export default function ClientCompanyDetailPage() {
               <div className="px-6 py-4 space-y-4">
                 <div>
                   <p className="text-sm text-neutral-600 mb-4">
-                    Bạn đang gỡ bỏ talent khỏi blacklist. Talent này sẽ lại có thể được gợi ý cho Client này trong các lần matching tiếp theo.
+                    Bạn đang gỡ bỏ nhân sự khỏi blacklist. Nhân sự này sẽ lại có thể được gợi ý cho Client này trong các lần matching tiếp theo.
                   </p>
                   
                   {(() => {

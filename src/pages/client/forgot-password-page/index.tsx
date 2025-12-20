@@ -1,7 +1,71 @@
+import { useState, useEffect } from "react"
 import ForgotPasswordForm from "../../../components/auth/ForgotPasswordForm"
 import logoDevPool from "../../../assets/images/logo-DevPool.jpg"
+import { clientCompanyService } from "../../../services/ClientCompany"
+import { talentService } from "../../../services/Talent"
 
 export default function ForgotPasswordPage() {
+  const [clientCompaniesCount, setClientCompaniesCount] = useState<number | null>(null)
+  const [talentsCount, setTalentsCount] = useState<number | null>(null)
+
+  // Function to format count with + suffix (round down to nearest 4)
+  const formatCount = (count: number): string => {
+    if (count <= 0) return "4+"
+    const roundedDown = Math.floor(count / 4) * 4
+    return roundedDown > 0 ? `${roundedDown}+` : "4+"
+  }
+
+  useEffect(() => {
+    const fetchStatsData = async () => {
+      try {
+        // Fetch both client companies and talents count in parallel
+        const [clientCompaniesResult, talentsResult] = await Promise.all([
+          clientCompanyService.getAll({ excludeDeleted: true }),
+          talentService.getAll({ excludeDeleted: true, pageSize: 1 }) // Get total count only
+        ])
+
+        // Process client companies count
+        let clientCompaniesCount = 0
+        if (Array.isArray(clientCompaniesResult)) {
+          clientCompaniesCount = clientCompaniesResult.length
+        } else if (clientCompaniesResult && typeof clientCompaniesResult === 'object') {
+          const obj = clientCompaniesResult as any
+          if (obj.data && Array.isArray(obj.data)) {
+            clientCompaniesCount = obj.data.length
+          } else if (obj.items && Array.isArray(obj.items)) {
+            clientCompaniesCount = obj.items.length
+          } else if (obj.totalCount !== undefined) {
+            clientCompaniesCount = obj.totalCount
+          }
+        }
+
+        // Process talents count
+        let talentsCount = 0
+        if (Array.isArray(talentsResult)) {
+          talentsCount = talentsResult.length
+        } else if (talentsResult && typeof talentsResult === 'object') {
+          const obj = talentsResult as any
+          if (obj.totalCount !== undefined) {
+            talentsCount = obj.totalCount
+          } else if (obj.data && Array.isArray(obj.data)) {
+            talentsCount = obj.data.length
+          } else if (obj.items && Array.isArray(obj.items)) {
+            talentsCount = obj.items.length
+          }
+        }
+
+        setClientCompaniesCount(clientCompaniesCount)
+        setTalentsCount(talentsCount)
+      } catch (error) {
+        console.error("❌ Lỗi tải dữ liệu thống kê:", error)
+        // Fallback values
+        setClientCompaniesCount(4)
+        setTalentsCount(50)
+      }
+    }
+
+    fetchStatsData()
+  }, [])
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-primary-50/30 to-secondary-50/30 flex">
       {/* Left Side - Form */}
@@ -95,9 +159,9 @@ export default function ForgotPasswordPage() {
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-xl opacity-75 group-hover:opacity-100 transition duration-300 blur"></div>
                 <div className="relative bg-slate-800/80 backdrop-blur-xl rounded-xl p-5 border border-white/10 hover:border-cyan-400/50 transition-all duration-300">
                   <div className="text-3xl font-bold mb-2 bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                    2K+
+                    {talentsCount !== null ? formatCount(talentsCount) : "50+"}
                   </div>
-                  <div className="text-slate-300 text-sm">Dự án hoàn thành</div>
+                  <div className="text-slate-300 text-sm">Hồ sơ nhân sự</div>
                   <div className="mt-2 w-full bg-slate-700 rounded-full h-1">
                     <div className="bg-gradient-to-r from-cyan-400 to-blue-500 h-1 rounded-full w-4/5 animate-pulse"></div>
                   </div>
@@ -108,9 +172,9 @@ export default function ForgotPasswordPage() {
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl opacity-75 group-hover:opacity-100 transition duration-300 blur"></div>
                 <div className="relative bg-slate-800/80 backdrop-blur-xl rounded-xl p-5 border border-white/10 hover:border-blue-400/50 transition-all duration-300">
                   <div className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                    800+
+                    {clientCompaniesCount !== null ? formatCount(clientCompaniesCount) : "4+"}
                   </div>
-                  <div className="text-slate-300 text-sm">Chuyên gia IT</div>
+                  <div className="text-slate-300 text-sm">Doanh nghiệp hợp tác</div>
                   <div className="mt-2 w-full bg-slate-700 rounded-full h-1">
                     <div
                       className="bg-gradient-to-r from-blue-400 to-indigo-500 h-1 rounded-full w-3/4 animate-pulse"

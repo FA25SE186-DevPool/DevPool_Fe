@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
     Users,
     CheckCircle,
@@ -10,12 +11,16 @@ import {
     FileCheck,
     HeartHandshake,
 } from "lucide-react";
+import { talentService } from "../../../services/Talent";
+import { clientCompanyService } from "../../../services/ClientCompany";
+import { partnerService } from "../../../services/Partner";
+import { projectService } from "../../../services/Project";
 
 export default function AboutPage() {
-    const stats = [
+    const [stats, setStats] = useState([
         {
             number: "50+",
-            label: "Developer trong mạng lưới",
+            label: "Nhân sự trong mạng lưới",
             icon: Users,
             color: "primary",
         },
@@ -27,17 +32,88 @@ export default function AboutPage() {
         },
         {
             number: "10+",
-            label: "Đối tác doanh nghiệp",
+            label: "Doanh nghiệp khách hàng",
             icon: Building2,
             color: "accent",
         },
         {
-            number: "95%",
-            label: "Khách hàng hài lòng",
+            number: "10+",
+            label: "Đối tác hợp tác",
             icon: CheckCircle,
             color: "success",
         },
-    ];
+    ]);
+
+    // Function to format count with + suffix (round down to nearest 4)
+    const formatCount = (count: number): string => {
+        if (count <= 0) return "4+";
+        const roundedDown = Math.floor(count / 4) * 4;
+        return roundedDown > 0 ? `${roundedDown}+` : "4+";
+    };
+
+    useEffect(() => {
+        const fetchStatsData = async () => {
+            try {
+                // Fetch all stats data in parallel
+                const [talentsResult, projectsResult, clientCompaniesResult, partnersResult] = await Promise.all([
+                    talentService.getAll({ excludeDeleted: true, pageSize: 1 }),
+                    projectService.getAll({ excludeDeleted: true, pageSize: 1 }),
+                    clientCompanyService.getAll({ excludeDeleted: true }),
+                    partnerService.getAll({ excludeDeleted: true })
+                ]);
+
+                // Process counts
+                const getCount = (result: any): number => {
+                    if (Array.isArray(result)) return result.length;
+                    if (result && typeof result === 'object') {
+                        const obj = result as any;
+                        if (obj.totalCount !== undefined) return obj.totalCount;
+                        if (obj.data && Array.isArray(obj.data)) return obj.data.length;
+                        if (obj.items && Array.isArray(obj.items)) return obj.items.length;
+                    }
+                    return 0;
+                };
+
+                const talentsCount = getCount(talentsResult);
+                const projectsCount = getCount(projectsResult);
+                const clientCompaniesCount = getCount(clientCompaniesResult);
+                const partnersCount = getCount(partnersResult);
+
+                // Update stats with real data
+                setStats([
+                    {
+                        number: formatCount(talentsCount) || "50+",
+                        label: "Nhân sự trong mạng lưới",
+                        icon: Users,
+                        color: "primary",
+                    },
+                    {
+                        number: formatCount(projectsCount) || "20+",
+                        label: "Dự án đang triển khai",
+                        icon: Briefcase,
+                        color: "secondary",
+                    },
+                    {
+                        number: formatCount(clientCompaniesCount) || "10+",
+                        label: "Doanh nghiệp khách hàng",
+                        icon: Building2,
+                        color: "accent",
+                    },
+                    {
+                        number: formatCount(partnersCount) || "10+",
+                        label: "Đối tác hợp tác",
+                        icon: CheckCircle,
+                        color: "success",
+                    },
+                ]);
+            } catch (error) {
+                console.error("❌ Lỗi tải dữ liệu thống kê trang About:", error);
+                // Keep default values on error
+            }
+        };
+
+        fetchStatsData();
+    }, []);
 
     const values = [
         {
@@ -233,7 +309,7 @@ export default function AboutPage() {
                             </p>
                             <p className="flex items-center gap-3 justify-center">
                                 <CheckCircle className="w-5 h-5" />
-                                <span>Đội ngũ developer được đánh giá kỹ càng về chuyên môn</span>
+                                <span>Đội ngũ nhân sự được đánh giá kỹ càng về chuyên môn</span>
                             </p>
                             <p className="flex items-center gap-3 justify-center">
                                 <CheckCircle className="w-5 h-5" />
@@ -242,10 +318,6 @@ export default function AboutPage() {
                             <p className="flex items-center gap-3 justify-center">
                                 <CheckCircle className="w-5 h-5" />
                                 <span>Hệ thống báo cáo và theo dõi tiến độ làm việc hàng tháng</span>
-                            </p>
-                            <p className="flex items-center gap-3 justify-center">
-                                <CheckCircle className="w-5 h-5" />
-                                <span>Hỗ trợ tư vấn 24/7 từ đội ngũ chuyên gia</span>
                             </p>
                             <p className="flex items-center gap-3 justify-center">
                                 <CheckCircle className="w-5 h-5" />

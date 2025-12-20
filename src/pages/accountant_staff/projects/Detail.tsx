@@ -13,7 +13,7 @@ import { useTalents } from "../../../hooks/useTalents";
 import { formatNumberInput } from "../../../utils/formatters";
 import { clientContractPaymentService, type ClientContractPaymentModel } from "../../../services/ClientContractPayment";
 import { partnerContractPaymentService, type PartnerContractPaymentModel } from "../../../services/PartnerContractPayment";
-import { 
+import {
   CheckCircle,
   AlertCircle,
   Plus,
@@ -33,7 +33,10 @@ import {
   ExternalLink,
   Download,
   User,
-  UserPlus
+  UserPlus,
+  MapPin,
+  Mail,
+  Phone
 } from "lucide-react";
 
 export default function AccountantProjectDetailPage() {
@@ -45,6 +48,7 @@ export default function AccountantProjectDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showDescription, setShowDescription] = useState(false);
   const [showCompanyInfo, setShowCompanyInfo] = useState(false);
+  const [showIndustryInfo, setShowIndustryInfo] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('info');
   
   // ProjectPeriod states
@@ -1137,12 +1141,30 @@ export default function AccountantProjectDetailPage() {
               </p>
               
               {/* Status Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 border border-green-200">
-                <CheckCircle className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium text-green-800">
-                  {project.status ? statusLabels[project.status] || project.status : "Đang hoạt động"}
-                </span>
-              </div>
+              {(() => {
+                const getStatusColorClass = (status: string) => {
+                  if (status === 'Ongoing') return 'bg-blue-100 text-blue-800 border-blue-200';
+                  if (status === 'Planned') return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                  if (status === 'OnHold') return 'bg-purple-100 text-purple-800 border-purple-200';
+                  if (status === 'Completed') return 'bg-green-100 text-green-800 border-green-200';
+                  return 'bg-neutral-100 text-neutral-800 border-neutral-200';
+                };
+                const statusColorClass = project.status ? getStatusColorClass(project.status) : 'bg-green-100 text-green-800 border-green-200';
+                const statusText = project.status ? (statusLabels[project.status] || "Không xác định") : "Đang hoạt động";
+                const iconColor = project.status === 'Ongoing' ? 'text-blue-600' :
+                                 project.status === 'Planned' ? 'text-yellow-600' :
+                                 project.status === 'OnHold' ? 'text-purple-600' :
+                                 project.status === 'Completed' ? 'text-green-600' :
+                                 'text-green-600';
+                return (
+                  <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border ${statusColorClass}`}>
+                    <CheckCircle className={`w-4 h-4 ${iconColor}`} />
+                    <span className="text-sm font-medium">
+                      {statusText}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -1199,83 +1221,115 @@ export default function AccountantProjectDetailPage() {
             {/* Tab: Thông tin dự án */}
             {activeTab === 'info' && (
               <div className="animate-fade-in">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <InfoItem 
-                    label="Mã dự án" 
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {/* Cột 1: Mã, Tên, Công ty khách hàng */}
+                <div className="space-y-6">
+                  <InfoItem
+                    label="Mã dự án"
                     value={project.code || "—"}
                     icon={<Hash className="w-4 h-4" />}
                   />
-                  <InfoItem 
-                    label="Tên dự án" 
+                  <InfoItem
+                    label="Tên dự án"
                     value={project.name}
                     icon={<FileText className="w-4 h-4" />}
                   />
                   <div className="group">
                     <div className="flex items-center gap-2 mb-2">
-                      <Building2 className="w-4 h-4 text-neutral-400 group-hover:text-primary-600 transition-colors duration-300" />
-                      <p className="text-sm font-medium text-neutral-600 group-hover:text-neutral-700 transition-colors duration-300">
+                      <div className="text-neutral-400">
+                        <Building2 className="w-4 h-4" />
+                      </div>
+                      <p className="text-neutral-500 text-sm font-medium">
                         Công ty khách hàng
                       </p>
                     </div>
                     <button
-                      onClick={() => setShowCompanyInfo(true)}
-                      className="text-gray-900 font-semibold text-lg hover:text-primary-700 transition-colors duration-300 cursor-pointer text-left"
+                      onClick={() => company && setShowCompanyInfo(true)}
+                      disabled={!company}
+                      className={`text-left font-semibold ${
+                        (project.clientCompanyName || company?.name)
+                          ? "text-primary-700 hover:text-primary-800 cursor-pointer"
+                          : "text-gray-900 cursor-default"
+                      }`}
                     >
                       {project.clientCompanyName || company?.name || "—"}
                     </button>
                   </div>
-                  <InfoItem 
-                    label="Thị trường" 
+                </div>
+
+                {/* Cột 2: Thị trường, Lĩnh vực */}
+                <div className="space-y-6">
+                  <InfoItem
+                    label="Thị trường"
                     value={project.marketName || "—"}
                     icon={<Globe2 className="w-4 h-4" />}
                   />
-                  <InfoItem 
-                    label="Ngành nghề" 
-                    value={
-                      project.industryNames && project.industryNames.length > 0
-                        ? project.industryNames.join(", ")
-                        : "—"
-                    }
-                    icon={<Factory className="w-4 h-4" />}
-                  />
-                  <InfoItem 
-                    label="Ngày bắt đầu" 
+                  <div className="group">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="text-neutral-400">
+                        <Factory className="w-4 h-4" />
+                      </div>
+                      <p className="text-neutral-500 text-sm font-medium">
+                        Lĩnh vực
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => project.industryNames && project.industryNames.length > 0 && setShowIndustryInfo(true)}
+                      disabled={!project.industryNames || project.industryNames.length === 0}
+                      className={`text-left font-semibold ${
+                        project.industryNames && project.industryNames.length > 0
+                          ? "text-primary-700 hover:text-primary-800 cursor-pointer"
+                          : "text-gray-900 cursor-default"
+                      }`}
+                    >
+                      {project.industryNames && project.industryNames.length > 0
+                        ? `${project.industryNames.length} lĩnh vực`
+                        : "—"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cột 3: Ngày bắt đầu, Ngày kết thúc */}
+                <div className="space-y-6">
+                  <InfoItem
+                    label="Ngày bắt đầu"
                     value={formatViDateTime(project.startDate)}
                     icon={<CalendarDays className="w-4 h-4" />}
                   />
-                  <InfoItem 
-                    label="Ngày kết thúc" 
-                    value={project.endDate ? formatViDateTime(project.endDate) : "Chưa xác định"}
+                  <InfoItem
+                    label="Ngày kết thúc"
+                    value={project.endDate ? formatViDateTime(project.endDate) : "—"}
                     icon={<CalendarDays className="w-4 h-4" />}
                   />
                 </div>
+              </div>
 
-                {/* Mô tả với nút xem/ẩn */}
-                {project.description && (
-                  <div className="mt-6 pt-6 border-t border-neutral-200">
-                    <button
-                      onClick={() => setShowDescription(!showDescription)}
-                      className="flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium mb-3"
-                    >
-                      {showDescription ? (
-                        <>
-                          <ChevronUp className="w-4 h-4" />
-                          Ẩn mô tả
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="w-4 h-4" />
-                          Xem mô tả
-                        </>
-                      )}
-                    </button>
-                    {showDescription && (
-                      <div className="prose max-w-none text-neutral-700 bg-neutral-50 rounded-xl p-4">
-                        <div dangerouslySetInnerHTML={{ __html: project.description }} />
-                      </div>
+              {/* Mô tả với nút xem/ẩn */}
+              {project.description && (
+                <div className="mt-6 pt-6 border-t border-neutral-200">
+                  <button
+                    onClick={() => setShowDescription(!showDescription)}
+                    className="flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium mb-3"
+                  >
+                    {showDescription ? (
+                      <>
+                        <ChevronUp className="w-4 h-4" />
+                        Ẩn mô tả
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-4 h-4" />
+                        Xem mô tả
+                      </>
                     )}
-                  </div>
-                )}
+                  </button>
+                  {showDescription && (
+                    <div className="prose max-w-none text-neutral-700 bg-neutral-50 rounded-xl p-4">
+                      <div dangerouslySetInnerHTML={{ __html: project.description }} />
+                    </div>
+                  )}
+                </div>
+              )}
               </div>
             )}
 
@@ -2181,50 +2235,108 @@ export default function AccountantProjectDetailPage() {
         </div>
       )}
 
-      {/* Company Info Modal */}
+      {/* Company Info Popover */}
       {showCompanyInfo && company && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowCompanyInfo(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowCompanyInfo(false)}>
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between z-10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary-100 rounded-lg">
+                  <Building2 className="w-5 h-5 text-primary-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900">Thông tin khách hàng</h3>
+              </div>
+              <button
+                onClick={() => setShowCompanyInfo(false)}
+                className="text-neutral-400 hover:text-neutral-600 transition-colors p-1 rounded hover:bg-neutral-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Building2 className="w-4 h-4 text-neutral-400" />
+                      <p className="text-sm font-medium text-neutral-500">Tên công ty</p>
+                    </div>
+                    <p className="text-gray-900 font-semibold">{company.name || '—'}</p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText className="w-4 h-4 text-neutral-400" />
+                      <p className="text-sm font-medium text-neutral-500">Mã số thuế</p>
+                    </div>
+                    <p className="text-gray-900 font-semibold">{company.taxCode || '—'}</p>
+                  </div>
+
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <MapPin className="w-4 h-4 text-neutral-400" />
+                      <p className="text-sm font-medium text-neutral-500">Địa chỉ</p>
+                    </div>
+                    <p className="text-gray-900 font-semibold">{company.address || '—'}</p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Mail className="w-4 h-4 text-neutral-400" />
+                      <p className="text-sm font-medium text-neutral-500">Email</p>
+                    </div>
+                    <p className="text-gray-900 font-semibold">{company.email || '—'}</p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Phone className="w-4 h-4 text-neutral-400" />
+                      <p className="text-sm font-medium text-neutral-500">Số điện thoại</p>
+                    </div>
+                    <p className="text-gray-900 font-semibold">{company.phone || '—'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Industry Info Popover */}
+      {showIndustryInfo && project && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowIndustryInfo(false)}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-primary-600" />
-                Thông tin khách hàng
+                <Factory className="w-5 h-5 text-primary-600" />
+                Lĩnh vực
               </h3>
               <button
-                onClick={() => setShowCompanyInfo(false)}
+                onClick={() => setShowIndustryInfo(false)}
                 className="text-neutral-400 hover:text-neutral-600"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm font-medium text-neutral-600 mb-1">Tên công ty</p>
-                <p className="text-gray-900 font-semibold">{company.name}</p>
-              </div>
-              {company.contactPerson && (
-                <div>
-                  <p className="text-sm font-medium text-neutral-600 mb-1">Người đại diện</p>
-                  <p className="text-gray-900">{company.contactPerson}</p>
-                </div>
-              )}
-              {company.email && (
-                <div>
-                  <p className="text-sm font-medium text-neutral-600 mb-1">Email</p>
-                  <p className="text-gray-900">{company.email}</p>
-                </div>
-              )}
-              {company.phone && (
-                <div>
-                  <p className="text-sm font-medium text-neutral-600 mb-1">Điện thoại</p>
-                  <p className="text-gray-900">{company.phone}</p>
-                </div>
-              )}
-              {company.address && (
-                <div>
-                  <p className="text-sm font-medium text-neutral-600 mb-1">Địa chỉ</p>
-                  <p className="text-gray-900">{company.address}</p>
-                </div>
+            <div className="space-y-2">
+              {project.industryNames && project.industryNames.length > 0 ? (
+                project.industryNames.map((industryName, index) => (
+                  <div
+                    key={index}
+                    className="px-4 py-2.5 bg-neutral-50 rounded-lg border border-neutral-200"
+                  >
+                    <p className="text-gray-900 font-medium">{industryName}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-neutral-500 text-center py-4">Không có lĩnh vực nào</p>
               )}
             </div>
           </div>
@@ -2238,17 +2350,11 @@ function InfoItem({ label, value, icon }: { label: string; value: string; icon?:
   return (
     <div className="group">
       <div className="flex items-center gap-2 mb-2">
-        {icon && (
-          <div className="text-neutral-400 group-hover:text-primary-600 transition-colors duration-300">
-            {icon}
-          </div>
-        )}
-        <p className="text-sm font-medium text-neutral-600 group-hover:text-neutral-700 transition-colors duration-300">
-          {label}
-        </p>
+        {icon && <div className="text-neutral-400">{icon}</div>}
+        <p className="text-neutral-500 text-sm font-medium">{label}</p>
       </div>
-      <p className="text-gray-900 font-semibold text-lg group-hover:text-primary-700 transition-colors duration-300">
-        {value}
+      <p className="text-gray-900 font-semibold group-hover:text-primary-700 transition-colors duration-300">
+        {value || "—"}
       </p>
     </div>
   );

@@ -132,7 +132,7 @@ export default function RegisterForm({ onToggleForm }: RegisterFormProps) {
               <User className={`w-8 h-8 mb-3 mx-auto transition-colors duration-300 ${formData.role === 'Developer' ? 'text-primary-600' : 'text-neutral-500'
                 }`} />
               <div className="text-center">
-                <h3 className="font-semibold text-neutral-900 mb-1">Chuyên Gia IT</h3>
+                <h3 className="font-semibold text-neutral-900 mb-1">Nhân sự DevPool</h3>
                 <p className="text-sm text-neutral-600">Tìm dự án phù hợp</p>
               </div>
             </div>
@@ -163,7 +163,7 @@ export default function RegisterForm({ onToggleForm }: RegisterFormProps) {
                 }`} />
               <div className="text-center">
                 <h3 className="font-semibold text-neutral-900 mb-1">Doanh Nghiệp</h3>
-                <p className="text-sm text-neutral-600">Tuyển chuyên gia IT</p>
+                <p className="text-sm text-neutral-600">Tuyển nhân sự DevPool</p>
               </div>
             </div>
           </div>

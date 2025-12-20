@@ -14,19 +14,24 @@ interface ProfessionalCardProps {
     onToggleSelectForContact?: (id: string) => void;
 }
 
-// Lấy tên rút gọn (tên cuối cùng trong họ tên)
+// Lấy tên rút gọn (tên lót + tên chính, bỏ họ)
 const getShortName = (fullName: string): string => {
     const parts = fullName.trim().split(/\s+/);
     if (parts.length === 0) return fullName;
-    // Lấy tên cuối cùng (thường là tên chính)
-    return parts[parts.length - 1];
+    if (parts.length === 1) return parts[0];
+    // Lấy tên lót + tên chính (từ phần tử thứ 2 trở đi)
+    return parts.slice(1).join(' ');
 };
 
-// Format mã nhân sự thành TAL-001
-const formatTalentCode = (id: string): string => {
-    const numId = parseInt(id);
-    if (isNaN(numId)) return `TAL-${id}`;
-    return `TAL-${String(numId).padStart(3, '0')}`;
+// Format mã nhân sự - sử dụng code thực tế hoặc fallback
+const formatTalentCode = (code?: string, id?: string): string => {
+    if (code) return code;
+    if (id) {
+        const numId = parseInt(id);
+        if (isNaN(numId)) return `EMP${id}`;
+        return `EMP${String(numId).padStart(3, '0')}`;
+    }
+    return 'N/A';
 };
 
 // Format WorkingMode
@@ -52,7 +57,8 @@ const formatStatus = (status?: string): string => {
         'Working': 'Đang làm việc',
         'Available': 'Sẵn sàng',
         'Busy': 'Bận',
-        'Unavailable': 'Không rảnh',
+        'Unavailable': 'Tạm ngưng',
+        'Applying': 'Đang ứng tuyển',
     };
     return statusMap[status] || status;
 };
@@ -83,8 +89,8 @@ export default function ProfessionalCard({
     const [isBioExpanded, setIsBioExpanded] = useState(false);
     const shortName = getShortName(professional.name);
     const avatarUrl = professional.avatar || DEFAULT_AVATAR;
-    const maxSkillsToShow = 5; // Giới hạn số skills hiển thị
-    const talentCode = formatTalentCode(professional.id);
+    const maxSkillsToShow = 4; // Giới hạn số skills hiển thị (tối đa 2 hàng)
+    const talentCode = formatTalentCode(professional.code, professional.id);
     
     const bioText = professional.bio || professional.description || '';
     const shouldShowExpandButton = bioText.length > 100; // Hiển thị nút nếu bio dài hơn 100 ký tự
@@ -156,11 +162,13 @@ export default function ProfessionalCard({
 
             {/* Thông tin cơ bản: Location, WorkingMode, Status - Gộp lại thành grid */}
             <div className="grid grid-cols-1 gap-2 mb-4">
-                {/* Location */}
-                <div className="flex items-start space-x-2 text-neutral-600 bg-neutral-50 rounded-lg px-3 py-2">
-                    <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm font-medium break-words">{professional.location || '—'}</span>
-                </div>
+                {/* Location - chỉ hiển thị khi có location */}
+                {professional.location && (
+                    <div className="flex items-start space-x-2 text-neutral-600 bg-neutral-50 rounded-lg px-3 py-2">
+                        <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        <span className="text-sm font-medium break-words">{professional.location}</span>
+                    </div>
+                )}
 
                 {/* WorkingMode và Status - Cùng một hàng nếu có */}
                 <div className="flex items-center gap-2 flex-wrap">
@@ -206,7 +214,7 @@ export default function ProfessionalCard({
                 </div>
             )}
 
-            {/* Skills - Hiển thị tên skill và yearsExp, giới hạn số lượng */}
+            {/* Skills - Hiển thị tên skill và level, giới hạn số lượng */}
             {professional.skills && professional.skills.length > 0 && (
                 <div className="mb-4">
                     <div className="flex flex-wrap gap-2">
@@ -214,12 +222,9 @@ export default function ProfessionalCard({
                             <span
                                 key={`${skill.name}-${index}`}
                                 className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all duration-300 hover:scale-105 ${getSkillLevelColor(skill.level)}`}
-                                title={skill.yearsExp ? `${skill.name} - ${skill.yearsExp} năm kinh nghiệm` : skill.name}
+                                title={`${skill.name} - ${skill.level}`}
                             >
-                                {skill.name}
-                                {skill.yearsExp && skill.yearsExp > 0 && (
-                                    <span className="ml-1 text-xs opacity-75">({skill.yearsExp})</span>
-                                )}
+                                {skill.name} ({skill.level})
                             </span>
                         ))}
                         {professional.skills.length > maxSkillsToShow && (
@@ -237,7 +242,7 @@ export default function ProfessionalCard({
                 <div className="flex items-center justify-between p-3 bg-gradient-to-r from-primary-50 to-secondary-50 rounded-xl border border-primary-200 group-hover:from-primary-100 group-hover:to-secondary-100 transition-all duration-300">
                     <div className="flex items-center space-x-2">
                         <BriefcaseIcon className="w-4 h-4 text-primary-600" />
-                        <span className="text-xs font-medium text-neutral-600">Tổng dự án</span>
+                        <span className="text-xs font-medium text-neutral-600">Tổng dự án thực hiện</span>
                     </div>
                     <span className="text-base font-bold text-primary-700">
                         {professional.completedProjects || professional.workExperiences || 0}
@@ -248,31 +253,13 @@ export default function ProfessionalCard({
 
             {/* Actions */}
             <div className="mt-4 pt-4 border-t border-neutral-200">
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={handleContact}
-                        className="flex-1 bg-gradient-to-r from-primary-600 to-primary-700 text-white px-4 py-2.5 rounded-xl hover:from-primary-700 hover:to-primary-800 font-semibold text-sm transition-all duration-300 shadow-glow hover:shadow-glow-lg transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
-                    >
-                        <Phone className="w-4 h-4" />
-                        Liên hệ
-                    </button>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            // Mở Zalo chat với số điện thoại (nếu có)
-                            const phone = professional.phoneNumber || '';
-                            if (phone) {
-                                window.open(`https://zalo.me/${phone.replace(/\D/g, '')}`, '_blank');
-                            }
-                        }}
-                        className="flex items-center justify-center px-4 py-2.5 bg-[#0068FF] text-white rounded-xl hover:bg-[#0052CC] font-semibold text-sm transition-all duration-300 shadow-soft hover:shadow-medium transform hover:scale-105"
-                        title="Liên hệ qua Zalo"
-                    >
-                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.67 6.78 18.5 5.05C16.97 3.68 15.05 2.73 12.96 2.42C12.64 2.37 12.34 2.28 12.04 2.28L12.04 2M12.05 3.67C14.25 3.67 16.31 4.53 17.87 6.05C19.5 7.65 20.45 9.72 20.45 11.92C20.45 16.64 16.76 20.33 12.04 20.33C10.56 20.33 9.11 19.93 7.85 19.18L7.55 19L3.71 20L4.72 16.4L4.5 16.09C3.7 14.73 3.24 13.3 3.24 11.91C3.24 7.19 6.93 3.5 11.65 3.5L12.05 3.67M8.25 7.54C7.9 7.54 7.58 7.7 7.35 7.97C7.12 8.24 7 8.58 7 8.94C7 9.3 7.12 9.64 7.35 9.91C7.58 10.18 7.9 10.34 8.25 10.34C8.6 10.34 8.92 10.18 9.15 9.91C9.38 9.64 9.5 9.3 9.5 8.94C9.5 8.58 9.38 8.24 9.15 7.97C8.92 7.7 8.6 7.54 8.25 7.54M15.75 7.54C15.4 7.54 15.08 7.7 14.85 7.97C14.62 8.24 14.5 8.58 14.5 8.94C14.5 9.3 14.62 9.64 14.85 9.91C15.08 10.18 15.4 10.34 15.75 10.34C16.1 10.34 16.42 10.18 16.65 9.91C16.88 9.64 17 9.3 17 8.94C17 8.58 16.88 8.24 16.65 7.97C16.42 7.7 16.1 7.54 15.75 7.54Z" />
-                        </svg>
-                    </button>
-                </div>
+                <button
+                    onClick={handleContact}
+                    className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white px-4 py-2.5 rounded-xl hover:from-primary-700 hover:to-primary-800 font-semibold text-sm transition-all duration-300 shadow-glow hover:shadow-glow-lg transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                >
+                    <Phone className="w-4 h-4" />
+                    Liên hệ
+                </button>
             </div>
         </div>
     );
