@@ -315,7 +315,9 @@ export default function PartnerContractDetailPage() {
     actualWorkHours: 0,
     notes: null,
   });
-  
+  const [isAutoFilledFromClient, setIsAutoFilledFromClient] = useState(false);
+  const [clientBillableHours, setClientBillableHours] = useState<number | null>(null);
+
   // File states
   const [timesheetFile, setTimesheetFile] = useState<File | null>(null);
   const [poFile, setPoFile] = useState<File | null>(null);
@@ -745,6 +747,14 @@ export default function PartnerContractDetailPage() {
       };
       await partnerDocumentService.create(contractDocumentPayload);
 
+      // Refresh documents immediately and after a short delay to ensure new files are loaded
+      await fetchData();
+
+      // Add a small delay and fetch again to ensure backend has processed the new documents
+      setTimeout(async () => {
+        await fetchData();
+      }, 1000);
+
       const payload: PartnerContractPaymentVerifyModel = {
         unitPriceForeignCurrency: verifyForm.unitPriceForeignCurrency,
         currencyCode: verifyForm.currencyCode,
@@ -756,7 +766,6 @@ export default function PartnerContractDetailPage() {
         notes: verifyForm.notes || null,
       };
       await partnerContractPaymentService.verifyContract(Number(id), payload);
-      await fetchData();
       setShowVerifyContractModal(false);
       setVerifyForm({
         unitPriceForeignCurrency: 0,
@@ -794,6 +803,14 @@ export default function PartnerContractDetailPage() {
     if (!billingForm.actualWorkHours || billingForm.actualWorkHours <= 0) {
       alert("Vui lòng nhập số giờ làm việc thực tế");
       return;
+    }
+
+    // Validate notes when actual work hours differ from client billable hours
+    if (clientBillableHours !== null && billingForm.actualWorkHours !== clientBillableHours) {
+      if (!billingForm.notes || billingForm.notes.trim() === "") {
+        alert("Vui lòng nhập ghi chú giải thích lý do số giờ làm việc khác với thông tin từ khách hàng");
+        return;
+      }
     }
     
     // Find Timesheet document type
@@ -846,14 +863,22 @@ export default function PartnerContractDetailPage() {
         };
         await partnerDocumentService.create(documentData);
       }
-      
+
       // Hiển thị success message và tự động ẩn sau 3 giây
       setShowSuccessMessage("billing");
       setTimeout(() => setShowSuccessMessage(false), 3000);
 
+      // Refresh documents immediately and after a short delay to ensure new files are loaded
       await fetchData();
+
+      // Add a small delay and fetch again to ensure backend has processed the new documents
+      setTimeout(async () => {
+        await fetchData();
+      }, 1000);
       setShowStartBillingModal(false);
       setBillingForm({ actualWorkHours: 0, notes: null });
+      setIsAutoFilledFromClient(false);
+      setClientBillableHours(null);
       setTimesheetFile(null);
       setTimesheetFileError(null);
       setTimesheetFileError(null);
@@ -988,8 +1013,14 @@ export default function PartnerContractDetailPage() {
         source: "Accountant",
       };
       await partnerDocumentService.create(receiptDocument);
-      
+
+      // Refresh documents immediately and after a short delay to ensure new files are loaded
       await fetchData();
+
+      // Add a small delay and fetch again to ensure backend has processed the new documents
+      setTimeout(async () => {
+        await fetchData();
+      }, 1000);
       setShowMarkAsPaidModal(false);
       setMarkAsPaidForm({
         paidAmount: 0,
@@ -1082,21 +1113,30 @@ export default function PartnerContractDetailPage() {
                 Thông tin chi tiết hợp đồng thanh toán đối tác
               </p>
               <div className="flex items-center gap-3 flex-wrap">
-                <div
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${contractStatusConfig.bgColor}`}
-                >
-                  {contractStatusConfig.icon}
-                  <span className={`text-sm font-medium ${contractStatusConfig.color}`}>
-                    {contractStatusConfig.label}
-                  </span>
-                </div>
-                <div
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${paymentStatusConfig.bgColor}`}
-                >
-                  <span className={`text-sm font-medium ${paymentStatusConfig.color}`}>
-                    {paymentStatusConfig.label}
-                  </span>
-                </div>
+                {contractPayment.isFinished ? (
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 border border-green-200">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-800">Đã hoàn thành</span>
+                  </div>
+                ) : (
+                  <>
+                    <div
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${contractStatusConfig.bgColor}`}
+                    >
+                      {contractStatusConfig.icon}
+                      <span className={`text-sm font-medium ${contractStatusConfig.color}`}>
+                        {contractStatusConfig.label}
+                      </span>
+                    </div>
+                    <div
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${paymentStatusConfig.bgColor}`}
+                    >
+                      <span className={`text-sm font-medium ${paymentStatusConfig.color}`}>
+                        {paymentStatusConfig.label}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -1158,15 +1198,47 @@ export default function PartnerContractDetailPage() {
                 </button>
               )}
 
-              {/* Start Billing - Approved + Pending */}
+              {/* Start Billing - Approved + Pending + Client contract đã ghi nhận giờ làm việc */}
               {contractPayment.contractStatus === "Approved" && contractPayment.paymentStatus === "Pending" && (
-                <button
-                  onClick={() => setShowStartBillingModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  <Calculator className="w-4 h-4" />
-                  Ghi nhận giờ làm việc
-                </button>
+                <>
+                  {clientContractPayment?.billableHours && clientContractPayment.billableHours > 0 ? (
+                    <button
+                      onClick={async () => {
+                        // Fetch client billable hours and auto-fill form
+                        try {
+                          const clientHoursData = await partnerContractPaymentService.getClientBillableHours(contractPayment.id);
+                          const clientHours = clientHoursData.billableHours || 0;
+                          setClientBillableHours(clientHoursData.billableHours);
+                          setBillingForm(prev => ({
+                            ...prev,
+                            actualWorkHours: clientHours
+                          }));
+                          setIsAutoFilledFromClient(true);
+                        } catch (error) {
+                          console.warn("Không thể lấy số giờ từ client contract:", error);
+                          // Fallback: set to 0 if API fails
+                          setClientBillableHours(null);
+                          setBillingForm(prev => ({
+                            ...prev,
+                            actualWorkHours: 0
+                          }));
+                          setIsAutoFilledFromClient(false);
+                        }
+                        setShowStartBillingModal(true);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                    >
+                      <Calculator className="w-4 h-4" />
+                      Ghi nhận giờ làm việc
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-500 rounded-lg cursor-not-allowed" title="Cần ghi nhận giờ làm việc ở hợp đồng khách hàng trước">
+                      <Calculator className="w-4 h-4" />
+                      Ghi nhận giờ làm việc
+                      <span className="text-xs ml-1">(Chờ hợp đồng khách hàng)</span>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Mark as Paid - Processing */}
@@ -1262,24 +1334,38 @@ export default function PartnerContractDetailPage() {
                   label="Số hợp đồng"
                   value={contractPayment.contractNumber}
                 />
-                <InfoItem
-                  icon={<FileText className="w-4 h-4" />}
-                  label="Trạng thái hợp đồng"
-                  value={
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${contractStatusConfig.bgColor} ${contractStatusConfig.color}`}>
-                      {contractStatusConfig.label}
-                    </span>
-                  }
-                />
-                <InfoItem
-                  icon={<FileText className="w-4 h-4" />}
-                  label="Trạng thái thanh toán"
-                  value={
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${paymentStatusConfig.bgColor} ${paymentStatusConfig.color}`}>
-                      {paymentStatusConfig.label}
-                    </span>
-                  }
-                />
+                {contractPayment.isFinished ? (
+                  <InfoItem
+                    icon={<CheckCircle className="w-4 h-4" />}
+                    label="Trạng thái"
+                    value={
+                      <span className="px-2 py-1 rounded text-xs font-medium bg-green-50 text-green-800 border border-green-200">
+                        Đã hoàn thành
+                      </span>
+                    }
+                  />
+                ) : (
+                  <>
+                    <InfoItem
+                      icon={<FileText className="w-4 h-4" />}
+                      label="Trạng thái hợp đồng"
+                      value={
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${contractStatusConfig.bgColor} ${contractStatusConfig.color}`}>
+                          {contractStatusConfig.label}
+                        </span>
+                      }
+                    />
+                    <InfoItem
+                      icon={<FileText className="w-4 h-4" />}
+                      label="Trạng thái thanh toán"
+                      value={
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${paymentStatusConfig.bgColor} ${paymentStatusConfig.color}`}>
+                          {paymentStatusConfig.label}
+                        </span>
+                      }
+                    />
+                  </>
+                )}
                   </div>
                 </div>
 
@@ -2362,6 +2448,8 @@ export default function PartnerContractDetailPage() {
               <button 
                 onClick={() => {
                   setShowStartBillingModal(false);
+                  setIsAutoFilledFromClient(false);
+                  setClientBillableHours(null);
                   setShowCalculationDetails(false);
                 }} 
                 className="text-gray-400 hover:text-gray-600"
@@ -2386,17 +2474,20 @@ export default function PartnerContractDetailPage() {
                       setShowCalculationDetails(false);
                     }}
                     className={`w-full border rounded-lg p-2 ${
-                      (billingForm.actualWorkHours >= 1 && billingForm.actualWorkHours <= 60) ||
-                      (billingForm.actualWorkHours >= 220)
+                      clientBillableHours !== null && billingForm.actualWorkHours !== clientBillableHours
                         ? 'border-yellow-400 bg-yellow-50'
                         : ''
                     }`}
                     required
                   />
-                  {((billingForm.actualWorkHours >= 1 && billingForm.actualWorkHours <= 60) ||
-                    (billingForm.actualWorkHours >= 220)) && (
+                  {isAutoFilledFromClient && clientBillableHours !== null && billingForm.actualWorkHours === clientBillableHours && (
+                    <p className="mt-1 text-xs text-green-600">
+                      ℹ️ Số giờ đã được tự động điền từ hợp đồng khách hàng
+                    </p>
+                  )}
+                  {clientBillableHours !== null && billingForm.actualWorkHours !== clientBillableHours && (
                     <p className="mt-1 text-xs text-yellow-600">
-                      ⚠️ Số giờ làm việc hơi chênh lệch, hãy kiểm tra lại và chắc chắn đã nhập đúng
+                      ⚠️ Số giờ làm việc không giống với thông tin bên phía khách hàng gửi qua ({clientBillableHours}h)
                     </p>
                   )}
                 </div>
@@ -2415,10 +2506,23 @@ export default function PartnerContractDetailPage() {
                 <textarea
                   value={billingForm.notes || ""}
                   onChange={(e) => setBillingForm({ ...billingForm, notes: e.target.value || null })}
-                  className="w-full border rounded-lg p-2"
+                  className={`w-full border rounded-lg p-2 ${
+                    clientBillableHours !== null &&
+                    billingForm.actualWorkHours !== clientBillableHours &&
+                    (!billingForm.notes || billingForm.notes.trim() === "")
+                      ? 'border-yellow-400 bg-yellow-50'
+                      : 'border-neutral-200'
+                  }`}
                   rows={3}
                   placeholder="Ví dụ: Timesheet: 160h đúng như dự kiến"
                 />
+                {clientBillableHours !== null &&
+                 billingForm.actualWorkHours !== clientBillableHours &&
+                 (!billingForm.notes || billingForm.notes.trim() === "") && (
+                  <p className="mt-1 text-xs text-yellow-600">
+                    ⚠️ Bắt buộc phải ghi chú tại sao lại có sự chênh lệch số giờ làm việc
+                  </p>
+                )}
               </div>
               {(() => {
                 // Check if timesheet already exists (synced from client contract)
@@ -2604,6 +2708,8 @@ export default function PartnerContractDetailPage() {
                 onClick={() => {
                   setShowStartBillingModal(false);
                   setBillingForm({ actualWorkHours: 0, notes: null });
+                  setIsAutoFilledFromClient(false);
+                  setClientBillableHours(null);
                   setTimesheetFile(null);
                   setTimesheetFileError(null);
                   setShowCalculationDetails(false);
@@ -2626,11 +2732,17 @@ export default function PartnerContractDetailPage() {
                   // File timesheet is required only if not already synced
                   const timesheetRequired = !existingTimesheet && !timesheetFile;
 
+                  // Check if notes is required when hours differ from client
+                  const notesRequired = clientBillableHours !== null &&
+                                       billingForm.actualWorkHours !== clientBillableHours &&
+                                       (!billingForm.notes || billingForm.notes.trim() === "");
+
                   return isProcessing ||
                          !billingForm.actualWorkHours ||
                          billingForm.actualWorkHours <= 0 ||
                          timesheetRequired ||
-                         !!timesheetFileError;
+                         !!timesheetFileError ||
+                         notesRequired;
                 })()}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
@@ -2663,7 +2775,17 @@ export default function PartnerContractDetailPage() {
                       Bạn có chắc chắn muốn ghi nhận giờ làm việc này?
                     </p>
                     <div className="text-sm text-blue-700 space-y-1">
-                      <p>• Số giờ làm việc: <span className="font-medium">{billingForm.actualWorkHours}h</span></p>
+                      <p>• Số giờ làm việc: <span className="font-medium">{billingForm.actualWorkHours}h</span>
+                        {clientBillableHours !== null && billingForm.actualWorkHours === clientBillableHours && (
+                          <span className="text-xs text-green-600 ml-2">(khớp với thông tin khách hàng: {clientBillableHours}h)</span>
+                        )}
+                        {clientBillableHours !== null && billingForm.actualWorkHours !== clientBillableHours && (
+                          <span className="text-xs text-orange-600 ml-2">(khác với thông tin khách hàng: {clientBillableHours}h)</span>
+                        )}
+                      </p>
+                      {billingForm.notes && billingForm.notes.trim() && (
+                        <p>• Ghi chú: <span className="font-medium">{billingForm.notes}</span></p>
+                      )}
                       {timesheetFile && (
                         <p>• File Timesheet: <span className="font-medium">{timesheetFile.name}</span></p>
                       )}

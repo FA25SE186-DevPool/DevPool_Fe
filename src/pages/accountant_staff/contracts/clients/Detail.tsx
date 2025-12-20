@@ -348,7 +348,7 @@ export default function ClientContractDetailPage() {
     "Hợp đồng vi phạm các quy định pháp lý",
     "Cần bổ sung thông tin về bảo hiểm và rủi ro"
   ];
-  const [billingForm, setBillingForm] = useState<ClientContractPaymentCalculateModel>({ billableHours: 0, autoSyncToPartner: true, notes: null });
+  const [billingForm, setBillingForm] = useState<ClientContractPaymentCalculateModel>({ billableHours: 0, autoSyncToPartner: true, notes: null, timesheetFileUrl: null });
   const [invoiceForm, setInvoiceForm] = useState<CreateInvoiceModel>({ invoiceNumber: "", invoiceDate: new Date().toISOString().split('T')[0], notes: null });
   const [paymentForm, setPaymentForm] = useState<RecordPaymentModel>({ receivedAmount: 0, paymentDate: new Date().toISOString().split('T')[0], notes: null });
   const [paymentDateError, setPaymentDateError] = useState<string | null>(null);
@@ -937,7 +937,7 @@ export default function ClientContractDetailPage() {
       await refreshContractPayment();
       await refreshClientDocuments();
       setShowStartBillingModal(false);
-      setBillingForm({ billableHours: 0, autoSyncToPartner: true, notes: null });
+      setBillingForm({ billableHours: 0, autoSyncToPartner: true, notes: null, timesheetFileUrl: null });
       setTimesheetFile(null);
       setTimesheetFileError(null);
     } catch (err: unknown) {
@@ -1242,26 +1242,29 @@ export default function ClientContractDetailPage() {
                 Thông tin chi tiết hợp đồng thanh toán khách hàng
               </p>
               <div className="flex items-center gap-3 flex-wrap">
-                <div
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${contractStatusConfig.bgColor}`}
-                >
-                  {contractStatusConfig.icon}
-                  <span className={`text-sm font-medium ${contractStatusConfig.color}`}>
-                    {contractStatusConfig.label}
-                  </span>
-                </div>
-                <div
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${paymentStatusConfig.bgColor}`}
-                >
-                  <span className={`text-sm font-medium ${paymentStatusConfig.color}`}>
-                    {paymentStatusConfig.label}
-                  </span>
-                </div>
-                {contractPayment.isFinished && (
+                {contractPayment.isFinished ? (
                   <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 border border-green-200">
                     <CheckCircle className="w-4 h-4 text-green-600" />
                     <span className="text-sm font-medium text-green-800">Đã hoàn thành</span>
                   </div>
+                ) : (
+                  <>
+                    <div
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${contractStatusConfig.bgColor}`}
+                    >
+                      {contractStatusConfig.icon}
+                      <span className={`text-sm font-medium ${contractStatusConfig.color}`}>
+                        {contractStatusConfig.label}
+                      </span>
+                    </div>
+                    <div
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${paymentStatusConfig.bgColor}`}
+                    >
+                      <span className={`text-sm font-medium ${paymentStatusConfig.color}`}>
+                        {paymentStatusConfig.label}
+                      </span>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -1415,34 +1418,37 @@ export default function ClientContractDetailPage() {
                   label="Số hợp đồng"
                   value={contractPayment.contractNumber}
                 />
-                <InfoItem
-                  icon={<FileText className="w-4 h-4" />}
-                  label="Trạng thái hợp đồng"
-                  value={
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${contractStatusConfig.bgColor} ${contractStatusConfig.color}`}>
-                      {contractStatusConfig.label}
-                    </span>
-                  }
-                />
-                <InfoItem
-                  icon={<FileText className="w-4 h-4" />}
-                  label="Trạng thái thanh toán"
-                  value={
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${paymentStatusConfig.bgColor} ${paymentStatusConfig.color}`}>
-                      {paymentStatusConfig.label}
-                    </span>
-                  }
-                />
-                {contractPayment.isFinished && (
+                {contractPayment.isFinished ? (
                   <InfoItem
                     icon={<CheckCircle className="w-4 h-4" />}
-                    label="Trạng thái hoàn thành"
+                    label="Trạng thái"
                     value={
                       <span className="px-2 py-1 rounded text-xs font-medium bg-green-50 text-green-800 border border-green-200">
                         Đã hoàn thành
                       </span>
                     }
                   />
+                ) : (
+                  <>
+                    <InfoItem
+                      icon={<FileText className="w-4 h-4" />}
+                      label="Trạng thái hợp đồng"
+                      value={
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${contractStatusConfig.bgColor} ${contractStatusConfig.color}`}>
+                          {contractStatusConfig.label}
+                        </span>
+                      }
+                    />
+                    <InfoItem
+                      icon={<FileText className="w-4 h-4" />}
+                      label="Trạng thái thanh toán"
+                      value={
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${paymentStatusConfig.bgColor} ${paymentStatusConfig.color}`}>
+                          {paymentStatusConfig.label}
+                        </span>
+                      }
+                    />
+                  </>
                 )}
                 <InfoItem
                   icon={<Calendar className="w-4 h-4" />}
@@ -2057,9 +2063,7 @@ export default function ClientContractDetailPage() {
                     <div className="text-sm text-blue-700 space-y-1">
                       <p>• Số giờ làm việc: <span className="font-medium">{billingForm.billableHours}h</span></p>
                       <p>• File Timesheet: <span className="font-medium">{timesheetFile?.name}</span></p>
-                      {billingForm.autoSyncToPartner && (
-                        <p>• <span className="font-medium">Sẽ đồng bộ tự động đến hợp đồng đối tác</span></p>
-                      )}
+                      <p>• <span className="font-medium">Sẽ đồng bộ tự động đến hợp đồng đối tác</span></p>
                       {calculateBillingPreview() && (
                         <p>• Tổng thanh toán: <span className="font-medium">{formatNumberVi(calculateBillingPreview()?.actualAmountVND ?? 0)} VND</span></p>
                       )}
@@ -2156,20 +2160,6 @@ export default function ClientContractDetailPage() {
                   rows={3}
                   placeholder="Ví dụ: Timesheet: 160h đúng như dự kiến"
                 />
-              </div>
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={billingForm.autoSyncToPartner ?? true}
-                    onChange={(e) => setBillingForm({ ...billingForm, autoSyncToPartner: e.target.checked })}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm font-medium">Tự động đồng bộ đến hợp đồng đối tác</span>
-                </label>
-                <p className="text-xs text-gray-500 mt-1 ml-6">
-                  Khi bật, file timesheet sẽ được upload tự động đến hợp đồng đối tác tương ứng
-                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">
@@ -2302,7 +2292,7 @@ export default function ClientContractDetailPage() {
               <button
                 onClick={() => {
                   setShowStartBillingModal(false);
-                  setBillingForm({ billableHours: 0, autoSyncToPartner: true, notes: null });
+                  setBillingForm({ billableHours: 0, autoSyncToPartner: true, notes: null, timesheetFileUrl: null });
                   setTimesheetFile(null);
                   setTimesheetFileError(null);
                   setShowCalculationDetails(false);

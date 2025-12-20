@@ -9,7 +9,8 @@ import type {
   PartnerContractPaymentVerifyModel,
   PartnerContractPaymentApproveModel,
   PartnerContractPaymentRejectModel,
-  ClientSowFileResponse
+  ClientSowFileResponse,
+  ClientBillableHoursResponse
 } from "../types/partnercontractpayment.types";
 
 export type {
@@ -21,7 +22,8 @@ export type {
   PartnerContractPaymentVerifyModel,
   PartnerContractPaymentApproveModel,
   PartnerContractPaymentRejectModel,
-  ClientSowFileResponse
+  ClientSowFileResponse,
+  ClientBillableHoursResponse
 };
 
 export const partnerContractPaymentService = {
@@ -167,6 +169,19 @@ export const partnerContractPaymentService = {
       if (error instanceof AxiosError)
         throw error.response?.data || { message: "Không thể lấy file SOW từ client contract" };
       throw { message: "Lỗi không xác định khi lấy file SOW từ client contract" };
+    }
+  },
+
+  // Lấy số giờ billable từ client contract
+  async getClientBillableHours(id: number) {
+    try {
+      const response = await apiClient.get(`/partnercontractpayment/${id}/client-billable-hours`);
+      // API trả về: { billableHours: number | null }
+      return response.data as ClientBillableHoursResponse;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError)
+        throw error.response?.data || { message: "Không thể lấy số giờ billable từ client contract" };
+      throw { message: "Lỗi không xác định khi lấy số giờ billable từ client contract" };
     }
   },
 };
