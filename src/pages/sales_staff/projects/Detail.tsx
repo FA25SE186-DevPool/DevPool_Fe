@@ -20,6 +20,8 @@ import { type JobRequest } from "../../../services/JobRequest";
 import { WorkingMode } from "../../../constants/WORKING_MODE";
 import { uploadFile } from "../../../utils/firebaseStorage";
 import { formatNumberInput, parseNumberInput } from "../../../utils/formatters";
+import ConfirmModal from "../../../components/ui/confirm-modal";
+import SuccessToast from "../../../components/ui/success-toast";
 import { 
   Briefcase, 
   Edit, 
@@ -97,6 +99,23 @@ export default function ProjectDetailPage() {
   const [showCancelAssignmentModal, setShowCancelAssignmentModal] = useState(false);
   const [showDirectBookingModal, setShowDirectBookingModal] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<TalentAssignmentModel | null>(null);
+
+  // Confirm modal states
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    variant?: 'danger' | 'warning' | 'info';
+  } | null>(null);
+
+  // Success toast states
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [successToastConfig, setSuccessToastConfig] = useState<{
+    title: string;
+    message?: string;
+  } | null>(null);
   const [hiredApplications, setHiredApplications] = useState<TalentApplication[]>([]);
   const [talents, setTalents] = useState<Talent[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -141,7 +160,34 @@ export default function ProjectDetailPage() {
     notes: ""
   });
   const [directBookingErrors, setDirectBookingErrors] = useState<Record<string, string>>({});
-  
+
+  // Helper functions for confirm modal and success toast
+  const showConfirmDialog = (config: {
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    variant?: 'danger' | 'warning' | 'info';
+  }) => {
+    setConfirmModalConfig(config);
+    setShowConfirmModal(true);
+  };
+
+  const hideConfirmDialog = () => {
+    setShowConfirmModal(false);
+    setConfirmModalConfig(null);
+  };
+
+  const displaySuccessToast = (title: string, message?: string) => {
+    setSuccessToastConfig({ title, message });
+    setShowSuccessToast(true);
+  };
+
+  const hideSuccessToast = () => {
+    setShowSuccessToast(false);
+    setSuccessToastConfig(null);
+  };
+
   // Form state for creating assignment
   const [assignmentForm, setAssignmentForm] = useState<TalentAssignmentCreateModel>({
     talentId: 0,
@@ -1026,28 +1072,39 @@ export default function ProjectDetailPage() {
       }
     }
 
-    // Confirmation dialog
+    // Confirmation dialog using modal
     const talentName = talents.find(t => t.id === selectedAssignment.talentId)?.fullName || `Nhân sự #${selectedAssignment.talentId}`;
-    const startDateStr = selectedAssignment.status === "Draft" 
+    const startDateStr = selectedAssignment.status === "Draft"
       ? (updateForm.startDate ? formatViDate(updateForm.startDate) : formatViDate(selectedAssignment.startDate))
       : formatViDate(selectedAssignment.startDate);
     const endDateStr = updateForm.endDate ? formatViDate(updateForm.endDate) : "—";
     const currentEndDateStr = selectedAssignment.endDate ? formatViDate(selectedAssignment.endDate) : "—";
-    
+
     const actionText = selectedAssignment.status === "Draft" ? "cập nhật" : "gia hạn";
-    let confirmMessage = `Xác nhận ${actionText} phân công nhân sự?\n\n` +
-      `Nhân sự: ${talentName}\n` +
-      `Ngày bắt đầu: ${startDateStr}\n`;
-    
+    let confirmMessage = `Nhân sự: ${talentName}\nNgày bắt đầu: ${startDateStr}\n`;
+
     if (selectedAssignment.status === "Active" && currentEndDateStr !== "—") {
       confirmMessage += `Ngày kết thúc hiện tại: ${currentEndDateStr}\n`;
     }
     confirmMessage += `Ngày kết thúc mới: ${endDateStr}`;
-    
-    const confirmed = window.confirm(confirmMessage);
-    if (!confirmed) {
-      return;
-    }
+
+    // Show confirm modal instead of window.confirm
+    showConfirmDialog({
+      title: `Xác nhận ${actionText} phân công nhân sự`,
+      message: confirmMessage,
+      onConfirm: async () => {
+        hideConfirmDialog();
+        await performUpdateAssignment();
+      },
+      confirmText: "Xác nhận",
+      variant: "info"
+    });
+    return;
+  };
+
+  // Separate function to perform the actual update after confirmation
+  const performUpdateAssignment = async () => {
+    if (!id || !selectedAssignment) return;
 
     try {
       setSubmittingUpdate(true);
@@ -1088,12 +1145,12 @@ export default function ProjectDetailPage() {
         // Use extend API for Active status with startDate
         // For extend, we use the extend model
         if (!updateForm.endDate) {
-          alert("Vui lòng nhập ngày kết thúc");
+          displaySuccessToast("Lỗi", "Vui lòng nhập ngày kết thúc");
           return;
         }
         const endDateUTC = toUTCISOString(updateForm.endDate);
         if (!endDateUTC) {
-          alert("Ngày kết thúc không hợp lệ");
+          displaySuccessToast("Lỗi", "Ngày kết thúc không hợp lệ");
           return;
         }
         const extendPayload: TalentAssignmentExtendModel = {
@@ -1126,12 +1183,14 @@ export default function ProjectDetailPage() {
       setSelectedAssignment(null);
       setShowUpdateAssignmentModal(false);
 
-      showSuccessOverlay("✅ Cập nhật phân công nhân sự thành công!");
+      // Show success toast instead of showSuccessOverlay
+      const actionText = selectedAssignment.status === "Draft" ? "Cập nhật" : "Gia hạn";
+      displaySuccessToast(`${actionText} phân công nhân sự thành công!`, "Thông tin đã được cập nhật thành công.");
     } catch (error: unknown) {
       console.error("❌ Lỗi khi cập nhật phân công:", error);
       const message =
         error instanceof Error ? error.message : (typeof error === "string" ? error : "");
-      alert(message || "Không thể cập nhật phân công nhân sự");
+      displaySuccessToast("Lỗi", message || "Không thể cập nhật phân công nhân sự");
     } finally {
       setSubmittingUpdate(false);
     }
@@ -1184,26 +1243,36 @@ export default function ProjectDetailPage() {
       }
     }
 
-    // Confirmation dialog với cảnh báo
+    // Confirmation dialog using modal
     const talentName = talents.find(t => t.id === selectedAssignment.talentId)?.fullName || `Nhân sự #${selectedAssignment.talentId}`;
     const terminationDateStr = formatViDate(terminateForm.terminationDate);
-    
+
     const confirmMessage = `⚠️ CẢNH BÁO: Hành động này không thể hoàn tác!\n\n` +
-      `Bạn có chắc chắn muốn CHẤM DỨT phân công nhân sự?\n\n` +
       `📋 Thông tin:\n` +
       `• Nhân sự: ${talentName}\n` +
       `• Ngày chấm dứt: ${terminationDateStr}\n` +
       `• Lý do: ${terminateForm.terminationReason}\n\n` +
       `⚠️ Lưu ý: Sau khi chấm dứt, phân công này sẽ không thể tiếp tục hoạt động.`;
-    
-    const confirmed = window.confirm(confirmMessage);
-    if (!confirmed) {
-      return;
-    }
+
+    // Show confirm modal instead of window.confirm
+    showConfirmDialog({
+      title: "Xác nhận chấm dứt phân công nhân sự",
+      message: confirmMessage,
+      onConfirm: async () => {
+        hideConfirmDialog();
+        await performTerminateAssignment();
+      },
+      confirmText: "Xác nhận chấm dứt",
+      variant: "danger"
+    });
+    return;
+  };
+
+  // Separate function to perform the actual terminate after confirmation
+  const performTerminateAssignment = async () => {
+    if (!id || !selectedAssignment) return;
 
     try {
-      setSubmittingTerminate(true);
-
       const payload: TalentAssignmentTerminateModel = {
         terminationDate: toUTCISOString(terminateForm.terminationDate) || "",
         terminationReason: terminateForm.terminationReason.trim()
@@ -1226,12 +1295,13 @@ export default function ProjectDetailPage() {
       setShowDetailAssignmentModal(false);
       setSelectedAssignment(null);
 
-      showSuccessOverlay("✅ Chấm dứt phân công nhân sự thành công!");
+      // Show success toast instead of showSuccessOverlay
+      displaySuccessToast("Chấm dứt phân công nhân sự thành công!", "Phân công đã được chấm dứt thành công.");
     } catch (error: unknown) {
       console.error("❌ Lỗi khi chấm dứt phân công:", error);
       const message =
         error instanceof Error ? error.message : (typeof error === "string" ? error : "");
-      alert(message || "Không thể chấm dứt phân công nhân sự");
+      displaySuccessToast("Lỗi", message || "Không thể chấm dứt phân công nhân sự");
     } finally {
       setSubmittingTerminate(false);
     }
@@ -1294,11 +1364,11 @@ export default function ProjectDetailPage() {
       }
     }
 
-    // Confirmation dialog với cảnh báo
+    // Confirmation dialog using modal
     const talentName = talents.find(t => t.id === selectedAssignment.talentId)?.fullName || `Nhân sự #${selectedAssignment.talentId}`;
     const currentEndDateStr = selectedAssignment.endDate ? formatViDate(selectedAssignment.endDate) : "—";
     const newEndDateStr = formatViDate(extendForm.endDate);
-    
+
     // Tính số ngày gia hạn
     let daysExtended = 0;
     if (selectedAssignment.endDate && extendForm.endDate) {
@@ -1306,19 +1376,31 @@ export default function ProjectDetailPage() {
       const newEnd = new Date(extendForm.endDate);
       daysExtended = Math.ceil((newEnd.getTime() - currentEnd.getTime()) / (1000 * 60 * 60 * 24));
     }
-    
-    const confirmMessage = `⚠️ XÁC NHẬN GIA HẠN PHÂN CÔNG NHÂN SỰ\n\n` +
-      `📋 Thông tin:\n` +
+
+    const confirmMessage = `📋 Thông tin:\n` +
       `• Nhân sự: ${talentName}\n` +
       `• Ngày kết thúc hiện tại: ${currentEndDateStr}\n` +
       `• Ngày kết thúc mới: ${newEndDateStr}\n` +
       (daysExtended > 0 ? `• Thời gian gia hạn: ${daysExtended} ngày\n` : ``) +
       `\n⚠️ Vui lòng kiểm tra kỹ thông tin trước khi xác nhận.`;
-    
-    const confirmed = window.confirm(confirmMessage);
-    if (!confirmed) {
-      return;
-    }
+
+    // Show confirm modal instead of window.confirm
+    showConfirmDialog({
+      title: "Xác nhận gia hạn phân công nhân sự",
+      message: confirmMessage,
+      onConfirm: async () => {
+        hideConfirmDialog();
+        await performExtendAssignment();
+      },
+      confirmText: "Xác nhận gia hạn",
+      variant: "warning"
+    });
+    return;
+  };
+
+  // Separate function to perform the actual extend after confirmation
+  const performExtendAssignment = async () => {
+    if (!id || !selectedAssignment) return;
 
     try {
       setSubmittingExtend(true);
@@ -1356,12 +1438,13 @@ export default function ProjectDetailPage() {
       setShowDetailAssignmentModal(false);
       setSelectedAssignment(null);
 
-      showSuccessOverlay("✅ Gia hạn phân công nhân sự thành công!");
+      // Show success toast instead of showSuccessOverlay
+      displaySuccessToast("Gia hạn phân công nhân sự thành công!", "Thông tin đã được cập nhật thành công.");
     } catch (error: unknown) {
       console.error("❌ Lỗi khi gia hạn phân công:", error);
       const message =
         error instanceof Error ? error.message : (typeof error === "string" ? error : "");
-      alert(message || "Không thể gia hạn phân công nhân sự");
+      displaySuccessToast("Lỗi", message || "Không thể gia hạn phân công nhân sự");
     } finally {
       setSubmittingExtend(false);
     }
@@ -1508,17 +1591,30 @@ export default function ProjectDetailPage() {
     }
 
     const talentName = talents.find(t => t.id === selectedAssignment.talentId)?.fullName || `Nhân sự #${selectedAssignment.talentId}`;
-    const confirmed = window.confirm(
-      `Xác nhận HỦY phân công nhân sự?\n\n` +
-      `Nhân sự: ${talentName}\n` +
+    const confirmMessage = `Nhân sự: ${talentName}\n` +
       `Lý do hủy: ${reason}\n` +
       (cancelForm.addToBlacklist ? `Thêm vào blacklist: Có\nLý do blacklist: ${cancelForm.blacklistReason.trim()}\n` : `Thêm vào blacklist: Không\n`) +
-      `\nLưu ý: Chỉ hủy được khi trạng thái là Draft.`
-    );
-    if (!confirmed) return;
+      `\nLưu ý: Chỉ hủy được khi trạng thái là Draft.`;
+
+    // Show confirm modal instead of window.confirm
+    showConfirmDialog({
+      title: "Xác nhận hủy phân công nhân sự",
+      message: confirmMessage,
+      onConfirm: async () => {
+        hideConfirmDialog();
+        await performCancelAssignment(reason);
+      },
+      confirmText: "Xác nhận hủy",
+      variant: "danger"
+    });
+    return;
+  };
+
+  // Separate function to perform the actual cancel after confirmation
+  const performCancelAssignment = async (reason: string) => {
+    if (!id || !selectedAssignment) return;
 
     try {
-      setSubmittingCancel(true);
       await talentAssignmentService.cancel(selectedAssignment.id, {
         cancelReason: reason,
         addToBlacklist: !!cancelForm.addToBlacklist,
@@ -1538,12 +1634,13 @@ export default function ProjectDetailPage() {
       setCancelForm({ cancelReason: "", addToBlacklist: false, blacklistReason: "" });
       setCancelErrors({});
 
-      showSuccessOverlay("✅ Đã hủy phân công nhân sự!");
+      // Show success toast instead of showSuccessOverlay
+      displaySuccessToast("Đã hủy phân công nhân sự!", "Phân công đã được hủy thành công.");
     } catch (error: unknown) {
       console.error("❌ Lỗi khi hủy phân công:", error);
       const message =
         error instanceof Error ? error.message : (typeof error === "string" ? error : "");
-      alert(message || "Không thể hủy phân công nhân sự");
+      displaySuccessToast("Lỗi", message || "Không thể hủy phân công nhân sự");
     } finally {
       setSubmittingCancel(false);
     }
@@ -4279,7 +4376,11 @@ export default function ProjectDetailPage() {
                   Hủy
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleTerminateAssignment({ preventDefault: () => {} } as React.FormEvent);
+                  }}
                   disabled={submittingTerminate}
                   className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -4388,11 +4489,15 @@ export default function ProjectDetailPage() {
                   Quay lại
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleCancelAssignment({ preventDefault: () => {} } as React.FormEvent);
+                  }}
                   disabled={submittingCancel}
                   className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
                 >
-                  {submittingCancel ? "Đang hủy..." : "Xác nhận hủy"}
+                  {submittingCancel ? "Đang hủy..." : "Xác nhận"}
                 </button>
               </div>
             </form>
@@ -4573,6 +4678,25 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={hideConfirmDialog}
+        onConfirm={confirmModalConfig?.onConfirm || (() => {})}
+        title={confirmModalConfig?.title || ""}
+        message={confirmModalConfig?.message || ""}
+        confirmText={confirmModalConfig?.confirmText}
+        variant={confirmModalConfig?.variant}
+      />
+
+      {/* Success Toast */}
+      <SuccessToast
+        isOpen={showSuccessToast}
+        onClose={hideSuccessToast}
+        title={successToastConfig?.title || ""}
+        message={successToastConfig?.message}
+      />
     </div>
   );
 }
