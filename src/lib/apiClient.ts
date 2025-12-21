@@ -192,7 +192,10 @@ apiClient.interceptors.response.use(
                 window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
             }
         } else if (status && status >= 400 && status < 500) {
-            console.error('⚠️ Client Error:', error.response?.data || error.message);
+            // Không log error cho logout request vì 401 là expected behavior
+            if (!isLogoutRequest) {
+                console.error('⚠️ Client Error:', error.response?.data || error.message);
+            }
             // Hiển thị cảnh báo thân thiện cho một số lỗi phổ biến
             const lower = (normalized || '').toLowerCase();
             if (lower.includes('email') && lower.includes('already exists')) {
@@ -210,6 +213,11 @@ apiClient.interceptors.response.use(
             }
         } else {
             console.error('❗ Unexpected Error:', error.message);
+        }
+
+        // Không reject error cho logout requests để tránh logging không mong muốn
+        if (isLogoutRequest) {
+            return Promise.resolve({ data: { message: 'Logout completed' }, status: 200, statusText: 'OK', headers: {}, config: originalRequest });
         }
 
         return Promise.reject(error);

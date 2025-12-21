@@ -3,6 +3,7 @@ import { Mail, Users } from 'lucide-react';
 import { type Talent } from '../../../services/Talent';
 import { type Location } from '../../../services/location';
 import { type Partner } from '../../../services/Partner';
+import { WORKING_MODE } from '../../../constants/WORKING_MODE';
 
 interface TalentTableProps {
   talents: Talent[];
@@ -60,6 +61,15 @@ export function TalentTable({
     return statusLabels[status] || { label: status, badgeClass: 'bg-gray-100 text-gray-800' };
   };
 
+  const getWorkingModeLabel = (workingMode: number): string => {
+    const modes: string[] = [];
+    if (workingMode & WORKING_MODE.Onsite) modes.push('Tại văn phòng');
+    if (workingMode & WORKING_MODE.Remote) modes.push('Từ xa');
+    if (workingMode & WORKING_MODE.Hybrid) modes.push('Kết hợp');
+    if (workingMode & WORKING_MODE.Flexible) modes.push('Linh hoạt');
+    return modes.length > 0 ? modes.join(', ') : 'Chưa xác định';
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -82,8 +92,8 @@ export function TalentTable({
               <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Đối tác</th>
               <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Họ và tên</th>
               <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Email</th>
-              <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase">Trạng thái</th>
-            <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase">Tài khoản</th>
+            <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase">Chế độ làm việc</th>
+            <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase">Trạng thái</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-200">
@@ -114,8 +124,8 @@ export function TalentTable({
             <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Đối tác</th>
             <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Họ và tên</th>
             <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Email</th>
+            <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase whitespace-nowrap">Chế độ làm việc</th>
             <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase whitespace-nowrap">Trạng thái</th>
-            <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase whitespace-nowrap">Tài khoản</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-neutral-200">
@@ -157,20 +167,14 @@ export function TalentTable({
                   </div>
                 </td>
                 <td className="py-4 px-6 text-center">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${statusInfo.badgeClass}`}>
-                    {statusInfo.label}
+                  <span className="text-sm text-neutral-700">
+                    {getWorkingModeLabel(t.workingMode)}
                   </span>
                 </td>
                 <td className="py-4 px-6 text-center">
-                  {t.userId ? (
-                    <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-green-700 text-xs font-semibold">
-                      Đã có
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-neutral-50 border border-neutral-200 text-neutral-500 text-xs font-semibold">
-                      Chưa có
-                    </span>
-                  )}
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${statusInfo.badgeClass}`}>
+                    {statusInfo.label}
+                  </span>
                 </td>
               </tr>
             );

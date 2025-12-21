@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   FileText,
   Upload,
@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  MoreVertical,
 } from 'lucide-react';
 import { Button } from '../../ui/button';
 import { SectionPagination } from './SectionPagination';
@@ -40,7 +41,10 @@ interface TalentDetailCVsSectionProps {
   analysisLoadingId: number | null;
   analysisError: string | null;
   onAnalyzeCV: (cv: TalentCV & { jobRoleLevelName?: string }) => void;
+  onShowSuccessOverlay?: (message: string) => void;
   onCancelAnalysis: () => void;
+  setAnalysisResult?: (result: any) => void;
+  setAnalysisResultCVId?: (cvId: number | null) => void;
   expandedAnalysisDetail?: 'skills' | 'jobRoleLevels' | 'certificates' | 'projects' | 'experiences' | null;
   setExpandedAnalysisDetail?: (detail: 'skills' | 'jobRoleLevels' | 'certificates' | 'projects' | 'experiences' | null) => void;
   expandedBasicInfo?: boolean;
@@ -86,6 +90,10 @@ interface TalentDetailCVsSectionProps {
   collapsedInactiveCVGroups: Set<string>;
   setCollapsedInactiveCVGroups: (groups: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
 
+  // CV Tab control
+  activeCVTab?: 'list' | 'analysis';
+  setActiveCVTab?: (tab: 'list' | 'analysis') => void;
+
   // Refresh list after editing
   onRefreshCVs?: () => void | Promise<void>;
 
@@ -101,23 +109,32 @@ interface TalentDetailCVsSectionProps {
     
     // File states
     selectedCVFile: File | null;
+    setSelectedCVFile: (file: File | null) => void;
     uploadingCV: boolean;
     cvUploadProgress: number;
+    setCvUploadProgress: (progress: number) => void;
     isCVUploadedFromFirebase: boolean;
     setIsCVUploadedFromFirebase: (value: boolean) => void;
     uploadedCVUrl: string | null;
     setUploadedCVUrl: (url: string | null) => void;
     cvPreviewUrl: string | null;
-    
+    setCvPreviewUrl: (url: string | null) => void;
+
     // Analysis states
     extractingCV: boolean;
     inlineCVAnalysisResult: CVAnalysisComparisonResponse | null;
+    setInlineCVAnalysisResult: (result: CVAnalysisComparisonResponse | null) => void;
     showInlineCVAnalysisModal: boolean;
+    setShowInlineCVAnalysisModal: (show: boolean) => void;
     showCVFullForm: boolean;
     
     // Validation
     existingCVsForValidation: TalentCV[];
-    
+
+    // Success overlay states
+    showDeleteCVSuccessOverlay: boolean;
+    showCreateCVSuccessOverlay: boolean;
+
     // Data
     lookupJobRoleLevels: JobRoleLevel[];
     
@@ -155,6 +172,8 @@ export function TalentDetailCVsSection({
   analysisError,
   onAnalyzeCV,
   onCancelAnalysis,
+  setAnalysisResult,
+  setAnalysisResultCVId,
   canEdit,
   collapsedInactiveCVGroups,
   setCollapsedInactiveCVGroups,
@@ -174,11 +193,32 @@ export function TalentDetailCVsSection({
   getTalentLevelName: _getTalentLevelName,
   isValueDifferent,
   jobRoles,
+  activeCVTab = 'list',
+  setActiveCVTab,
 }: TalentDetailCVsSectionProps) {
   const [isCVsExpanded] = useState(true);
-  const [activeCVTab, setActiveCVTab] = useState<'list' | 'analysis'>('list');
   const [isEditCVModalOpen, setIsEditCVModalOpen] = useState(false);
   const [editingCVId, setEditingCVId] = useState<number | null>(null);
+  const [isCVFormInFullMode, setIsCVFormInFullMode] = useState(false);
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openDropdownId && !(event.target as Element).closest('.dropdown-menu')) {
+        setOpenDropdownId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openDropdownId]);
+
+  // Wrapper function to show loading overlay when analyzing CV
+  const handleAnalyzeCV = async (cv: TalentCV & { jobRoleLevelName?: string }) => {
+    // Don't show loading overlay here - let the hook handle it after dialog confirm
+    await onAnalyzeCV(cv);
+  };
 
 
   const openEditCVModal = (cvId: number) => {
@@ -225,7 +265,8 @@ export function TalentDetailCVsSection({
         const hasOtherAnalysis = !!analysisResult && analysisResultCVId !== null && analysisResultCVId !== cv.id;
         const canAnalyze = !hasOtherAnalysis;
 
-        const analysisControls = isCurrentAnalysis ? (
+        const analysisControls = isLoading ? null : isCurrentAnalysis ? (
+          // Có kết quả phân tích - hiển thị nút Hủy để xóa kết quả
           <Button
             onClick={(e) => {
               e.stopPropagation();
@@ -236,30 +277,7 @@ export function TalentDetailCVsSection({
             <Workflow className="w-3 h-3" />
             Hủy
           </Button>
-        ) : (
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              onAnalyzeCV(cv);
-            }}
-            disabled={isLoading || !canAnalyze || !canEdit}
-            className={`group flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 text-xs ${
-              isLoading || !canAnalyze || !canEdit
-                ? 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white'
-            }`}
-            title={
-              !canEdit
-                ? 'Bạn không có quyền phân tích CV. Chỉ TA đang quản lý nhân sự này mới được phân tích CV.'
-                : !canAnalyze
-                  ? 'Vui lòng hủy phân tích CV đang hiển thị trước khi phân tích CV khác'
-                  : ''
-            }
-          >
-            <Workflow className="w-3 h-3" />
-            {isLoading ? 'Đang phân tích...' : 'Phân tích'}
-          </Button>
-        );
+        ) : null;
 
         // Collapse button for newest version if there are old versions
         const isNewestVersion = index === 0 && inactiveCVs.length > 0;
@@ -317,17 +335,91 @@ export function TalentDetailCVsSection({
             </td>
             <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center gap-2">
-                <a
-                  href={cv.cvFileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-center gap-1.5 px-3 py-1.5 text-primary-600 hover:text-primary-800 hover:bg-primary-50 rounded-lg transition-all duration-300 text-sm font-medium"
-                >
-                  <Eye className="w-4 h-4" />
-                  Xem PDF
-                </a>
                 {analysisControls}
                 {collapseButton}
+                {/* Dropdown Menu */}
+                <div className="relative dropdown-menu">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenDropdownId(openDropdownId === cv.id ? null : cv.id);
+                    }}
+                    className="group flex items-center gap-1.5 px-2 py-1.5 text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 rounded-lg transition-all duration-300"
+                    title="Tùy chọn"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+
+                  {openDropdownId === cv.id && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 z-10 dropdown-menu">
+                      <div className="py-1">
+                        {/* Xem PDF */}
+                        <a
+                          href={cv.cvFileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setOpenDropdownId(null)}
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Xem PDF
+                        </a>
+
+                        {/* Phân tích - chỉ hiển thị khi chưa phân tích và form CV không ở giai đoạn đầy đủ */}
+                        {!isCVFormInFullMode && (
+                          <button
+                            onClick={() => {
+                              setOpenDropdownId(null);
+                              handleAnalyzeCV(cv);
+                            }}
+                            disabled={!canAnalyze || !canEdit}
+                            className={`flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                              !canAnalyze || !canEdit
+                                ? 'text-neutral-400 cursor-not-allowed'
+                                : 'text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900'
+                            }`}
+                            title={
+                              !canEdit
+                                ? 'Bạn không có quyền phân tích CV. Chỉ TA đang quản lý nhân sự này mới được phân tích CV.'
+                                : !canAnalyze
+                                ? 'Vui lòng hủy phân tích CV đang hiển thị trước khi phân tích CV khác'
+                                : 'Phân tích CV để xem kỹ năng, kinh nghiệm và chứng chỉ'
+                            }
+                          >
+                            <Workflow className="w-4 h-4" />
+                            Phân tích
+                          </button>
+                        )}
+
+                        {/* Hủy phân tích - chỉ hiển thị khi có kết quả phân tích */}
+                        {analysisResult && analysisResultCVId === cv.id && (
+                          <button
+                            onClick={() => {
+                              setOpenDropdownId(null);
+                              onCancelAnalysis();
+                            }}
+                            disabled={!canEdit || isCVFormInFullMode}
+                            className={`flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                              !canEdit || isCVFormInFullMode
+                                ? 'text-neutral-400 cursor-not-allowed'
+                                : 'text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900'
+                            }`}
+                            title={
+                              !canEdit
+                                ? 'Bạn không có quyền hủy phân tích CV. Chỉ TA đang quản lý nhân sự này mới được hủy phân tích.'
+                                : isCVFormInFullMode
+                                ? 'Không thể hủy phân tích khi form CV đang ở giai đoạn đầy đủ. Hãy hoàn thành hoặc hủy form CV trước.'
+                                : ''
+                            }
+                          >
+                            <X className="w-4 h-4" />
+                            Hủy phân tích
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </td>
           </tr>
@@ -372,16 +464,36 @@ export function TalentDetailCVsSection({
                   <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">Không hoạt động</span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={cv.cvFileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group flex items-center gap-1.5 px-3 py-1.5 text-primary-600 hover:text-primary-800 hover:bg-primary-50 rounded-lg transition-all duration-300 text-sm font-medium"
+                  {/* Dropdown Menu cho CV không hoạt động */}
+                  <div className="relative dropdown-menu">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenDropdownId(openDropdownId === cv.id ? null : cv.id);
+                      }}
+                      className="group flex items-center gap-1.5 px-2 py-1.5 text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 rounded-lg transition-all duration-300"
+                      title="Tùy chọn"
                     >
-                      <Eye className="w-4 h-4" />
-                      Xem PDF
-                    </a>
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+
+                    {openDropdownId === cv.id && (
+                      <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 z-10 dropdown-menu">
+                        <div className="py-1">
+                          {/* Xem PDF */}
+                          <a
+                            href={cv.cvFileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setOpenDropdownId(null)}
+                            className="flex items-center gap-2 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
+                          >
+                            <Eye className="w-4 h-4" />
+                            Xem PDF
+                          </a>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -422,7 +534,7 @@ export function TalentDetailCVsSection({
           <div className="flex">
             <button
               type="button"
-              onClick={() => setActiveCVTab('list')}
+              onClick={() => setActiveCVTab?.('list')}
               className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
                 activeCVTab === 'list'
                   ? 'border-primary-500 text-primary-600 bg-primary-50'
@@ -435,7 +547,7 @@ export function TalentDetailCVsSection({
             {analysisResult && (
               <button
                 type="button"
-                onClick={() => setActiveCVTab('analysis')}
+                onClick={() => setActiveCVTab?.('analysis')}
                 className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
                   activeCVTab === 'analysis'
                     ? 'border-primary-500 text-primary-600 bg-primary-50'
@@ -509,13 +621,21 @@ export function TalentDetailCVsSection({
                         cvVersionError={cvForm.cvVersionError}
                         setCvVersionError={cvForm.setCvVersionError}
                         selectedCVFile={cvForm.selectedCVFile}
+                        setSelectedCVFile={cvForm.setSelectedCVFile}
                         uploadingCV={cvForm.uploadingCV}
                         cvUploadProgress={cvForm.cvUploadProgress}
+                        setCvUploadProgress={cvForm.setCvUploadProgress}
                         isCVUploadedFromFirebase={cvForm.isCVUploadedFromFirebase}
+                        setIsCVUploadedFromFirebase={cvForm.setIsCVUploadedFromFirebase}
+                        uploadedCVUrl={cvForm.uploadedCVUrl}
+                        setUploadedCVUrl={cvForm.setUploadedCVUrl}
                         cvPreviewUrl={cvForm.cvPreviewUrl}
+                        setCvPreviewUrl={cvForm.setCvPreviewUrl}
                         extractingCV={cvForm.extractingCV}
                         inlineCVAnalysisResult={cvForm.inlineCVAnalysisResult}
+                        setInlineCVAnalysisResult={cvForm.setInlineCVAnalysisResult}
                         showInlineCVAnalysisModal={cvForm.showInlineCVAnalysisModal}
+                        setShowInlineCVAnalysisModal={cvForm.setShowInlineCVAnalysisModal}
                         showCVFullForm={cvForm.showCVFullForm}
                         existingCVsForValidation={cvForm.existingCVsForValidation}
                         allTalentCVs={talentCVs}
@@ -530,6 +650,9 @@ export function TalentDetailCVsSection({
                         handleCancelInlineCVAnalysis={cvForm.handleCancelInlineCVAnalysis}
                         validateCVVersion={cvForm.validateCVVersion}
                         isValueDifferent={cvForm.isValueDifferent}
+                        setAnalysisResult={setAnalysisResult}
+                        setAnalysisResultCVId={setAnalysisResultCVId}
+                        onShowCVFullFormChange={setIsCVFormInFullMode}
                       />
                     )}
 
@@ -609,16 +732,6 @@ export function TalentDetailCVsSection({
                     </div>
                     <h2 className="text-lg font-semibold text-gray-900">Kết quả phân tích CV</h2>
                   </div>
-                  <Button
-                    onClick={onCancelAnalysis}
-                    disabled={!canEdit}
-                    className={`px-3 py-1.5 rounded-lg text-sm bg-neutral-600 text-white hover:bg-neutral-700 transition-all duration-300 ${
-                      !canEdit ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                    title={!canEdit ? 'Bạn không có quyền hủy phân tích CV. Chỉ TA đang quản lý nhân sự này mới được hủy phân tích.' : ''}
-                  >
-                    Hủy phân tích
-                  </Button>
                 </div>
 
 
@@ -1059,6 +1172,32 @@ export function TalentDetailCVsSection({
             )}
         </div>
       </div>
+
+      {/* Delete CV Success Overlay */}
+      {cvForm?.showDeleteCVSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã xóa file CV thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create CV Success Overlay */}
+      {cvForm?.showCreateCVSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã tạo CV thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

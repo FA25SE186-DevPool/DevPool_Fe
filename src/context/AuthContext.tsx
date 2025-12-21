@@ -178,9 +178,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userRef.current = null;
       
       // Gọi API logout backend để xóa refresh token (không block nếu fail)
-      authService.logout().catch((error) => {
-        // Không throw error để đảm bảo logout vẫn tiếp tục dù API fail
-        console.warn('Logout API error (continuing with local logout):', error);
+      // Note: 401 errors are expected and not logged (handled in authService.logout())
+      authService.logout().catch(() => {
+        // Silent fail - logout local vẫn hoạt động bình thường
       });
       
       // Logout Firebase (không block nếu fail)

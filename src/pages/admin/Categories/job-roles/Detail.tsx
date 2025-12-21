@@ -28,6 +28,8 @@ export default function JobRoleDetailPage() {
   const [jobRole, setJobRole] = useState<JobRole | null>(null);
   const [jobRoleLevels, setJobRoleLevels] = useState<JobRoleLevel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreateMappingSuccessOverlay, setShowCreateMappingSuccessOverlay] = useState(false);
+  const [showDeleteJobRoleSuccessOverlay, setShowDeleteJobRoleSuccessOverlay] = useState(false);
   const levelNames = useMemo(() => ['Junior', 'Middle', 'Senior', 'Lead'] as const, []);
 
   // Bulk create JobRoleLevelSkill for all levels in a group
@@ -184,8 +186,13 @@ export default function JobRoleDetailPage() {
         created += 1;
       }
 
-      alert(`✅ Đã tạo ${created} mapping. Bỏ qua ${skipped} level (đã có sẵn).`);
-      closeBulkSkillModal();
+      setShowCreateMappingSuccessOverlay(true);
+
+      // Hiển thị loading overlay trong 2 giây rồi close modal
+      setTimeout(() => {
+        setShowCreateMappingSuccessOverlay(false);
+        closeBulkSkillModal();
+      }, 2000);
     } catch (e) {
       console.error("❌ Lỗi tạo jobRoleLevelSkill hàng loạt:", e);
       alert("Không thể tạo kỹ năng template. Vui lòng thử lại.");
@@ -201,8 +208,13 @@ export default function JobRoleDetailPage() {
 
     try {
       await jobRoleService.delete(Number(id));
-      alert("✅ Đã xóa loại vị trí thành công!");
-      navigate("/admin/categories/job-roles");
+      setShowDeleteJobRoleSuccessOverlay(true);
+
+      // Hiển thị loading overlay trong 2 giây rồi navigate
+      setTimeout(() => {
+        setShowDeleteJobRoleSuccessOverlay(false);
+        navigate("/admin/categories/job-roles");
+      }, 2000);
     } catch (err) {
       console.error("❌ Lỗi khi xóa:", err);
       alert("Không thể xóa loại vị trí!");
@@ -614,6 +626,32 @@ export default function JobRoleDetailPage() {
               >
                 {isSavingBulk ? "Đang tạo..." : "Tạo"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Mapping Success Overlay */}
+      {showCreateMappingSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã tạo mapping thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Job Role Success Overlay */}
+      {showDeleteJobRoleSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã xóa loại vị trí thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
             </div>
           </div>
         </div>

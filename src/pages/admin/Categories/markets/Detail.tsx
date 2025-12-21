@@ -20,6 +20,7 @@ export default function MarketDetailPage() {
   const navigate = useNavigate();
   const [market, setMarket] = useState<Market | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showDeleteSuccessOverlay, setShowDeleteSuccessOverlay] = useState(false);
 
   useEffect(() => {
     const fetchMarket = async () => {
@@ -44,8 +45,13 @@ export default function MarketDetailPage() {
 
     try {
       await marketService.delete(Number(id));
-      alert("✅ Xóa thị trường thành công!");
-      navigate("/sales/markets");
+      setShowDeleteSuccessOverlay(true);
+
+      // Hiển thị loading overlay trong 2 giây rồi navigate
+      setTimeout(() => {
+        setShowDeleteSuccessOverlay(false);
+        navigate("/sales/markets");
+      }, 2000);
     } catch (err) {
       console.error("❌ Lỗi khi xóa thị trường:", err);
       alert("Không thể xóa thị trường!");
@@ -194,6 +200,19 @@ export default function MarketDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Success Overlay */}
+      {showDeleteSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Xóa thị trường thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

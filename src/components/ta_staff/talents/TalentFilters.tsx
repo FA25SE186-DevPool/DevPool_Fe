@@ -36,7 +36,7 @@ const workingModeOptions = [
   { value: '', label: 'Tất cả chế độ' },
   { value: WorkingMode.Onsite.toString(), label: 'Tại văn phòng' },
   { value: WorkingMode.Remote.toString(), label: 'Từ xa' },
-  { value: WorkingMode.Hybrid.toString(), label: 'Hybrid' },
+  { value: WorkingMode.Hybrid.toString(), label: 'Kết hợp' },
   { value: WorkingMode.Flexible.toString(), label: 'Linh hoạt' },
 ];
 

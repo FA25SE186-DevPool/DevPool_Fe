@@ -634,7 +634,7 @@ export default function TalentCVCreatePage() {
       // Navigate dựa trên role
       if (isDeveloper) {
         setTimeout(() => {
-          navigate(ROUTES.DEVELOPER.PROFILE, { replace: true });
+          navigate(ROUTES.PARTNER.PROFILE, { replace: true });
         }, 1500);
       } else if (talentId) {
         setTimeout(() => {

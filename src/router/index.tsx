@@ -221,12 +221,10 @@ const AccountantProjectDetailPage = React.lazy(() => import('../pages/accountant
 // ========================================
 // DEVELOPER PAGES - Lazy Loading
 // ========================================
-const DeveloperDashboard = React.lazy(() => import('../pages/developer/Dashboard'));
+const PartnerDashboard = React.lazy(() => import('../pages/partner/Dashboard'));
+const PartnerTalents = React.lazy(() => import('../pages/partner/Talents'));
+const PartnerAssignments = React.lazy(() => import('../pages/partner/Assignments'));
 const DeveloperProfile = React.lazy(() => import('../pages/developer/Profile'));
-const DeveloperContractsList = React.lazy(() => import('../pages/developer/contracts/List'));
-const DeveloperContractDetail = React.lazy(() => import('../pages/developer/contracts/Detail'));
-const DeveloperPaymentsList = React.lazy(() => import('../pages/developer/payments/List'));
-const DeveloperPaymentDetail = React.lazy(() => import('../pages/developer/payments/Detail'));
 
 // ========================================
 // MANAGER PAGES - Lazy Loading
@@ -422,17 +420,15 @@ const AppRouter: React.FC = () => {
           </Route>
 
           {/* ======================================== */}
-          {/* DEVELOPER ROUTES (với PrivateLayout) */}
+          {/* PARTNER ROUTES (với PrivateLayout) */}
           {/* ======================================== */}
           <Route element={<PrivateLayout />}>
             <Route element={<ProtectedRoute requiredRole="Developer"><Outlet /></ProtectedRoute>}>
-              <Route path={ROUTES.DEVELOPER.DASHBOARD} element={<DeveloperDashboard />} />
-              <Route path={ROUTES.DEVELOPER.PROFILE} element={<DeveloperProfile />} />
-              <Route path={ROUTES.DEVELOPER.CV_CREATE} element={<TalentCVCreatePage />} />
-              <Route path={ROUTES.DEVELOPER.CONTRACTS.LIST} element={<DeveloperContractsList />} />
-              <Route path="/developer/contracts/:id" element={<DeveloperContractDetail />} />
-              <Route path={ROUTES.DEVELOPER.PAYMENTS.LIST} element={<DeveloperPaymentsList />} />
-              <Route path={ROUTES.DEVELOPER.PAYMENTS.DETAIL} element={<DeveloperPaymentDetail />} />
+              <Route path={ROUTES.PARTNER.DASHBOARD} element={<PartnerDashboard />} />
+              <Route path={ROUTES.PARTNER.TALENTS} element={<PartnerTalents />} />
+              <Route path={ROUTES.PARTNER.ASSIGNMENTS} element={<PartnerAssignments />} />
+              <Route path={ROUTES.PARTNER.PROFILE} element={<DeveloperProfile />} />
+              <Route path={ROUTES.PARTNER.CV_CREATE} element={<TalentCVCreatePage />} />
             </Route>
           </Route>
 

@@ -12,17 +12,21 @@ import {
   Briefcase,
   ChevronUp,
   ChevronDown,
-  X
+  X,
+  UserPlus
 } from 'lucide-react';
 import Sidebar from '../../../components/common/Sidebar';
 import { sidebarItems } from '../../../components/sidebar/ta_staff';
 import { Button } from '../../../components/ui/button';
-import { partnerService, type Partner, PartnerType } from '../../../services/Partner';
+import { partnerService, type Partner, PartnerType, type PartnerDetailedModel } from '../../../services/Partner';
+import { talentAssignmentService, type TalentAssignmentModel } from '../../../services/TalentAssignment';
 import { ROUTES } from '../../../router/routes'; 
 
 export default function ListPartner() {
   const navigate = useNavigate();
   const [partners, setPartners] = useState<Partner[]>([]);
+  const [partnerDetails, setPartnerDetails] = useState<Record<number, PartnerDetailedModel>>({});
+  const [talentAssignments, setTalentAssignments] = useState<TalentAssignmentModel[]>([]);
   const [filteredPartners, setFilteredPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -48,6 +52,44 @@ export default function ListPartner() {
       if (Array.isArray(obj.data)) return obj.data as T[];
     }
     return [];
+  };
+
+  // Function to check if partner should show create account button
+  // Conditions:
+  // 1. Partner has at least 1 talent
+  // 2. Partner has at least 1 active participation in projects (TalentAssignment with status Active)
+  // 3. At least 1 talent of partner participates in the partner's first project
+  const shouldShowCreateAccountButton = (partner: Partner): boolean => {
+    const partnerDetail = partnerDetails[partner.id];
+
+    // Condition 1: Partner has at least 1 talent
+    if (!partnerDetail || !partnerDetail.talents || partnerDetail.talents.length === 0) {
+      return false;
+    }
+
+    // Condition 2: Partner has at least 1 active participation in projects
+    const partnerActiveAssignments = talentAssignments.filter(assignment =>
+      assignment.partnerId === partner.id && assignment.status === "Active"
+    );
+    if (partnerActiveAssignments.length === 0) {
+      return false;
+    }
+
+    // Condition 3: Find the partner's first project (earliest start date from active assignments)
+    const sortedAssignments = partnerActiveAssignments.sort((a, b) =>
+      new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+    );
+    const firstProjectAssignment = sortedAssignments[0];
+    const firstProjectId = firstProjectAssignment.projectId;
+
+    // Check if any talent of this partner participates in the first project
+    return partnerDetail.talents.some(talent =>
+      talentAssignments.some(assignment =>
+        assignment.talentId === talent.talentId &&
+        assignment.projectId === firstProjectId &&
+        assignment.status === "Active"
+      )
+    );
   };
 
   const maskPhone = (phone?: string | null) => {
@@ -108,10 +150,42 @@ export default function ListPartner() {
       const sortedData = [...dataArray].sort((a, b) => b.id - a.id);
       setPartners(sortedData);
       setFilteredPartners(sortedData);
+
+      // Fetch detailed information for all partners to check account creation eligibility
+      try {
+        const detailPromises = sortedData.map(partner =>
+          partnerService.getDetailedById(partner.id).catch(() => null)
+        );
+        const detailResults = await Promise.all(detailPromises);
+        const detailsMap: Record<number, PartnerDetailedModel> = {};
+        detailResults.forEach((detail, index) => {
+          if (detail && sortedData[index]) {
+            detailsMap[sortedData[index].id] = detail;
+          }
+        });
+        setPartnerDetails(detailsMap);
+      } catch (detailErr) {
+        console.error("❌ Failed to fetch partner details:", detailErr);
+        setPartnerDetails({});
+      }
+
+      // Fetch all talent assignments to check active participations
+      try {
+        const assignments = await talentAssignmentService.getAll({
+          status: "Active",
+          excludeDeleted: true
+        });
+        setTalentAssignments(assignments);
+      } catch (assignmentErr) {
+        console.error("❌ Failed to fetch talent assignments:", assignmentErr);
+        setTalentAssignments([]);
+      }
     } catch (err) {
       console.error("❌ Failed to fetch partners:", err);
       setPartners([]);
       setFilteredPartners([]);
+      setPartnerDetails({});
+      setTalentAssignments([]);
     } finally {
       setLoading(false);
     }
@@ -458,12 +532,13 @@ export default function ListPartner() {
                   <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider whitespace-nowrap">Mã số thuế</th>
                   <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Loại</th>
                   <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Điện thoại</th>
+                  <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-200">
                 {filteredPartners.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-12">
+                    <td colSpan={7} className="text-center py-12">
                       <div className="flex flex-col items-center justify-center">
                         <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
                           <Building2 className="w-8 h-8 text-neutral-400" />
@@ -526,6 +601,25 @@ export default function ListPartner() {
                           <span className="text-sm text-neutral-700" title={p.phone || undefined}>
                             {maskPhone(p.phone)}
                           </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          {/* Cấp tài khoản button - chỉ hiện khi có talent tham gia dự án đầu tiên lần đầu */}
+                          {shouldShowCreateAccountButton(p) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // TODO: Implement create partner account logic
+                                alert(`Tính năng cấp tài khoản cho đối tác ${p.companyName} đang được phát triển`);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300 hover:text-green-700 rounded-lg text-sm font-medium transition-colors"
+                              title="Cấp tài khoản đối tác"
+                            >
+                              <UserPlus className="w-4 h-4 mr-1 flex-shrink-0" />
+                              <span className="text-xs font-medium">Cấp tài khoản</span>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

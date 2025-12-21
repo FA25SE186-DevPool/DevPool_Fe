@@ -27,6 +27,12 @@ export default function JobRoleLevelDetailPage() {
   const [isCreateSkillModalOpen, setIsCreateSkillModalOpen] = useState(false);
   const [editingMapping, setEditingMapping] = useState<JobRoleLevelSkill | null>(null);
 
+  // Success overlay states
+  const [showUpdateSkillSuccessOverlay, setShowUpdateSkillSuccessOverlay] = useState(false);
+  const [showCreateSkillSuccessOverlay, setShowCreateSkillSuccessOverlay] = useState(false);
+  const [showDeleteSkillSuccessOverlay, setShowDeleteSkillSuccessOverlay] = useState(false);
+  const [showDeleteJobRoleLevelSuccessOverlay, setShowDeleteJobRoleLevelSuccessOverlay] = useState(false);
+
   // Form state (create/edit)
   const [skillSearch, setSkillSearch] = useState("");
   const [selectedSkillId, setSelectedSkillId] = useState<number | null>(null);
@@ -161,13 +167,25 @@ export default function JobRoleLevelDetailPage() {
     try {
       if (editingMapping) {
         await jobRoleLevelSkillService.update(editingMapping.id, { jobRoleLevelId, skillId: selectedSkillId });
-        alert("✅ Cập nhật kỹ năng thành công!");
+        setShowUpdateSkillSuccessOverlay(true);
+
+        // Hiển thị loading overlay trong 2 giây rồi close modal và refresh
+        setTimeout(() => {
+          setShowUpdateSkillSuccessOverlay(false);
+          closeModals();
+          refreshSkills();
+        }, 2000);
       } else {
         await jobRoleLevelSkillService.create({ jobRoleLevelId, skillId: selectedSkillId });
-        alert("✅ Thêm kỹ năng thành công!");
+        setShowCreateSkillSuccessOverlay(true);
+
+        // Hiển thị loading overlay trong 2 giây rồi close modal và refresh
+        setTimeout(() => {
+          setShowCreateSkillSuccessOverlay(false);
+          closeModals();
+          refreshSkills();
+        }, 2000);
       }
-      closeModals();
-      await refreshSkills();
     } catch (err) {
       console.error("❌ Lỗi khi lưu kỹ năng:", err);
       alert("Không thể lưu kỹ năng. Vui lòng thử lại.");
@@ -180,8 +198,13 @@ export default function JobRoleLevelDetailPage() {
     if (!ok) return;
     try {
       await jobRoleLevelSkillService.deleteById(mapping.id);
-      alert("✅ Xóa kỹ năng thành công!");
-      await refreshSkills();
+      setShowDeleteSkillSuccessOverlay(true);
+
+      // Hiển thị loading overlay trong 2 giây rồi refresh
+      setTimeout(() => {
+        setShowDeleteSkillSuccessOverlay(false);
+        refreshSkills();
+      }, 2000);
     } catch (err) {
       console.error("❌ Lỗi khi xóa kỹ năng:", err);
       alert("Không thể xóa kỹ năng. Vui lòng thử lại.");
@@ -195,13 +218,18 @@ export default function JobRoleLevelDetailPage() {
 
     try {
       await jobRoleLevelService.delete(Number(id));
-      alert("✅ Xóa vị trí tuyển dụng thành công!");
-      // Quay về trang chi tiết job role nếu có, nếu không thì về danh sách job-role-levels
-      if (jobRoleLevel.jobRoleId) {
-        navigate(`/admin/categories/job-roles/${jobRoleLevel.jobRoleId}`);
-      } else {
-        navigate("/admin/categories/job-role-levels");
-      }
+      setShowDeleteJobRoleLevelSuccessOverlay(true);
+
+      // Hiển thị loading overlay trong 2 giây rồi navigate
+      setTimeout(() => {
+        setShowDeleteJobRoleLevelSuccessOverlay(false);
+        // Quay về trang chi tiết job role nếu có, nếu không thì về danh sách job-role-levels
+        if (jobRoleLevel.jobRoleId) {
+          navigate(`/admin/categories/job-roles/${jobRoleLevel.jobRoleId}`);
+        } else {
+          navigate("/admin/categories/job-role-levels");
+        }
+      }, 2000);
     } catch (err) {
       console.error("❌ Lỗi khi xóa vị trí:", err);
       alert("Không thể xóa vị trí!");
@@ -381,6 +409,10 @@ export default function JobRoleLevelDetailPage() {
           onClose={closeModals}
           onSubmit={handleSaveSkillMapping}
           submitLabel={editingMapping ? "Lưu" : "Tạo"}
+          showUpdateSkillSuccessOverlay={showUpdateSkillSuccessOverlay}
+          showCreateSkillSuccessOverlay={showCreateSkillSuccessOverlay}
+          showDeleteSkillSuccessOverlay={showDeleteSkillSuccessOverlay}
+          showDeleteJobRoleLevelSuccessOverlay={showDeleteJobRoleLevelSuccessOverlay}
         >
           <div className="space-y-3">
             {/* Skill Group Filter */}
@@ -534,6 +566,10 @@ function Modal({
   onClose,
   onSubmit,
   submitLabel,
+  showUpdateSkillSuccessOverlay,
+  showCreateSkillSuccessOverlay,
+  showDeleteSkillSuccessOverlay,
+  showDeleteJobRoleLevelSuccessOverlay,
 }: {
   title: string;
   subtitle?: string;
@@ -541,6 +577,10 @@ function Modal({
   onClose: () => void;
   onSubmit: () => void;
   submitLabel: string;
+  showUpdateSkillSuccessOverlay?: boolean;
+  showCreateSkillSuccessOverlay?: boolean;
+  showDeleteSkillSuccessOverlay?: boolean;
+  showDeleteJobRoleLevelSuccessOverlay?: boolean;
 }) {
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -579,6 +619,58 @@ function Modal({
           </button>
         </div>
       </div>
+
+      {/* Update Skill Success Overlay */}
+      {showUpdateSkillSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Cập nhật kỹ năng thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Skill Success Overlay */}
+      {showCreateSkillSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Thêm kỹ năng thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Skill Success Overlay */}
+      {showDeleteSkillSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Xóa kỹ năng thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Job Role Level Success Overlay */}
+      {showDeleteJobRoleLevelSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Xóa vị trí tuyển dụng thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -588,6 +680,6 @@ function InfoItem({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-gray-500 text-sm">{label}</p>
       <p className="text-gray-900 font-medium">{value || "—"}</p>
-    </div>
+      </div>
   );
 }

@@ -49,8 +49,10 @@ export { applyProcessTemplateService } from './ApplyProcessTemplate';
 // Partner
 export { partnerService } from './Partner';
 export { partnerContractPaymentService } from './PartnerContractPayment';
+export { partnerDashboardService } from './PartnerDashboard';
 export { partnerDocumentService } from './PartnerDocument';
 export { partnerPaymentPeriodService } from './PartnerPaymentPeriod';
+export type { PartnerDashboardStats, PartnerTalentSummary, PartnerTalentDetail, PartnerAssignmentSummary, PartnerMonthlyPayment, PartnerPaymentDetail, PartnerPaymentProof } from './PartnerDashboard';
 
 // Client Company
 export { clientCompanyService } from './ClientCompany';

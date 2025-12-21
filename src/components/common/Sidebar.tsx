@@ -48,7 +48,7 @@ export default function Sidebar({ items, title }: SidebarProps) {
   useEffect(() => {
     const activeItems: string[] = [];
     
-    items.forEach((item) => {
+    (items || []).forEach((item) => {
       if (item.subItems && item.subItems.length > 0) {
         // Kiểm tra xem có subItem nào đang active không
         const hasActiveSubItem = item.subItems.some((subItem) => {
@@ -107,8 +107,8 @@ export default function Sidebar({ items, title }: SidebarProps) {
   };
 
   // Phân chia items theo section
-  const mainItems = items.filter(item => !item.section || item.section === 'main');
-  const configItems = items.filter(item => item.section === 'config');
+  const mainItems = (items || []).filter(item => !item.section || item.section === 'main');
+  const configItems = (items || []).filter(item => item.section === 'config');
 
   const renderItem = (item: SidebarItem) => {
     const Icon = item.icon;

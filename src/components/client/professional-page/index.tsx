@@ -110,6 +110,11 @@ export default function ProfessionalClientPage() {
 
     // Fetch data from API
     useEffect(() => {
+        // Don't fetch talents until we have the DEVPOOL partner ID
+        if (devpoolPartnerId === null) {
+            return;
+        }
+
         const fetchData = async () => {
             try {
                 setLoading(true);
@@ -324,12 +329,6 @@ export default function ProfessionalClientPage() {
                     console.log(`✅ Giữ lại talent ${professional.name} (ID: ${professional.id}): partner OK, availability = ${professional.availability}`);
                     return true;
                 });
-
-                // TEMPORARY: If no DEVPOOL talents found, show all talents (for debugging)
-                if (filteredProfessionals.length === 0 && mappedProfessionals.length > 0) {
-                    console.warn("⚠️ Không có talent DEVPOOL nào. Temporarily showing all talents for debugging...");
-                    filteredProfessionals = mappedProfessionals.filter(professional => professional.availability !== 'unavailable');
-                }
 
                 console.log(`📊 Tổng kết filter: ${mappedProfessionals.length} talent gốc → ${filteredProfessionals.length} talent sau filter DEVPOOL`);
 

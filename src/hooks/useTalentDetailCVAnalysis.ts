@@ -22,7 +22,9 @@ export function useTalentDetailCVAnalysis(
   jobRoleLevels: (TalentJobRoleLevel & { jobRoleLevelName: string; jobRoleLevelLevel: string })[],
   lookupCertificateTypes: CertificateType[],
   certificates: (TalentCertificate & { certificateTypeName: string })[],
-  talentCVs?: (TalentCV & { jobRoleLevelName?: string })[]
+  talentCVs?: (TalentCV & { jobRoleLevelName?: string })[],
+  onShowSuccessOverlay?: (message: string) => void,
+  onAnalysisSuccess?: () => void
 ) {
   const { id } = useParams<{ id: string }>();
 
@@ -121,8 +123,14 @@ export function useTalentDetailCVAnalysis(
         if (!confirmed) return;
       }
 
+      // Set loading state and show loading overlay
       setAnalysisLoadingId(cv.id);
       setAnalysisError(null);
+
+      // Show loading overlay through callback if available
+      if (onShowSuccessOverlay) {
+        onShowSuccessOverlay('Đang phân tích CV...');
+      }
 
       try {
         const blob = await downloadFileFromFirebase(cv.cvFileUrl);
@@ -142,6 +150,11 @@ export function useTalentDetailCVAnalysis(
           } catch (storageError) {
             console.warn('Không thể lưu kết quả phân tích CV:', storageError);
           }
+        }
+
+        // Switch to CV tab after successful analysis
+        if (onAnalysisSuccess) {
+          onAnalysisSuccess();
         }
       } catch (error) {
         console.error('❌ Lỗi phân tích CV:', error);

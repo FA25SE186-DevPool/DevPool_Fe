@@ -290,28 +290,19 @@ export const ROUTES = {
   },
 
   // ==============================================================
-  // DEVELOPER - Lập trình viên - có tài khoản sau khi ký hợp đồng
+  // PARTNER - Đối tác - có tài khoản sau khi ký hợp đồng
   // ==============================================================
-  DEVELOPER: {
-    DASHBOARD: '/developer/dashboard',          // Tổng quan
+  PARTNER: {
+    DASHBOARD: '/partner/dashboard',          // Tổng quan
 
     // Thông tin cá nhân
-    PROFILE: '/developer/profile',              // Xem/sửa thông tin cá nhân
-    CV: '/developer/cv',                        // submit thay đổi → TA duyệt
-    CV_CREATE: '/developer/cv/create',          // Tạo CV mới
+    PROFILE: '/partner/profile',              // Xem/sửa thông tin cá nhân
+    CV: '/partner/cv',                        // submit thay đổi → TA duyệt
+    CV_CREATE: '/partner/cv/create',          // Tạo CV mới
 
-    // Hợp đồng
-    CONTRACTS: {
-      LIST: '/developer/contracts',             // Danh sách hợp đồng của mình
-      CURRENT: '/developer/contracts/current',  // Hợp đồng đang thực hiện
-      DETAIL: '/developer/contracts/:id',       // Chi tiết hợp đồng đối tác
-    },
-
-    // Payment Status
-    PAYMENTS: {
-      LIST: '/developer/payments',
-      DETAIL: '/developer/payments/:id',
-    },
+    // Quản lý nhân sự
+    TALENTS: '/partner/talents',              // Danh sách nhân sự của partner
+    ASSIGNMENTS: '/partner/assignments',      // Danh sách phân công của partner
   },
 
 } as const;
@@ -336,7 +327,7 @@ export const getDashboardRoute = (role: string): string => {
     case 'Staff Sales':
       return ROUTES.SALES_STAFF.DASHBOARD;
     case 'Developer':
-      return ROUTES.DEVELOPER.DASHBOARD;
+      return ROUTES.PARTNER.DASHBOARD;
     case 'Manager':
       return ROUTES.MANAGER.DASHBOARD;
     case 'Admin':

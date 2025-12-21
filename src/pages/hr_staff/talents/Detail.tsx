@@ -91,6 +91,43 @@ export default function TalentDetailPage() {
 
   // Inline forms and operations
   const operations = useTalentDetailOperations();
+  const {
+    showDeleteAvailableTimeSuccessOverlay,
+    showUploadCertificateImageSuccessOverlay,
+    showDeleteCertificateImageSuccessOverlay,
+    showCreateProjectSuccessOverlay,
+    showCreateSkillSuccessOverlay,
+    showCreateCertificateSuccessOverlay,
+    showCreateExperienceSuccessOverlay,
+    showCreateJobRoleLevelSuccessOverlay,
+    showDeleteProjectsSuccessOverlay,
+    showDeleteSkillsSuccessOverlay,
+    showDeleteExperiencesSuccessOverlay,
+    showDeleteJobRoleLevelsSuccessOverlay,
+    showDeleteCertificatesSuccessOverlay,
+    showCreateAvailableTimeSuccessOverlay,
+    showDeleteCVsSuccessOverlay,
+  } = operations;
+
+  // Loading overlay state
+  const [loadingOverlay, setLoadingOverlay] = useState<{ show: boolean; type: 'loading' | 'success'; message: string }>({
+    show: false,
+    type: 'loading',
+    message: '',
+  });
+
+  // Helper functions for overlay
+  const showSuccessOverlay = (message: string) => {
+    setLoadingOverlay({
+      show: true,
+      type: 'success',
+      message,
+    });
+    // Auto hide after 4 seconds (increased from 2 seconds)
+    setTimeout(() => {
+      setLoadingOverlay({ show: false, type: 'loading', message: '' });
+    }, 4000);
+  };
 
   // CV Analysis
   const cvAnalysis = useTalentDetailCVAnalysis(
@@ -100,22 +137,18 @@ export default function TalentDetailPage() {
     jobRoleLevels,
     lookupCertificateTypes,
     certificates,
-    talentCVs
+    talentCVs,
+    showSuccessOverlay,
+    () => {
+      setActiveTab('cvs'); // Switch to CV tab after successful analysis
+      // Switch to analysis sub-tab
+      setTimeout(() => {
+        setActiveCVTab('analysis');
+        // Hide loading overlay immediately when switching to analysis tab
+        setLoadingOverlay({ show: false, type: 'loading', message: '' });
+      }, 100);
+    }
   );
-
-  // Helper functions for overlay
-
-  const showSuccessOverlay = (message: string) => {
-    setLoadingOverlay({
-      show: true,
-      type: 'success',
-      message,
-    });
-    // Auto hide after 2 seconds
-    setTimeout(() => {
-      setLoadingOverlay({ show: false, type: 'loading', message: '' });
-    }, 2000);
-  };
 
   // Skill Group Verification
   const skillGroupVerification = useTalentDetailSkillGroupVerification(talentSkills, showSuccessOverlay);
@@ -127,6 +160,7 @@ export default function TalentDetailPage() {
   // Mặc định luôn hiển thị tab Thông tin (activeTab = null).
   // Không tự động chuyển tab theo location.state.tab/defaultTab để tránh mở nhầm khi vào Detail.
   const [activeTab, setActiveTab] = useState<TalentDetailTab | null>(null);
+  const [activeCVTab, setActiveCVTab] = useState<'list' | 'analysis'>('list');
   const [collapsedInactiveCVGroups, setCollapsedInactiveCVGroups] = useState<Set<string>>(new Set());
 
   // Skills section states
@@ -160,13 +194,6 @@ export default function TalentDetailPage() {
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [partnerInfo, setPartnerInfo] = useState<PartnerDetailedModel | null>(null);
   const [partnerLoading, setPartnerLoading] = useState(false);
-
-  // Loading overlay state
-  const [loadingOverlay, setLoadingOverlay] = useState<{ show: boolean; type: 'loading' | 'success'; message: string }>({
-    show: false,
-    type: 'loading',
-    message: '',
-  });
 
   // Tính toán danh sách vị trí từ CVs đã được tạo
   const availablePositions = useMemo(() => {
@@ -229,6 +256,7 @@ export default function TalentDetailPage() {
     setIsSkillDropdownOpen,
     lookupSkills,
   });
+  const { showSkillSuggestionSuccessOverlay } = skillActions;
 
   // CV Form hook - Handler để refresh CVs sau khi tạo CV mới
   const handleRefreshCVs = useCallback(async () => {
@@ -286,6 +314,8 @@ export default function TalentDetailPage() {
     setAnalysisResult: cvAnalysis.setAnalysisResult,
     setAnalysisResultCVId: cvAnalysis.setAnalysisResultCVId,
     analysisResultStorageKey: cvAnalysis.ANALYSIS_RESULT_STORAGE_KEY,
+    onShowSuccessOverlay: showSuccessOverlay,
+    onSwitchToAnalysisTab: () => setActiveCVTab('analysis'),
   });
 
   // ========== HANDLERS ==========
@@ -625,18 +655,21 @@ export default function TalentDetailPage() {
 
   // Cancel analysis handler
   const handleCancelAnalysis = useCallback(async () => {
+    // Cancel kết quả phân tích hiện tại
     const hasFirebaseFile = cvForm?.isCVUploadedFromFirebase || false;
     const uploadedCVUrl = cvForm?.uploadedCVUrl || null;
-    
+
     await cvAnalysis.handleCancelAnalysis(
       canEdit,
       hasFirebaseFile,
       uploadedCVUrl,
       () => {
-        // Luôn đóng form CV khi hủy phân tích
-        operations.handleCloseInlineForm();
+        // Không đóng form CV khi hủy phân tích
       }
     );
+
+    // Switch back to CV list sub-tab after cancelling analysis
+    setActiveCVTab('list');
   }, [cvAnalysis, canEdit, operations, cvForm]);
 
 
@@ -896,6 +929,8 @@ export default function TalentDetailPage() {
                 analysisError={cvAnalysis.analysisError}
                 onAnalyzeCV={handleAnalyzeCVFromUrl}
                 onCancelAnalysis={handleCancelAnalysis}
+                setAnalysisResult={cvAnalysis.setAnalysisResult}
+                setAnalysisResultCVId={cvAnalysis.setAnalysisResultCVId}
                 canEdit={canEdit}
                 collapsedInactiveCVGroups={collapsedInactiveCVGroups}
                 setCollapsedInactiveCVGroups={setCollapsedInactiveCVGroups}
@@ -904,6 +939,9 @@ export default function TalentDetailPage() {
                 setExpandedAnalysisDetail={cvAnalysis.setExpandedAnalysisDetail}
                 expandedBasicInfo={cvAnalysis.expandedBasicInfo}
                 setExpandedBasicInfo={cvAnalysis.setExpandedBasicInfo}
+                onShowSuccessOverlay={showSuccessOverlay}
+                activeCVTab={activeCVTab}
+                setActiveCVTab={setActiveCVTab}
                 matchedSkillsNotInProfile={cvAnalysis.matchedSkillsNotInProfile}
                 unmatchedSkillSuggestions={cvAnalysis.unmatchedSkillSuggestions}
                 jobRoleLevelsMatched={cvAnalysis.jobRoleLevelsMatched}
@@ -1228,6 +1266,214 @@ export default function TalentDetailPage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Available Time Success Overlay */}
+      {showDeleteAvailableTimeSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã xóa thời gian thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Certificate Image Success Overlay */}
+      {showUploadCertificateImageSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Upload ảnh chứng chỉ thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Certificate Image Success Overlay */}
+      {showDeleteCertificateImageSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã xóa ảnh chứng chỉ thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Project Success Overlay */}
+      {showCreateProjectSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã tạo dự án thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Skill Success Overlay */}
+      {showCreateSkillSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã thêm kỹ năng thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Certificate Success Overlay */}
+      {showCreateCertificateSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã thêm chứng chỉ thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Experience Success Overlay */}
+      {showCreateExperienceSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã thêm kinh nghiệm thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Job Role Level Success Overlay */}
+      {showCreateJobRoleLevelSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã thêm vị trí thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Projects Success Overlay */}
+      {showDeleteProjectsSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã xóa dự án thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Skills Success Overlay */}
+      {showDeleteSkillsSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã xóa kỹ năng thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Experiences Success Overlay */}
+      {showDeleteExperiencesSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã xóa kinh nghiệm thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Job Role Levels Success Overlay */}
+      {showDeleteJobRoleLevelsSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã xóa vị trí thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Certificates Success Overlay */}
+      {showDeleteCertificatesSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã xóa chứng chỉ thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Available Time Success Overlay */}
+      {showCreateAvailableTimeSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã thêm thời gian thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Skill Suggestion Success Overlay */}
+      {showSkillSuggestionSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã gửi đề xuất kỹ năng cho admin thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete CVs Success Overlay */}
+      {showDeleteCVsSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã xóa CV thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
           </div>
         </div>
       )}

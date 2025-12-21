@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, CheckCircle, Filter, Loader2, RefreshCcw, Search, Trash2, MessageCircle } from 'lucide-react';
+import { Bell, CheckCircle, Filter, Loader2, RefreshCcw, Search, Trash2, MoreVertical, Eye, Reply } from 'lucide-react';
 import {
   notificationService,
   type Notification,
@@ -10,6 +10,7 @@ import {
 } from '../../../services/Notification';
 import { useAuth } from '../../../context/AuthContext';
 import { decodeJWT } from '../../../services/Auth';
+import { getDashboardRoute } from '../../../router/routes';
 import { useNotification } from '../../../context/NotificationContext';
 import { talentCVService } from '../../../services/TalentCV';
 import { talentService } from '../../../services/Talent';
@@ -139,6 +140,8 @@ const NotificationCenterPage = () => {
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
   const [totalCount, setTotalCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const resolvedUserId = useMemo(() => {
     if (!user) return null;
@@ -199,6 +202,21 @@ const NotificationCenterPage = () => {
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
+
+  // Đóng dropdown khi click bên ngoài
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('[data-dropdown]')) {
+        setOpenDropdownId(null);
+      }
+    };
+
+    if (openDropdownId !== null) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [openDropdownId]);
 
   const handleStatusChange = (value: StatusFilter) => {
     setStatusFilter(value);
@@ -381,6 +399,7 @@ const NotificationCenterPage = () => {
 
   const [replyingToNotificationId, setReplyingToNotificationId] = useState<number | null>(null);
   const [replyModalOpen, setReplyModalOpen] = useState(false);
+  const [showReplySuccessOverlay, setShowReplySuccessOverlay] = useState(false);
   const [replyNotification, setReplyNotification] = useState<Notification | null>(null);
   const [replyMessage, setReplyMessage] = useState('');
   const [repliedNotificationIds, setRepliedNotificationIds] = useState<Set<number>>(new Set());
@@ -461,7 +480,7 @@ const NotificationCenterPage = () => {
         userIds: [String(developerId)],
         entityType: replyNotification.entityType || null,
         entityId: replyNotification.entityId || null,
-        actionUrl: '/developer/profile', // Developer nên vào trang profile của họ
+        actionUrl: '/partner/profile', // Partner nên vào trang profile của họ
         metaData: {
           originalNotificationId: String(replyNotification.id),
           cvVersion: cvVersion,
@@ -494,12 +513,17 @@ const NotificationCenterPage = () => {
         )
       );
       
-      alert('✅ Đã gửi thông báo phản hồi đến developer thành công!');
-      setReplyModalOpen(false);
-      setReplyNotification(null);
-      setReplyMessage('');
-      // KHÔNG refresh notifications để giữ state repliedNotificationIds
-      // Nút phản hồi đã được ẩn ngay lập tức qua setRepliedNotificationIds và setNotifications
+      setShowReplySuccessOverlay(true);
+
+      // Hiển thị loading overlay trong 2 giây rồi đóng modal và reset state
+      setTimeout(() => {
+        setShowReplySuccessOverlay(false);
+        setReplyModalOpen(false);
+        setReplyNotification(null);
+        setReplyMessage('');
+        // KHÔNG refresh notifications để giữ state repliedNotificationIds
+        // Nút phản hồi đã được ẩn ngay lập tức qua setRepliedNotificationIds và setNotifications
+      }, 2000);
     } catch (error) {
       alert('Không thể gửi thông báo phản hồi. Vui lòng thử lại.');
     } finally {
@@ -507,12 +531,38 @@ const NotificationCenterPage = () => {
     }
   };
 
-  const handleSearch = () => {
+  const handleSearchInput = (value: string) => {
+    setSearchKeyword(value);
+    setPageNumber(1);
+
+    // Debounce search
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    const timeout = setTimeout(() => {
+      fetchNotifications();
+    }, 500);
+
+    setSearchTimeout(timeout);
+  };
+
+  const handleResetFilters = () => {
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setSearchKeyword('');
     setPageNumber(1);
     fetchNotifications();
   };
 
-  const unreadPercentage = totalCount > 0 ? Math.round((unreadCount / totalCount) * 100) : 0;
+  const handleDropdownToggle = (notificationId: number) => {
+    setOpenDropdownId(openDropdownId === notificationId ? null : notificationId);
+  };
+
+  const handleDropdownClose = () => {
+    setOpenDropdownId(null);
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-50 py-10">
@@ -520,6 +570,7 @@ const NotificationCenterPage = () => {
         <div className="mb-8">
           <Breadcrumb
             items={[
+              { label: 'Dashboard', to: getDashboardRoute(user?.role || '') },
               { label: 'Trung tâm thông báo' }
             ]}
           />
@@ -538,7 +589,7 @@ const NotificationCenterPage = () => {
               <div className="group bg-white rounded-2xl shadow-soft hover:shadow-medium p-6 transition-all duration-300 transform hover:-translate-y-1 border border-neutral-100 hover:border-primary-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-neutral-600 group-hover:text-neutral-700 transition-colors duration-300">Tổng thông báo</p>
+                    <p className="text-sm font-medium text-neutral-600 group-hover:text-neutral-700 transition-colors duration-300">Tổng</p>
                     <p className="text-3xl font-bold text-gray-900 mt-2 group-hover:text-primary-700 transition-colors duration-300">{totalCount}</p>
                   </div>
                   <div className="p-3 rounded-full bg-primary-100 text-primary-600 group-hover:bg-primary-200 transition-all duration-300">
@@ -552,9 +603,6 @@ const NotificationCenterPage = () => {
                     <p className="text-sm font-medium text-neutral-600 group-hover:text-neutral-700 transition-colors duration-300">Chưa đọc</p>
                     <div className="flex items-baseline gap-2 mt-2">
                       <p className="text-3xl font-bold text-primary-600 group-hover:text-primary-700 transition-colors duration-300">{unreadCount}</p>
-                      <span className="text-xs text-neutral-500">
-                        ({unreadPercentage}% tổng số)
-                      </span>
                     </div>
                   </div>
                   <div className="p-3 rounded-full bg-secondary-100 text-secondary-600 group-hover:bg-secondary-200 transition-all duration-300">
@@ -640,38 +688,20 @@ const NotificationCenterPage = () => {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
                   <input
                     value={searchKeyword}
-                    onChange={(e) => setSearchKeyword(e.target.value)}
-                    placeholder="Tìm theo tiêu đề..."
+                    onChange={(e) => handleSearchInput(e.target.value)}
+                    placeholder="Tìm theo tiêu đề... (tự động)"
                     className="w-full pl-9 pr-3 py-2 rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSearch();
-                    }}
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={handleSearch}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-all"
-                >
-                  <Search className="w-4 h-4" />
-                  Tìm kiếm
-                </button>
-                <button
-                  onClick={() => {
-                    setStatusFilter('all');
-                    setTypeFilter('all');
-                    setSearchKeyword('');
-                    setPageNumber(1);
-                    handleSearch();
-                  }}
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-neutral-200 text-sm text-neutral-600 hover:bg-neutral-100 transition-all"
-                >
-                  <RefreshCcw className="w-4 h-4" />
-                  Đặt lại
-                </button>
-              </div>
+              <button
+                onClick={handleResetFilters}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-neutral-200 text-sm text-neutral-600 hover:bg-neutral-100 transition-all"
+              >
+                <RefreshCcw className="w-4 h-4" />
+                Đặt lại bộ lọc
+              </button>
             </div>
           </aside>
 
@@ -691,23 +721,45 @@ const NotificationCenterPage = () => {
                     <option key={size} value={size}>{size} / trang</option>
                   ))}
                 </select>
-                <button
-                  onClick={handleMarkAllAsRead}
-                  disabled={unreadCount === 0}
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-primary-200 text-sm font-medium text-primary-600 hover:bg-primary-50 disabled:text-neutral-300 disabled:border-neutral-200 disabled:bg-neutral-50"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  Đánh dấu tất cả đã đọc
-                </button>
-                <button
-                  onClick={handleDeleteAllRead}
-                  disabled={notifications.filter(n => n.isRead).length === 0 && (totalCount - unreadCount) === 0}
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 disabled:text-neutral-300 disabled:border-neutral-200 disabled:bg-neutral-50 disabled:cursor-not-allowed"
-                  title={notifications.filter(n => n.isRead).length === 0 && (totalCount - unreadCount) === 0 ? "Không có thông báo đã đọc" : "Xóa tất cả thông báo đã đọc"}
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Xóa tất cả đã đọc
-                </button>
+                <div className="relative" data-dropdown>
+                  <button
+                    onClick={() => handleDropdownToggle(-1)} // Use -1 for header dropdown
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-neutral-200 text-sm font-medium text-neutral-600 hover:bg-neutral-100 transition-all"
+                    title="Thao tác hàng loạt"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                    Thao tác
+                  </button>
+
+                  {openDropdownId === -1 && (
+                    <div className="absolute right-0 mt-2 w-64 bg-white border border-neutral-200 rounded-lg shadow-lg z-10">
+                      <div className="py-1">
+                        <button
+                          onClick={() => {
+                            handleMarkAllAsRead();
+                            handleDropdownClose();
+                          }}
+                          disabled={unreadCount === 0}
+                          className="flex items-center gap-2 w-full px-4 py-2 text-sm text-primary-600 hover:bg-primary-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          Đánh dấu tất cả đã đọc
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleDeleteAllRead();
+                            handleDropdownClose();
+                          }}
+                          disabled={notifications.filter(n => n.isRead).length === 0 && (totalCount - unreadCount) === 0}
+                          className="flex items-center gap-2 w-full px-4 py-2 text-sm text-error-600 hover:bg-error-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Xóa tất cả đã đọc
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -759,60 +811,86 @@ const NotificationCenterPage = () => {
                           </div>
                         )}
                       </div>
-                      <div className="flex flex-col items-stretch gap-2 w-full md:w-48">
+                      <div className="relative" data-dropdown>
                         <button
-                          onClick={() => handleMarkAsRead(notification)}
-                          className={`inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
-                            notification.isRead
-                              ? 'border-neutral-200 text-neutral-400 cursor-default'
-                              : 'border-primary-200 text-primary-600 hover:bg-primary-50'
-                          }`}
-                          disabled={notification.isRead}
+                          onClick={() => handleDropdownToggle(notification.id)}
+                          className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-neutral-200 text-sm font-medium text-neutral-600 hover:bg-neutral-100 transition-all"
+                          title="Thao tác"
                         >
-                          <CheckCircle className="w-4 h-4" />
-                          {notification.isRead ? 'Đã đọc' : 'Đánh dấu đã đọc'}
+                          <MoreVertical className="w-4 h-4" />
                         </button>
-                        {notification.actionUrl && (
-                          <button
-                            onClick={() => handleNavigate(notification)}
-                            className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-all"
-                          >
-                            Xem chi tiết
-                          </button>
+
+                        {openDropdownId === notification.id && (
+                          <div className="absolute right-0 mt-2 w-48 bg-white border border-neutral-200 rounded-lg shadow-lg z-10">
+                            <div className="py-1">
+                              {!notification.isRead && (
+                                <button
+                                  onClick={() => {
+                                    handleMarkAsRead(notification);
+                                    handleDropdownClose();
+                                  }}
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                  Đánh dấu đã đọc
+                                </button>
+                              )}
+
+                              {notification.actionUrl && (
+                                <button
+                                  onClick={() => {
+                                    handleNavigate(notification);
+                                    handleDropdownClose();
+                                  }}
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-primary-600 hover:bg-primary-50"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  Xem chi tiết
+                                </button>
+                              )}
+
+                              {(notification.type === NotificationType.CVUploadedByDeveloper ||
+                                (notification.type as number) === 7002) &&
+                               notification.entityType === 'TalentCV' &&
+                               notification.entityId &&
+                               !repliedNotificationIds.has(notification.id) && (
+                                <button
+                                  onClick={() => {
+                                    openReplyModal(notification);
+                                    handleDropdownClose();
+                                  }}
+                                  disabled={replyingToNotificationId === notification.id}
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-accent-600 hover:bg-accent-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {replyingToNotificationId === notification.id ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                      Đang gửi...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Reply className="w-4 h-4" />
+                                      Phản hồi Developer
+                                    </>
+                                  )}
+                                </button>
+                              )}
+
+                              <div className="border-t border-neutral-200"></div>
+
+                              <button
+                                onClick={() => {
+                                  handleDeleteNotification(notification);
+                                  handleDropdownClose();
+                                }}
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-error-600 hover:bg-error-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Xóa
+                              </button>
+                            </div>
+                          </div>
                         )}
-                        {/* Nút phản hồi cho thông báo CV mới từ developer */}
-                        {/* Hiển thị nút phản hồi cho CVUploadedByDeveloper chưa được phản hồi */}
-                        {(notification.type === NotificationType.CVUploadedByDeveloper || 
-                          (notification.type as number) === 7002) && 
-                         notification.entityType === 'TalentCV' && 
-                         notification.entityId &&
-                         !repliedNotificationIds.has(notification.id) && (
-                          <button
-                            onClick={() => openReplyModal(notification)}
-                            disabled={replyingToNotificationId === notification.id}
-                            className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-accent-600 text-white text-sm font-medium hover:bg-accent-700 transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Gửi thông báo phản hồi đến developer"
-                          >
-                            {replyingToNotificationId === notification.id ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Đang gửi...
-                              </>
-                            ) : (
-                              <>
-                                <MessageCircle className="w-4 h-4" />
-                                Phản hồi Developer
-                              </>
-                            )}
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteNotification(notification)}
-                          className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-error-200 text-sm font-medium text-error-600 hover:bg-error-50 transition-all"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Xóa
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -821,28 +899,29 @@ const NotificationCenterPage = () => {
             </div>
 
             {totalCount > 0 && (
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-6 py-4 border-t border-neutral-200 bg-neutral-50">
+              <div className="flex items-center justify-between px-6 py-3 border-t border-neutral-200 bg-neutral-50">
                 <div className="text-sm text-neutral-500">
-                  Hiển thị {(notifications.length === 0 ? 0 : (pageNumber - 1) * pageSize + 1)}-
-                  {(notifications.length === 0 ? 0 : (pageNumber - 1) * pageSize + notifications.length)} trong tổng số {totalCount} thông báo
+                  {totalCount} thông báo
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   <button
                     onClick={() => setPageNumber((prev) => Math.max(1, prev - 1))}
                     disabled={pageNumber === 1}
-                    className="px-3 py-2 rounded-lg border border-neutral-200 text-sm text-neutral-600 disabled:text-neutral-300 disabled:border-neutral-100"
+                    className="px-2 py-1 rounded border border-neutral-200 text-sm text-neutral-600 disabled:text-neutral-300 disabled:border-neutral-100 hover:bg-white"
+                    title="Trang trước"
                   >
-                    Trước
+                    ‹
                   </button>
-                  <span className="text-sm text-neutral-600">
-                    Trang {pageNumber} / {totalPages}
+                  <span className="px-3 py-1 text-sm text-neutral-600 bg-white rounded border border-neutral-200">
+                    {pageNumber} / {totalPages}
                   </span>
                   <button
                     onClick={() => setPageNumber((prev) => Math.min(totalPages, prev + 1))}
                     disabled={pageNumber === totalPages}
-                    className="px-3 py-2 rounded-lg border border-neutral-200 text-sm text-neutral-600 disabled:text-neutral-300 disabled:border-neutral-100"
+                    className="px-2 py-1 rounded border border-neutral-200 text-sm text-neutral-600 disabled:text-neutral-300 disabled:border-neutral-100 hover:bg-white"
+                    title="Trang sau"
                   >
-                    Sau
+                    ›
                   </button>
                 </div>
               </div>
@@ -911,6 +990,19 @@ const NotificationCenterPage = () => {
                   'Gửi phản hồi'
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reply Success Overlay */}
+      {showReplySuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã gửi thông báo phản hồi đến developer thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
             </div>
           </div>
         </div>

@@ -172,7 +172,12 @@ export function useTalentDetailOperations() {
       const fileInput = document.querySelector('input[type="file"][accept="image/*"]') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
 
-      alert('✅ Upload ảnh chứng chỉ thành công!');
+      setShowUploadCertificateImageSuccessOverlay(true);
+
+      // Hiển thị loading overlay trong 2 giây
+      setTimeout(() => {
+        setShowUploadCertificateImageSuccessOverlay(false);
+      }, 2000);
     } catch (err: any) {
       console.error('❌ Error uploading certificate image:', err);
       alert(`❌ Lỗi khi upload ảnh: ${err.message || 'Vui lòng thử lại.'}`);
@@ -229,7 +234,12 @@ export function useTalentDetailOperations() {
       const fileInput = document.querySelector('input[type="file"][accept="image/*"]') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
 
-      alert('✅ Đã xóa ảnh chứng chỉ thành công!');
+      setShowDeleteCertificateImageSuccessOverlay(true);
+
+      // Hiển thị loading overlay trong 2 giây
+      setTimeout(() => {
+        setShowDeleteCertificateImageSuccessOverlay(false);
+      }, 2000);
     } catch (err: any) {
       console.error('❌ Error deleting certificate image:', err);
       // Vẫn xóa URL khỏi form dù không xóa được file
@@ -249,6 +259,23 @@ export function useTalentDetailOperations() {
   const [selectedCertificates, setSelectedCertificates] = useState<number[]>([]);
   const [selectedAvailableTimes, setSelectedAvailableTimes] = useState<number[]>([]);
   const [selectedCVs, setSelectedCVs] = useState<number[]>([]);
+  const [showDeleteAvailableTimeSuccessOverlay, setShowDeleteAvailableTimeSuccessOverlay] = useState<boolean>(false);
+
+  // Success overlay states
+  const [showUploadCertificateImageSuccessOverlay, setShowUploadCertificateImageSuccessOverlay] = useState<boolean>(false);
+  const [showDeleteCertificateImageSuccessOverlay, setShowDeleteCertificateImageSuccessOverlay] = useState<boolean>(false);
+  const [showCreateProjectSuccessOverlay, setShowCreateProjectSuccessOverlay] = useState<boolean>(false);
+  const [showCreateSkillSuccessOverlay, setShowCreateSkillSuccessOverlay] = useState<boolean>(false);
+  const [showCreateCertificateSuccessOverlay, setShowCreateCertificateSuccessOverlay] = useState<boolean>(false);
+  const [showCreateExperienceSuccessOverlay, setShowCreateExperienceSuccessOverlay] = useState<boolean>(false);
+  const [showCreateJobRoleLevelSuccessOverlay, setShowCreateJobRoleLevelSuccessOverlay] = useState<boolean>(false);
+  const [showDeleteProjectsSuccessOverlay, setShowDeleteProjectsSuccessOverlay] = useState<boolean>(false);
+  const [showDeleteSkillsSuccessOverlay, setShowDeleteSkillsSuccessOverlay] = useState<boolean>(false);
+  const [showDeleteExperiencesSuccessOverlay, setShowDeleteExperiencesSuccessOverlay] = useState<boolean>(false);
+  const [showDeleteJobRoleLevelsSuccessOverlay, setShowDeleteJobRoleLevelsSuccessOverlay] = useState<boolean>(false);
+  const [showDeleteCertificatesSuccessOverlay, setShowDeleteCertificatesSuccessOverlay] = useState<boolean>(false);
+  const [showCreateAvailableTimeSuccessOverlay, setShowCreateAvailableTimeSuccessOverlay] = useState<boolean>(false);
+  const [showDeleteCVsSuccessOverlay, setShowDeleteCVsSuccessOverlay] = useState<boolean>(false);
 
   // Job role level selection states (for inline form)
   const [selectedJobRoleLevelName, setSelectedJobRoleLevelName] = useState<string>('');
@@ -349,10 +376,15 @@ export function useTalentDetailOperations() {
           technologies: inlineProjectForm.technologies || '',
           description: inlineProjectForm.description || '',
         });
-        alert('✅ Đã tạo dự án thành công!');
-        handleCloseInlineForm();
-        const projects = await talentProjectService.getAll({ talentId: Number(id), excludeDeleted: true });
-        onSuccess(projects);
+        setShowCreateProjectSuccessOverlay(true);
+
+        // Hiển thị loading overlay trong 2 giây rồi đóng form và refresh
+        setTimeout(() => {
+          setShowCreateProjectSuccessOverlay(false);
+          handleCloseInlineForm();
+          const projects = talentProjectService.getAll({ talentId: Number(id), excludeDeleted: true });
+          projects.then(onSuccess);
+        }, 2000);
       } catch (err) {
         console.error('❌ Lỗi khi tạo dự án:', err);
         alert('Không thể tạo dự án!');
@@ -382,42 +414,48 @@ export function useTalentDetailOperations() {
           level: inlineSkillForm.level || 'Beginner',
           yearsExp: 0, // Không cần nhập số năm kinh nghiệm
         });
-        alert('✅ Đã thêm kỹ năng thành công!');
-        handleCloseInlineForm();
-        const skills = await talentSkillService.getAll({ talentId: Number(id), excludeDeleted: true });
-        const allSkills = await skillService.getAll();
-        const skillsWithNames = skills.map((skill: TalentSkill) => {
-          const skillInfo = allSkills.find((s: Skill) => s.id === skill.skillId);
-          return {
-            ...skill,
-            skillName: skillInfo?.name ?? 'Unknown Skill',
-            skillGroupId: skillInfo?.skillGroupId,
-          };
-        });
-        onSuccess(skillsWithNames);
+        setShowCreateSkillSuccessOverlay(true);
 
-        // Refresh skill group status if callback provided
-        if (onSkillGroupStatusUpdate) {
-          const addedSkillInfo = allSkills.find((s: Skill) => s.id === inlineSkillForm.skillId);
-          const addedSkillGroupId = addedSkillInfo?.skillGroupId;
-          if (addedSkillGroupId && typeof addedSkillGroupId === 'number') {
-            try {
-              const statuses = await talentSkillGroupAssessmentService.getVerificationStatuses(
-                Number(id),
-                [addedSkillGroupId]
-              );
-              if (Array.isArray(statuses) && statuses.length > 0) {
-                const statusMap: Record<number, SkillGroupVerificationStatus> = {};
-                statuses.forEach((st) => {
-                  statusMap[st.skillGroupId] = st;
-                });
-                onSkillGroupStatusUpdate(statusMap);
+        // Hiển thị loading overlay trong 2 giây rồi đóng form và refresh
+        setTimeout(async () => {
+          setShowCreateSkillSuccessOverlay(false);
+          handleCloseInlineForm();
+
+          const skills = await talentSkillService.getAll({ talentId: Number(id), excludeDeleted: true });
+          const allSkills = await skillService.getAll();
+          const skillsWithNames = skills.map((skill: TalentSkill) => {
+            const skillInfo = allSkills.find((s: Skill) => s.id === skill.skillId);
+            return {
+              ...skill,
+              skillName: skillInfo?.name ?? 'Unknown Skill',
+              skillGroupId: skillInfo?.skillGroupId,
+            };
+          });
+          onSuccess(skillsWithNames);
+
+          // Refresh skill group status if callback provided
+          if (onSkillGroupStatusUpdate) {
+            const addedSkillInfo = allSkills.find((s: Skill) => s.id === inlineSkillForm.skillId);
+            const addedSkillGroupId = addedSkillInfo?.skillGroupId;
+            if (addedSkillGroupId && typeof addedSkillGroupId === 'number') {
+              try {
+                const statuses = await talentSkillGroupAssessmentService.getVerificationStatuses(
+                  Number(id),
+                  [addedSkillGroupId]
+                );
+                if (Array.isArray(statuses) && statuses.length > 0) {
+                  const statusMap: Record<number, SkillGroupVerificationStatus> = {};
+                  statuses.forEach((st) => {
+                    statusMap[st.skillGroupId] = st;
+                  });
+                  onSkillGroupStatusUpdate(statusMap);
+                }
+              } catch (statusError) {
+                console.error('❌ Lỗi khi refresh trạng thái verify sau khi thêm skill:', statusError);
               }
-            } catch (statusError) {
-              console.error('❌ Lỗi khi refresh trạng thái verify sau khi thêm skill:', statusError);
             }
           }
-        }
+        }, 2000);
       } catch (err) {
         console.error('❌ Lỗi khi thêm kỹ năng:', err);
         alert('Không thể thêm kỹ năng!');
@@ -460,19 +498,26 @@ export function useTalentDetailOperations() {
           isVerified: inlineCertificateForm.isVerified || false,
           imageUrl: inlineCertificateForm.imageUrl || '',
         });
-        alert('✅ Đã thêm chứng chỉ thành công!');
-        handleCloseInlineForm();
-        setCertificateFormErrors({});
-        const certificatesData = await talentCertificateService.getAll({
-          talentId: Number(id),
-          excludeDeleted: true,
-        });
-        const allCertificateTypes = await certificateTypeService.getAll();
-        const certificatesWithNames = certificatesData.map((cert: TalentCertificate) => {
-          const certTypeInfo = allCertificateTypes.find((c: CertificateType) => c.id === cert.certificateTypeId);
-          return { ...cert, certificateTypeName: certTypeInfo?.name ?? 'Unknown Certificate' };
-        });
-        onSuccess(certificatesWithNames);
+        setShowCreateCertificateSuccessOverlay(true);
+
+        // Hiển thị loading overlay trong 2 giây rồi đóng form và refresh
+        setTimeout(() => {
+          setShowCreateCertificateSuccessOverlay(false);
+          handleCloseInlineForm();
+          setCertificateFormErrors({});
+          const certificatesData = talentCertificateService.getAll({
+            talentId: Number(id),
+            excludeDeleted: true,
+          });
+          const allCertificateTypes = certificateTypeService.getAll();
+          Promise.all([certificatesData, allCertificateTypes]).then(([certList, certTypeList]) => {
+            const certificatesWithNames = certList.map((cert: TalentCertificate) => {
+              const certTypeInfo = certTypeList.find((c: CertificateType) => c.id === cert.certificateTypeId);
+              return { ...cert, certificateTypeName: certTypeInfo?.name ?? 'Unknown Certificate' };
+            });
+            onSuccess(certificatesWithNames);
+          });
+        }, 2000);
       } catch (err) {
         console.error('❌ Lỗi khi thêm chứng chỉ:', err);
         alert('Không thể thêm chứng chỉ!');
@@ -519,13 +564,17 @@ export function useTalentDetailOperations() {
           endDate: inlineExperienceForm.endDate,
           description: inlineExperienceForm.description || '',
         });
-        alert('✅ Đã thêm kinh nghiệm thành công!');
-        handleCloseInlineForm();
-        const experiences = await talentWorkExperienceService.getAll({
-          talentId: Number(id),
-          excludeDeleted: true,
-        });
-        onSuccess(experiences);
+        setShowCreateExperienceSuccessOverlay(true);
+
+        // Hiển thị loading overlay trong 2 giây rồi đóng form và refresh
+        setTimeout(() => {
+          setShowCreateExperienceSuccessOverlay(false);
+          handleCloseInlineForm();
+          talentWorkExperienceService.getAll({
+            talentId: Number(id),
+            excludeDeleted: true,
+          }).then(onSuccess);
+        }, 2000);
       } catch (err) {
         console.error('❌ Lỗi khi thêm kinh nghiệm:', err);
         alert('Không thể thêm kinh nghiệm!');
@@ -562,22 +611,29 @@ export function useTalentDetailOperations() {
           yearsOfExp: inlineJobRoleLevelForm.yearsOfExp || 1,
           ratePerMonth: inlineJobRoleLevelForm.ratePerMonth,
         });
-        alert('✅ Đã thêm vị trí thành công!');
-        handleCloseInlineForm();
-        const jobRoleLevelsData = await talentJobRoleLevelService.getAll({
-          talentId: Number(id),
-          excludeDeleted: true,
-        });
-        const allJobRoleLevels = await jobRoleLevelService.getAll({ excludeDeleted: true });
-        const jobRoleLevelsWithNames = jobRoleLevelsData.map((jrl: TalentJobRoleLevel) => {
-          const jobRoleLevelInfo = allJobRoleLevels.find((j: JobRoleLevel) => j.id === jrl.jobRoleLevelId);
-          if (!jobRoleLevelInfo) {
-            return { ...jrl, jobRoleLevelName: 'Unknown Level', jobRoleLevelLevel: '—' };
-          }
-          const levelText = getLevelText(jobRoleLevelInfo.level);
-          return { ...jrl, jobRoleLevelName: jobRoleLevelInfo.name || '—', jobRoleLevelLevel: levelText };
-        });
-        onSuccess(jobRoleLevelsWithNames);
+        setShowCreateJobRoleLevelSuccessOverlay(true);
+
+        // Hiển thị loading overlay trong 2 giây rồi đóng form và refresh
+        setTimeout(() => {
+          setShowCreateJobRoleLevelSuccessOverlay(false);
+          handleCloseInlineForm();
+          const jobRoleLevelsData = talentJobRoleLevelService.getAll({
+            talentId: Number(id),
+            excludeDeleted: true,
+          });
+          const allJobRoleLevels = jobRoleLevelService.getAll({ excludeDeleted: true });
+          Promise.all([jobRoleLevelsData, allJobRoleLevels]).then(([jrlList, allJrlList]) => {
+            const jobRoleLevelsWithNames = jrlList.map((jrl: TalentJobRoleLevel) => {
+              const jobRoleLevelInfo = allJrlList.find((j: JobRoleLevel) => j.id === jrl.jobRoleLevelId);
+              if (!jobRoleLevelInfo) {
+                return { ...jrl, jobRoleLevelName: 'Unknown Level', jobRoleLevelLevel: '—' };
+              }
+              const levelText = getLevelText(jobRoleLevelInfo.level);
+              return { ...jrl, jobRoleLevelName: jobRoleLevelInfo.name || '—', jobRoleLevelLevel: levelText };
+            });
+            onSuccess(jobRoleLevelsWithNames);
+          });
+        }, 2000);
       } catch (err) {
         console.error('❌ Lỗi khi thêm vị trí:', err);
         alert('Không thể thêm vị trí!');
@@ -600,10 +656,14 @@ export function useTalentDetailOperations() {
       if (!confirm) return;
       try {
         await Promise.all(selectedProjects.map((projectId) => talentProjectService.deleteById(projectId)));
-        alert('✅ Đã xóa dự án thành công!');
-        setSelectedProjects([]);
-        const projects = await talentProjectService.getAll({ talentId: Number(id), excludeDeleted: true });
-        onSuccess(projects);
+        setShowDeleteProjectsSuccessOverlay(true);
+
+        // Hiển thị loading overlay trong 2 giây rồi refresh
+        setTimeout(() => {
+          setShowDeleteProjectsSuccessOverlay(false);
+          setSelectedProjects([]);
+          talentProjectService.getAll({ talentId: Number(id), excludeDeleted: true }).then(onSuccess);
+        }, 2000);
       } catch (err) {
         console.error('❌ Lỗi khi xóa dự án:', err);
         alert('Không thể xóa dự án!');
@@ -626,39 +686,46 @@ export function useTalentDetailOperations() {
       if (!confirm) return;
       try {
         await Promise.all(selectedSkills.map((skillId) => talentSkillService.deleteById(skillId)));
-        alert('✅ Đã xóa kỹ năng thành công!');
-        setSelectedSkills([]);
-        const skills = await talentSkillService.getAll({ talentId: Number(id), excludeDeleted: true });
-        const allSkills = await skillService.getAll();
-        const skillsWithNames = skills.map((skill: TalentSkill) => {
-          const skillInfo = allSkills.find((s: Skill) => s.id === skill.skillId);
-          return { ...skill, skillName: skillInfo?.name ?? 'Unknown Skill', skillGroupId: skillInfo?.skillGroupId };
-        });
-        onSuccess(skillsWithNames);
+        setShowDeleteSkillsSuccessOverlay(true);
 
-        // Refresh skill group status if callback provided
-        if (onSkillGroupStatusUpdate) {
-          const distinctSkillGroupIds = Array.from(
-            new Set(skillsWithNames.map((s: any) => s.skillGroupId).filter((gid: number | undefined) => typeof gid === 'number'))
-          ) as number[];
-          if (distinctSkillGroupIds.length > 0) {
-            try {
-              const statuses = await talentSkillGroupAssessmentService.getVerificationStatuses(
-                Number(id),
-                distinctSkillGroupIds
-              );
-              if (Array.isArray(statuses)) {
-                const statusMap: Record<number, SkillGroupVerificationStatus> = {};
-                statuses.forEach((st) => {
-                  statusMap[st.skillGroupId] = st;
-                });
-                onSkillGroupStatusUpdate(statusMap);
+        // Hiển thị loading overlay trong 2 giây rồi refresh
+        setTimeout(() => {
+          setShowDeleteSkillsSuccessOverlay(false);
+          setSelectedSkills([]);
+
+          talentSkillService.getAll({ talentId: Number(id), excludeDeleted: true }).then((skills) => {
+            skillService.getAll().then((allSkills) => {
+              const skillsWithNames = skills.map((skill: TalentSkill) => {
+                const skillInfo = allSkills.find((s: Skill) => s.id === skill.skillId);
+                return { ...skill, skillName: skillInfo?.name ?? 'Unknown Skill', skillGroupId: skillInfo?.skillGroupId };
+              });
+              onSuccess(skillsWithNames);
+
+              // Refresh skill group status if callback provided
+              if (onSkillGroupStatusUpdate) {
+                const distinctSkillGroupIds = Array.from(
+                  new Set(skillsWithNames.map((s: any) => s.skillGroupId).filter((gid: number | undefined) => typeof gid === 'number'))
+                ) as number[];
+                if (distinctSkillGroupIds.length > 0) {
+                  talentSkillGroupAssessmentService.getVerificationStatuses(
+                    Number(id),
+                    distinctSkillGroupIds
+                  ).then((statuses) => {
+                    if (Array.isArray(statuses)) {
+                      const statusMap: Record<number, SkillGroupVerificationStatus> = {};
+                      statuses.forEach((st) => {
+                        statusMap[st.skillGroupId] = st;
+                      });
+                      onSkillGroupStatusUpdate(statusMap);
+                    }
+                  }).catch((statusError) => {
+                    console.error('❌ Lỗi khi refresh trạng thái verify sau khi xóa skill:', statusError);
+                  });
+                }
               }
-            } catch (statusError) {
-              console.error('❌ Lỗi khi refresh trạng thái verify sau khi xóa skill:', statusError);
-            }
-          }
-        }
+            });
+          });
+        }, 2000);
       } catch (err) {
         console.error('❌ Lỗi khi xóa kỹ năng:', err);
         alert('Không thể xóa kỹ năng!');
@@ -678,10 +745,14 @@ export function useTalentDetailOperations() {
       if (!confirm) return;
       try {
         await Promise.all(selectedExperiences.map((expId) => talentWorkExperienceService.deleteById(expId)));
-        alert('✅ Đã xóa kinh nghiệm thành công!');
-        setSelectedExperiences([]);
-        const experiences = await talentWorkExperienceService.getAll({ talentId: Number(id), excludeDeleted: true });
-        onSuccess(experiences);
+        setShowDeleteExperiencesSuccessOverlay(true);
+
+        // Hiển thị loading overlay trong 2 giây rồi refresh
+        setTimeout(() => {
+          setShowDeleteExperiencesSuccessOverlay(false);
+          setSelectedExperiences([]);
+          talentWorkExperienceService.getAll({ talentId: Number(id), excludeDeleted: true }).then(onSuccess);
+        }, 2000);
       } catch (err) {
         console.error('❌ Lỗi khi xóa kinh nghiệm:', err);
         alert('Không thể xóa kinh nghiệm!');
@@ -741,23 +812,29 @@ export function useTalentDetailOperations() {
 
       try {
         await Promise.all(selectedJobRoleLevels.map((jrlId) => talentJobRoleLevelService.deleteById(jrlId)));
-        alert('✅ Đã xóa vị trí thành công!');
-        setSelectedJobRoleLevels([]);
-        const updatedJobRoleLevelsData = await talentJobRoleLevelService.getAll({
-          talentId: Number(id),
-          excludeDeleted: true,
-        });
-        const jobRoleLevelsWithNames = updatedJobRoleLevelsData.map((jrl: TalentJobRoleLevel) => {
-          const jobRoleLevelInfo = allJobRoleLevels.find((j: JobRoleLevel) => j.id === jrl.jobRoleLevelId);
-          if (!jobRoleLevelInfo) {
-            return { ...jrl, jobRoleLevelName: 'Unknown Level', jobRoleLevelLevel: '—' };
-          }
-          const levelText = getLevelText(jobRoleLevelInfo.level);
-          return { ...jrl, jobRoleLevelName: jobRoleLevelInfo.name || '—', jobRoleLevelLevel: levelText };
-        });
-        if (typeof onSuccess === 'function') {
-          onSuccess(jobRoleLevelsWithNames);
-        }
+        setShowDeleteJobRoleLevelsSuccessOverlay(true);
+
+        // Hiển thị loading overlay trong 2 giây rồi refresh
+        setTimeout(() => {
+          setShowDeleteJobRoleLevelsSuccessOverlay(false);
+          setSelectedJobRoleLevels([]);
+          talentJobRoleLevelService.getAll({
+            talentId: Number(id),
+            excludeDeleted: true,
+          }).then((updatedJobRoleLevelsData) => {
+            const jobRoleLevelsWithNames = updatedJobRoleLevelsData.map((jrl: TalentJobRoleLevel) => {
+              const jobRoleLevelInfo = allJobRoleLevels.find((j: JobRoleLevel) => j.id === jrl.jobRoleLevelId);
+              if (!jobRoleLevelInfo) {
+                return { ...jrl, jobRoleLevelName: 'Unknown Level', jobRoleLevelLevel: '—' };
+              }
+              const levelText = getLevelText(jobRoleLevelInfo.level);
+              return { ...jrl, jobRoleLevelName: jobRoleLevelInfo.name || '—', jobRoleLevelLevel: levelText };
+            });
+            if (typeof onSuccess === 'function') {
+              onSuccess(jobRoleLevelsWithNames);
+            }
+          });
+        }, 2000);
       } catch (err) {
         console.error('❌ Lỗi khi xóa vị trí:', err);
         alert('Không thể xóa vị trí!');
@@ -777,18 +854,25 @@ export function useTalentDetailOperations() {
       if (!confirm) return;
       try {
         await Promise.all(selectedCertificates.map((certId) => talentCertificateService.deleteById(certId)));
-        alert('✅ Đã xóa chứng chỉ thành công!');
-        setSelectedCertificates([]);
-        const certificatesData = await talentCertificateService.getAll({
-          talentId: Number(id),
-          excludeDeleted: true,
-        });
-        const allCertificateTypes = await certificateTypeService.getAll();
-        const certificatesWithNames = certificatesData.map((cert: TalentCertificate) => {
-          const certTypeInfo = allCertificateTypes.find((c: CertificateType) => c.id === cert.certificateTypeId);
-          return { ...cert, certificateTypeName: certTypeInfo?.name ?? 'Unknown Certificate' };
-        });
-        onSuccess(certificatesWithNames);
+        setShowDeleteCertificatesSuccessOverlay(true);
+
+        // Hiển thị loading overlay trong 2 giây rồi refresh
+        setTimeout(() => {
+          setShowDeleteCertificatesSuccessOverlay(false);
+          setSelectedCertificates([]);
+          const certificatesData = talentCertificateService.getAll({
+            talentId: Number(id),
+            excludeDeleted: true,
+          });
+          const allCertificateTypes = certificateTypeService.getAll();
+          Promise.all([certificatesData, allCertificateTypes]).then(([certList, certTypeList]) => {
+            const certificatesWithNames = certList.map((cert: TalentCertificate) => {
+              const certTypeInfo = certTypeList.find((c: CertificateType) => c.id === cert.certificateTypeId);
+              return { ...cert, certificateTypeName: certTypeInfo?.name ?? 'Unknown Certificate' };
+            });
+            onSuccess(certificatesWithNames);
+          });
+        }, 2000);
       } catch (err) {
         console.error('❌ Lỗi khi xóa chứng chỉ:', err);
         alert('Không thể xóa chứng chỉ!');
@@ -808,7 +892,13 @@ export function useTalentDetailOperations() {
       if (!confirm) return;
       try {
         await Promise.all(selectedAvailableTimes.map((timeId) => talentAvailableTimeService.deleteById(timeId)));
-        alert('✅ Đã xóa thời gian thành công!');
+        setShowDeleteAvailableTimeSuccessOverlay(true);
+
+        // Hiển thị loading overlay trong 2 giây rồi đóng
+        setTimeout(() => {
+          setShowDeleteAvailableTimeSuccessOverlay(false);
+        }, 2000);
+
         setSelectedAvailableTimes([]);
         const availableTimesData = await talentAvailableTimeService.getAll({
           talentId: Number(id),
@@ -941,12 +1031,16 @@ export function useTalentDetailOperations() {
           endTime: newEnd ? newEnd.toISOString() : undefined,
           notes: inlineAvailableTimeForm.notes || '',
         });
-        alert('✅ Đã thêm thời gian thành công!');
-        handleCloseInlineForm();
-        setAvailableTimeFormErrors({});
-        // Refresh data
-        const availableTimesData = await talentAvailableTimeService.getAll({ talentId: Number(id), excludeDeleted: true });
-        onSuccess(availableTimesData);
+        setShowCreateAvailableTimeSuccessOverlay(true);
+
+        // Hiển thị loading overlay trong 2 giây rồi đóng form và refresh
+        setTimeout(() => {
+          setShowCreateAvailableTimeSuccessOverlay(false);
+          handleCloseInlineForm();
+          setAvailableTimeFormErrors({});
+          // Refresh data
+          talentAvailableTimeService.getAll({ talentId: Number(id), excludeDeleted: true }).then(onSuccess);
+        }, 2000);
       } catch (err) {
         console.error('❌ Lỗi khi thêm thời gian:', err);
         setAvailableTimeFormErrors({ submit: 'Không thể thêm thời gian!' });
@@ -1025,33 +1119,38 @@ export function useTalentDetailOperations() {
 
         // Then delete CVs from database
         await Promise.all(deletableCVIds.map((cvId) => talentCVService.deleteById(cvId)));
-        alert('✅ Đã xóa CV và file trên Firebase thành công!');
-        setSelectedCVs((prev) => prev.filter((id) => !deletableCVIds.includes(id)));
+        setShowDeleteCVsSuccessOverlay(true);
 
-        // Refresh data
-        const cvs = await talentCVService.getAll({ talentId: Number(id), excludeDeleted: true });
-        const allJobRoleLevels = await jobRoleLevelService.getAll({ excludeDeleted: true, distinctByName: true });
-        const jobRoleLevelsArray = Array.isArray(allJobRoleLevels) ? allJobRoleLevels : [];
-        const cvsWithJobRoleLevelNames = cvs.map((cv: TalentCV) => {
-          const jobRoleLevelInfo = jobRoleLevelsArray.find((jrl: JobRoleLevel) => jrl.id === cv.jobRoleLevelId);
-          return { ...cv, jobRoleLevelName: jobRoleLevelInfo?.name ?? 'Chưa xác định' };
-        });
+        // Hiển thị loading overlay trong 2 giây rồi refresh
+        setTimeout(async () => {
+          setShowDeleteCVsSuccessOverlay(false);
+          setSelectedCVs((prev) => prev.filter((id) => !deletableCVIds.includes(id)));
 
-        // Sort CVs
-        const sortedCVs = cvsWithJobRoleLevelNames.sort(
-          (a: TalentCV & { jobRoleLevelName?: string }, b: TalentCV & { jobRoleLevelName?: string }) => {
-            const nameA = a.jobRoleLevelName || '';
-            const nameB = b.jobRoleLevelName || '';
-            if (nameA !== nameB) {
-              return nameA.localeCompare(nameB);
+          // Refresh data
+          const cvs = await talentCVService.getAll({ talentId: Number(id), excludeDeleted: true });
+          const allJobRoleLevels = await jobRoleLevelService.getAll({ excludeDeleted: true, distinctByName: true });
+          const jobRoleLevelsArray = Array.isArray(allJobRoleLevels) ? allJobRoleLevels : [];
+          const cvsWithJobRoleLevelNames = cvs.map((cv: TalentCV) => {
+            const jobRoleLevelInfo = jobRoleLevelsArray.find((jrl: JobRoleLevel) => jrl.id === cv.jobRoleLevelId);
+            return { ...cv, jobRoleLevelName: jobRoleLevelInfo?.name ?? 'Chưa xác định' };
+          });
+
+          // Sort CVs
+          const sortedCVs = cvsWithJobRoleLevelNames.sort(
+            (a: TalentCV & { jobRoleLevelName?: string }, b: TalentCV & { jobRoleLevelName?: string }) => {
+              const nameA = a.jobRoleLevelName || '';
+              const nameB = b.jobRoleLevelName || '';
+              if (nameA !== nameB) {
+                return nameA.localeCompare(nameB);
+              }
+              if (a.isActive !== b.isActive) {
+                return a.isActive ? -1 : 1;
+              }
+              return (b.version || 0) - (a.version || 0);
             }
-            if (a.isActive !== b.isActive) {
-              return a.isActive ? -1 : 1;
-            }
-            return (b.version || 0) - (a.version || 0);
-          }
-        );
-        onSuccess(sortedCVs);
+          );
+          onSuccess(sortedCVs);
+        }, 2000);
       } catch (err) {
         console.error('❌ Lỗi khi xóa CV:', err);
         alert('Không thể xóa CV!');
@@ -1105,6 +1204,23 @@ export function useTalentDetailOperations() {
     setSelectedAvailableTimes,
     selectedCVs,
     setSelectedCVs,
+    showDeleteAvailableTimeSuccessOverlay,
+
+    // Success overlay states
+    showUploadCertificateImageSuccessOverlay,
+    showDeleteCertificateImageSuccessOverlay,
+    showCreateProjectSuccessOverlay,
+    showCreateSkillSuccessOverlay,
+    showCreateCertificateSuccessOverlay,
+    showCreateExperienceSuccessOverlay,
+    showCreateJobRoleLevelSuccessOverlay,
+    showDeleteProjectsSuccessOverlay,
+    showDeleteSkillsSuccessOverlay,
+    showDeleteExperiencesSuccessOverlay,
+    showDeleteJobRoleLevelsSuccessOverlay,
+    showDeleteCertificatesSuccessOverlay,
+    showCreateAvailableTimeSuccessOverlay,
+    showDeleteCVsSuccessOverlay,
 
     // Job role level selection
     selectedJobRoleLevelName,

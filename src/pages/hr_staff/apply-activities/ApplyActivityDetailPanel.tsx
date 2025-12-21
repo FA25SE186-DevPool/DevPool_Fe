@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { applyActivityService, getActivityStatusString, type ApplyActivity, ApplyActivityStatus, ApplyActivityType } from "../../../services/ApplyActivity";
+import { applyActivityService, getActivityStatusString, type ApplyActivity, ApplyActivityStatus, ApplyActivityType, type ApplyActivityCreate } from "../../../services/ApplyActivity";
 import { applyProcessStepService, type ApplyProcessStep } from "../../../services/ApplyProcessStep";
 import { applyService } from "../../../services/Apply";
 import { talentApplicationService, type TalentApplicationDetailed } from "../../../services/TalentApplication";
@@ -28,6 +28,7 @@ interface ApplyActivityDetail extends ApplyActivity {
   applicationInfo?: {
     id: number;
     status: string;
+    createdAt?: string;
   };
 }
 
@@ -117,12 +118,30 @@ export default function ApplyActivityDetailPanel({
 
   // Blacklist modal state
   const [showBlacklistModal, setShowBlacklistModal] = useState(false);
+  const [showAddBlacklistSuccessOverlay, setShowAddBlacklistSuccessOverlay] = useState(false);
   const [blacklistReason, setBlacklistReason] = useState("");
   const [blacklistRequestedBy, setBlacklistRequestedBy] = useState("");
   const [isAddingBlacklist, setIsAddingBlacklist] = useState(false);
   const [talent, setTalent] = useState<any>(null);
   const [clientCompanyId, setClientCompanyId] = useState<number | null>(null);
   const [showProcessStepsList, setShowProcessStepsList] = useState(false);
+  const [activitySchedules, setActivitySchedules] = useState<Record<number, string>>({});
+
+  // Edit activity modal state
+  const [showEditActivityModal, setShowEditActivityModal] = useState(false);
+  const [editActivityForm, setEditActivityForm] = useState<{
+    activityType: ApplyActivityType;
+    processStepId: number;
+    scheduledDate: string;
+    status: ApplyActivityStatus;
+  }>({
+    activityType: ApplyActivityType.Online,
+    processStepId: 0,
+    scheduledDate: "",
+    status: ApplyActivityStatus.Scheduled,
+  });
+  const [updatingActivity, setUpdatingActivity] = useState(false);
+  const [dateValidationError, setDateValidationError] = useState<string>("");
 
   // Helper functions for overlay
   const showLoadingOverlay = (message: string = 'Đang xử lý...') => {
@@ -139,14 +158,143 @@ export default function ApplyActivityDetailPanel({
       type: 'success',
       message,
     });
-    // Auto hide after 2 seconds
+    // Auto hide after 1 second
     setTimeout(() => {
       setLoadingOverlay({ show: false, type: 'loading', message: '' });
-    }, 2000);
+    }, 1000);
   };
 
   const hideOverlay = () => {
     setLoadingOverlay({ show: false, type: 'loading', message: '' });
+  };
+
+  // Helper functions for edit modal
+  const handleCloseEditModal = () => {
+    setShowEditActivityModal(false);
+    setEditActivityForm({
+      activityType: ApplyActivityType.Online,
+      processStepId: 0,
+      scheduledDate: "",
+      status: ApplyActivityStatus.Scheduled,
+    });
+    setDateValidationError("");
+  };
+
+  const handleUpdateActivity = async () => {
+    if (!activity) return;
+
+    if (!editActivityForm.scheduledDate || editActivityForm.scheduledDate.trim() === "") {
+      setDateValidationError("⚠️ Vui lòng nhập ngày bắt đầu (scheduledDate).");
+      return;
+    }
+
+    // Validation: kiểm tra thứ tự với các bước khác
+    if (editActivityForm.scheduledDate && editActivityForm.processStepId) {
+      const selectedStep = processSteps.find(step => step.id === editActivityForm.processStepId);
+      if (selectedStep) {
+        const orderedSteps = [...processSteps].sort((a, b) => a.stepOrder - b.stepOrder);
+        const selectedIndex = orderedSteps.findIndex(step => step.id === selectedStep.id);
+        const selectedDate = new Date(editActivityForm.scheduledDate);
+
+        // ✅ Rule: Bước đầu tiên không được trước thời gian tạo hồ sơ
+        if (selectedIndex === 0 && activity.applicationInfo?.createdAt) {
+          const appCreatedAt = new Date(activity.applicationInfo.createdAt);
+          if (selectedDate.getTime() < appCreatedAt.getTime()) {
+            setDateValidationError(
+              `⚠️ Thời gian của bước đầu tiên không được trước thời gian tạo hồ sơ (${appCreatedAt.toLocaleString('vi-VN')}).`
+            );
+            return;
+          }
+        }
+
+        // Kiểm tra với bước trước
+        if (selectedIndex > 0) {
+          const previousSteps = orderedSteps.slice(0, selectedIndex).reverse();
+          const previousWithSchedule = previousSteps.find(step => activitySchedules[step.id]);
+          if (previousWithSchedule) {
+            const previousDate = new Date(activitySchedules[previousWithSchedule.id]);
+            if (selectedDate.getTime() < previousDate.getTime()) {
+              setDateValidationError(`⚠️ ≥ ${previousWithSchedule.stepName} (${new Date(activitySchedules[previousWithSchedule.id]).toLocaleString('vi-VN')}).`);
+              return;
+            }
+          }
+        }
+
+        // Kiểm tra với bước sau
+        const nextSteps = orderedSteps.slice(selectedIndex + 1);
+        const nextWithSchedule = nextSteps.find(step => activitySchedules[step.id]);
+        if (nextWithSchedule) {
+          const nextDate = new Date(activitySchedules[nextWithSchedule.id]);
+          if (selectedDate.getTime() > nextDate.getTime()) {
+            setDateValidationError(`⚠️ ≤ ${nextWithSchedule.stepName} (${new Date(activitySchedules[nextWithSchedule.id]).toLocaleString('vi-VN')}).`);
+            return;
+          }
+        }
+
+        // ✅ Rule: Cảnh báo nếu lịch cách quá xa (7 ngày)
+        let referenceDate: Date;
+        if (selectedIndex === 0) {
+          referenceDate = new Date();
+        } else {
+          const previousSteps = orderedSteps.slice(0, selectedIndex).reverse();
+          const previousWithSchedule = previousSteps.find(step => activitySchedules[step.id]);
+          referenceDate = previousWithSchedule ? new Date(activitySchedules[previousWithSchedule.id]) : new Date();
+        }
+        const daysDiff = Math.abs((selectedDate.getTime() - referenceDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysDiff > 7) {
+          const confirmed = window.confirm(
+            'Lịch phỏng vấn cách quá xa ngày hiện tại hoặc lịch cũ. Việc này có thể ảnh hưởng đến trải nghiệm ứng viên bạn có chắc là muốn thay đổi?.'
+          );
+          if (!confirmed) {
+            return;
+          }
+        }
+      }
+    }
+
+    try {
+      setUpdatingActivity(true);
+      showLoadingOverlay('Đang cập nhật hoạt động...');
+      setDateValidationError("");
+
+      // Convert local datetime to UTC
+      let scheduledDateUTC: string | undefined = undefined;
+      if (editActivityForm.scheduledDate) {
+        const localDate = new Date(editActivityForm.scheduledDate);
+        scheduledDateUTC = localDate.toISOString();
+      }
+
+      const payload: Partial<ApplyActivityCreate> = {
+        applyId: activity.applyId,
+        processStepId: editActivityForm.processStepId || activity.processStepId || 0,
+        activityType: editActivityForm.activityType,
+        scheduledDate: scheduledDateUTC,
+        status: editActivityForm.status as ApplyActivityStatus,
+        notes: activity.notes || undefined,
+      };
+
+      await applyActivityService.update(activity.id, payload);
+
+      // Reload data để cập nhật UI
+      await fetchData();
+
+      setShowEditActivityModal(false);
+      setEditActivityForm({
+        activityType: ApplyActivityType.Online,
+        processStepId: 0,
+        scheduledDate: "",
+        status: ApplyActivityStatus.Scheduled,
+      });
+      setDateValidationError("");
+      showSuccessOverlay("✅ Đã cập nhật hoạt động thành công!");
+    } catch (err) {
+      console.error("❌ Lỗi cập nhật hoạt động:", err);
+      hideOverlay();
+      alert("Không thể cập nhật hoạt động. Vui lòng thử lại.");
+    } finally {
+      setUpdatingActivity(false);
+    }
   };
 
   const quickRejectNotes = [
@@ -180,11 +328,11 @@ export default function ApplyActivityDetailPanel({
       setCurrentStepOrder(stepOrder);
 
       // Application info + process steps
-      let applicationInfo: { id: number; status: string } | undefined;
+      let applicationInfo: { id: number; status: string; createdAt?: string } | undefined;
       let detailedApp: TalentApplicationDetailed | null = null;
       try {
         const app = await applyService.getById(activityData.applyId);
-        applicationInfo = { id: app.id, status: app.status };
+        applicationInfo = { id: app.id, status: app.status, createdAt: app.createdAt };
 
         try {
           detailedApp = await talentApplicationService.getDetailedById(app.id);
@@ -289,7 +437,44 @@ export default function ApplyActivityDetailPanel({
       return;
     }
 
-    navigate(`/ta/apply-activities/edit/${activityId}`);
+    // Mở popup edit inline thay vì điều hướng
+    setShowEditActivityModal(true);
+    setDateValidationError("");
+
+    let localDateTime = "";
+    if (activity.scheduledDate) {
+      const d = new Date(activity.scheduledDate);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const hours = String(d.getHours()).padStart(2, "0");
+      const minutes = String(d.getMinutes()).padStart(2, "0");
+      localDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    setEditActivityForm({
+      activityType: activity.activityType,
+      processStepId: activity.processStepId || 0,
+      scheduledDate: localDateTime,
+      status: activity.status,
+    });
+
+    // Load activity schedules for validation
+    try {
+      const scheduleMap: Record<number, string> = {};
+      allActivities
+        .filter(a => a.processStepId && a.scheduledDate)
+        .forEach(a => {
+          scheduleMap[a.processStepId] = a.scheduledDate!;
+        });
+      if (activity.scheduledDate && activity.processStepId) {
+        scheduleMap[activity.processStepId] = activity.scheduledDate;
+      }
+      setActivitySchedules(scheduleMap);
+    } catch (err) {
+      console.error("❌ Lỗi tải danh sách hoạt động:", err);
+      setActivitySchedules({});
+    }
   };
 
   const checkCanUpdateStep = async (stepOrder: number): Promise<boolean> => {
@@ -564,8 +749,13 @@ export default function ApplyActivityDetailPanel({
         requestedBy: blacklistRequestedBy.trim() || user?.name || "",
       };
       await clientTalentBlacklistService.add(payload);
-      alert("✅ Đã thêm ứng viên vào blacklist thành công!");
-      handleCloseBlacklistModal();
+      setShowAddBlacklistSuccessOverlay(true);
+
+      // Hiển thị loading overlay trong 2 giây rồi close modal
+      setTimeout(() => {
+        setShowAddBlacklistSuccessOverlay(false);
+        handleCloseBlacklistModal();
+      }, 2000);
     } catch (error: any) {
       console.error("❌ Lỗi thêm vào blacklist:", error);
       const errorMessage = error?.message || error?.data?.message || "Không thể thêm vào blacklist!";
@@ -679,7 +869,15 @@ export default function ApplyActivityDetailPanel({
               <div className="flex flex-wrap gap-3">
                 {allowedStatuses.includes(ApplyActivityStatus.Completed) && (
                   <button
-                    onClick={() => handleStatusUpdate(ApplyActivityStatus.Completed)}
+                    onClick={() => {
+                      // Nếu chưa có scheduledDate, mở popup sửa để chọn thời gian
+                      if (!activity?.scheduledDate) {
+                        handleEdit();
+                        return;
+                      }
+                      // Nếu đã có scheduledDate, thực hiện hoàn thành
+                      handleStatusUpdate(ApplyActivityStatus.Completed);
+                    }}
                     disabled={isUpdatingStatus || !isCurrentUserRecruiter}
                     className={`group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 ${
                       isUpdatingStatus || !isCurrentUserRecruiter
@@ -1024,6 +1222,254 @@ export default function ApplyActivityDetailPanel({
           </div>
         </div>
       )}
+
+      {/* Add Blacklist Success Overlay */}
+      {showAddBlacklistSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã thêm ứng viên vào blacklist thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Activity Modal */}
+      {showEditActivityModal && activity && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in">
+            <div className="p-6 border-b border-neutral-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary-100 rounded-lg">
+                    <Edit className="w-5 h-5 text-primary-600" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-gray-900">Chỉnh sửa hoạt động</h2>
+                </div>
+                <button
+                  onClick={handleCloseEditModal}
+                  className="text-neutral-400 hover:text-neutral-600 transition-colors p-1 rounded-lg hover:bg-neutral-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleUpdateActivity();
+              }}
+              className="p-6 space-y-6"
+            >
+              {/* Loại hoạt động */}
+              <div>
+                <label className="block text-sm font-semibold text-neutral-700 mb-2 flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Loại hoạt động <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={editActivityForm.activityType}
+                  onChange={(e) => {
+                    setEditActivityForm(prev => ({
+                      ...prev,
+                      activityType: Number(e.target.value) as ApplyActivityType,
+                    }));
+                  }}
+                  className="w-full border border-neutral-200 rounded-xl px-4 py-3 focus:border-primary-500 focus:ring-primary-500 bg-white"
+                  required
+                >
+                  <option value={ApplyActivityType.Online}>Online - Trực tuyến</option>
+                  <option value={ApplyActivityType.Offline}>Offline - Trực tiếp</option>
+                </select>
+              </div>
+
+              {/* Bước quy trình */}
+              <div>
+                <label className="block text-sm font-semibold text-neutral-700 mb-2 flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Bước quy trình <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={editActivityForm.processStepId}
+                  onChange={(e) => {
+                    setEditActivityForm(prev => ({
+                      ...prev,
+                      processStepId: Number(e.target.value),
+                    }));
+                  }}
+                  className="w-full border border-neutral-200 rounded-xl px-4 py-3 bg-neutral-100 cursor-not-allowed"
+                  disabled
+                >
+                  {processSteps.map(step => (
+                    <option
+                      key={step.id}
+                      value={step.id.toString()}
+                    >
+                      {step.stepOrder}. {step.stepName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Scheduled Date */}
+              <div>
+                <label className="block text-sm font-semibold text-neutral-700 mb-2 flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Thời gian thực hiện
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="datetime-local"
+                    value={editActivityForm.scheduledDate}
+                    onChange={(e) => {
+                      setDateValidationError("");
+                      const value = e.target.value;
+
+                      // Validation theo thứ tự bước
+                      if (value && editActivityForm.processStepId) {
+                        const selectedStep = processSteps.find(step => step.id === editActivityForm.processStepId);
+                        if (selectedStep) {
+                          const orderedSteps = [...processSteps].sort((a, b) => a.stepOrder - b.stepOrder);
+                          const selectedIndex = orderedSteps.findIndex(step => step.id === selectedStep.id);
+                          const selectedDate = new Date(value);
+
+                          // ✅ Rule: Bước đầu tiên không được trước thời gian tạo hồ sơ
+                          if (selectedIndex === 0 && activity.applicationInfo?.createdAt) {
+                            const appCreatedAt = new Date(activity.applicationInfo.createdAt);
+                            if (selectedDate.getTime() < appCreatedAt.getTime()) {
+                              setDateValidationError(
+                                `⚠️ Thời gian của bước đầu tiên không được trước thời gian tạo hồ sơ (${appCreatedAt.toLocaleString('vi-VN')}).`
+                              );
+                              return;
+                            }
+                          }
+
+                          // Kiểm tra với bước trước
+                          if (selectedIndex > 0) {
+                            const previousSteps = orderedSteps.slice(0, selectedIndex).reverse();
+                            const previousWithSchedule = previousSteps.find(step => activitySchedules[step.id]);
+                            if (previousWithSchedule) {
+                              const previousDate = new Date(activitySchedules[previousWithSchedule.id]);
+                              if (selectedDate.getTime() < previousDate.getTime()) {
+                                setDateValidationError(`⚠️ ≥ ${previousWithSchedule.stepName} (${new Date(activitySchedules[previousWithSchedule.id]).toLocaleString('vi-VN')}).`);
+                                return;
+                              }
+                            }
+                          }
+
+                          // Kiểm tra với bước sau
+                          const nextSteps = orderedSteps.slice(selectedIndex + 1);
+                          const nextWithSchedule = nextSteps.find(step => activitySchedules[step.id]);
+                          if (nextWithSchedule) {
+                            const nextDate = new Date(activitySchedules[nextWithSchedule.id]);
+                            if (selectedDate.getTime() > nextDate.getTime()) {
+                              setDateValidationError(`⚠️ ≤ ${nextWithSchedule.stepName} (${new Date(activitySchedules[nextWithSchedule.id]).toLocaleString('vi-VN')}).`);
+                              return;
+                            }
+                          }
+
+                          // ✅ Rule: Cảnh báo nếu lịch cách quá xa (7 ngày)
+                          let referenceDate: Date;
+                          if (selectedIndex === 0) {
+                            referenceDate = new Date();
+                          } else {
+                            const previousSteps = orderedSteps.slice(0, selectedIndex).reverse();
+                            const previousWithSchedule = previousSteps.find(step => activitySchedules[step.id]);
+                            referenceDate = previousWithSchedule ? new Date(activitySchedules[previousWithSchedule.id]) : new Date();
+                          }
+                          const daysDiff = Math.abs((selectedDate.getTime() - referenceDate.getTime()) / (1000 * 60 * 60 * 24));
+
+                          if (daysDiff > 7) {
+                            const confirmed = window.confirm(
+                              'Lịch phỏng vấn cách quá xa ngày hiện tại hoặc lịch cũ. Việc này có thể ảnh hưởng đến trải nghiệm ứng viên bạn có chắc là muốn thay đổi?.'
+                            );
+                            if (!confirmed) {
+                              return;
+                            }
+                          }
+                        }
+                      }
+
+                      // Smart UX: Nếu chọn ngày quá khứ khi Status = Scheduled → tự chuyển sang Completed
+                      if (value && editActivityForm.status === ApplyActivityStatus.Scheduled) {
+                        const selectedDate = new Date(value);
+                        const now = new Date();
+                        selectedDate.setSeconds(0, 0);
+                        now.setSeconds(0, 0);
+
+                        // Nếu chọn ngày quá khứ (trước bây giờ)
+                        if (selectedDate < now) {
+                          const confirmed = window.confirm("Đây có phải hoạt động đã hoàn thành?");
+                          if (confirmed) {
+                            setEditActivityForm(prev => ({
+                              ...prev,
+                              scheduledDate: value,
+                              status: ApplyActivityStatus.Completed
+                            }));
+                            return;
+                          }
+                        }
+                      }
+
+                      setEditActivityForm(prev => ({ ...prev, scheduledDate: value }));
+                    }}
+                    className="flex-1 border border-neutral-200 rounded-xl px-4 py-3 focus:border-primary-500 focus:ring-primary-500"
+                  />
+                  {editActivityForm.scheduledDate && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDateValidationError("");
+                        setEditActivityForm(prev => ({ ...prev, scheduledDate: "" }));
+                      }}
+                      className="px-3 py-2 rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50 transition"
+                      title="Xóa lịch"
+                    >
+                      Xóa lịch
+                    </button>
+                  )}
+                </div>
+                {dateValidationError && (
+                  <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-red-600 mt-0.5" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-red-800">
+                          Lịch không hợp lệ
+                        </p>
+                        <p className="text-sm text-red-700 mt-1 break-words">
+                          {dateValidationError}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
+                <button
+                  type="button"
+                  onClick={handleCloseEditModal}
+                  className="px-6 py-2.5 border border-neutral-300 rounded-xl text-neutral-700 hover:bg-neutral-50 transition-all font-medium"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingActivity || !!dateValidationError}
+                  className="px-6 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-xl font-medium transition-all shadow-soft hover:shadow-glow transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                  {updatingActivity ? "Đang lưu..." : "Lưu thay đổi"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

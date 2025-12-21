@@ -3,8 +3,10 @@ import { User, Mail, Phone, Save, AlertCircle, CheckCircle } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext';
 import { userService, type User as UserType } from '../../services/User';
 import { decodeJWT } from '../../services/Auth';
+import Breadcrumb from '../../components/common/Breadcrumb';
 import FaceIDSection from '../../components/profile/FaceIDSection';
 import { ChangePasswordSection } from '../../components/profile/ChangePasswordSection';
+import { getDashboardRoute } from '../../router/routes';
 
 export default function ManagerProfilePage() {
     const { user: authUser } = useAuth();
@@ -123,6 +125,13 @@ export default function ManagerProfilePage() {
         <div className="bg-gray-50 min-h-screen">
             <div className="p-6">
                 <div className="max-w-5xl mx-auto">
+                    <Breadcrumb
+                        items={[
+                            { label: 'Dashboard', to: getDashboardRoute(authUser?.role || '') },
+                            { label: 'Hồ sơ cá nhân' }
+                        ]}
+                    />
+
                     <div className="mb-8 animate-slide-up">
                         <h1 className="text-2xl font-bold text-gray-900 mb-1.5">Thông Tin Cá Nhân</h1>
                         <p className="text-neutral-600">Quản lý thông tin tài khoản của bạn</p>

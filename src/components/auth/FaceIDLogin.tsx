@@ -304,7 +304,7 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
           navigate('/sales/dashboard');
           break;
         case 'Developer':
-          navigate('/developer/dashboard');
+          navigate('/partner/dashboard');
           break;
         case 'Manager':
           navigate('/manager/dashboard');

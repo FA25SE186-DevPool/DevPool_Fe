@@ -19,6 +19,11 @@ export function useFileUpload() {
   const [certificateUploadProgress, setCertificateUploadProgress] = useState<Record<number, number>>({});
   const [uploadedCertificateUrls, setUploadedCertificateUrls] = useState<Record<number, string>>({});
 
+  // Success overlay states
+  const [showUploadCertificateImageSuccessOverlay, setShowUploadCertificateImageSuccessOverlay] = useState<boolean>(false);
+  const [showDeleteCVSuccessOverlay, setShowDeleteCVSuccessOverlay] = useState<boolean>(false);
+  const [showDeleteCertificateImageSuccessOverlay, setShowDeleteCertificateImageSuccessOverlay] = useState<boolean>(false);
+
   /**
    * Upload CV file to Firebase
    */
@@ -187,7 +192,13 @@ export function useFileUpload() {
           onSuccess(downloadURL);
         }
 
-        alert('✅ Upload ảnh chứng chỉ thành công!');
+        setShowUploadCertificateImageSuccessOverlay(true);
+
+        // Hiển thị loading overlay trong 2 giây
+        setTimeout(() => {
+          setShowUploadCertificateImageSuccessOverlay(false);
+        }, 2000);
+
         return downloadURL;
       } catch (err: any) {
         console.error('❌ Error uploading certificate image:', err);
@@ -263,7 +274,13 @@ export function useFileUpload() {
         const storageRef = ref(storage, firebasePath);
         await deleteObject(storageRef);
         console.log('✅ Đã xóa file thành công từ Firebase');
-        alert('✅ Đã xóa file CV thành công!');
+        setShowDeleteCVSuccessOverlay(true);
+
+        // Hiển thị loading overlay trong 2 giây
+        setTimeout(() => {
+          setShowDeleteCVSuccessOverlay(false);
+        }, 2000);
+
         return true;
       } catch (err: any) {
         console.error('❌ Error deleting CV file:', err);
@@ -308,7 +325,12 @@ export function useFileUpload() {
         const storageRef = ref(storage, firebasePath);
         await deleteObject(storageRef);
         console.log('✅ Đã xóa ảnh thành công từ Firebase');
-        alert('✅ Đã xóa ảnh chứng chỉ thành công!');
+        setShowDeleteCertificateImageSuccessOverlay(true);
+
+        // Hiển thị loading overlay trong 2 giây
+        setTimeout(() => {
+          setShowDeleteCertificateImageSuccessOverlay(false);
+        }, 2000);
 
         // Clear from uploaded URLs
         setUploadedCertificateUrls((prev) => {
@@ -351,6 +373,11 @@ export function useFileUpload() {
 
     // Helpers
     extractFirebasePath,
+
+    // Success overlay states
+    showUploadCertificateImageSuccessOverlay,
+    showDeleteCVSuccessOverlay,
+    showDeleteCertificateImageSuccessOverlay,
   };
 }
 
