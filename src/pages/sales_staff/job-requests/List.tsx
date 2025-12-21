@@ -1268,7 +1268,7 @@ export default function JobRequestListPage() {
                               e.stopPropagation();
                               openApplicationsPopup(req);
                             }}
-                            className={`group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-300 hover:scale-105 transform ${
+                            className={`group inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 hover:scale-105 transform ${
                               req.applicationCount >= req.quantity
                                 ? 'bg-green-100 text-green-700 hover:bg-green-200'
                                 : req.applicationCount > 0
@@ -1277,7 +1277,7 @@ export default function JobRequestListPage() {
                             }`}
                             title="Xem danh sách hồ sơ ứng tuyển"
                           >
-                            <ClipboardList className="w-3.5 h-3.5 group-hover:scale-110 transition-transform duration-300" />
+                            <ClipboardList className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
                             <span className="font-semibold">{req.applicationCount}</span>
                           </button>
                         </td>

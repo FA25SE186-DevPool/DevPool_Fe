@@ -112,7 +112,10 @@ const getAccessToken = async (): Promise<string> => {
 void getAccessToken;
 
 export const createNotificationConnection = (): HubConnection => {
-	if (connection) return connection;
+	if (connection && connection.state === 'Disconnected') return connection;
+
+	// Reset connection nếu nó không ở trạng thái Disconnected
+	connection = null;
 
 	connection = new HubConnectionBuilder()
 		.withUrl(HUB_URL, {
@@ -195,7 +198,17 @@ export const startNotificationConnection = async (forceRestart: boolean = false)
 	}
 	
 	const newConn = createNotificationConnection();
-	if (newConn.state === 'Connected' || isStarting) return;
+	if (newConn.state !== 'Disconnected' || isStarting) {
+		// Nếu connection không ở trạng thái Disconnected, thử stop trước
+		if (newConn.state !== 'Disconnected') {
+			try {
+				await newConn.stop();
+			} catch {
+				// ignore stop errors
+			}
+		}
+		return;
+	}
 	isStarting = true;
 	
 	try {
@@ -216,40 +229,42 @@ export const startNotificationConnection = async (forceRestart: boolean = false)
 		const errorMessage = err?.message || '';
 		const statusCode = err?.statusCode || err?.status;
 		
-		// Bỏ qua lỗi WebSocket transport - SignalR sẽ tự động fallback sang SSE/LongPolling
-		// Chỉ log lỗi khi thực sự không kết nối được (không phải lỗi WebSocket transport)
-		const isWebSocketTransportError = errorMessage.includes('WebSocket failed to connect') ||
+		// Bỏ qua các lỗi transport/ngoại cảnh - SignalR sẽ tự động fallback hoặc retry
+		// Chỉ log lỗi khi thực sự không kết nối được
+		const isRecoverableError = errorMessage.includes('WebSocket failed to connect') ||
 			errorMessage.includes('WebSockets transport') ||
 			errorMessage.includes('connection could not be found on the server') ||
 			errorMessage.includes('sticky sessions') ||
-			errorMessage.includes('The connection could not be found on the server');
+			errorMessage.includes('The connection could not be found on the server') ||
+			errorMessage.includes('The connection was stopped during negotiation') ||
+			errorMessage.includes('connection was stopped') ||
+			errorMessage.includes('negotiation');
 		
-		// Nếu chỉ là lỗi WebSocket transport, đợi và kiểm tra xem có fallback thành công không
-		let isWebSocketOnlyError = false;
-		if (isWebSocketTransportError) {
-			// Đợi lâu hơn để SignalR có thời gian fallback sang transport khác
+		// Nếu là lỗi có thể recover (transport/ngoại cảnh), đợi và kiểm tra xem có fallback thành công không
+		let shouldRetryWithoutLog = false;
+		if (isRecoverableError) {
+			// Đợi lâu hơn để SignalR có thời gian fallback hoặc retry
 			await new Promise(resolve => setTimeout(resolve, 2000));
 			// Kiểm tra lại state sau khi đợi
 			const currentState = newConn.state;
 			if (String(currentState) === 'Connected') {
-				// Connection đã thành công qua transport khác (SSE/LongPolling)
+				// Connection đã thành công
 				if (import.meta.env.DEV) {
-					console.log('✅ Notification Hub connected via fallback transport (SSE/LongPolling)');
+					console.log('✅ Notification Hub connected via fallback/retry');
 				}
 				reconnectAttempts = 0;
 				return;
 			}
-			// Nếu vẫn chưa kết nối được, đánh dấu là lỗi WebSocket only
-			// (có thể fallback transport cũng thất bại, nhưng không log error vì đây là expected behavior)
-			isWebSocketOnlyError = true;
+			// Nếu vẫn chưa kết nối được, đánh dấu để retry mà không log error
+			shouldRetryWithoutLog = true;
 			if (import.meta.env.DEV) {
-				console.warn('⚠️ WebSocket connection failed, fallback transport also failed. Will retry...');
+				console.warn('⚠️ Connection failed, will retry...');
 			}
 		}
-		
-		// Chỉ log lỗi khi thực sự không kết nối được (sau khi đã thử fallback)
-		// Và không phải là lỗi WebSocket only (vì đó là expected behavior)
-		if (!isWebSocketOnlyError) {
+
+		// Chỉ log lỗi khi thực sự không kết nối được (sau khi đã thử fallback/retry)
+		// Và không phải là lỗi recoverable (vì đó là expected behavior)
+		if (!shouldRetryWithoutLog && statusCode !== 404) {
 			console.error('❌ Failed to start notification connection:', {
 				url: HUB_URL,
 				error: errorMessage,
@@ -304,6 +319,11 @@ export const stopNotificationConnection = async (): Promise<void> => {
 			await connection.stop();
 		} catch {
 			// ignore
+		} finally {
+			// Đảm bảo reset connection state
+			connection = null;
+			isStarting = false;
+			reconnectAttempts = 0;
 		}
 	}
 };

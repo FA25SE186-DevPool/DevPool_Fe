@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { AlertCircle, CheckCircle, KeyRound, X } from "lucide-react";
 import { userService } from "../../services/User";
-import { getPassword } from "../../utils/storage";
+import { getPassword, setPassword } from "../../utils/storage";
 
 export function ChangePasswordSection({ userId }: { userId: string | null }) {
   const [open, setOpen] = useState(false);
@@ -11,6 +11,7 @@ export function ChangePasswordSection({ userId }: { userId: string | null }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
 
   // Load password từ localStorage khi component mount
   useEffect(() => {
@@ -28,6 +29,7 @@ export function ChangePasswordSection({ userId }: { userId: string | null }) {
     setError("");
     setSuccess(false);
     setSaving(false);
+    setShowSuccessOverlay(false);
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -75,8 +77,18 @@ export function ChangePasswordSection({ userId }: { userId: string | null }) {
         newPassword: pwd,
         confirmPassword: confirm
       });
+
+      // Cập nhật mật khẩu mới vào localStorage để sử dụng cho lần đăng nhập tiếp theo
+      setPassword(pwd);
+
       setSuccess(true);
-      setTimeout(() => close(), 900);
+      setShowSuccessOverlay(true);
+
+      // Hiển thị loading overlay trong 2 giây rồi đóng modal
+      setTimeout(() => {
+        setShowSuccessOverlay(false);
+        close();
+      }, 2000);
     } catch (err: any) {
       // Xử lý thông báo lỗi từ backend
       let errorMessage = err?.message || "Không thể đổi mật khẩu.";
@@ -165,7 +177,7 @@ export function ChangePasswordSection({ userId }: { userId: string | null }) {
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
                   placeholder="Nhập mật khẩu hiện tại"
-                  autoComplete="current-password"
+                  autoComplete="off"
                   disabled={saving}
                 />
               </div>
@@ -215,6 +227,19 @@ export function ChangePasswordSection({ userId }: { userId: string | null }) {
           </div>
         </div>
       ) : null}
+
+      {/* Success Loading Overlay */}
+      {showSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đổi mật khẩu thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

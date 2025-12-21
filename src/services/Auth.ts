@@ -333,22 +333,11 @@ export const authService = {
       }
 
       const response = await apiClient.post("/auth/logout");
-      console.log('Backend logout successful:', response.data);
+      // Không log success vì logout API có thể return 401 (expected) nhưng interceptor xử lý thành success
       return response.data;
     } catch (error: unknown) {
-      // Không throw error để đảm bảo logout vẫn tiếp tục dù API fail
-      // Lỗi 401 là bình thường khi token đã hết hạn hoặc không hợp lệ
-      if (error instanceof AxiosError) {
-        const status = error.response?.status;
-        if (status === 401) {
-          // 401 khi logout là bình thường (token đã hết hạn hoặc không hợp lệ)
-          console.log('Backend logout: Token already invalid (401) - continuing with local logout');
-        } else {
-          console.warn('Backend logout error:', error.response?.data || error.message);
-        }
-      } else {
-        console.warn('Backend logout error:', error);
-      }
+      // Fallback: nếu có lỗi bất ngờ (interceptor đã xử lý 401 thành success rồi)
+      console.warn('Unexpected logout error:', error);
     }
   },
 

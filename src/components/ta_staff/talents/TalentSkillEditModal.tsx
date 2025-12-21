@@ -46,6 +46,8 @@ export function TalentSkillEditModal({
   });
 
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
 
   // 🧭 Load dữ liệu Talent Skill
   useEffect(() => {
@@ -167,6 +169,7 @@ export function TalentSkillEditModal({
       return;
     }
 
+    setSaving(true);
     try {
       console.log("Payload gửi đi:", formData);
       await talentSkillService.update(Number(talentSkillId), formData);
@@ -194,12 +197,19 @@ export function TalentSkillEditModal({
         // Không block việc update nếu refresh status lỗi
       }
 
-      alert("✅ Cập nhật kỹ năng nhân sự thành công!");
-      onSuccess(); // Call callback để reload danh sách
-      onClose();
+      setShowSuccessOverlay(true);
+
+      // Hiển thị loading overlay trong 2 giây rồi đóng modal
+      setTimeout(() => {
+        setShowSuccessOverlay(false);
+        onSuccess(); // Call callback để reload danh sách
+        onClose();
+      }, 2000);
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật:", err);
       alert("Không thể cập nhật kỹ năng nhân sự!");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -497,16 +507,41 @@ export function TalentSkillEditModal({
                 </button>
                 <Button
                   type="submit"
-                  className="group flex items-center gap-2 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105"
+                  disabled={saving}
+                  className={`group flex items-center gap-2 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${
+                    saving ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
-                  <Save className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-                  Lưu thay đổi
+                  {saving ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Đang lưu...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+                      Lưu thay đổi
+                    </>
+                  )}
                 </Button>
               </div>
             </form>
           )}
         </div>
       </div>
+
+      {/* Success Loading Overlay */}
+      {showSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Cập nhật kỹ năng nhân sự thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

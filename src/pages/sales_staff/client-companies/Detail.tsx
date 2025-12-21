@@ -497,13 +497,19 @@ export default function ClientCompanyDetailPage() {
       };
 
       await clientTalentBlacklistService.removeBlacklist(selectedBlacklistId, payload);
-      showSuccessOverlay("✅ Đã gỡ bỏ nhân sự khỏi blacklist thành công!");
-      
-      // Refresh blacklist
-      const data = await clientTalentBlacklistService.getByClientId(Number(id), true);
-      setBlacklists(Array.isArray(data) ? data : data?.data || []);
-      
-      handleCloseRemoveBlacklistModal();
+      setLoadingOverlay({
+        show: true,
+        type: 'success',
+        message: '✅ Đã gỡ bỏ nhân sự khỏi blacklist thành công!',
+      });
+
+      // Refresh blacklist and close modal after 2 seconds
+      setTimeout(async () => {
+        setLoadingOverlay({ show: false, type: 'loading', message: '' });
+        const data = await clientTalentBlacklistService.getByClientId(Number(id), true);
+        setBlacklists(Array.isArray(data) ? data : data?.data || []);
+        handleCloseRemoveBlacklistModal();
+      }, 2000);
     } catch (error: any) {
       console.error("❌ Lỗi gỡ bỏ blacklist:", error);
       const errorMessage = error?.message || error?.data?.message || "Không thể gỡ bỏ blacklist!";

@@ -34,6 +34,8 @@ interface UseTalentDetailCVFormProps {
   setAnalysisResult?: (result: CVAnalysisComparisonResponse | null) => void;
   setAnalysisResultCVId?: (cvId: number | null) => void;
   analysisResultStorageKey?: string | null;
+  onShowSuccessOverlay?: (message: string) => void;
+  onSwitchToAnalysisTab?: () => void;
 }
 
 /**
@@ -119,6 +121,8 @@ export function useTalentDetailCVForm({
   setAnalysisResult,
   setAnalysisResultCVId,
   analysisResultStorageKey,
+  onShowSuccessOverlay,
+  onSwitchToAnalysisTab,
 }: UseTalentDetailCVFormProps) {
   const { id } = useParams<{ id: string }>();
 
@@ -129,6 +133,10 @@ export function useTalentDetailCVForm({
   const [isCVUploadedFromFirebase, setIsCVUploadedFromFirebase] = useState(false);
   const [uploadedCVUrl, setUploadedCVUrl] = useState<string | null>(null);
   const [cvPreviewUrl, setCvPreviewUrl] = useState<string | null>(null);
+
+  // Success overlay states
+  const [showDeleteCVSuccessOverlay, setShowDeleteCVSuccessOverlay] = useState<boolean>(false);
+  const [showCreateCVSuccessOverlay, setShowCreateCVSuccessOverlay] = useState<boolean>(false);
   
   // CV analysis states
   const [extractingCV, setExtractingCV] = useState(false);
@@ -198,7 +206,12 @@ export function useTalentDetailCVForm({
     try {
       setExtractingCV(true);
       setCvFormErrors({});
-      
+
+      // Show loading overlay
+      if (onShowSuccessOverlay) {
+        onShowSuccessOverlay('Đang phân tích CV...');
+      }
+
       const result = await talentCVService.analyzeCVForUpdate(Number(id), selectedCVFile);
       
       setInlineCVAnalysisResult(result);
@@ -264,7 +277,12 @@ export function useTalentDetailCVForm({
       setUploadedCVUrl(null);
       setIsCVUploadedFromFirebase(false);
 
-      alert("✅ Đã xóa file CV thành công!");
+      setShowDeleteCVSuccessOverlay(true);
+
+      // Hiển thị loading overlay trong 2 giây
+      setTimeout(() => {
+        setShowDeleteCVSuccessOverlay(false);
+      }, 2000);
     } catch (err: any) {
       console.error("❌ Error deleting CV file:", err);
       setInlineCVForm(prev => ({ ...prev, cvFileUrl: "" }));
@@ -514,8 +532,13 @@ export function useTalentDetailCVForm({
     confirmMessage += "Bạn có muốn tiếp tục không?";
     
     const confirmed = window.confirm(confirmMessage);
-    
+
     if (!confirmed) return;
+
+    // Switch to analysis tab to show results
+    if (onSwitchToAnalysisTab) {
+      onSwitchToAnalysisTab();
+    }
     
     // Tự động điền form CV từ dữ liệu phân tích
     // 1. Tự động chọn jobRoleLevel từ gợi ý phân tích (nếu có)
@@ -721,8 +744,8 @@ export function useTalentDetailCVForm({
       const hasNewExperiences = (analysisResult.workExperiences?.newEntries?.length || 0) > 0;
 
       if (hasBasicInfoChanges || hasNewSkills || hasNewJobRoleLevels || hasNewProjects || hasNewCertificates || hasNewExperiences) {
-        let warningMessage = "⚠️ CẢNH BÁO\n\n";
-        warningMessage += "Bạn đang có kết quả phân tích CV với các gợi ý chưa được xử lý:\n\n";
+        let warningMessage = "⚠️ CẢNH BÁO";
+
 
         const pendingItems: string[] = [];
         if (hasBasicInfoChanges) {
@@ -747,6 +770,7 @@ export function useTalentDetailCVForm({
         warningMessage += pendingItems.join("\n");
         warningMessage += "\n\n";
         warningMessage += "Nếu bạn tạo CV này mà chưa xử lý các gợi ý trên, bạn có thể bỏ lỡ thông tin quan trọng từ CV.\n\n";
+        warningMessage += "Sau khi thêm CV thành công, kết quả phân tích CV hiện tại sẽ bị xóa.\n\n";
         warningMessage += "Bạn có chắc chắn muốn tiếp tục tạo CV này không?";
 
         const confirmed = window.confirm(warningMessage);
@@ -842,7 +866,22 @@ export function useTalentDetailCVForm({
       }
       
       await talentCVService.create(finalForm);
-      alert("✅ Đã tạo CV thành công!");
+      setShowCreateCVSuccessOverlay(true);
+
+      // Xóa kết quả phân tích CV khi thêm CV thành công
+      if (setAnalysisResult) {
+        setAnalysisResult(null);
+      }
+      if (setAnalysisResultCVId) {
+        setAnalysisResultCVId(null);
+      }
+
+      // Hiển thị loading overlay trong 2 giây rồi close form và refresh
+      setTimeout(() => {
+        setShowCreateCVSuccessOverlay(false);
+        onCloseForm();
+        onRefreshCVs();
+      }, 2000);
       
       // Xóa dữ liệu form CV từ storage
       if (CV_FORM_STORAGE_KEY) {
@@ -924,6 +963,7 @@ export function useTalentDetailCVForm({
     setSelectedCVFile,
     uploadingCV,
     cvUploadProgress,
+    setCvUploadProgress,
     isCVUploadedFromFirebase,
     setIsCVUploadedFromFirebase,
     uploadedCVUrl,
@@ -934,6 +974,7 @@ export function useTalentDetailCVForm({
     // Analysis states
     extractingCV,
     inlineCVAnalysisResult,
+    setInlineCVAnalysisResult,
     showInlineCVAnalysisModal,
     setShowInlineCVAnalysisModal,
     showCVFullForm,
@@ -941,7 +982,11 @@ export function useTalentDetailCVForm({
     
     // Validation
     existingCVsForValidation,
-    
+
+    // Success overlay states
+    showDeleteCVSuccessOverlay,
+    showCreateCVSuccessOverlay,
+
     // Data
     lookupJobRoleLevels,
     

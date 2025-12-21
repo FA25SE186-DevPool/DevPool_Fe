@@ -18,6 +18,8 @@ export function useTalentEdit() {
   const [originalPartnerId, setOriginalPartnerId] = useState<number | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [changingStatus, setChangingStatus] = useState(false);
+  const [showChangeStatusSuccessOverlay, setShowChangeStatusSuccessOverlay] = useState<boolean>(false);
+  const [showUpdateTalentSuccessOverlay, setShowUpdateTalentSuccessOverlay] = useState<boolean>(false);
 
   const {
     formData,
@@ -156,7 +158,12 @@ export function useTalentEdit() {
       updateField('status', nextStatus);
       setOriginalStatus(nextStatus);
 
-      alert('✅ Thay đổi trạng thái thành công!');
+      setShowChangeStatusSuccessOverlay(true);
+
+      // Hiển thị loading overlay trong 2 giây
+      setTimeout(() => {
+        setShowChangeStatusSuccessOverlay(false);
+      }, 2000);
     } catch (statusErr: any) {
       console.error('❌ Lỗi khi thay đổi trạng thái:', statusErr);
       const statusErrorMsg =
@@ -210,8 +217,13 @@ export function useTalentEdit() {
 
         await talentService.update(Number(id), payload);
 
-        alert('✅ Cập nhật nhân sự thành công!');
-        navigate(`/ta/talents/${id}`);
+        setShowUpdateTalentSuccessOverlay(true);
+
+        // Hiển thị loading overlay trong 2 giây rồi navigate
+        setTimeout(() => {
+          setShowUpdateTalentSuccessOverlay(false);
+          navigate(`/ta/talents/${id}`);
+        }, 2000);
       } catch (err: any) {
         console.error('❌ Lỗi khi cập nhật:', err);
         const data = err?.response?.data;
@@ -278,6 +290,8 @@ export function useTalentEdit() {
     selectedStatus,
     setSelectedStatus,
     changingStatus,
+    showChangeStatusSuccessOverlay,
+    showUpdateTalentSuccessOverlay,
     updateField,
     handleStatusChange,
     handleSubmit,

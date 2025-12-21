@@ -16,7 +16,7 @@ import {
   Filter,
   ChevronDown,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../../ui/button';
 import { type TalentCVCreate } from '../../../services/TalentCV';
 import { type TalentCV } from '../../../services/TalentCV';
@@ -35,15 +35,23 @@ interface TalentDetailCVFormProps {
   
   // File states
   selectedCVFile: File | null;
+  setSelectedCVFile: (file: File | null) => void;
   uploadingCV: boolean;
   cvUploadProgress: number;
+  setCvUploadProgress: (progress: number) => void;
   isCVUploadedFromFirebase: boolean;
+  setIsCVUploadedFromFirebase: (uploaded: boolean) => void;
+  uploadedCVUrl: string | null;
+  setUploadedCVUrl: (url: string | null) => void;
   cvPreviewUrl: string | null;
+  setCvPreviewUrl: (url: string | null) => void;
   
   // Analysis states
   extractingCV: boolean;
   inlineCVAnalysisResult: CVAnalysisComparisonResponse | null;
+  setInlineCVAnalysisResult: (result: CVAnalysisComparisonResponse | null) => void;
   showInlineCVAnalysisModal: boolean;
+  setShowInlineCVAnalysisModal: (show: boolean) => void;
   showCVFullForm: boolean;
   
   // Validation
@@ -66,6 +74,9 @@ interface TalentDetailCVFormProps {
   handleCancelInlineCVAnalysis: () => void;
   validateCVVersion: (version: number, jobRoleLevelId: number) => string;
   isValueDifferent: (current: string | null | undefined, suggested: string | null | undefined) => boolean;
+  setAnalysisResult?: (result: any) => void;
+  setAnalysisResultCVId?: (cvId: number | null) => void;
+  onShowCVFullFormChange?: (show: boolean) => void;
 }
 
 /**
@@ -79,13 +90,20 @@ export function TalentDetailCVForm({
   cvVersionError,
   setCvVersionError,
   selectedCVFile,
+  setSelectedCVFile,
   uploadingCV,
   cvUploadProgress,
+  setCvUploadProgress,
   isCVUploadedFromFirebase,
+  setIsCVUploadedFromFirebase,
+  setUploadedCVUrl,
   cvPreviewUrl,
+  setCvPreviewUrl,
   extractingCV,
   inlineCVAnalysisResult,
+  setInlineCVAnalysisResult,
   showInlineCVAnalysisModal,
+  setShowInlineCVAnalysisModal,
   showCVFullForm,
   existingCVsForValidation,
   allTalentCVs,
@@ -100,6 +118,9 @@ export function TalentDetailCVForm({
   handleCancelInlineCVAnalysis,
   validateCVVersion,
   isValueDifferent,
+  setAnalysisResult,
+  setAnalysisResultCVId,
+  onShowCVFullFormChange,
 }: TalentDetailCVFormProps) {
   // State cho filter "Loại vị trí"
   const [selectedJobRoleFilterId, setSelectedJobRoleFilterId] = useState<number | undefined>(undefined);
@@ -109,6 +130,14 @@ export function TalentDetailCVForm({
   // State cho job role level dropdown
   const [isJobRoleLevelDropdownOpen, setIsJobRoleLevelDropdownOpen] = useState(false);
   const [jobRoleLevelSearch, setJobRoleLevelSearch] = useState<string>('');
+
+  // State để control việc hiển thị preview CV (mặc định đóng)
+  const [showCVPreview, setShowCVPreview] = useState(false);
+
+  // Notify parent when showCVFullForm changes
+  useEffect(() => {
+    onShowCVFullFormChange?.(showCVFullForm);
+  }, [showCVFullForm, onShowCVFullFormChange]);
 
   return (
     <div className="bg-white rounded-xl border-2 border-accent-200 p-6 mb-6 shadow-lg">
@@ -171,7 +200,19 @@ export function TalentDetailCVForm({
               <div>
                 <button
                   type="button"
-                  onClick={handleAnalyzeCV}
+                  onClick={() => {
+                    const confirmed = window.confirm(
+                      '⚠️ PHÂN TÍCH CV\n\n' +
+                      'Bạn có chắc chắn muốn phân tích CV?\n\n' +
+                      '• Quá trình phân tích có thể mất vài giây\n' +
+                      '• Kết quả sẽ được hiển thị trong tab "Kết quả phân tích CV"\n\n' +
+                      'Bạn có muốn tiếp tục không?'
+                    );
+
+                    if (confirmed) {
+                      handleAnalyzeCV();
+                    }
+                  }}
                   disabled={extractingCV || !canEdit}
                   className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-primary-600 to-secondary-600 text-white rounded-lg hover:from-primary-700 hover:to-secondary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 font-semibold text-sm px-4 py-3"
                   title={!canEdit ? "Bạn không có quyền phân tích CV. Chỉ TA đang quản lý nhân sự này mới được phân tích CV." : ""}
@@ -197,6 +238,60 @@ export function TalentDetailCVForm({
       {/* Giai đoạn 2: Form đầy đủ - Chỉ hiện sau khi xác nhận phân tích */}
       {showCVFullForm && (
         <div className="space-y-6">
+          {/* File đã chọn và Preview */}
+          {selectedCVFile && (
+            <div>
+              <div className="flex items-center justify-between text-sm text-neutral-600 mb-2">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  <span>File đã chọn: <span className="font-medium">{selectedCVFile.name}</span> ({(selectedCVFile.size / 1024).toFixed(2)} KB)</span>
+                </div>
+                {cvPreviewUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCVPreview(!showCVPreview)}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg transition-all"
+                  >
+                    <Eye className="w-3 h-3" />
+                    {showCVPreview ? 'Ẩn preview' : 'Xem preview'}
+                  </button>
+                )}
+              </div>
+
+              {/* Preview CV */}
+              {cvPreviewUrl && showCVPreview && (
+                <div className="space-y-4">
+                  {/* CV Preview */}
+                  <div className="border-2 border-primary-200 rounded-xl overflow-hidden bg-white shadow-md">
+                    <div className="bg-gradient-to-r from-primary-50 to-secondary-50 px-4 py-2 flex items-center justify-between border-b border-primary-200">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-primary-100 rounded-lg flex items-center justify-center">
+                          <Eye className="w-3.5 h-3.5 text-primary-600" />
+                        </div>
+                        <span className="text-xs font-semibold text-primary-800">Xem trước CV</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => window.open(cvPreviewUrl, '_blank')}
+                        className="px-2 py-1 text-xs text-primary-700 hover:text-primary-900 hover:bg-primary-100 rounded-lg flex items-center gap-1 transition-all"
+                      >
+                        <Eye className="w-3 h-3" />
+                        Mở toàn màn hình
+                      </button>
+                    </div>
+                    <div className="bg-white w-full" style={{ height: '500px' }}>
+                      <iframe
+                        src={cvPreviewUrl}
+                        className="w-full h-full border-0"
+                        title="CV Preview"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Vị trí công việc */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
@@ -438,6 +533,7 @@ export function TalentDetailCVForm({
             </div>
           </div>
 
+
           {/* Version */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
@@ -533,7 +629,35 @@ export function TalentDetailCVForm({
             )}
             
             <div className="flex justify-end gap-2">
-              {/* Bỏ nút Hủy - chỉ đóng khi hủy phân tích CV */}
+              <Button
+                onClick={() => {
+                  const confirmed = window.confirm(
+                    '⚠️ HỦY THÊM CV\n\n' +
+                    'Bạn có chắc chắn muốn hủy?\n\n' +
+                    '• Kết quả phân tích CV sẽ bị xóa\n' +
+                    '• Bạn sẽ phải chọn lại file CV mới\n' +
+                    '• Form sẽ được reset\n\n' +
+                    'Bạn có muốn tiếp tục không?'
+                  );
+
+                  if (confirmed) {
+                    // Xóa kết quả phân tích CV từ cả 2 hooks
+                    if (setAnalysisResult) {
+                      setAnalysisResult(null);
+                    }
+                    if (setAnalysisResultCVId) {
+                      setAnalysisResultCVId(null);
+                    }
+                    handleCancelInlineCVAnalysis();
+                  }
+                }}
+                disabled={isSubmitting || uploadingCV}
+                className={`px-4 py-2 rounded-lg bg-neutral-600 hover:bg-neutral-700 text-white transition-all flex items-center gap-2 ${(isSubmitting || uploadingCV) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <X className="w-4 h-4" />
+                Hủy
+              </Button>
+
               <Button
                 onClick={handleSubmitInlineCV}
                 disabled={isSubmitting || uploadingCV || !selectedCVFile}
@@ -643,7 +767,21 @@ export function TalentDetailCVForm({
               
               <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
                 <Button
-                  onClick={handleCancelInlineCVAnalysis}
+                  onClick={() => {
+                    // Xóa kết quả phân tích CV và đóng popup
+                    setInlineCVAnalysisResult(null);
+                    setShowInlineCVAnalysisModal(false);
+
+                    // Xóa file đã chọn và các state liên quan
+                    setSelectedCVFile(null);
+                    setCvPreviewUrl(null);
+                    if (cvPreviewUrl) {
+                      URL.revokeObjectURL(cvPreviewUrl);
+                    }
+                    setCvUploadProgress(0);
+                    setIsCVUploadedFromFirebase(false);
+                    setUploadedCVUrl(null);
+                  }}
                   className="px-4 py-2 rounded-lg bg-neutral-600 hover:bg-neutral-700 text-white transition-all flex items-center gap-2"
                 >
                   <X className="w-4 h-4" />
@@ -655,7 +793,7 @@ export function TalentDetailCVForm({
                     className="px-4 py-2 rounded-lg bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white transition-all flex items-center gap-2"
                   >
                     <CheckCircle className="w-4 h-4" />
-                    Xác nhận và xem gợi ý
+                    Tiếp tục
                   </Button>
                 )}
               </div>

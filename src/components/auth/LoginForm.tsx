@@ -144,7 +144,7 @@ export default function LoginForm() {
             navigate('/sales/dashboard');
             break;
           case 'Developer':
-            navigate('/developer/dashboard');
+            navigate('/partner/dashboard');
             break;
           case 'Manager':
             navigate('/manager/dashboard');
@@ -161,12 +161,23 @@ export default function LoginForm() {
       // Xử lý lỗi từ API
       let errorMessage = 'Email hoặc mật khẩu không chính xác';
 
-      if (error?.message) {
-        errorMessage = error.message;
-      } else if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
+      // Kiểm tra message từ backend và chuyển sang tiếng Việt nếu cần
+      const backendMessage = error?.message || error?.response?.data?.message || error;
+
+      if (backendMessage) {
+        const message = String(backendMessage).toLowerCase();
+        if (message.includes('invalid email or password') || message.includes('invalid') || message.includes('unauthorized')) {
+          errorMessage = 'Email hoặc mật khẩu không chính xác';
+        } else if (message.includes('user not found') || message.includes('not found')) {
+          errorMessage = 'Tài khoản không tồn tại';
+        } else if (message.includes('account locked') || message.includes('locked')) {
+          errorMessage = 'Tài khoản đã bị khóa';
+        } else if (message.includes('too many attempts') || message.includes('attempts')) {
+          errorMessage = 'Quá nhiều lần thử đăng nhập. Vui lòng thử lại sau.';
+        } else if (typeof backendMessage === 'string' && backendMessage.trim()) {
+          // Nếu là message tiếng Việt khác thì giữ nguyên, nếu không thì dùng default
+          errorMessage = backendMessage;
+        }
       }
 
       setError(errorMessage);

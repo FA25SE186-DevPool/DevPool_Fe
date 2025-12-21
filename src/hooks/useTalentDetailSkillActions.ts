@@ -28,6 +28,7 @@ export function useTalentDetailSkillActions({
   const [adminUserIds, setAdminUserIds] = useState<string[]>([]);
   const [pendingSuggestionKeys, setPendingSuggestionKeys] = useState<Set<string>>(new Set());
   const [suggestionLoading, setSuggestionLoading] = useState<string | null>(null);
+  const [showSkillSuggestionSuccessOverlay, setShowSkillSuggestionSuccessOverlay] = useState<boolean>(false);
 
   // Load admin users
   useEffect(() => {
@@ -152,7 +153,12 @@ export function useTalentDetailSkillActions({
 
         if (notificationIds.length > 0) {
           setPendingSuggestionKeys((prev) => new Set([...prev, key]));
-          alert(`✅ Đã gửi đề xuất thêm ${displayItems.length} kỹ năng cho admin!`);
+          setShowSkillSuggestionSuccessOverlay(true);
+
+          // Hiển thị loading overlay trong 2 giây
+          setTimeout(() => {
+            setShowSkillSuggestionSuccessOverlay(false);
+          }, 2000);
         } else {
           alert('⚠️ Không thể tạo thông báo. Vui lòng thử lại.');
         }
@@ -178,6 +184,7 @@ export function useTalentDetailSkillActions({
     handleQuickCreateSkill,
     handleSuggestionRequest,
     isSuggestionPending,
+    showSkillSuggestionSuccessOverlay,
   };
 }
 

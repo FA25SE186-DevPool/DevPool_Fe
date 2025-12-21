@@ -105,6 +105,7 @@ export default function TalentCVApplicationDetailPage() {
 
   const [application, setApplication] = useState<Apply | null>(null);
   const [jobRequest, setJobRequest] = useState<JobRequest | null>(null);
+  const [jobRequestApplications, setJobRequestApplications] = useState<TalentApplicationDetailed[]>([]);
   const [talentCV, setTalentCV] = useState<TalentCV | null>(null);
   const [activities, setActivities] = useState<ApplyActivity[]>([]);
   const [processSteps, setProcessSteps] = useState<Record<number, ApplyProcessStep>>({});
@@ -113,6 +114,18 @@ export default function TalentCVApplicationDetailPage() {
 
   // Check if current user is the recruiter for this application
   const isCurrentUserRecruiter = detailedApplication?.recruiterId === user?.id;
+
+  // Check if this talent has active interviewing applications in the same job request
+  const hasActiveInterviewingApplicationInJobRequest = useMemo(() => {
+    if (!detailedApplication?.talent || !detailedApplication.talent.id || !jobRequestApplications.length) return false;
+
+    const currentTalentId = detailedApplication.talent.id;
+    return jobRequestApplications.some(app =>
+      app.id !== detailedApplication.id && // Not the current application
+      app.talent && app.talent.id === currentTalentId && // Same talent
+      app.status === 'Interviewing' // Currently interviewing
+    );
+  }, [detailedApplication, jobRequestApplications]);
 
   const [talentLocationName, setTalentLocationName] = useState<string>("—");
   const [loading, setLoading] = useState(true);
@@ -162,6 +175,7 @@ export default function TalentCVApplicationDetailPage() {
   const [isActivityViewPopupOpen, setIsActivityViewPopupOpen] = useState(false);
   const [viewActivityId, setViewActivityId] = useState<number | null>(null);
   const [showFullCVSummary, setShowFullCVSummary] = useState(false);
+  const [showAddBlacklistSuccessOverlay, setShowAddBlacklistSuccessOverlay] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
   const [editingActivity, setEditingActivity] = useState<ApplyActivity | null>(null);
   const [editActivityForm, setEditActivityForm] = useState<{
@@ -712,6 +726,7 @@ export default function TalentCVApplicationDetailPage() {
 
       // Fetch detailed application info (talent, project, client company)
       let foundApplication: TalentApplicationDetailed | null = null;
+      let allJobRequestApplications: TalentApplicationDetailed[] = [];
       try {
         // Thử dùng getDetailedById để lấy updatedAt chính xác
         try {
@@ -722,6 +737,16 @@ export default function TalentCVApplicationDetailPage() {
           const detailedResponse = await talentApplicationService.getByJobRequest(appData.jobRequestId);
           foundApplication = detailedResponse?.data?.applications?.find(app => app.id === appData.id) ?? null;
           setDetailedApplication(foundApplication);
+        }
+
+        // Fetch all applications for this job request to check if talent has active interviewing applications
+        try {
+          const allAppsResponse = await talentApplicationService.getByJobRequest(appData.jobRequestId);
+          allJobRequestApplications = allAppsResponse?.data?.applications ?? [];
+          setJobRequestApplications(allJobRequestApplications);
+        } catch (err) {
+          console.error("❌ Lỗi tải danh sách applications của job request:", err);
+          setJobRequestApplications([]);
         }
 
         if (foundApplication?.talent) {
@@ -1101,9 +1126,14 @@ export default function TalentCVApplicationDetailPage() {
         requestedBy: blacklistRequestedBy.trim() || user?.name || "",
       };
       await clientTalentBlacklistService.add(payload);
-      alert("✅ Đã thêm ứng viên vào blacklist thành công!");
-      setIsBlacklisted(true);
-      handleCloseBlacklistModal();
+      setShowAddBlacklistSuccessOverlay(true);
+
+      // Hiển thị loading overlay trong 2 giây rồi close modal và update state
+      setTimeout(() => {
+        setShowAddBlacklistSuccessOverlay(false);
+        setIsBlacklisted(true);
+        handleCloseBlacklistModal();
+      }, 2000);
     } catch (error: any) {
       console.error("❌ Lỗi thêm vào blacklist:", error);
       const errorMessage = error?.message || error?.data?.message || "Không thể thêm vào blacklist!";
@@ -1366,7 +1396,12 @@ export default function TalentCVApplicationDetailPage() {
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">Hồ sơ: {detailedApplication?.talent?.fullName || application.id}</h1>
                   <p className="text-neutral-600 mb-4">Thông tin chi tiết hồ sơ ứng viên</p>
                 </div>
-                {TalentApplicationStatusConstants.isTerminalStatus(application.status) ? !isBlacklisted : (hasFailedActivity() && clientCompanyId && talentId && !isBlacklisted && isCurrentUserRecruiter) && (
+                {(() => {
+                  const isTerminal = TalentApplicationStatusConstants.isTerminalStatus(application.status);
+                  return isTerminal
+                    ? (!isBlacklisted && isCurrentUserRecruiter && !hasActiveInterviewingApplicationInJobRequest)
+                    : (hasFailedActivity() && clientCompanyId && talentId && !isBlacklisted && isCurrentUserRecruiter);
+                })() && (
                   <Button
                     onClick={handleOpenBlacklistModal}
                     className="group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft transform hover:scale-105 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white flex-shrink-0"
@@ -2896,6 +2931,19 @@ export default function TalentCVApplicationDetailPage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Add Blacklist Success Overlay */}
+      {showAddBlacklistSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã thêm ứng viên vào blacklist thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
           </div>
         </div>
       )}

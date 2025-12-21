@@ -47,7 +47,7 @@ export default function FloatingChat({ className = "" }: FloatingChatProps) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-6 right-6 p-4 bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 hover:scale-110 transition-all z-50 ${className}`}
+        className={`fixed bottom-6 left-6 p-4 bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 hover:scale-110 hover:opacity-100 opacity-60 transition-all duration-300 z-40 ${className}`}
       >
         <MessageCircle className="w-6 h-6" />
         {unreadCount > 0 && (
@@ -61,7 +61,7 @@ export default function FloatingChat({ className = "" }: FloatingChatProps) {
 
   return (
     <div
-      className={`fixed bottom-6 right-6 bg-white rounded-2xl shadow-2xl border border-neutral-200 overflow-hidden z-50 transition-all ${
+      className={`fixed bottom-6 left-6 bg-white rounded-2xl shadow-2xl border border-neutral-200 overflow-hidden z-40 transition-all ${
         isExpanded ? "w-[700px] h-[600px]" : "w-[380px] h-[500px]"
       } ${className}`}
     >

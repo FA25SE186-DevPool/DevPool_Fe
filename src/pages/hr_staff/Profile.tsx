@@ -6,6 +6,7 @@ import { userService, type User as UserType } from '../../services/User';
 import { decodeJWT } from '../../services/Auth';
 import FaceIDSection from '../../components/profile/FaceIDSection';
 import { ChangePasswordSection } from '../../components/profile/ChangePasswordSection';
+import { getDashboardRoute } from '../../router/routes';
 
 export default function HRStaffProfilePage() {
     const { user: authUser } = useAuth();
@@ -127,6 +128,7 @@ export default function HRStaffProfilePage() {
                     <div className="mb-8 animate-slide-up">
                         <Breadcrumb
                             items={[
+                                { label: 'Dashboard', to: getDashboardRoute(authUser?.role || '') },
                                 { label: "Hồ sơ cá nhân" }
                             ]}
                         />

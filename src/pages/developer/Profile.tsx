@@ -6,6 +6,7 @@ import {
   Code, Target, Star, Edit, Upload, ChevronDown, ChevronUp, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import Sidebar from '../../components/common/Sidebar';
+import Breadcrumb from '../../components/common/Breadcrumb';
 import { sidebarItems } from '../../components/sidebar/developer';
 import { useAuth } from '../../context/AuthContext';
 import { userService, type User as UserType } from '../../services/User';
@@ -18,6 +19,7 @@ import { jobRoleLevelService } from '../../services/JobRoleLevel';
 import { jobRoleService } from '../../services/JobRole';
 import { certificateTypeService } from '../../services/CertificateType';
 import { WorkingMode } from '../../constants/WORKING_MODE';
+import { getDashboardRoute } from '../../router/routes';
 
 // Mapping WorkingMode values to Vietnamese names
 const workingModeLabels: Record<number, string> = {
@@ -533,6 +535,13 @@ export default function DeveloperProfilePage() {
 
       <div className="flex-1 p-8 overflow-y-auto">
         <div className="max-w-6xl mx-auto">
+          <Breadcrumb
+            items={[
+              { label: 'Dashboard', to: getDashboardRoute(authUser?.role || '') },
+              { label: 'Hồ sơ cá nhân' }
+            ]}
+          />
+
           {/* Header */}
           <div className="mb-8 animate-slide-up">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Hồ Sơ Cá Nhân</h1>
@@ -925,7 +934,7 @@ export default function DeveloperProfilePage() {
                           <p className="text-sm text-neutral-600">Danh sách CV của bạn</p>
                         </div>
                       </div>
-                      <Link to={`/developer/cv/create?talentId=${talent.id}`}>
+                      <Link to={`/partner/cv/create?talentId=${talent.id}`}>
                         <button
                           className="group flex items-center gap-2 bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white px-4 py-2 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105"
                         >

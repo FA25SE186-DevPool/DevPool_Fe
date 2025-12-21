@@ -7,8 +7,6 @@ import {
   Phone,
   MapPin,
   Send,
-  MessageSquare,
-  Clock,
   CheckCircle,
   AlertCircle,
 } from "lucide-react";
@@ -145,30 +143,31 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-primary-50/30 to-secondary-50/30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="text-center mb-12 animate-fade-in-up">
-          <h1 className="text-4xl font-bold leading-normal bg-gradient-to-r from-neutral-900 via-primary-700 to-secondary-700 bg-clip-text text-transparent mb-4">
+        <div className="text-center mb-8 animate-fade-in-up">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-neutral-900 via-primary-700 to-secondary-700 bg-clip-text text-transparent mb-6 leading-tight">
             Liên Hệ Với Chúng Tôi
           </h1>
-          <p className="text-xl text-neutral-600 max-w-3xl mx-auto">
+          <p className="text-xl text-neutral-600 leading-relaxed max-w-3xl mx-auto">
             Chúng tôi luôn sẵn sàng hỗ trợ bạn. Hãy liên hệ với chúng tôi nếu bạn
             cần được giúp đỡ.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-          {/* Contact Info Cards */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-soft p-6 border border-neutral-200/50 hover:shadow-medium transition-all duration-300 hover:-translate-y-1">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-primary-100 rounded-2xl">
-                <Phone className="w-6 h-6 text-primary-600" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Contact Info Cards - Column 1 */}
+          <div className="space-y-4">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-soft p-5 border border-neutral-200/50 hover:shadow-medium transition-all duration-300 hover:-translate-y-1">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2.5 bg-primary-100 rounded-xl">
+                <Phone className="w-5 h-5 text-primary-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg text-neutral-900">
+                <h3 className="font-semibold text-base text-neutral-900">
                   Điện thoại
                 </h3>
-                <p className="text-neutral-600">Hỗ trợ 24/7</p>
+                <p className="text-sm text-neutral-600">Hỗ trợ 24/7</p>
               </div>
             </div>
             <a
@@ -179,51 +178,50 @@ export default function ContactPage() {
             </a>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-soft p-6 border border-neutral-200/50 hover:shadow-medium transition-all duration-300 hover:-translate-y-1">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-secondary-100 rounded-2xl">
-                <Mail className="w-6 h-6 text-secondary-600" />
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-soft p-5 border border-neutral-200/50 hover:shadow-medium transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2.5 bg-secondary-100 rounded-xl">
+                  <Mail className="w-5 h-5 text-secondary-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-base text-neutral-900">Email</h3>
+                  <p className="text-sm text-neutral-600">Phản hồi trong 24h</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-lg text-neutral-900">Email</h3>
-                <p className="text-neutral-600">Phản hồi trong 24h</p>
-              </div>
+              <a
+                href="mailto:support@devpool.com"
+                className="text-primary-600 hover:text-primary-700 font-medium"
+              >
+                support@devpool.com
+              </a>
             </div>
-            <a
-              href="mailto:support@devpool.com"
-              className="text-primary-600 hover:text-primary-700 font-medium"
-            >
-              support@devpool.com
-            </a>
+
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-soft p-5 border border-neutral-200/50 hover:shadow-medium transition-all duration-300 hover:-translate-y-1">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2.5 bg-accent-100 rounded-xl">
+                  <MapPin className="w-5 h-5 text-accent-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-base text-neutral-900">
+                    Địa chỉ
+                  </h3>
+                  <p className="text-sm text-neutral-600">Trụ sở chính</p>
+                </div>
+              </div>
+              <p className="text-neutral-600">
+                123 Đường ABC, Quận XYZ, TP. Hồ Chí Minh
+              </p>
+            </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-soft p-6 border border-neutral-200/50 hover:shadow-medium transition-all duration-300 hover:-translate-y-1">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-accent-100 rounded-2xl">
-                <MapPin className="w-6 h-6 text-accent-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg text-neutral-900">
-                  Địa chỉ
-                </h3>
-                <p className="text-neutral-600">Trụ sở chính</p>
-              </div>
-            </div>
-            <p className="text-neutral-600">
-              123 Đường ABC, Quận XYZ, TP. Hồ Chí Minh
-            </p>
-          </div>
-        </div>
-
-        {/* Contact Form Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-soft p-8 border border-neutral-200/50">
-            <h2 className="text-2xl font-bold text-neutral-900 mb-6">
+          {/* Contact Form - Column 2 */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-soft p-6 border border-neutral-200/50">
+            <h2 className="text-xl font-bold text-neutral-900 mb-5">
               Gửi Tin Nhắn
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                <label className="block text-sm font-medium text-neutral-700 mb-1.5">
                   Họ và tên <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -232,13 +230,13 @@ export default function ContactPage() {
                   required
                   value={formData.name}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-xl border border-neutral-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-300"
+                  className="w-full px-3 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-300"
                   placeholder="Nhập họ và tên của bạn"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                <label className="block text-sm font-medium text-neutral-700 mb-1.5">
                   Email <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -247,7 +245,7 @@ export default function ContactPage() {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className={`w-full px-4 py-3 rounded-xl border transition-all duration-300 ${
+                  className={`w-full px-3 py-2.5 rounded-lg border transition-all duration-300 ${
                     emailError
                       ? 'border-red-300 focus:ring-2 focus:ring-red-500/20 focus:border-red-500'
                       : 'border-neutral-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500'
@@ -255,7 +253,7 @@ export default function ContactPage() {
                   placeholder="example@email.com"
                 />
                 {emailError && (
-                  <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                  <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
                     {emailError}
                   </p>
@@ -263,7 +261,7 @@ export default function ContactPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                <label className="block text-sm font-medium text-neutral-700 mb-1.5">
                   Công ty
                 </label>
                 <input
@@ -271,13 +269,13 @@ export default function ContactPage() {
                   name="company"
                   value={formData.company}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-xl border border-neutral-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-300"
+                  className="w-full px-3 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-300"
                   placeholder="Nhập tên công ty (tùy chọn)"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                <label className="block text-sm font-medium text-neutral-700 mb-1.5">
                   Tiêu đề <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -286,13 +284,13 @@ export default function ContactPage() {
                   required
                   value={formData.subject}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-xl border border-neutral-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-300"
+                  className="w-full px-3 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-300"
                   placeholder="Nhập tiêu đề tin nhắn"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                <label className="block text-sm font-medium text-neutral-700 mb-1.5">
                   Nội dung <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -301,8 +299,8 @@ export default function ContactPage() {
                   value={formData.message}
                   onChange={handleChange}
                   rows={calculateRows(formData.message)}
-                  style={{ minHeight: '150px', resize: 'vertical' }}
-                  className="w-full px-4 py-3 rounded-xl border border-neutral-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-300"
+                  style={{ minHeight: '120px', resize: 'vertical' }}
+                  className="w-full px-3 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all duration-300"
                   placeholder="Nhập nội dung tin nhắn"
                 ></textarea>
               </div>
@@ -310,7 +308,7 @@ export default function ContactPage() {
               <button
                 type="submit"
                 disabled={loading || !!emailError || !validateEmail(formData.email.trim())}
-                className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white px-8 py-4 rounded-xl hover:from-primary-700 hover:to-primary-800 font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-3 rounded-lg hover:from-primary-700 hover:to-primary-800 font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -326,67 +324,19 @@ export default function ContactPage() {
               </button>
 
               {success && (
-                <div className="flex items-center gap-2 text-success-600 bg-success-50 p-4 rounded-xl animate-fade-in border border-success-200">
+                <div className="flex items-center gap-2 text-success-600 bg-success-50 p-3 rounded-lg animate-fade-in border border-success-200">
                   <CheckCircle className="w-5 h-5" />
                   <span>Tin nhắn đã được gửi thành công! Chúng tôi sẽ liên hệ lại với bạn sớm nhất có thể.</span>
                 </div>
               )}
 
               {error && (
-                <div className="flex items-start gap-2 text-red-600 bg-red-50 p-4 rounded-xl animate-fade-in border border-red-200">
+                <div className="flex items-start gap-2 text-red-600 bg-red-50 p-3 rounded-lg animate-fade-in border border-red-200">
                   <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                   <span>{error}</span>
                 </div>
               )}
             </form>
-          </div>
-
-          <div className="space-y-8">
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-soft p-8 border border-neutral-200/50">
-              <h2 className="text-2xl font-bold text-neutral-900 mb-6">
-                Giờ làm việc
-              </h2>
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <Clock className="w-5 h-5 text-primary-600" />
-                  <div>
-                    <p className="font-medium text-neutral-900">
-                      Thứ 2 - Thứ 6
-                    </p>
-                    <p className="text-neutral-600">8:00 - 17:30</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <Clock className="w-5 h-5 text-primary-600" />
-                  <div>
-                    <p className="font-medium text-neutral-900">
-                      Thứ 7
-                    </p>
-                    <p className="text-neutral-600">8:00 - 12:00</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-soft p-8 border border-neutral-200/50">
-              <h2 className="text-2xl font-bold text-neutral-900 mb-6">
-                Hỗ trợ nhanh
-              </h2>
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <MessageSquare className="w-5 h-5 text-primary-600" />
-                  <div>
-                    <p className="font-medium text-neutral-900">Live Chat</p>
-                    <p className="text-neutral-600">
-                      Trò chuyện trực tiếp với nhân viên hỗ trợ
-                    </p>
-                  </div>
-                </div>
-                <button className="w-full bg-gradient-to-r from-secondary-600 to-secondary-700 text-white px-6 py-3 rounded-xl hover:from-secondary-700 hover:to-secondary-800 font-semibold transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]">
-                  Bắt đầu trò chuyện
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>

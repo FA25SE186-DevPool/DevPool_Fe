@@ -140,7 +140,7 @@ const HeroSection: React.FC = () => {
               className="group relative bg-white/80 backdrop-blur-sm text-gray-800 px-10 py-5 rounded-2xl font-semibold text-xl flex items-center space-x-3 border border-gray-200 transition-all duration-300 hover:scale-105 hover:bg-white hover:shadow-2xl hover:shadow-gray-300/20 transform"
             >
               <Users className="w-6 h-6 group-hover:rotate-12 transition-transform duration-300" />
-              <span>Tôi Là có tài khoản</span>
+              <span>Tôi có tài khoản</span>
             </Link>
           </div>
 

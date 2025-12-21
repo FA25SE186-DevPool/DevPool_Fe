@@ -1,24 +1,24 @@
-import { 
+import {
   BarChart3,
-  FileText,
-  CreditCard,
+  Users,
+  Briefcase,
 } from "lucide-react";
 
 export const sidebarItems = [
   {
     label: 'Tổng Quan',
-    href: '/developer/dashboard',
+    href: '/partner/dashboard',
     icon: BarChart3
   },
   {
-    label: 'Hợp Đồng',
-    href: '/developer/contracts',
-    icon: FileText
+    label: 'Nhân Sự',
+    href: '/partner/talents',
+    icon: Users
   },
   {
-    label: 'Thanh Toán',
-    href: '/developer/payments',
-    icon: CreditCard
+    label: 'Phân Công',
+    href: '/partner/assignments',
+    icon: Briefcase
   },
 ];
 

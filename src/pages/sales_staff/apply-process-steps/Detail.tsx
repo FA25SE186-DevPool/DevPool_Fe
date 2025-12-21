@@ -36,6 +36,7 @@ export default function SalesApplyProcessStepDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('info');
   const [templateSteps, setTemplateSteps] = useState<any[]>([]);
+  const [showDeleteSuccessOverlay, setShowDeleteSuccessOverlay] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -80,8 +81,13 @@ export default function SalesApplyProcessStepDetailPage() {
 
     try {
       await applyProcessStepService.deleteById(Number(id));
-      alert("✅ Đã xóa bước quy trình thành công!");
-      navigate(backTarget);
+      setShowDeleteSuccessOverlay(true);
+
+      // Hiển thị loading overlay trong 2 giây rồi navigate
+      setTimeout(() => {
+        setShowDeleteSuccessOverlay(false);
+        navigate(backTarget);
+      }, 2000);
     } catch (err) {
       console.error("❌ Lỗi khi xóa:", err);
       alert("Không thể xóa bước quy trình!");
@@ -316,6 +322,19 @@ export default function SalesApplyProcessStepDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Success Overlay */}
+      {showDeleteSuccessOverlay && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã xóa bước quy trình thành công!</h3>
+              <p className="text-sm text-neutral-600">Đang xử lý...</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

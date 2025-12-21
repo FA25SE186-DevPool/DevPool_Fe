@@ -31,6 +31,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { talentCVService } from '../../services/TalentCV';
 import { talentService } from '../../services/Talent';
 import { jobRoleLevelService } from '../../services/JobRoleLevel';
+import { startNotificationConnection, stopNotificationConnection } from '../../services/notificationHub';
 
 type ExtendedNotification = Notification & {
   metaData?: Record<string, string | number | boolean> | null;
@@ -81,6 +82,7 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
   const [replyModalOpen, setReplyModalOpen] = useState(false);
   const [replyNotification, setReplyNotification] = useState<ExtendedNotification | null>(null);
   const [replyMessage, setReplyMessage] = useState('');
+  const [showReplySuccessOverlay, setShowReplySuccessOverlay] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -116,6 +118,8 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
       setUnread(0);
       prevUserKeyRef.current = null;
       setIsLoadingNotifications(false);
+      // Stop notification hub connection khi logout
+      stopNotificationConnection();
       return;
     }
 
@@ -125,10 +129,26 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
       // Đảm bảo unread được set về 0 ngay lập tức để không hiển thị unread của user cũ
       setItems([]);
       setUnread(0);
-      
+
       // Update ref ngay lập tức để tránh fetch nhiều lần
       const userKeyToFetch = currentUserKey;
       prevUserKeyRef.current = userKeyToFetch;
+
+      // Restart notification hub connection cho user mới
+      (async () => {
+        try {
+          // Stop connection cũ hoàn toàn trước
+          await stopNotificationConnection();
+
+          // Đợi lâu hơn để đảm bảo cleanup hoàn tất
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+          // Start connection mới
+          await startNotificationConnection(false); // Không force restart vì đã stop rồi
+        } catch (error) {
+          console.warn('⚠️ Failed to restart notification connection:', error);
+        }
+      })();
 
       // Fetch notifications mới cho user mới
       const fetchNotifications = async () => {
@@ -528,7 +548,7 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
         userIds: [String(developerId)],
         entityType: replyNotification.entityType || null,
         entityId: replyNotification.entityId || null,
-        actionUrl: '/developer/profile', // Developer nên vào trang profile của họ
+        actionUrl: '/partner/profile', // Partner nên vào trang profile của họ
         metaData: {
           originalNotificationId: String(replyNotification.id),
           cvVersion: cvVersion,
@@ -548,15 +568,20 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
         // Silent fail - đã phản hồi thành công rồi
       }
 
-      alert('✅ Đã gửi thông báo phản hồi đến developer thành công!');
-      setReplyModalOpen(false);
-      setReplyNotification(null);
-      setReplyMessage('');
-      // Refresh notifications để cập nhật UI
-      if (isNotificationOpen) {
-        setIsNotificationOpen(false);
-      }
-      setViewNotification(null);
+      setShowReplySuccessOverlay(true);
+
+      // Hiển thị loading overlay trong 2 giây rồi đóng modal và reset state
+      setTimeout(() => {
+        setShowReplySuccessOverlay(false);
+        setReplyModalOpen(false);
+        setReplyNotification(null);
+        setReplyMessage('');
+        // Refresh notifications để cập nhật UI
+        if (isNotificationOpen) {
+          setIsNotificationOpen(false);
+        }
+        setViewNotification(null);
+      }, 2000);
     } catch (error) {
       alert('Không thể gửi thông báo phản hồi. Vui lòng thử lại.');
     }
@@ -885,7 +910,7 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
                         to={user ? (user.role === 'Staff TA' ? ROUTES.TA_STAFF.PROFILE :
                                    user.role === 'Staff Sales' ? ROUTES.SALES_STAFF.PROFILE :
                                    user.role === 'Staff Accountant' ? ROUTES.ACCOUNTANT_STAFF.PROFILE :
-                                   user.role === 'Developer' ? ROUTES.DEVELOPER.PROFILE :
+                                   user.role === 'Developer' ? ROUTES.PARTNER.PROFILE :
                                    user.role === 'Manager' ? ROUTES.MANAGER.PROFILE :
                                    user.role === 'Admin' ? ROUTES.ADMIN.PROFILE : '/') : '/'}
                         className="group flex items-center px-4 py-2 text-neutral-700 hover:bg-primary-50 hover:text-primary-700 transition-all duration-300"
@@ -899,7 +924,7 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
                         className="group flex items-center w-full px-4 py-2 text-neutral-700 hover:bg-error-50 hover:text-error-700 transition-all duration-300"
                       >
                         <LogOut className="w-4 h-4 mr-3 group-hover:scale-110 transition-transform duration-300" />
-                        Đăng Xuất
+                        Logout
                       </button>
                     </div>
                   )}
@@ -961,7 +986,7 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
                     }}
                     className="text-neutral-700 hover:text-error-600 font-medium py-2 px-2 rounded-lg hover:bg-error-50 transition-all duration-300 text-left w-full"
                   >
-                    Đăng Xuất
+                    Logout
                   </button>
                 </div>
               ) : (
@@ -1137,6 +1162,19 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
             >
               Gửi phản hồi
             </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Reply Success Overlay */}
+    {showReplySuccessOverlay && (
+      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+        <div className="bg-white rounded-2xl p-8 shadow-xl border border-neutral-200 flex flex-col items-center gap-4">
+          <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Đã gửi thông báo phản hồi đến developer thành công!</h3>
+            <p className="text-sm text-neutral-600">Đang xử lý...</p>
           </div>
         </div>
       </div>
