@@ -1,6 +1,7 @@
 import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
 import type { User, UserCreate, UserUpdate, UserUpdateRole, UserRegister, UserFilter, UserChangePassword, PagedResult } from "../types/user.types";
+import { talentStaffAssignmentService } from "./TalentStaffAssignment";
 
 export type { User, UserCreate, UserUpdate, UserUpdateRole, UserRegister, UserFilter, UserChangePassword, PagedResult };
 
@@ -105,6 +106,41 @@ export const userService = {
       if (error instanceof AxiosError)
         throw error.response?.data || { message: "Không thể thay đổi mật khẩu" };
       throw { message: "Lỗi không xác định khi thay đổi mật khẩu" };
+    }
+  },
+
+  async ban(id: string): Promise<User> {
+    try {
+      // Kiểm tra xem staff có đang assign talent nào không
+      const assignments = await talentStaffAssignmentService.getAll({
+        userId: id,
+        isActive: true,
+        excludeDeleted: true
+      });
+
+      if (assignments && assignments.length > 0) {
+        throw {
+          message: "Không thể ban staff này vì đang quản lý talent. Vui lòng chuyển giao hoặc kết thúc các assignment trước."
+        };
+      }
+
+      const response = await apiClient.post(`/user/${id}/ban`);
+      return response.data;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError)
+        throw error.response?.data || { message: "Không thể ban người dùng này" };
+      throw error; // Re-throw custom error messages
+    }
+  },
+
+  async unban(id: string): Promise<User> {
+    try {
+      const response = await apiClient.post(`/user/${id}/unban`);
+      return response.data;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError)
+        throw error.response?.data || { message: "Không thể unban người dùng này" };
+      throw { message: "Lỗi không xác định khi unban người dùng" };
     }
   },
 
