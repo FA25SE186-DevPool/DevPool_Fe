@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Search, Filter, Plus, Shield, ShieldCheck, MoreVertical, UserRound, Mail, Phone, CheckCircle2, XCircle, Ban, UserCheck } from "lucide-react";
 import { sidebarItems } from "../../../components/sidebar/admin";
 import Sidebar from "../../../components/common/Sidebar";
-import { userService, type User, type UserFilter, type PagedResult } from "../../../services/User";
+import { userService, type User, type UserFilter } from "../../../services/User";
 import { authService, type UserProvisionPayload } from "../../../services/Auth";        
 import ConfirmModal from "../../../components/ui/confirm-modal";
 import SuccessToast from "../../../components/ui/success-toast";
@@ -62,6 +62,10 @@ export default function StaffManagementPage() {
   const [showEdit, setShowEdit] = useState<null | UserRow>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
+  // Pagination state
+  const [currentPage] = useState(1);
+  const [pageSize] = useState(20); // Fixed page size
+
   // Modal states
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -88,7 +92,7 @@ export default function StaffManagementPage() {
         role: roleFilter === "All" ? undefined : roleFilter,
         isActive: statusFilter === "Inactive" ? undefined : (statusFilter === "All" ? undefined : statusFilter === "Active"),
         excludeDeleted: false, // Always get all users, filter client-side
-        pageNumber: page,
+        pageNumber: currentPage,
         pageSize: pageSize,
       };
 
@@ -118,12 +122,6 @@ export default function StaffManagementPage() {
         });
         console.log('After inactive filter:', filteredItems);
       }
-
-      setPagination({
-        ...result,
-        items: filteredItems,
-        totalCount: filteredItems.length,
-      });
 
       setUsers(filteredItems.map(convertToUserRow));
     } catch (err: any) {
@@ -157,7 +155,7 @@ export default function StaffManagementPage() {
   async function banUser(user: UserRow) {
     try {
       await userService.ban(user.id);
-      await fetchUsers(currentPage);
+      await fetchUsers();
       setSuccessToast({
         isOpen: true,
         title: "Cấm người dùng thành công",
@@ -176,7 +174,7 @@ export default function StaffManagementPage() {
   async function unbanUser(user: UserRow) {
     try {
       await userService.unban(user.id);
-      await fetchUsers(currentPage);
+      await fetchUsers();
       setSuccessToast({
         isOpen: true,
         title: "Gỡ cấm người dùng thành công",
@@ -550,7 +548,7 @@ export default function StaffManagementPage() {
                   });
                 }
                 
-                await fetchUsers(currentPage);
+                await fetchUsers();
                 setShowEdit(null);
               } catch (err: any) {
                 console.error("❌ Lỗi khi cập nhật người dùng:", err);
