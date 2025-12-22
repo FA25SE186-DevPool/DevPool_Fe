@@ -20,6 +20,8 @@ import { type JobRequest } from "../../../services/JobRequest";
 import { WorkingMode } from "../../../constants/WORKING_MODE";
 import { uploadFile } from "../../../utils/firebaseStorage";
 import { formatNumberInput, parseNumberInput } from "../../../utils/formatters";
+import ConfirmModal from "../../../components/ui/confirm-modal";
+import SuccessToast from "../../../components/ui/success-toast";
 import { 
   Briefcase, 
   Edit, 
@@ -97,6 +99,23 @@ export default function ProjectDetailPage() {
   const [showCancelAssignmentModal, setShowCancelAssignmentModal] = useState(false);
   const [showDirectBookingModal, setShowDirectBookingModal] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<TalentAssignmentModel | null>(null);
+
+  // Confirm modal states
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    variant?: 'danger' | 'warning' | 'info';
+  } | null>(null);
+
+  // Success toast states
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [successToastConfig, setSuccessToastConfig] = useState<{
+    title: string;
+    message?: string;
+  } | null>(null);
   const [hiredApplications, setHiredApplications] = useState<TalentApplication[]>([]);
   const [talents, setTalents] = useState<Talent[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -141,7 +160,34 @@ export default function ProjectDetailPage() {
     notes: ""
   });
   const [directBookingErrors, setDirectBookingErrors] = useState<Record<string, string>>({});
-  
+
+  // Helper functions for confirm modal and success toast
+  const showConfirmDialog = (config: {
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    variant?: 'danger' | 'warning' | 'info';
+  }) => {
+    setConfirmModalConfig(config);
+    setShowConfirmModal(true);
+  };
+
+  const hideConfirmDialog = () => {
+    setShowConfirmModal(false);
+    setConfirmModalConfig(null);
+  };
+
+  const displaySuccessToast = (title: string, message?: string) => {
+    setSuccessToastConfig({ title, message });
+    setShowSuccessToast(true);
+  };
+
+  const hideSuccessToast = () => {
+    setShowSuccessToast(false);
+    setSuccessToastConfig(null);
+  };
+
   // Form state for creating assignment
   const [assignmentForm, setAssignmentForm] = useState<TalentAssignmentCreateModel>({
     talentId: 0,
@@ -168,11 +214,15 @@ export default function ProjectDetailPage() {
   const [terminateForm, setTerminateForm] = useState<{
     terminationDate: string;
     terminationReason: string;
+    addToBlacklist: boolean;
+    blacklistReason: string;
   }>({
     terminationDate: "",
-    terminationReason: ""
+    terminationReason: "",
+    addToBlacklist: false,
+    blacklistReason: ""
   });
-  const [terminateErrors, setTerminateErrors] = useState<{ terminationDate?: string; terminationReason?: string }>({});
+  const [terminateErrors, setTerminateErrors] = useState<{ terminationDate?: string; terminationReason?: string; blacklistReason?: string }>({});
   const [submittingTerminate, setSubmittingTerminate] = useState(false);
 
   // Form state for cancelling draft assignment
@@ -739,6 +789,14 @@ export default function ProjectDetailPage() {
         setAssignmentErrors({ endDate: "Ngày kết thúc không được nhỏ hơn ngày bắt đầu" });
         return;
       }
+
+      // Validation: EndDate phải lớn hơn StartDate ít nhất 1 ngày
+      const minEndDate = new Date(startDate);
+      minEndDate.setDate(minEndDate.getDate() + 1);
+      if (endDate < minEndDate) {
+        setAssignmentErrors({ endDate: "Ngày kết thúc phải lớn hơn ngày bắt đầu ít nhất 1 ngày" });
+        return;
+      }
     }
 
     // Validation: Assignment phải nằm trong Project.StartDate – Project.EndDate
@@ -968,6 +1026,24 @@ export default function ProjectDetailPage() {
         }
       }
     }
+
+    // Khi ở trạng thái Draft: ngày bắt đầu phải > ngày bắt đầu của dự án (nếu dự án có ngày bắt đầu)
+    if (selectedAssignment.status === "Draft" && project?.startDate) {
+      const effectiveStartIso = updateForm.startDate || selectedAssignment.startDate;
+      if (effectiveStartIso && isValidDate(effectiveStartIso)) {
+        const effectiveStart = new Date(effectiveStartIso);
+        const projectStartDate = new Date(project.startDate);
+        effectiveStart.setHours(0, 0, 0, 0);
+        projectStartDate.setHours(0, 0, 0, 0);
+
+        if (effectiveStart < projectStartDate) {
+          setUpdateErrors({
+            startDate: `Ngày bắt đầu phải lớn hơn hoặc bằng ngày bắt đầu dự án (${formatViDate(project.startDate)})`
+          });
+          return;
+        }
+      }
+    }
     
     // Check if end date >= start date
     const startDateToCheck = selectedAssignment.status === "Draft" 
@@ -1026,28 +1102,39 @@ export default function ProjectDetailPage() {
       }
     }
 
-    // Confirmation dialog
+    // Confirmation dialog using modal
     const talentName = talents.find(t => t.id === selectedAssignment.talentId)?.fullName || `Nhân sự #${selectedAssignment.talentId}`;
-    const startDateStr = selectedAssignment.status === "Draft" 
+    const startDateStr = selectedAssignment.status === "Draft"
       ? (updateForm.startDate ? formatViDate(updateForm.startDate) : formatViDate(selectedAssignment.startDate))
       : formatViDate(selectedAssignment.startDate);
     const endDateStr = updateForm.endDate ? formatViDate(updateForm.endDate) : "—";
     const currentEndDateStr = selectedAssignment.endDate ? formatViDate(selectedAssignment.endDate) : "—";
-    
+
     const actionText = selectedAssignment.status === "Draft" ? "cập nhật" : "gia hạn";
-    let confirmMessage = `Xác nhận ${actionText} phân công nhân sự?\n\n` +
-      `Nhân sự: ${talentName}\n` +
-      `Ngày bắt đầu: ${startDateStr}\n`;
-    
+    let confirmMessage = `Nhân sự: ${talentName}\nNgày bắt đầu: ${startDateStr}\n`;
+
     if (selectedAssignment.status === "Active" && currentEndDateStr !== "—") {
       confirmMessage += `Ngày kết thúc hiện tại: ${currentEndDateStr}\n`;
     }
     confirmMessage += `Ngày kết thúc mới: ${endDateStr}`;
-    
-    const confirmed = window.confirm(confirmMessage);
-    if (!confirmed) {
-      return;
-    }
+
+    // Show confirm modal instead of window.confirm
+    showConfirmDialog({
+      title: `Xác nhận ${actionText} phân công nhân sự`,
+      message: confirmMessage,
+      onConfirm: async () => {
+        hideConfirmDialog();
+        await performUpdateAssignment();
+      },
+      confirmText: "Xác nhận",
+      variant: "info"
+    });
+    return;
+  };
+
+  // Separate function to perform the actual update after confirmation
+  const performUpdateAssignment = async () => {
+    if (!id || !selectedAssignment) return;
 
     try {
       setSubmittingUpdate(true);
@@ -1088,12 +1175,12 @@ export default function ProjectDetailPage() {
         // Use extend API for Active status with startDate
         // For extend, we use the extend model
         if (!updateForm.endDate) {
-          alert("Vui lòng nhập ngày kết thúc");
+          displaySuccessToast("Lỗi", "Vui lòng nhập ngày kết thúc");
           return;
         }
         const endDateUTC = toUTCISOString(updateForm.endDate);
         if (!endDateUTC) {
-          alert("Ngày kết thúc không hợp lệ");
+          displaySuccessToast("Lỗi", "Ngày kết thúc không hợp lệ");
           return;
         }
         const extendPayload: TalentAssignmentExtendModel = {
@@ -1126,12 +1213,14 @@ export default function ProjectDetailPage() {
       setSelectedAssignment(null);
       setShowUpdateAssignmentModal(false);
 
-      showSuccessOverlay("✅ Cập nhật phân công nhân sự thành công!");
+      // Show success toast instead of showSuccessOverlay
+      const actionText = selectedAssignment.status === "Draft" ? "Cập nhật" : "Gia hạn";
+      displaySuccessToast(`${actionText} phân công nhân sự thành công!`, "Thông tin đã được cập nhật thành công.");
     } catch (error: unknown) {
       console.error("❌ Lỗi khi cập nhật phân công:", error);
       const message =
         error instanceof Error ? error.message : (typeof error === "string" ? error : "");
-      alert(message || "Không thể cập nhật phân công nhân sự");
+      displaySuccessToast("Lỗi", message || "Không thể cập nhật phân công nhân sự");
     } finally {
       setSubmittingUpdate(false);
     }
@@ -1152,6 +1241,13 @@ export default function ProjectDetailPage() {
     if (!terminateForm.terminationReason || terminateForm.terminationReason.trim() === "") {
       setTerminateErrors({ terminationReason: "Lý do chấm dứt là bắt buộc" });
       return;
+    }
+
+    if (terminateForm.addToBlacklist) {
+      if (!terminateForm.blacklistReason || terminateForm.blacklistReason.trim() === "") {
+        setTerminateErrors({ blacklistReason: "Lý do blacklist là bắt buộc khi chọn thêm vào blacklist" });
+        return;
+      }
     }
 
     // Validation: terminationDate phải >= startDate
@@ -1184,29 +1280,42 @@ export default function ProjectDetailPage() {
       }
     }
 
-    // Confirmation dialog với cảnh báo
+    // Confirmation dialog using modal
     const talentName = talents.find(t => t.id === selectedAssignment.talentId)?.fullName || `Nhân sự #${selectedAssignment.talentId}`;
     const terminationDateStr = formatViDate(terminateForm.terminationDate);
-    
+
     const confirmMessage = `⚠️ CẢNH BÁO: Hành động này không thể hoàn tác!\n\n` +
-      `Bạn có chắc chắn muốn CHẤM DỨT phân công nhân sự?\n\n` +
       `📋 Thông tin:\n` +
       `• Nhân sự: ${talentName}\n` +
       `• Ngày chấm dứt: ${terminationDateStr}\n` +
-      `• Lý do: ${terminateForm.terminationReason}\n\n` +
-      `⚠️ Lưu ý: Sau khi chấm dứt, phân công này sẽ không thể tiếp tục hoạt động.`;
-    
-    const confirmed = window.confirm(confirmMessage);
-    if (!confirmed) {
-      return;
-    }
+      `• Lý do: ${terminateForm.terminationReason}\n` +
+      (terminateForm.addToBlacklist ? `• Thêm vào blacklist: Có\n• Lý do blacklist: ${terminateForm.blacklistReason.trim()}\n` : `• Thêm vào blacklist: Không\n`) +
+      `\n⚠️ Lưu ý: Sau khi chấm dứt, phân công này sẽ không thể tiếp tục hoạt động.`;
+
+    // Show confirm modal instead of window.confirm
+    showConfirmDialog({
+      title: "Xác nhận chấm dứt phân công nhân sự",
+      message: confirmMessage,
+      onConfirm: async () => {
+        hideConfirmDialog();
+        await performTerminateAssignment();
+      },
+      confirmText: "Xác nhận chấm dứt",
+      variant: "danger"
+    });
+    return;
+  };
+
+  // Separate function to perform the actual terminate after confirmation
+  const performTerminateAssignment = async () => {
+    if (!id || !selectedAssignment) return;
 
     try {
-      setSubmittingTerminate(true);
-
       const payload: TalentAssignmentTerminateModel = {
         terminationDate: toUTCISOString(terminateForm.terminationDate) || "",
-        terminationReason: terminateForm.terminationReason.trim()
+        terminationReason: terminateForm.terminationReason.trim(),
+        addToBlacklist: !!terminateForm.addToBlacklist,
+        blacklistReason: terminateForm.addToBlacklist ? terminateForm.blacklistReason.trim() : null
       };
 
       await talentAssignmentService.terminate(selectedAssignment.id, payload);
@@ -1219,19 +1328,22 @@ export default function ProjectDetailPage() {
       // Reset form and close modal
       setTerminateForm({
         terminationDate: "",
-        terminationReason: ""
+        terminationReason: "",
+        addToBlacklist: false,
+        blacklistReason: ""
       });
       setTerminateErrors({});
       setShowTerminateAssignmentModal(false);
       setShowDetailAssignmentModal(false);
       setSelectedAssignment(null);
 
-      showSuccessOverlay("✅ Chấm dứt phân công nhân sự thành công!");
+      // Show success toast instead of showSuccessOverlay
+      displaySuccessToast("Chấm dứt phân công nhân sự thành công!", "Phân công đã được chấm dứt thành công.");
     } catch (error: unknown) {
       console.error("❌ Lỗi khi chấm dứt phân công:", error);
       const message =
         error instanceof Error ? error.message : (typeof error === "string" ? error : "");
-      alert(message || "Không thể chấm dứt phân công nhân sự");
+      displaySuccessToast("Lỗi", message || "Không thể chấm dứt phân công nhân sự");
     } finally {
       setSubmittingTerminate(false);
     }
@@ -1294,11 +1406,11 @@ export default function ProjectDetailPage() {
       }
     }
 
-    // Confirmation dialog với cảnh báo
+    // Confirmation dialog using modal
     const talentName = talents.find(t => t.id === selectedAssignment.talentId)?.fullName || `Nhân sự #${selectedAssignment.talentId}`;
     const currentEndDateStr = selectedAssignment.endDate ? formatViDate(selectedAssignment.endDate) : "—";
     const newEndDateStr = formatViDate(extendForm.endDate);
-    
+
     // Tính số ngày gia hạn
     let daysExtended = 0;
     if (selectedAssignment.endDate && extendForm.endDate) {
@@ -1306,19 +1418,31 @@ export default function ProjectDetailPage() {
       const newEnd = new Date(extendForm.endDate);
       daysExtended = Math.ceil((newEnd.getTime() - currentEnd.getTime()) / (1000 * 60 * 60 * 24));
     }
-    
-    const confirmMessage = `⚠️ XÁC NHẬN GIA HẠN PHÂN CÔNG NHÂN SỰ\n\n` +
-      `📋 Thông tin:\n` +
+
+    const confirmMessage = `📋 Thông tin:\n` +
       `• Nhân sự: ${talentName}\n` +
       `• Ngày kết thúc hiện tại: ${currentEndDateStr}\n` +
       `• Ngày kết thúc mới: ${newEndDateStr}\n` +
       (daysExtended > 0 ? `• Thời gian gia hạn: ${daysExtended} ngày\n` : ``) +
       `\n⚠️ Vui lòng kiểm tra kỹ thông tin trước khi xác nhận.`;
-    
-    const confirmed = window.confirm(confirmMessage);
-    if (!confirmed) {
-      return;
-    }
+
+    // Show confirm modal instead of window.confirm
+    showConfirmDialog({
+      title: "Xác nhận gia hạn phân công nhân sự",
+      message: confirmMessage,
+      onConfirm: async () => {
+        hideConfirmDialog();
+        await performExtendAssignment();
+      },
+      confirmText: "Xác nhận gia hạn",
+      variant: "warning"
+    });
+    return;
+  };
+
+  // Separate function to perform the actual extend after confirmation
+  const performExtendAssignment = async () => {
+    if (!id || !selectedAssignment) return;
 
     try {
       setSubmittingExtend(true);
@@ -1356,12 +1480,13 @@ export default function ProjectDetailPage() {
       setShowDetailAssignmentModal(false);
       setSelectedAssignment(null);
 
-      showSuccessOverlay("✅ Gia hạn phân công nhân sự thành công!");
+      // Show success toast instead of showSuccessOverlay
+      displaySuccessToast("Gia hạn phân công nhân sự thành công!", "Thông tin đã được cập nhật thành công.");
     } catch (error: unknown) {
       console.error("❌ Lỗi khi gia hạn phân công:", error);
       const message =
         error instanceof Error ? error.message : (typeof error === "string" ? error : "");
-      alert(message || "Không thể gia hạn phân công nhân sự");
+      displaySuccessToast("Lỗi", message || "Không thể gia hạn phân công nhân sự");
     } finally {
       setSubmittingExtend(false);
     }
@@ -1508,17 +1633,30 @@ export default function ProjectDetailPage() {
     }
 
     const talentName = talents.find(t => t.id === selectedAssignment.talentId)?.fullName || `Nhân sự #${selectedAssignment.talentId}`;
-    const confirmed = window.confirm(
-      `Xác nhận HỦY phân công nhân sự?\n\n` +
-      `Nhân sự: ${talentName}\n` +
+    const confirmMessage = `Nhân sự: ${talentName}\n` +
       `Lý do hủy: ${reason}\n` +
       (cancelForm.addToBlacklist ? `Thêm vào blacklist: Có\nLý do blacklist: ${cancelForm.blacklistReason.trim()}\n` : `Thêm vào blacklist: Không\n`) +
-      `\nLưu ý: Chỉ hủy được khi trạng thái là Draft.`
-    );
-    if (!confirmed) return;
+      `\nLưu ý: Chỉ hủy được khi trạng thái là Draft.`;
+
+    // Show confirm modal instead of window.confirm
+    showConfirmDialog({
+      title: "Xác nhận hủy phân công nhân sự",
+      message: confirmMessage,
+      onConfirm: async () => {
+        hideConfirmDialog();
+        await performCancelAssignment(reason);
+      },
+      confirmText: "Xác nhận hủy",
+      variant: "danger"
+    });
+    return;
+  };
+
+  // Separate function to perform the actual cancel after confirmation
+  const performCancelAssignment = async (reason: string) => {
+    if (!id || !selectedAssignment) return;
 
     try {
-      setSubmittingCancel(true);
       await talentAssignmentService.cancel(selectedAssignment.id, {
         cancelReason: reason,
         addToBlacklist: !!cancelForm.addToBlacklist,
@@ -1538,12 +1676,13 @@ export default function ProjectDetailPage() {
       setCancelForm({ cancelReason: "", addToBlacklist: false, blacklistReason: "" });
       setCancelErrors({});
 
-      showSuccessOverlay("✅ Đã hủy phân công nhân sự!");
+      // Show success toast instead of showSuccessOverlay
+      displaySuccessToast("Đã hủy phân công nhân sự!", "Phân công đã được hủy thành công.");
     } catch (error: unknown) {
       console.error("❌ Lỗi khi hủy phân công:", error);
       const message =
         error instanceof Error ? error.message : (typeof error === "string" ? error : "");
-      alert(message || "Không thể hủy phân công nhân sự");
+      displaySuccessToast("Lỗi", message || "Không thể hủy phân công nhân sự");
     } finally {
       setSubmittingCancel(false);
     }
@@ -2356,12 +2495,20 @@ export default function ProjectDetailPage() {
                                                 <p className="text-sm text-neutral-600">{payment.talentName || "—"}</p>
                                               </div>
                                               <div className="flex flex-col items-end gap-2">
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${contractStatusColors[payment.contractStatus] || 'bg-gray-100 text-gray-800'}`}>
-                                                  {contractStatusLabels[payment.contractStatus] || payment.contractStatus}
-                                                </span>
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${paymentStatusColors[payment.paymentStatus] || 'bg-gray-100 text-gray-800'}`}>
-                                                  {paymentStatusLabels[payment.paymentStatus] || payment.paymentStatus}
-                                                </span>
+                                                {payment.isFinished ? (
+                                                  <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                    Đã hoàn thành
+                                                  </span>
+                                                ) : (
+                                                  <>
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${contractStatusColors[payment.contractStatus] || 'bg-gray-100 text-gray-800'}`}>
+                                                      {contractStatusLabels[payment.contractStatus] || payment.contractStatus}
+                                                    </span>
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${paymentStatusColors[payment.paymentStatus] || 'bg-gray-100 text-gray-800'}`}>
+                                                      {paymentStatusLabels[payment.paymentStatus] || payment.paymentStatus}
+                                                    </span>
+                                                  </>
+                                                )}
                                               </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-4 pt-3 border-t border-neutral-100">
@@ -3574,7 +3721,16 @@ export default function ProjectDetailPage() {
                           setUpdateErrors({ ...updateErrors, startDate: undefined });
                         }
                       }}
-                      min={editLastActivityScheduledDate ? toVietnamDateInputValue(editLastActivityScheduledDate) : undefined}
+                      min={(() => {
+                        // Min date should be the later of: last activity date or project start date
+                        const lastActivityDate = editLastActivityScheduledDate ? toVietnamDateInputValue(editLastActivityScheduledDate) : null;
+                        const projectStartDate = project?.startDate ? toVietnamDateInputValue(project.startDate) : null;
+
+                        if (lastActivityDate && projectStartDate) {
+                          return new Date(lastActivityDate) > new Date(projectStartDate) ? lastActivityDate : projectStartDate;
+                        }
+                        return lastActivityDate || projectStartDate || undefined;
+                      })()}
                       required
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-primary-500 ${
                         updateErrors.startDate 
@@ -3585,10 +3741,19 @@ export default function ProjectDetailPage() {
                     {updateErrors.startDate && (
                       <p className="mt-1 text-sm text-red-500">{updateErrors.startDate}</p>
                     )}
-                    {editLastActivityScheduledDate && !updateErrors.startDate && (
-                      <p className="mt-1 text-sm text-neutral-500">
-                        Ngày bắt đầu phải lớn hơn hoặc bằng ngày lên lịch của hoạt động cuối cùng ({formatViDate(editLastActivityScheduledDate)})
-                      </p>
+                    {!updateErrors.startDate && (
+                      <div className="mt-1 space-y-1">
+                        {editLastActivityScheduledDate && (
+                          <p className="text-sm text-neutral-500">
+                            Ngày bắt đầu phải lớn hơn hoặc bằng ngày lên lịch của hoạt động cuối cùng ({formatViDate(editLastActivityScheduledDate)})
+                          </p>
+                        )}
+                        {project?.startDate && (
+                          <p className="text-sm text-neutral-500">
+                            Ngày bắt đầu phải lớn hơn ngày bắt đầu dự án ({formatViDate(project.startDate)})
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </>
@@ -4139,7 +4304,9 @@ export default function ProjectDetailPage() {
                       onClick={() => {
                         setTerminateForm({
                           terminationDate: "",
-                          terminationReason: ""
+                          terminationReason: "",
+                          addToBlacklist: false,
+                          blacklistReason: ""
                         });
                         setTerminateErrors({});
                         setShowDetailAssignmentModal(false);
@@ -4254,8 +4421,8 @@ export default function ProjectDetailPage() {
                   rows={4}
                   required
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-primary-500 ${
-                    terminateErrors.terminationReason 
-                      ? 'border-red-500 focus:border-red-500' 
+                    terminateErrors.terminationReason
+                      ? 'border-red-500 focus:border-red-500'
                       : 'border-neutral-200 focus:border-primary-500'
                   }`}
                   placeholder="Nhập lý do chấm dứt..."
@@ -4265,13 +4432,60 @@ export default function ProjectDetailPage() {
                 )}
               </div>
 
+              {/* Add to Blacklist */}
+              <div className="flex items-center gap-2">
+                <input
+                  id="terminateAddToBlacklist"
+                  type="checkbox"
+                  checked={terminateForm.addToBlacklist}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setTerminateForm(prev => ({ ...prev, addToBlacklist: checked, blacklistReason: checked ? prev.blacklistReason : "" }));
+                    setTerminateErrors(prev => ({ ...prev, blacklistReason: undefined }));
+                  }}
+                  className="h-4 w-4"
+                />
+                <label htmlFor="terminateAddToBlacklist" className="text-sm text-gray-700">
+                  Thêm talent vào danh sách đen của công ty khách hàng
+                </label>
+              </div>
+
+              {/* Blacklist Reason */}
+              {terminateForm.addToBlacklist && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Lý do blacklist <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={terminateForm.blacklistReason}
+                    onChange={(e) => {
+                      setTerminateForm({ ...terminateForm, blacklistReason: e.target.value });
+                      if (terminateErrors.blacklistReason) {
+                        setTerminateErrors({ ...terminateErrors, blacklistReason: undefined });
+                      }
+                    }}
+                    rows={3}
+                    required
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-primary-500 ${
+                      terminateErrors.blacklistReason
+                        ? 'border-red-500 focus:border-red-500'
+                        : 'border-neutral-200 focus:border-primary-500'
+                    }`}
+                    placeholder="Nhập lý do thêm vào blacklist..."
+                  />
+                  {terminateErrors.blacklistReason && (
+                    <p className="mt-1 text-sm text-red-500">{terminateErrors.blacklistReason}</p>
+                  )}
+                </div>
+              )}
+
               {/* Submit Button */}
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     setShowTerminateAssignmentModal(false);
-                    setTerminateForm({ terminationDate: "", terminationReason: "" });
+                    setTerminateForm({ terminationDate: "", terminationReason: "", addToBlacklist: false, blacklistReason: "" });
                     setTerminateErrors({});
                   }}
                   className="px-4 py-2 border border-neutral-200 rounded-lg text-neutral-700 hover:bg-neutral-50 transition-colors"
@@ -4279,7 +4493,11 @@ export default function ProjectDetailPage() {
                   Hủy
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleTerminateAssignment({ preventDefault: () => {} } as React.FormEvent);
+                  }}
                   disabled={submittingTerminate}
                   className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -4388,11 +4606,15 @@ export default function ProjectDetailPage() {
                   Quay lại
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleCancelAssignment({ preventDefault: () => {} } as React.FormEvent);
+                  }}
                   disabled={submittingCancel}
                   className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
                 >
-                  {submittingCancel ? "Đang hủy..." : "Xác nhận hủy"}
+                  {submittingCancel ? "Đang hủy..." : "Xác nhận"}
                 </button>
               </div>
             </form>
@@ -4573,6 +4795,25 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={hideConfirmDialog}
+        onConfirm={confirmModalConfig?.onConfirm || (() => {})}
+        title={confirmModalConfig?.title || ""}
+        message={confirmModalConfig?.message || ""}
+        confirmText={confirmModalConfig?.confirmText}
+        variant={confirmModalConfig?.variant}
+      />
+
+      {/* Success Toast */}
+      <SuccessToast
+        isOpen={showSuccessToast}
+        onClose={hideSuccessToast}
+        title={successToastConfig?.title || ""}
+        message={successToastConfig?.message}
+      />
     </div>
   );
 }

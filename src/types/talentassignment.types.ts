@@ -99,6 +99,8 @@ export interface TalentAssignmentExtendModel {
 export interface TalentAssignmentTerminateModel {
   terminationDate: string; // ISO string (required)
   terminationReason: string; // (required)
+  addToBlacklist?: boolean;
+  blacklistReason?: string | null;
 }
 
 // Model for UPDATE

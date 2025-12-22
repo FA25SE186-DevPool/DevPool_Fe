@@ -15,7 +15,6 @@ import {
   StickyNote,
   X,
   Ban,
-  Loader2,
   Eye,
   Download,
 } from "lucide-react";
@@ -116,7 +115,17 @@ const paymentStatusConfigMap: Record<
   },
 };
 
-const getContractStatusConfig = (status: string, userRole?: string) => {
+const getContractStatusConfig = (status: string, userRole?: string, isFinished?: boolean) => {
+  // Nếu contract đã hoàn thành, luôn hiển thị "Đã hoàn thành"
+  if (isFinished) {
+    return {
+      label: "Đã hoàn thành",
+      color: "text-emerald-800",
+      bgColor: "bg-emerald-50 border border-emerald-200",
+      icon: <CheckCircle className="w-4 h-4" />,
+    };
+  }
+
   // Nếu là Manager và status là Verified, hiển thị "Chờ duyệt"
   if (userRole === "Manager" && status === "Verified") {
     return {
@@ -126,7 +135,7 @@ const getContractStatusConfig = (status: string, userRole?: string) => {
       icon: <Clock className="w-4 h-4" />,
     };
   }
-  
+
   return (
     contractStatusConfigMap[status] ?? {
       label: status,
@@ -190,11 +199,29 @@ export default function PartnerContractDetailPage() {
 
   // Modal states
   const [showApproveContractModal, setShowApproveContractModal] = useState(false);
+  const [showApproveConfirmation, setShowApproveConfirmation] = useState(false);
   const [showRejectContractModal, setShowRejectContractModal] = useState(false);
+  const [showRejectConfirmation, setShowRejectConfirmation] = useState(false);
+
+  // Success message state
+  const [showSuccessMessage, setShowSuccessMessage] = useState<false | "approve" | "reject">(false);
 
   // Form states
   const [approveForm, setApproveForm] = useState<PartnerContractPaymentApproveModel>({ notes: null });
   const [rejectForm, setRejectForm] = useState<PartnerContractPaymentRejectModel>({ rejectionReason: "" });
+
+  // Rejection reason templates for Manager
+  const managerPartnerRejectionReasonTemplates = [
+    "Giá trị hợp đồng quá cao so với thị trường",
+    "Điều khoản thanh toán không phù hợp với chính sách công ty",
+    "Thời hạn hợp đồng không hợp lý",
+    "Thiếu thông tin về phạm vi công việc chi tiết",
+    "Yêu cầu kỹ năng không phù hợp với khả năng cung cấp",
+    "Hợp đồng vi phạm các quy định pháp lý",
+    "Cần thêm thời gian để đánh giá và xem xét",
+    "Không phù hợp với chiến lược kinh doanh hiện tại",
+    "Thông tin đối tác chưa đầy đủ hoặc chưa được xác minh"
+  ];
 
   // Processing state
   const [isProcessing, setIsProcessing] = useState(false);
@@ -348,10 +375,14 @@ export default function PartnerContractDetailPage() {
         notes: approveForm.notes || null,
       };
       await partnerContractPaymentService.approveContract(Number(id), payload);
+
+      // Hiển thị success message và tự động ẩn sau 3 giây
+      setShowSuccessMessage("approve");
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+
       await fetchData();
       setShowApproveContractModal(false);
-      setApproveForm({ notes: null });
-      alert("Duyệt hợp đồng thành công!");
+      setShowApproveConfirmation(false);
     } catch (err: unknown) {
       // Xử lý lỗi từ backend
       let errorMessage = "Không thể duyệt hợp đồng";
@@ -424,10 +455,13 @@ export default function PartnerContractDetailPage() {
         // Không throw error để không ảnh hưởng đến việc reject contract
       }
       
+      // Hiển thị success message và tự động ẩn sau 3 giây
+      setShowSuccessMessage("reject");
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+
       await fetchData();
       setShowRejectContractModal(false);
-      setRejectForm({ rejectionReason: "" });
-      alert("Từ chối hợp đồng thành công!");
+      setShowRejectConfirmation(false);
     } catch (err: unknown) {
       console.error("❌ Lỗi từ chối hợp đồng:", err);
       const errorMessage = err instanceof Error ? err.message : "Không thể từ chối hợp đồng";
@@ -475,7 +509,7 @@ export default function PartnerContractDetailPage() {
     );
   }
 
-  const contractStatusConfig = getContractStatusConfig(contractPayment.contractStatus, user?.role);
+  const contractStatusConfig = getContractStatusConfig(contractPayment.contractStatus, user?.role, contractPayment.isFinished);
   const paymentStatusConfig = getPaymentStatusConfig(contractPayment.paymentStatus);
 
   return (
@@ -504,21 +538,30 @@ export default function PartnerContractDetailPage() {
                 Thông tin chi tiết hợp đồng thanh toán đối tác
               </p>
               <div className="flex items-center gap-3 flex-wrap">
-                <div
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${contractStatusConfig.bgColor}`}
-                >
-                  {contractStatusConfig.icon}
-                  <span className={`text-sm font-medium ${contractStatusConfig.color}`}>
-                    {contractStatusConfig.label}
-                  </span>
-                </div>
-                <div
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${paymentStatusConfig.bgColor}`}
-                >
-                  <span className={`text-sm font-medium ${paymentStatusConfig.color}`}>
-                    {paymentStatusConfig.label}
-                  </span>
-                </div>
+                {contractPayment.isFinished ? (
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                    <CheckCircle className="w-4 h-4 text-emerald-600" />
+                    <span className="text-sm font-medium text-emerald-800">Đã hoàn thành</span>
+                  </div>
+                ) : (
+                  <>
+                    <div
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${contractStatusConfig.bgColor}`}
+                    >
+                      {contractStatusConfig.icon}
+                      <span className={`text-sm font-medium ${contractStatusConfig.color}`}>
+                        {contractStatusConfig.label}
+                      </span>
+                    </div>
+                    <div
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${paymentStatusConfig.bgColor}`}
+                    >
+                      <span className={`text-sm font-medium ${paymentStatusConfig.color}`}>
+                        {paymentStatusConfig.label}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             <div className="flex flex-col items-end gap-3">
@@ -598,6 +641,17 @@ export default function PartnerContractDetailPage() {
                 <FileText className="w-4 h-4" />
                 Tài liệu
               </button>
+              <button
+                onClick={() => setActiveMainTab("notes")}
+                className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
+                  activeMainTab === "notes"
+                    ? "border-primary-600 text-primary-600 bg-primary-50"
+                    : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
+                }`}
+              >
+                <StickyNote className="w-4 h-4" />
+                Ghi chú
+              </button>
             </div>
           </div>
 
@@ -622,24 +676,38 @@ export default function PartnerContractDetailPage() {
                   label="Số hợp đồng"
                   value={contractPayment.contractNumber}
                 />
-                <InfoItem
-                  icon={<FileText className="w-4 h-4" />}
-                  label="Trạng thái hợp đồng"
-                  value={
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${contractStatusConfig.bgColor} ${contractStatusConfig.color}`}>
-                      {contractStatusConfig.label}
-                    </span>
-                  }
-                />
-                <InfoItem
-                  icon={<FileText className="w-4 h-4" />}
-                  label="Trạng thái thanh toán"
-                  value={
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${paymentStatusConfig.bgColor} ${paymentStatusConfig.color}`}>
-                      {paymentStatusConfig.label}
-                    </span>
-                  }
-                />
+                {contractPayment.isFinished ? (
+                  <InfoItem
+                    icon={<CheckCircle className="w-4 h-4" />}
+                    label="Trạng thái"
+                    value={
+                      <span className="px-2 py-1 rounded text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        Đã hoàn thành
+                      </span>
+                    }
+                  />
+                ) : (
+                  <>
+                    <InfoItem
+                      icon={<FileText className="w-4 h-4" />}
+                      label="Trạng thái hợp đồng"
+                      value={
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${contractStatusConfig.bgColor} ${contractStatusConfig.color}`}>
+                          {contractStatusConfig.label}
+                        </span>
+                      }
+                    />
+                    <InfoItem
+                      icon={<FileText className="w-4 h-4" />}
+                      label="Trạng thái thanh toán"
+                      value={
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${paymentStatusConfig.bgColor} ${paymentStatusConfig.color}`}>
+                          {paymentStatusConfig.label}
+                        </span>
+                      }
+                    />
+                  </>
+                )}
                   </div>
                 </div>
 
@@ -811,25 +879,6 @@ export default function PartnerContractDetailPage() {
                 )}
                   </div>
 
-                  {contractPayment.rejectionReason && (
-                    <div className="mt-6 pt-6 border-t border-neutral-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <XCircle className="w-4 h-4 text-red-400" />
-                        <p className="text-sm font-medium text-red-600">Lý do từ chối</p>
-                      </div>
-                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.rejectionReason}</p>
-                    </div>
-                  )}
-
-                  {contractPayment.notes && (
-                    <div className="mt-6 pt-6 border-t border-neutral-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <StickyNote className="w-4 h-4 text-neutral-400" />
-                        <p className="text-sm font-medium text-neutral-600">Ghi chú</p>
-                      </div>
-                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.notes}</p>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -960,6 +1009,48 @@ export default function PartnerContractDetailPage() {
                 )}
               </div>
             )}
+
+            {/* Tab: Ghi chú */}
+            {activeMainTab === "notes" && (
+              <div className="space-y-6">
+                {/* Ghi chú hợp đồng */}
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-yellow-100 rounded-lg">
+                      <StickyNote className="w-5 h-5 text-yellow-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">Ghi chú hợp đồng</h3>
+                  </div>
+
+                  {contractPayment.notes ? (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.notes}</p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200 border-dashed">
+                      <StickyNote className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">Không có ghi chú nào</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Lý do từ chối (nếu có) */}
+                {contractPayment.rejectionReason && (
+                  <div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-red-100 rounded-lg">
+                        <XCircle className="w-5 h-5 text-red-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Lý do từ chối</h3>
+                    </div>
+
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.rejectionReason}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -999,11 +1090,119 @@ export default function PartnerContractDetailPage() {
                 Hủy
               </button>
               <button
-                onClick={handleApproveContract}
+                onClick={() => setShowApproveConfirmation(true)}
                 disabled={isProcessing}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
               >
-                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Duyệt"}
+                Duyệt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approve Confirmation Modal */}
+      {showApproveConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Xác nhận duyệt hợp đồng</h3>
+              <button
+                onClick={() => setShowApproveConfirmation(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-green-800 mb-2">
+                      Bạn có chắc chắn muốn duyệt hợp đồng đối tác này?
+                    </p>
+                    <div className="text-sm text-green-700 space-y-1">
+                      <p>• Hợp đồng sẽ chuyển sang trạng thái "Đã duyệt"</p>
+                      <p>• Hợp đồng sẽ sẵn sàng để bắt đầu thanh toán</p>
+                      <p>• Không thể hoàn tác hành động này</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600">
+                Hợp đồng đã được kiểm tra kỹ lưỡng và sẵn sàng để triển khai.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => setShowApproveConfirmation(false)}
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => {
+                  setShowApproveConfirmation(false);
+                  handleApproveContract();
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                Xác nhận duyệt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Confirmation Modal */}
+      {showRejectConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Xác nhận từ chối hợp đồng</h3>
+              <button
+                onClick={() => setShowRejectConfirmation(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-800 mb-2">
+                      Bạn có chắc chắn muốn từ chối hợp đồng này?
+                    </p>
+                    <div className="text-sm text-red-700 space-y-1">
+                      <p>• Hợp đồng sẽ quay về trạng thái "Nháp"</p>
+                      <p>• Tất cả tài liệu liên quan sẽ bị xóa</p>
+                      <p>• Lý do từ chối: <span className="font-medium">{rejectForm.rejectionReason}</span></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600">
+                Hành động này không thể hoàn tác. Hợp đồng sẽ cần được chỉnh sửa và gửi lại.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => setShowRejectConfirmation(false)}
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => {
+                  setShowRejectConfirmation(false);
+                  handleRejectContract();
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Xác nhận từ chối
               </button>
             </div>
           </div>
@@ -1013,7 +1212,7 @@ export default function PartnerContractDetailPage() {
       {/* Reject Contract Modal */}
       {showRejectContractModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Từ chối hợp đồng</h3>
               <button onClick={() => setShowRejectContractModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -1025,6 +1224,22 @@ export default function PartnerContractDetailPage() {
                 <label className="block text-sm font-medium mb-2">
                   Lý do từ chối <span className="text-red-500">*</span>
                 </label>
+                <div className="mb-3">
+                  <p className="text-xs text-gray-500 mb-2">Chọn lý do mẫu (click để điền tự động):</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {managerPartnerRejectionReasonTemplates.map((reason, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => setRejectForm({ ...rejectForm, rejectionReason: reason })}
+                        className="text-xs px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg border transition-colors text-left"
+                        title={reason}
+                      >
+                        {reason}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <textarea
                   value={rejectForm.rejectionReason}
                   onChange={(e) => setRejectForm({ ...rejectForm, rejectionReason: e.target.value })}
@@ -1045,11 +1260,43 @@ export default function PartnerContractDetailPage() {
                 Hủy
               </button>
               <button
-                onClick={handleRejectContract}
+                onClick={() => setShowRejectConfirmation(true)}
                 disabled={isProcessing || !rejectForm.rejectionReason.trim()}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
-                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Từ chối"}
+                Từ chối
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message Toast */}
+      {showSuccessMessage && (
+        <div className="fixed top-4 right-4 z-50 animate-slide-in">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 shadow-lg max-w-sm transform transition-all duration-300 ease-in-out">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-green-800">
+                  {showSuccessMessage === "approve" ? "Duyệt hợp đồng thành công!" :
+                   showSuccessMessage === "reject" ? "Đã từ chối hợp đồng thành công!" :
+                   "Thao tác thành công!"}
+                </p>
+                <p className="text-xs text-green-600 mt-1">
+                  {showSuccessMessage === "approve"
+                    ? "Hợp đồng đã được duyệt và chuyển sang trạng thái tiếp theo."
+                    : showSuccessMessage === "reject"
+                    ? "Hợp đồng đã được từ chối và quay về trạng thái nháp."
+                    : "Thao tác đã được thực hiện thành công."
+                  }
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSuccessMessage(false)}
+                className="text-green-400 hover:text-green-600"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>

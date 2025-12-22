@@ -234,7 +234,7 @@ const formatNumberWithoutTrailingZeros = (num: number): string => {
   
   // Nếu có phần thập phân, xử lý riêng
   // Dùng toFixed với độ chính xác cao để giữ lại tất cả chữ số
-  let str = num.toFixed(15);
+  const str = num.toFixed(15);
   
   // Tách phần nguyên và phần thập phân
   const parts = str.split('.');
@@ -319,17 +319,36 @@ export default function ClientContractDetailPage() {
   // Modal states
   const [showRequestMoreInfoModal, setShowRequestMoreInfoModal] = useState(false);
   const [showVerifyContractModal, setShowVerifyContractModal] = useState(false);
+  const [showVerifyConfirmation, setShowVerifyConfirmation] = useState(false);
   const [showRejectContractModal, setShowRejectContractModal] = useState(false);
   const [showStartBillingModal, setShowStartBillingModal] = useState(false);
+  const [showStartBillingConfirmation, setShowStartBillingConfirmation] = useState(false);
   const [showCreateInvoiceModal, setShowCreateInvoiceModal] = useState(false);
+  const [showCreateInvoiceConfirmation, setShowCreateInvoiceConfirmation] = useState(false);
   const [showRecordPaymentModal, setShowRecordPaymentModal] = useState(false);
+  const [showRecordPaymentConfirmation, setShowRecordPaymentConfirmation] = useState(false);
   const [showCalculationDetails, setShowCalculationDetails] = useState(false);
+  const [showRejectConfirmation, setShowRejectConfirmation] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState<false | "verify" | "request" | "reject" | "billing" | "invoice" | "payment">(false);
 
   // Form states
   const [verifyForm, setVerifyForm] = useState<VerifyContractModel>({ notes: null });
   const [rejectForm, setRejectForm] = useState<RejectContractModel>({ rejectionReason: "" });
   const [requestMoreInfoForm, setRequestMoreInfoForm] = useState<RequestMoreInformationModel>({ notes: null });
-  const [billingForm, setBillingForm] = useState<ClientContractPaymentCalculateModel>({ billableHours: 0, autoSyncToPartner: true, notes: null });
+
+  // Rejection reason templates
+  const rejectionReasonTemplates = [
+    "Thông tin hợp đồng không đầy đủ hoặc thiếu sót",
+    "Giá trị hợp đồng không hợp lý so với thị trường",
+    "Điều khoản thanh toán chưa rõ ràng hoặc không phù hợp",
+    "Thời hạn hợp đồng quá ngắn hoặc quá dài",
+    "Thiếu thông tin về phạm vi công việc",
+    "Yêu cầu về kỹ năng không phù hợp với dự án",
+    "Thiếu thông tin về đối tác hoặc nhà cung cấp",
+    "Hợp đồng vi phạm các quy định pháp lý",
+    "Cần bổ sung thông tin về bảo hiểm và rủi ro"
+  ];
+  const [billingForm, setBillingForm] = useState<ClientContractPaymentCalculateModel>({ billableHours: 0, autoSyncToPartner: true, notes: null, timesheetFileUrl: null });
   const [invoiceForm, setInvoiceForm] = useState<CreateInvoiceModel>({ invoiceNumber: "", invoiceDate: new Date().toISOString().split('T')[0], notes: null });
   const [paymentForm, setPaymentForm] = useState<RecordPaymentModel>({ receivedAmount: 0, paymentDate: new Date().toISOString().split('T')[0], notes: null });
   const [paymentDateError, setPaymentDateError] = useState<string | null>(null);
@@ -337,9 +356,15 @@ export default function ClientContractDetailPage() {
 
   // File states
   const [verifyContractFile, setVerifyContractFile] = useState<File | null>(null);
+  const [verifyContractFileError, setVerifyContractFileError] = useState<string | null>(null);
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
+  const [invoiceFileError, setInvoiceFileError] = useState<string | null>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptFileError, setReceiptFileError] = useState<string | null>(null);
   const [timesheetFile, setTimesheetFile] = useState<File | null>(null);
+
+  // File validation states
+  const [timesheetFileError, setTimesheetFileError] = useState<string | null>(null);
 
   // Loading states for actions
   const [isProcessing, setIsProcessing] = useState(false);
@@ -395,7 +420,7 @@ export default function ClientContractDetailPage() {
             excludeDeleted: true,
           });
           // Xử lý format dữ liệu trả về (có thể là array hoặc object có items)
-          const partnerPayments = Array.isArray(data) ? data : ((data as any)?.items || []);
+          const partnerPayments = Array.isArray(data) ? data : ((data as { items?: PartnerContractPaymentModel[] })?.items || []);
           if (partnerPayments && partnerPayments.length > 0) {
             setPartnerContractPayment(partnerPayments[0]);
           } else {
@@ -476,7 +501,7 @@ export default function ClientContractDetailPage() {
           typesMap.set(type.id, type);
         });
         setDocumentTypes(typesMap);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("❌ Lỗi tải loại tài liệu:", err);
       }
     };
@@ -494,12 +519,27 @@ export default function ClientContractDetailPage() {
         });
         const documents = Array.isArray(data) ? data : (data?.items || []);
         setClientDocuments(documents);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("❌ Lỗi tải tài liệu khách hàng:", err);
       }
     };
     loadClientDocuments();
   }, [id]);
+
+  // Refresh client documents
+  const refreshClientDocuments = async () => {
+    if (!id) return;
+    try {
+      const data = await clientDocumentService.getAll({
+        clientContractPaymentId: Number(id),
+        excludeDeleted: true,
+      });
+      const documents = Array.isArray(data) ? data : (data?.items || []);
+      setClientDocuments(documents);
+    } catch (err: unknown) {
+      console.error("❌ Lỗi tải lại tài liệu khách hàng:", err);
+    }
+  };
 
   // Refresh contract payment data
   const refreshContractPayment = async () => {
@@ -516,7 +556,7 @@ export default function ClientContractDetailPage() {
             talentAssignmentId: paymentData.talentAssignmentId,
             excludeDeleted: true,
           });
-          const partnerPayments = Array.isArray(data) ? data : ((data as any)?.items || []);
+          const partnerPayments = Array.isArray(data) ? data : ((data as { items?: PartnerContractPaymentModel[] })?.items || []);
           if (partnerPayments && partnerPayments.length > 0) {
             setPartnerContractPayment(partnerPayments[0]);
           } else {
@@ -537,12 +577,16 @@ export default function ClientContractDetailPage() {
     try {
       setIsProcessing(true);
       await clientContractPaymentService.requestMoreInformation(Number(id), requestMoreInfoForm);
-      alert("Đã yêu cầu thêm thông tin thành công!");
+
+      // Hiển thị success message và tự động ẩn sau 3 giây
+      setShowSuccessMessage("request");
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+
       await refreshContractPayment();
       setShowRequestMoreInfoModal(false);
       setRequestMoreInfoForm({ notes: null });
-    } catch (err: any) {
-      alert(err?.message || "Lỗi khi yêu cầu thêm thông tin");
+    } catch (err: unknown) {
+      alert((err as { message?: string })?.message || "Lỗi khi yêu cầu thêm thông tin");
     } finally {
       setIsProcessing(false);
     }
@@ -552,6 +596,10 @@ export default function ClientContractDetailPage() {
   const handleVerifyContract = async () => {
     if (!id || !contractPayment || !verifyContractFile) {
       alert("Vui lòng upload file hợp đồng chuẩn");
+      return;
+    }
+    if (verifyContractFileError) {
+      alert("Vui lòng chọn file hợp đồng chuẩn hợp lệ");
       return;
     }
     try {
@@ -590,20 +638,34 @@ export default function ClientContractDetailPage() {
 
       // Verify contract
       await clientContractPaymentService.verifyContract(Number(id), verifyForm);
-      alert("Xác minh hợp đồng thành công!");
+
+      // Hiển thị success message và tự động ẩn sau 3 giây
+      setShowSuccessMessage("verify");
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+
       await refreshContractPayment();
+      await refreshClientDocuments();
       setShowVerifyContractModal(false);
+      setShowVerifyConfirmation(false);
       setVerifyForm({ notes: null });
       setVerifyContractFile(null);
-    } catch (err: any) {
-      alert(err?.message || "Lỗi khi xác minh hợp đồng");
+      setVerifyContractFileError(null);
+    } catch (err: unknown) {
+      alert((err as { message?: string })?.message || "Lỗi khi xác minh hợp đồng");
+      // Đóng confirmation modal khi có lỗi
+      setShowVerifyConfirmation(false);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Handler: Reject Contract
-  const handleRejectContract = async () => {
+  // Handler: Show Reject Confirmation
+  const handleRejectContract = () => {
+    setShowRejectConfirmation(true);
+  };
+
+  // Handler: Confirm and Reject Contract
+  const handleRejectContractConfirm = async () => {
     if (!id || !contractPayment || !rejectForm.rejectionReason.trim()) {
       alert("Vui lòng nhập lý do từ chối");
       return;
@@ -713,12 +775,16 @@ export default function ClientContractDetailPage() {
         }
       }
       
-      alert("Đã từ chối hợp đồng thành công!");
+      // Hiển thị success message và tự động ẩn sau 3 giây
+      setShowSuccessMessage("reject");
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+
       await refreshContractPayment();
       setShowRejectContractModal(false);
+      setShowRejectConfirmation(false);
       setRejectForm({ rejectionReason: "" });
-    } catch (err: any) {
-      alert(err?.message || "Lỗi khi từ chối hợp đồng");
+    } catch (err: unknown) {
+      alert((err as { message?: string })?.message || "Lỗi khi từ chối hợp đồng");
     } finally {
       setIsProcessing(false);
     }
@@ -843,7 +909,7 @@ export default function ClientContractDetailPage() {
   // Handler: Start Billing
   const handleStartBilling = async () => {
     if (!id || !contractPayment || billingForm.billableHours <= 0) {
-      alert("Vui lòng nhập số giờ billable hợp lệ");
+      alert("Vui lòng nhập số giờ làm việc hợp lệ");
       return;
     }
     
@@ -867,13 +933,17 @@ export default function ClientContractDetailPage() {
       };
       await clientContractPaymentService.startBilling(Number(id), billingPayload);
       
-      alert("Ghi nhận giờ làm việc thành công!");
+      // Hiển thị success message và tự động ẩn sau 3 giây
+      setShowSuccessMessage("billing");
+      setTimeout(() => setShowSuccessMessage(false), 3000);
       await refreshContractPayment();
+      await refreshClientDocuments();
       setShowStartBillingModal(false);
-      setBillingForm({ billableHours: 0, autoSyncToPartner: true, notes: null });
+      setBillingForm({ billableHours: 0, autoSyncToPartner: true, notes: null, timesheetFileUrl: null });
       setTimesheetFile(null);
-    } catch (err: any) {
-      alert(err?.message || "Lỗi khi ghi nhận giờ làm việc");
+      setTimesheetFileError(null);
+    } catch (err: unknown) {
+      alert((err as { message?: string })?.message || "Lỗi khi ghi nhận giờ làm việc");
     } finally {
       setIsProcessing(false);
     }
@@ -943,7 +1013,7 @@ export default function ClientContractDetailPage() {
       }
 
       if (!invoiceCreated) {
-        throw new Error("Không thể tạo hóa đơn sau nhiều lần thử. Vui lòng thử lại sau.");
+        throw new Error("Không thể ghi nhận hóa đơn sau nhiều lần thử. Vui lòng thử lại sau.");
       }
 
       // Sau khi tạo invoice thành công, mới tạo document
@@ -968,17 +1038,25 @@ export default function ClientContractDetailPage() {
       };
       await clientDocumentService.create(documentPayload);
 
-      alert("Tạo hóa đơn thành công!");
+      // Đóng confirmation modal và hiển thị success message
+      setShowCreateInvoiceConfirmation(false);
+      setShowSuccessMessage("invoice");
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+
       await refreshContractPayment();
+      await refreshClientDocuments();
       setShowCreateInvoiceModal(false);
       setInvoiceForm({ invoiceNumber: "", invoiceDate: new Date().toISOString().split('T')[0], notes: null });
       setInvoiceFile(null);
+      setInvoiceFileError(null);
     } catch (err: unknown) {
-      console.error("❌ Lỗi khi tạo hóa đơn:", err);
-      const errorMessage = (err as { message?: string; response?: { data?: { message?: string } } })?.message || 
-                          (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 
-                          "Lỗi khi tạo hóa đơn";
+      console.error("❌ Lỗi khi ghi nhận hóa đơn:", err);
+      const errorMessage = (err as { message?: string; response?: { data?: { message?: string } } })?.message ||
+                          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+                          "Lỗi khi ghi nhận hóa đơn";
       alert(errorMessage);
+      // Đóng confirmation modal khi có lỗi
+      setShowCreateInvoiceConfirmation(false);
     } finally {
       setIsProcessing(false);
     }
@@ -1079,19 +1157,27 @@ export default function ClientContractDetailPage() {
       };
       await clientDocumentService.create(documentPayload);
       
-      alert("Ghi nhận thanh toán thành công!");
+      // Đóng confirmation modal và hiển thị success message
+      setShowRecordPaymentConfirmation(false);
+      setShowSuccessMessage("payment");
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+
       await refreshContractPayment();
+      await refreshClientDocuments();
       setShowRecordPaymentModal(false);
       setPaymentForm({ receivedAmount: 0, paymentDate: new Date().toISOString().split('T')[0], notes: null });
       setReceiptFile(null);
+      setReceiptFileError(null);
       setPaymentDateError(null);
       setPaymentAmountError(null);
     } catch (err: unknown) {
       console.error("❌ Lỗi khi ghi nhận thanh toán:", err);
-      const errorMessage = (err as { message?: string; response?: { data?: { message?: string } } })?.message || 
-                          (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 
+      const errorMessage = (err as { message?: string; response?: { data?: { message?: string } } })?.message ||
+                          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
                           "Lỗi khi ghi nhận thanh toán";
       alert(errorMessage);
+      // Đóng confirmation modal khi có lỗi
+      setShowRecordPaymentConfirmation(false);
     } finally {
       setIsProcessing(false);
     }
@@ -1164,26 +1250,29 @@ export default function ClientContractDetailPage() {
                 Thông tin chi tiết hợp đồng thanh toán khách hàng
               </p>
               <div className="flex items-center gap-3 flex-wrap">
-                <div
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${contractStatusConfig.bgColor}`}
-                >
-                  {contractStatusConfig.icon}
-                  <span className={`text-sm font-medium ${contractStatusConfig.color}`}>
-                    {contractStatusConfig.label}
-                  </span>
-                </div>
-                <div
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${paymentStatusConfig.bgColor}`}
-                >
-                  <span className={`text-sm font-medium ${paymentStatusConfig.color}`}>
-                    {paymentStatusConfig.label}
-                  </span>
-                </div>
-                {contractPayment.isFinished && (
+                {contractPayment.isFinished ? (
                   <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 border border-green-200">
                     <CheckCircle className="w-4 h-4 text-green-600" />
                     <span className="text-sm font-medium text-green-800">Đã hoàn thành</span>
                   </div>
+                ) : (
+                  <>
+                    <div
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${contractStatusConfig.bgColor}`}
+                    >
+                      {contractStatusConfig.icon}
+                      <span className={`text-sm font-medium ${contractStatusConfig.color}`}>
+                        {contractStatusConfig.label}
+                      </span>
+                    </div>
+                    <div
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${paymentStatusConfig.bgColor}`}
+                    >
+                      <span className={`text-sm font-medium ${paymentStatusConfig.color}`}>
+                        {paymentStatusConfig.label}
+                      </span>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -1302,6 +1391,17 @@ export default function ClientContractDetailPage() {
                 <FileText className="w-4 h-4" />
                 Tài liệu
               </button>
+              <button
+                onClick={() => setActiveMainTab("notes")}
+                className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
+                  activeMainTab === "notes"
+                    ? "border-primary-600 text-primary-600 bg-primary-50"
+                    : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
+                }`}
+              >
+                <StickyNote className="w-4 h-4" />
+                Ghi chú
+              </button>
             </div>
           </div>
 
@@ -1326,34 +1426,37 @@ export default function ClientContractDetailPage() {
                   label="Số hợp đồng"
                   value={contractPayment.contractNumber}
                 />
-                <InfoItem
-                  icon={<FileText className="w-4 h-4" />}
-                  label="Trạng thái hợp đồng"
-                  value={
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${contractStatusConfig.bgColor} ${contractStatusConfig.color}`}>
-                      {contractStatusConfig.label}
-                    </span>
-                  }
-                />
-                <InfoItem
-                  icon={<FileText className="w-4 h-4" />}
-                  label="Trạng thái thanh toán"
-                  value={
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${paymentStatusConfig.bgColor} ${paymentStatusConfig.color}`}>
-                      {paymentStatusConfig.label}
-                    </span>
-                  }
-                />
-                {contractPayment.isFinished && (
+                {contractPayment.isFinished ? (
                   <InfoItem
                     icon={<CheckCircle className="w-4 h-4" />}
-                    label="Trạng thái hoàn thành"
+                    label="Trạng thái"
                     value={
                       <span className="px-2 py-1 rounded text-xs font-medium bg-green-50 text-green-800 border border-green-200">
                         Đã hoàn thành
                       </span>
                     }
                   />
+                ) : (
+                  <>
+                    <InfoItem
+                      icon={<FileText className="w-4 h-4" />}
+                      label="Trạng thái hợp đồng"
+                      value={
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${contractStatusConfig.bgColor} ${contractStatusConfig.color}`}>
+                          {contractStatusConfig.label}
+                        </span>
+                      }
+                    />
+                    <InfoItem
+                      icon={<FileText className="w-4 h-4" />}
+                      label="Trạng thái thanh toán"
+                      value={
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${paymentStatusConfig.bgColor} ${paymentStatusConfig.color}`}>
+                          {paymentStatusConfig.label}
+                        </span>
+                      }
+                    />
+                  </>
                 )}
                 <InfoItem
                   icon={<Calendar className="w-4 h-4" />}
@@ -1572,25 +1675,7 @@ export default function ClientContractDetailPage() {
                     </div>
                   )}
 
-                  {contractPayment.rejectionReason && (
-                    <div className="mt-6 pt-6 border-t border-neutral-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <XCircle className="w-4 h-4 text-red-400" />
-                        <p className="text-sm font-medium text-red-600">Lý do từ chối</p>
-                      </div>
-                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.rejectionReason}</p>
-                    </div>
-                  )}
 
-                  {contractPayment.notes && (
-                    <div className="mt-6 pt-6 border-t border-neutral-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <StickyNote className="w-4 h-4 text-neutral-400" />
-                        <p className="text-sm font-medium text-neutral-600">Ghi chú</p>
-                      </div>
-                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.notes}</p>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -1721,6 +1806,48 @@ export default function ClientContractDetailPage() {
                 )}
               </div>
             )}
+
+            {/* Tab: Ghi chú */}
+            {activeMainTab === "notes" && (
+              <div className="space-y-6">
+                {/* Ghi chú hợp đồng */}
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-yellow-100 rounded-lg">
+                      <StickyNote className="w-5 h-5 text-yellow-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">Ghi chú hợp đồng</h3>
+                  </div>
+
+                  {contractPayment.notes ? (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.notes}</p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200 border-dashed">
+                      <StickyNote className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">Không có ghi chú nào</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Lý do từ chối (nếu có) */}
+                {contractPayment.rejectionReason && (
+                  <div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-red-100 rounded-lg">
+                        <XCircle className="w-5 h-5 text-red-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Lý do từ chối</h3>
+                    </div>
+
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.rejectionReason}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1754,6 +1881,7 @@ export default function ClientContractDetailPage() {
                 onClick={() => {
                   setShowRequestMoreInfoModal(false);
                   setRequestMoreInfoForm({ notes: null });
+                  setShowSuccessMessage(false);
                 }}
                 className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
               >
@@ -1786,10 +1914,42 @@ export default function ClientContractDetailPage() {
                 <label className="block text-sm font-medium mb-2">File hợp đồng chuẩn <span className="text-red-500">*</span></label>
                 <input
                   type="file"
-                  accept=".pdf,.doc,.docx"
-                  onChange={(e) => setVerifyContractFile(e.target.files?.[0] || null)}
-                  className="w-full border rounded-lg p-2"
+                  accept=".pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (file) {
+                      // Validate file size (max 10MB)
+                      const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+                      if (file.size > maxSize) {
+                        setVerifyContractFileError(`Kích thước file không được vượt quá 10MB. File hiện tại: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+                        setVerifyContractFile(null);
+                        return;
+                      }
+                      // Validate file extension
+                      const allowedExtensions = ['.pdf'];
+                      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+                      if (!allowedExtensions.includes(fileExtension)) {
+                        setVerifyContractFileError('Chỉ chấp nhận file PDF');
+                        setVerifyContractFile(null);
+                        return;
+                      }
+                    }
+                    setVerifyContractFileError(null);
+                    setVerifyContractFile(file);
+                  }}
+                  className={`w-full border rounded-lg p-2 ${verifyContractFileError ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  Định dạng được phép: PDF. Kích thước tối đa: 10MB
+                </p>
+                {verifyContractFileError && (
+                  <p className="mt-1 text-xs text-red-600">{verifyContractFileError}</p>
+                )}
+                {verifyContractFile && !verifyContractFileError && (
+                  <p className="mt-1 text-xs text-green-600">
+                    File đã chọn: {verifyContractFile.name} ({(verifyContractFile.size / 1024 / 1024).toFixed(2)}MB)
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Ghi chú</label>
@@ -1807,17 +1967,18 @@ export default function ClientContractDetailPage() {
                   setShowVerifyContractModal(false);
                   setVerifyForm({ notes: null });
                   setVerifyContractFile(null);
+                  setVerifyContractFileError(null);
                 }}
                 className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
               >
                 Hủy
               </button>
               <button
-                onClick={handleVerifyContract}
-                disabled={isProcessing || !verifyContractFile}
+                onClick={() => setShowVerifyConfirmation(true)}
+                disabled={isProcessing || !verifyContractFile || !!verifyContractFileError}
                 className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
               >
-                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Xác minh"}
+                Xác minh
               </button>
             </div>
           </div>
@@ -1827,7 +1988,7 @@ export default function ClientContractDetailPage() {
       {/* Reject Contract Modal */}
       {showRejectContractModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Từ chối hợp đồng</h3>
               <button onClick={() => setShowRejectContractModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -1837,6 +1998,22 @@ export default function ClientContractDetailPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Lý do từ chối <span className="text-red-500">*</span></label>
+                <div className="mb-3">
+                  <p className="text-xs text-gray-500 mb-2">Chọn lý do mẫu (click để điền tự động):</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {rejectionReasonTemplates.map((reason, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => setRejectForm({ ...rejectForm, rejectionReason: reason })}
+                        className="text-xs px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg border transition-colors text-left"
+                        title={reason}
+                      >
+                        {reason}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <textarea
                   value={rejectForm.rejectionReason}
                   onChange={(e) => setRejectForm({ ...rejectForm, rejectionReason: e.target.value })}
@@ -1850,7 +2027,9 @@ export default function ClientContractDetailPage() {
               <button
                 onClick={() => {
                   setShowRejectContractModal(false);
+                  setShowRejectConfirmation(false);
                   setRejectForm({ rejectionReason: "" });
+                  setShowSuccessMessage(false);
                 }}
                 className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
               >
@@ -1861,7 +2040,64 @@ export default function ClientContractDetailPage() {
                 disabled={isProcessing || !rejectForm.rejectionReason.trim()}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
-                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Từ chối"}
+                Từ chối
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Start Billing Confirmation Modal */}
+      {showStartBillingConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Xác nhận ghi nhận giờ làm việc</h3>
+              <button
+                onClick={() => setShowStartBillingConfirmation(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Calculator className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-800 mb-2">
+                      Bạn có chắc chắn muốn ghi nhận giờ làm việc này?
+                    </p>
+                    <div className="text-sm text-blue-700 space-y-1">
+                      <p>• Số giờ làm việc: <span className="font-medium">{billingForm.billableHours}h</span></p>
+                      <p>• File Timesheet: <span className="font-medium">{timesheetFile?.name}</span></p>
+                      <p>• <span className="font-medium">Sẽ đồng bộ tự động đến hợp đồng đối tác</span></p>
+                      {calculateBillingPreview() && (
+                        <p>• Tổng thanh toán: <span className="font-medium">{formatNumberVi(calculateBillingPreview()?.actualAmountVND ?? 0)} VND</span></p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600">
+                Hành động này sẽ bắt đầu quy trình thanh toán cho hợp đồng này.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => setShowStartBillingConfirmation(false)}
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => {
+                  setShowStartBillingConfirmation(false);
+                  handleStartBilling();
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Xác nhận ghi nhận
               </button>
             </div>
           </div>
@@ -1887,7 +2123,7 @@ export default function ClientContractDetailPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Số giờ billable <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium mb-2">Số giờ làm việc thực tế <span className="text-red-500">*</span></label>
                   <input
                     type="number"
                     step="0.01"
@@ -1898,9 +2134,20 @@ export default function ClientContractDetailPage() {
                       // Reset calculation details khi thay đổi số giờ
                       setShowCalculationDetails(false);
                     }}
-                    className="w-full border rounded-lg p-2"
+                    className={`w-full border rounded-lg p-2 ${
+                      (billingForm.billableHours >= 1 && billingForm.billableHours <= 60) ||
+                      (billingForm.billableHours >= 220)
+                        ? 'border-yellow-400 bg-yellow-50'
+                        : ''
+                    }`}
                     required
                   />
+                  {((billingForm.billableHours >= 1 && billingForm.billableHours <= 60) ||
+                    (billingForm.billableHours >= 220)) && (
+                    <p className="mt-1 text-xs text-yellow-600">
+                      ⚠️ Số giờ làm việc hơi chênh lệch, hãy kiểm tra lại và chắc chắn đã nhập đúng
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Phương pháp tính</label>
@@ -1923,33 +2170,43 @@ export default function ClientContractDetailPage() {
                 />
               </div>
               <div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={billingForm.autoSyncToPartner ?? true}
-                    onChange={(e) => setBillingForm({ ...billingForm, autoSyncToPartner: e.target.checked })}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm font-medium">Tự động đồng bộ đến hợp đồng đối tác</span>
-                </label>
-                <p className="text-xs text-gray-500 mt-1 ml-6">
-                  Khi bật, file timesheet sẽ được upload tự động đến hợp đồng đối tác tương ứng
-                </p>
-              </div>
-              <div>
                 <label className="block text-sm font-medium mb-2">
                   File Timesheet <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="file"
-                  onChange={(e) => setTimesheetFile(e.target.files?.[0] || null)}
-                  className="w-full border rounded-lg p-2"
-                  accept=".xlsx,.xls,.csv"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (file) {
+                      // Validate file size (max 10MB)
+                      const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+                      if (file.size > maxSize) {
+                        setTimesheetFileError(`Kích thước file không được vượt quá 10MB. File hiện tại: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+                        setTimesheetFile(null);
+                        return;
+                      }
+                      // Validate file extension
+                      const allowedExtensions = ['.pdf', '.xlsx'];
+                      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+                      if (!allowedExtensions.includes(fileExtension)) {
+                        setTimesheetFileError('Chỉ chấp nhận file PDF hoặc XLSX');
+                        setTimesheetFile(null);
+                        return;
+                      }
+                    }
+                    setTimesheetFileError(null);
+                    setTimesheetFile(file);
+                  }}
+                  className={`w-full border rounded-lg p-2 ${timesheetFileError ? 'border-red-500' : ''}`}
+                  accept=".pdf,.xlsx"
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Vui lòng upload file Timesheet (Excel/CSV) cho việc tính toán thanh toán
+                  Định dạng được phép: PDF, XLSX. Kích thước tối đa: 10MB
                 </p>
+                {timesheetFileError && (
+                  <p className="mt-1 text-xs text-red-600">{timesheetFileError}</p>
+                )}
               </div>
 
               {/* Preview tính toán */}
@@ -2043,8 +2300,9 @@ export default function ClientContractDetailPage() {
               <button
                 onClick={() => {
                   setShowStartBillingModal(false);
-                  setBillingForm({ billableHours: 0, autoSyncToPartner: true, notes: null });
+                  setBillingForm({ billableHours: 0, autoSyncToPartner: true, notes: null, timesheetFileUrl: null });
                   setTimesheetFile(null);
+                  setTimesheetFileError(null);
                   setShowCalculationDetails(false);
                 }}
                 className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
@@ -2052,11 +2310,11 @@ export default function ClientContractDetailPage() {
                 Hủy
               </button>
               <button
-                onClick={handleStartBilling}
-                disabled={isProcessing || billingForm.billableHours <= 0 || !timesheetFile}
+                onClick={() => setShowStartBillingConfirmation(true)}
+                disabled={isProcessing || billingForm.billableHours <= 0 || !timesheetFile || !!timesheetFileError}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ghi nhận giờ làm việc"}
+                Ghi nhận giờ làm việc
               </button>
             </div>
           </div>
@@ -2068,7 +2326,7 @@ export default function ClientContractDetailPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Tạo hóa đơn</h3>
+              <h3 className="text-lg font-semibold">Ghi nhận hóa đơn</h3>
               <button onClick={() => setShowCreateInvoiceModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
@@ -2107,10 +2365,37 @@ export default function ClientContractDetailPage() {
                 <label className="block text-sm font-medium mb-2">File hóa đơn <span className="text-red-500">*</span></label>
                 <input
                   type="file"
-                  accept=".pdf,.doc,.docx"
-                  onChange={(e) => setInvoiceFile(e.target.files?.[0] || null)}
-                  className="w-full border rounded-lg p-2"
+                  accept=".pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (file) {
+                      // Validate file size (max 5MB)
+                      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+                      if (file.size > maxSize) {
+                        setInvoiceFileError(`Kích thước file không được vượt quá 5MB. File hiện tại: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+                        setInvoiceFile(null);
+                        return;
+                      }
+                      // Validate file extension
+                      const allowedExtensions = ['.pdf'];
+                      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+                      if (!allowedExtensions.includes(fileExtension)) {
+                        setInvoiceFileError('Chỉ chấp nhận file PDF');
+                        setInvoiceFile(null);
+                        return;
+                      }
+                    }
+                    setInvoiceFileError(null);
+                    setInvoiceFile(file);
+                  }}
+                  className={`w-full border rounded-lg p-2 ${invoiceFileError ? 'border-red-500' : ''}`}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Định dạng được phép: PDF. Kích thước tối đa: 5MB
+                </p>
+                {invoiceFileError && (
+                  <p className="mt-1 text-xs text-red-600">{invoiceFileError}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Ghi chú</label>
@@ -2128,17 +2413,79 @@ export default function ClientContractDetailPage() {
                   setShowCreateInvoiceModal(false);
                   setInvoiceForm({ invoiceNumber: "", invoiceDate: new Date().toISOString().split('T')[0], notes: null });
                   setInvoiceFile(null);
+                  setInvoiceFileError(null);
                 }}
                 className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
               >
                 Hủy
               </button>
               <button
-                onClick={handleCreateInvoice}
-                disabled={isProcessing || !invoiceFile || !invoiceForm.invoiceNumber.trim()}
+                onClick={() => setShowCreateInvoiceConfirmation(true)}
+                disabled={isProcessing || !invoiceFile || !invoiceForm.invoiceNumber.trim() || !!invoiceFileError}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
               >
-                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Tạo hóa đơn"}
+                Ghi nhận hóa đơn
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Invoice Confirmation Modal */}
+      {showCreateInvoiceConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Xác nhận ghi nhận hóa đơn</h3>
+              <button
+                onClick={() => setShowCreateInvoiceConfirmation(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <FileText className="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-indigo-800 mb-2">
+                      Bạn có chắc chắn muốn ghi nhận hóa đơn này?
+                    </p>
+                    <div className="text-sm text-indigo-700 space-y-1">
+                      <p>• Số hóa đơn: <span className="font-medium">{invoiceForm.invoiceNumber}</span></p>
+                      <p>• Ngày hóa đơn: <span className="font-medium">{invoiceForm.invoiceDate}</span></p>
+                      <p>• File hóa đơn: <span className="font-medium">{invoiceFile?.name}</span></p>
+                      <p>• Tổng tiền: <span className="font-medium">{formatCurrency(contractPayment?.actualAmountVND || 0)}</span></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600">
+                Hóa đơn sẽ được tạo và lưu trữ trong hệ thống.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => setShowCreateInvoiceConfirmation(false)}
+                disabled={isProcessing}
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => handleCreateInvoice()}
+                disabled={isProcessing}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Đang xử lý...
+                  </>
+                ) : (
+                  "Xác nhận ghi nhận"
+                )}
               </button>
             </div>
           </div>
@@ -2295,11 +2642,38 @@ export default function ClientContractDetailPage() {
                 </label>
                 <input
                   type="file"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                  onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
-                  className="w-full border rounded-lg p-2"
+                  accept=".pdf,.jpg,.png"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (file) {
+                      // Validate file size (max 5MB)
+                      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+                      if (file.size > maxSize) {
+                        setReceiptFileError(`Kích thước file không được vượt quá 5MB. File hiện tại: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+                        setReceiptFile(null);
+                        return;
+                      }
+                      // Validate file extension
+                      const allowedExtensions = ['.pdf', '.jpg', '.png'];
+                      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+                      if (!allowedExtensions.includes(fileExtension)) {
+                        setReceiptFileError('Chỉ chấp nhận file PDF, JPG hoặc PNG');
+                        setReceiptFile(null);
+                        return;
+                      }
+                    }
+                    setReceiptFileError(null);
+                    setReceiptFile(file);
+                  }}
+                  className={`w-full border rounded-lg p-2 ${receiptFileError ? 'border-red-500' : ''}`}
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Định dạng được phép: PDF, JPG, PNG. Kích thước tối đa: 5MB
+                </p>
+                {receiptFileError && (
+                  <p className="mt-1 text-xs text-red-600">{receiptFileError}</p>
+                )}
                 {receiptFile && (
                   <p className="text-sm text-gray-600 mt-1">Đã chọn: {receiptFile.name}</p>
                 )}
@@ -2320,6 +2694,7 @@ export default function ClientContractDetailPage() {
                   setShowRecordPaymentModal(false);
                   setPaymentForm({ receivedAmount: 0, paymentDate: new Date().toISOString().split('T')[0], notes: null });
                   setReceiptFile(null);
+                  setReceiptFileError(null);
                   setPaymentDateError(null);
                   setPaymentAmountError(null);
                 }}
@@ -2328,17 +2703,238 @@ export default function ClientContractDetailPage() {
                 Hủy
               </button>
               <button
-                onClick={handleRecordPayment}
+                onClick={() => setShowRecordPaymentConfirmation(true)}
                 disabled={
-                  isProcessing || 
-                  paymentForm.receivedAmount <= 0 || 
+                  isProcessing ||
+                  paymentForm.receivedAmount <= 0 ||
                   !receiptFile ||
+                  !!receiptFileError ||
                   (contractPayment?.paymentStatus === "Invoiced" && paymentForm.receivedAmount > (contractPayment.actualAmountVND || 0)) ||
                   (contractPayment?.paymentStatus === "PartiallyPaid" && paymentForm.receivedAmount > ((contractPayment.actualAmountVND || 0) - (contractPayment.totalPaidAmount || 0)))
                 }
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
               >
-                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ghi nhận"}
+                Ghi nhận
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Record Payment Confirmation Modal */}
+      {showRecordPaymentConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Xác nhận ghi nhận thanh toán</h3>
+              <button
+                onClick={() => setShowRecordPaymentConfirmation(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <CreditCard className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-green-800 mb-2">
+                      Bạn có chắc chắn muốn ghi nhận thanh toán này?
+                    </p>
+                    <div className="text-sm text-green-700 space-y-1">
+                      <p>• Số tiền thanh toán: <span className="font-medium">{formatCurrency(paymentForm.receivedAmount)}</span></p>
+                      <p>• Ngày thanh toán: <span className="font-medium">{paymentForm.paymentDate}</span></p>
+                      <p>• File biên lai: <span className="font-medium">{receiptFile?.name}</span></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600">
+                Thanh toán sẽ được ghi nhận và cập nhật trạng thái hợp đồng.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => setShowRecordPaymentConfirmation(false)}
+                disabled={isProcessing}
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => handleRecordPayment()}
+                disabled={isProcessing}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Đang xử lý...
+                  </>
+                ) : (
+                  "Xác nhận thanh toán"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verify Confirmation Modal */}
+      {showVerifyConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Xác nhận xác minh hợp đồng</h3>
+              <button
+                onClick={() => setShowVerifyConfirmation(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-green-800 mb-2">
+                      Bạn có chắc chắn muốn xác minh hợp đồng này?
+                    </p>
+                    <div className="text-sm text-green-700 space-y-1">
+                      <p>• Hợp đồng sẽ chuyển sang trạng thái "Đã duyệt"</p>
+                      <p>• Hợp đồng sẽ sẵn sàng để bắt đầu thanh toán</p>
+                      <p>• Bạn cần upload file hợp đồng chuẩn để xác minh</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600">
+                Sau khi xác minh, hợp đồng sẽ được chuyển cho bước tiếp theo trong quy trình.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => {
+                  setShowVerifyConfirmation(false);
+                  setShowVerifyContractModal(false);
+                  setVerifyForm({ notes: null });
+                  setVerifyContractFile(null);
+                  setVerifyContractFileError(null);
+                }}
+                disabled={isProcessing}
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => handleVerifyContract()}
+                disabled={isProcessing}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Đang xử lý...
+                  </>
+                ) : (
+                  "Xác nhận xác minh"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Confirmation Modal */}
+      {showRejectConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Xác nhận từ chối hợp đồng</h3>
+              <button
+                onClick={() => setShowRejectConfirmation(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-800 mb-2">
+                      Bạn có chắc chắn muốn từ chối hợp đồng này?
+                    </p>
+                    <div className="text-sm text-red-700 space-y-1">
+                      <p>• Hợp đồng sẽ quay về trạng thái "Nháp"</p>
+                      <p>• Tất cả tài liệu liên quan sẽ bị xóa</p>
+                      <p>• Hợp đồng đối tác (nếu có) cũng sẽ bị từ chối</p>
+                      <p>• Lý do từ chối: <span className="font-medium">{rejectForm.rejectionReason}</span></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600">
+                Hành động này không thể hoàn tác. Hợp đồng sẽ cần được chỉnh sửa và gửi lại.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => setShowRejectConfirmation(false)}
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleRejectContractConfirm}
+                disabled={isProcessing}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Xác nhận từ chối"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message Toast */}
+      {showSuccessMessage && (
+        <div className="fixed top-4 right-4 z-50 animate-slide-in">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 shadow-lg max-w-sm transform transition-all duration-300 ease-in-out">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-green-800">
+                  {showSuccessMessage === "verify" ? "Xác minh hợp đồng thành công!" :
+                   showSuccessMessage === "reject" ? "Đã từ chối hợp đồng thành công!" :
+                   showSuccessMessage === "billing" ? "Ghi nhận giờ làm việc thành công!" :
+                   showSuccessMessage === "invoice" ? "Ghi nhận hóa đơn thành công!" :
+                   showSuccessMessage === "payment" ? "Ghi nhận thanh toán thành công!" :
+                   "Đã yêu cầu thêm thông tin thành công!"}
+                </p>
+                <p className="text-xs text-green-600 mt-1">
+                  {showSuccessMessage === "verify"
+                    ? "Hợp đồng đã được xác minh và chuyển sang trạng thái chờ duyệt."
+                    : showSuccessMessage === "reject"
+                    ? "Hợp đồng đã được từ chối và quay về trạng thái nháp."
+                    : showSuccessMessage === "billing"
+                    ? "Đã ghi nhận giờ làm việc và bắt đầu quy trình thanh toán."
+                    : showSuccessMessage === "invoice"
+                    ? "Hóa đơn đã được ghi nhận và lưu trữ trong hệ thống."
+                    : showSuccessMessage === "payment"
+                    ? "Thanh toán đã được ghi nhận và cập nhật trạng thái hợp đồng."
+                    : "Hợp đồng đã được chuyển về trạng thái 'Cần thêm thông tin'."
+                  }
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSuccessMessage(false)}
+                className="text-green-400 hover:text-green-600"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>

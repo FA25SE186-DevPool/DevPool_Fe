@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { Search, Filter, Plus, Shield, ShieldCheck, MoreVertical, UserRound, Trash2, Mail, Phone, CheckCircle2, XCircle } from "lucide-react";
+import { Search, Filter, Plus, Shield, ShieldCheck, MoreVertical, UserRound, Mail, Phone, CheckCircle2, XCircle, Ban, UserCheck } from "lucide-react";
 import { sidebarItems } from "../../../components/sidebar/admin";
 import Sidebar from "../../../components/common/Sidebar";
-import { userService, type User, type UserFilter } from "../../../services/User";
-import { authService, type UserProvisionPayload } from "../../../services/Auth";
+import { userService, type User, type UserFilter, type PagedResult } from "../../../services/User";
+import { authService, type UserProvisionPayload } from "../../../services/Auth";        
+import ConfirmModal from "../../../components/ui/confirm-modal";
+import SuccessToast from "../../../components/ui/success-toast";
 
 // ------ Types ------
 export type StaffRole =
@@ -54,11 +56,26 @@ export default function StaffManagementPage() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<"All" | StaffRole>("All");
-  const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Inactive">("All");
+  const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Inactive">("Active");
   const [showFilters, setShowFilters] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState<null | UserRow>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+
+  // Modal states
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText: string;
+    variant: 'danger' | 'warning' | 'info';
+    onConfirm: () => void;
+  } | null>(null);
+  const [successToast, setSuccessToast] = useState<{
+    isOpen: boolean;
+    title: string;
+    message?: string;
+  } | null>(null);
 
   // Fetch users from API
   const fetchUsers = async () => {
@@ -69,16 +86,45 @@ export default function StaffManagementPage() {
       const filter: UserFilter = {
         name: query || undefined,
         role: roleFilter === "All" ? undefined : roleFilter,
-        isActive: statusFilter === "All" ? undefined : statusFilter === "Active",
-        excludeDeleted: true,
-        // Bỏ pagination - lấy tất cả users
+        isActive: statusFilter === "Inactive" ? undefined : (statusFilter === "All" ? undefined : statusFilter === "Active"),
+        excludeDeleted: false, // Always get all users, filter client-side
+        pageNumber: page,
+        pageSize: pageSize,
       };
 
+      console.log('Filter params:', filter);
       const result = await userService.getAll(filter);
-      // Lọc bỏ Admin khỏi danh sách
-      const filteredItems = result.items.filter((user: User) =>
+      console.log('Raw API result:', result.items);
+
+      // Lọc bỏ Admin khỏi danh sách và lọc theo status
+      let filteredItems = result.items.filter((user: User) =>
         !user.roles.includes("Admin")
       );
+      console.log('After admin filter:', filteredItems);
+
+      // Lọc theo status filter
+      if (statusFilter === "Active") {
+        console.log('Filtering for Active users...');
+        filteredItems = filteredItems.filter((user: User) => {
+          console.log(`User ${user.email}: isDeleted = ${user.isDeleted}`);
+          return !user.isDeleted;
+        });
+        console.log('After active filter:', filteredItems);
+      } else if (statusFilter === "Inactive") {
+        console.log('Filtering for Inactive users...');
+        filteredItems = filteredItems.filter((user: User) => {
+          console.log(`User ${user.email}: isDeleted = ${user.isDeleted}`);
+          return user.isDeleted;
+        });
+        console.log('After inactive filter:', filteredItems);
+      }
+
+      setPagination({
+        ...result,
+        items: filteredItems,
+        totalCount: filteredItems.length,
+      });
+
       setUsers(filteredItems.map(convertToUserRow));
     } catch (err: any) {
       console.error("❌ Lỗi khi tải danh sách người dùng:", err);
@@ -92,6 +138,7 @@ export default function StaffManagementPage() {
   useEffect(() => {
     fetchUsers();
   }, [query, roleFilter, statusFilter]);
+
 
   // Debounced search
   useEffect(() => {
@@ -107,23 +154,71 @@ export default function StaffManagementPage() {
 
 
 
-  async function removeUsers(ids: string[]) {
+  async function banUser(user: UserRow) {
     try {
-      if (!confirm(`Bạn có chắc muốn xóa ${ids.length} người dùng?`)) {
-        return;
-      }
-
-      // Delete each user individually
-      for (const id of ids) {
-        await userService.delete(id);
-      }
-      
-      // Refresh the user list
-      await fetchUsers();
+      await userService.ban(user.id);
+      await fetchUsers(currentPage);
+      setSuccessToast({
+        isOpen: true,
+        title: "Cấm người dùng thành công",
+        message: `Đã cấm người dùng ${user.fullName}`
+      });
     } catch (err: any) {
-      console.error("❌ Lỗi khi xóa người dùng:", err);
-      alert("Không thể xóa người dùng. Vui lòng thử lại.");
+      console.error("❌ Lỗi khi cấm người dùng:", err);
+      setSuccessToast({
+        isOpen: true,
+        title: "Lỗi khi cấm người dùng",
+        message: err.message || "Vui lòng thử lại"
+      });
     }
+  }
+
+  async function unbanUser(user: UserRow) {
+    try {
+      await userService.unban(user.id);
+      await fetchUsers(currentPage);
+      setSuccessToast({
+        isOpen: true,
+        title: "Gỡ cấm người dùng thành công",
+        message: `Đã gỡ cấm người dùng ${user.fullName}`
+      });
+
+    } catch (err: any) {
+      console.error("❌ Lỗi khi gỡ cấm người dùng:", err);
+      setSuccessToast({
+        isOpen: true,
+        title: "Lỗi khi gỡ cấm người dùng",
+        message: err.message || "Vui lòng thử lại"
+      });
+    }
+  }
+
+  function handleBanUser(user: UserRow) {
+    setConfirmModal({
+      isOpen: true,
+      title: "Cấm người dùng",
+      message: `Bạn có chắc muốn cấm người dùng "${user.fullName}"?\n\nNgười dùng này sẽ không thể truy cập hệ thống nữa.`,
+      confirmText: "Cấm người dùng",
+      variant: 'danger',
+      onConfirm: () => {
+        banUser(user);
+        setConfirmModal(null);
+      }
+    });
+  }
+
+  function handleUnbanUser(user: UserRow) {
+    setConfirmModal({
+      isOpen: true,
+      title: "Gỡ cấm người dùng",
+      message: `Bạn có chắc muốn gỡ cấm người dùng "${user.fullName}"?\n\nNgười dùng này sẽ có thể truy cập lại hệ thống.`,
+      confirmText: "Gỡ cấm",
+      variant: 'info',
+      onConfirm: () => {
+        unbanUser(user);
+        setConfirmModal(null);
+      }
+    });
   }
   // Guards
   function isStaffRole(v: string): v is StaffRole {
@@ -140,6 +235,10 @@ export default function StaffManagementPage() {
   function handleStatusChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const v = e.target.value as StatusFilter;
     setStatusFilter(v);
+  }
+
+  function handleMenuClick(userId: string) {
+    setMenuOpen(menuOpen === userId ? null : userId);
   }
 
   return (
@@ -210,7 +309,7 @@ export default function StaffManagementPage() {
                 value={statusFilter}
                 onChange={handleStatusChange}
               >
-                <option value="All">All</option>
+                <option value="All">Tất cả</option>
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
               </select>
@@ -325,7 +424,7 @@ export default function StaffManagementPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        {u.isActive ? (
+                        {!u.isDeleted ? (
                           <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg text-xs font-medium">
                             <CheckCircle2 className="w-4 h-4" /> Active
                           </span>
@@ -339,13 +438,17 @@ export default function StaffManagementPage() {
                       <td className="px-4 py-3 text-right relative">
                         <button
                           className="p-2 rounded-lg hover:bg-gray-100"
-                          onClick={() => setMenuOpen(menuOpen === u.id ? null : u.id)}
+                          onClick={() => handleMenuClick(u.id)}
                           aria-label="More"
                         >
                           <MoreVertical className="w-5 h-5" />
                         </button>
                         {menuOpen === u.id && (
-                          <div className="absolute right-4 mt-2 w-56 rounded-xl border border-gray-200 bg-white shadow-xl z-10">
+                          <div className={`absolute right-0 w-56 rounded-xl border border-gray-200 bg-white shadow-xl z-[100] ${
+                            filtered.indexOf(u) >= filtered.length - 3
+                              ? 'bottom-full mb-1 origin-bottom-right'
+                              : 'top-full mt-1 origin-top-right'
+                          }`}>
                             <button
                               onClick={() => {
                                 setShowEdit(u);
@@ -353,16 +456,32 @@ export default function StaffManagementPage() {
                               }}
                               className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2"
                             >
-                              <Shield className="w-4 h-4" /> Sửa vai trò / thông tin
+                              <Shield className="w-4 h-4" /> Sửa thông tin
                             </button>
                             <button
                               onClick={() => {
-                                removeUsers([u.id]);
+                                if (!u.isDeleted) {
+                                  handleBanUser(u);
+                                } else {
+                                  handleUnbanUser(u);
+                                }
                                 setMenuOpen(null);
                               }}
-                              className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"
+                              className={`w-full text-left px-4 py-2 flex items-center gap-2 ${
+                                !u.isDeleted
+                                  ? "hover:bg-red-50 text-red-600"
+                                  : "hover:bg-green-50 text-green-600"
+                              }`}
                             >
-                              <Trash2 className="w-4 h-4" /> Xóa người dùng
+                              {!u.isDeleted ? (
+                                <>
+                                  <Ban className="w-4 h-4" /> Cấm người dùng
+                                </>
+                              ) : (
+                                <>
+                                  <UserCheck className="w-4 h-4" /> Gỡ cấm người dùng
+                                </>
+                              )}
                             </button>
                           </div>
                         )}
@@ -423,7 +542,7 @@ export default function StaffManagementPage() {
                   fullName: payload.fullName,
                   phoneNumber: payload.phone,
                 });
-                
+              
                 // Update role if changed
                 if (payload.roles[0] !== showEdit.roles[0]) {
                   await userService.updateRole(showEdit.id, {
@@ -431,13 +550,36 @@ export default function StaffManagementPage() {
                   });
                 }
                 
-                await fetchUsers();
+                await fetchUsers(currentPage);
                 setShowEdit(null);
               } catch (err: any) {
                 console.error("❌ Lỗi khi cập nhật người dùng:", err);
                 alert(err.message || "Không thể cập nhật người dùng. Vui lòng thử lại.");
               }
             }}
+          />
+        )}
+
+        {/* Confirm Modal */}
+        {confirmModal && (
+          <ConfirmModal
+            isOpen={confirmModal.isOpen}
+            onClose={() => setConfirmModal(null)}
+            onConfirm={confirmModal.onConfirm}
+            title={confirmModal.title}
+            message={confirmModal.message}
+            confirmText={confirmModal.confirmText}
+            variant={confirmModal.variant}
+          />
+        )}
+
+        {/* Success Toast */}
+        {successToast && (
+          <SuccessToast
+            isOpen={successToast.isOpen}
+            onClose={() => setSuccessToast(null)}
+            title={successToast.title}
+            message={successToast.message}
           />
         )}
       </div>

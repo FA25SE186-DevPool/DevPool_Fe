@@ -30,6 +30,9 @@ export interface PartnerContractPaymentModel {
   notes?: string | null;
   createdAt: string; // ISO string
   updatedAt?: string | null; // ISO string
+
+  // Computed Property
+  isFinished: boolean;
 }
 
 // Interface cho PartnerContractPaymentCreate (Payload để tạo mới)
@@ -115,5 +118,10 @@ export interface ClientSowFileResponse {
   clientContractNumber: string;
   periodMonth?: number | null;
   periodYear?: number | null;
+}
+
+// Interface cho ClientBillableHoursResponse (Response từ API client-billable-hours)
+export interface ClientBillableHoursResponse {
+  billableHours: number | null;
 }
 

@@ -21,6 +21,8 @@ import {
   Download,
   RefreshCw,
   Info,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import Sidebar from "../../../../components/common/Sidebar";
 import { sidebarItems } from "../../../../components/sidebar/sales";
@@ -209,6 +211,7 @@ export default function ClientContractDetailPage() {
 
   // Modal states
   const [showSubmitContractModal, setShowSubmitContractModal] = useState(false);
+  const [showSubmitConfirmation, setShowSubmitConfirmation] = useState(false);
 
   // Form states
   const [submitForm, setSubmitForm] = useState<Omit<SubmitContractModel, 'sowExcelFileUrl'>>({
@@ -219,13 +222,17 @@ export default function ClientContractDetailPage() {
     percentageValue: 100,
     fixedAmount: null,
     plannedAmountVND: null,
-    sowDescription: null,
-    standardHours: 160,
+    standardHours: 160, // Always 160, not editable
     notes: null,
   });
 
   // File states
   const [sowExcelFile, setSowExcelFile] = useState<File | null>(null);
+  const [sowFileError, setSowFileError] = useState<string | null>(null);
+
+  // UI states
+  const [showCostCalculation, setShowCostCalculation] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   // Loading states
   const [isProcessing, setIsProcessing] = useState(false);
@@ -366,6 +373,21 @@ export default function ClientContractDetailPage() {
     loadClientDocuments();
   }, [id]);
 
+  // Refresh client documents
+  const refreshClientDocuments = async () => {
+    if (!id) return;
+    try {
+      const data = await clientDocumentService.getAll({
+        clientContractPaymentId: Number(id),
+        excludeDeleted: true,
+      });
+      const documents = Array.isArray(data) ? data : (data?.items || []);
+      setClientDocuments(documents);
+    } catch (err: unknown) {
+      console.error("❌ Lỗi tải lại tài liệu khách hàng:", err);
+    }
+  };
+
   // Refresh contract payment data
   const refreshContractPayment = async () => {
     if (!id) return;
@@ -417,20 +439,26 @@ export default function ClientContractDetailPage() {
     return null;
   };
 
-  // Handler: Submit Contract
-  const handleSubmitContract = async () => {
+  // Handler: Show Submit Confirmation
+  const handleSubmitContract = () => {
+    setShowSubmitConfirmation(true);
+  };
+
+  // Handler: Confirm and Submit Contract
+  const handleSubmitContractConfirm = async () => {
     if (!id || !contractPayment || !sowExcelFile) {
       alert("Vui lòng upload file Statement of Work");
+      return;
+    }
+    if (sowFileError) {
+      alert("Vui lòng chọn file Statement of Work hợp lệ");
       return;
     }
     if (!submitForm.unitPriceForeignCurrency || !submitForm.exchangeRate) {
       alert("Vui lòng điền đầy đủ thông tin đơn giá và tỷ giá");
       return;
     }
-    if (!submitForm.standardHours || submitForm.standardHours <= 0) {
-      alert("Vui lòng nhập số giờ tiêu chuẩn hợp lệ");
-      return;
-    }
+    // standardHours is always 160 and not editable
     if (submitForm.calculationMethod === "Percentage") {
       if (!submitForm.percentageValue || submitForm.percentageValue <= 0) {
         alert("Vui lòng nhập giá trị phần trăm hợp lệ");
@@ -462,7 +490,6 @@ export default function ClientContractDetailPage() {
         percentageValue: submitForm.calculationMethod === "Percentage" ? (submitForm.percentageValue ?? 0) : 0,
         fixedAmount: submitForm.calculationMethod === "FixedAmount" ? (submitForm.fixedAmount ?? 0) : 0,
         plannedAmountVND: calculatePlannedAmountVND() ?? 0,
-        sowDescription: submitForm.sowDescription ?? "",
         sowExcelFileUrl: fileUrl, // URL của file đã upload
         standardHours: submitForm.standardHours,
         notes: submitForm.notes ?? "",
@@ -471,40 +498,33 @@ export default function ClientContractDetailPage() {
       // Submit contract với sowExcelFileUrl
       // Backend sẽ tự động tạo document từ sowExcelFileUrl, không cần tạo thủ công
       await clientContractPaymentService.submitContract(Number(id), submitPayload);
-      
-      alert("Ghi nhận thông tin thành công!");
+
+      // Hiển thị success message và tự động ẩn sau 3 giây
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+
       await refreshContractPayment();
-      
-      // Reload documents để hiển thị đúng
-      try {
-        const data = await clientDocumentService.getAll({
-          clientContractPaymentId: Number(id),
-          excludeDeleted: true,
-        });
-        const documents = Array.isArray(data) ? data : (data?.items || []);
-        setClientDocuments(documents);
-      } catch (err) {
-        console.error("❌ Lỗi reload documents:", err);
-      }
+      await refreshClientDocuments();
       
       setShowSubmitContractModal(false);
-      setSubmitForm({
-        unitPriceForeignCurrency: 0,
-        currencyCode: "USD",
-        exchangeRate: 1,
-        calculationMethod: "Percentage",
-        percentageValue: 100,
-        fixedAmount: null,
-        plannedAmountVND: null,
-        sowDescription: null,
-        standardHours: contractPayment.standardHours || 160,
-        notes: null,
-      });
-      setSowExcelFile(null);
-      setExchangeRateData(null);
-      setExchangeRateError(null);
-      setExchangeRateData(null);
-      setExchangeRateError(null);
+      setShowSubmitConfirmation(false);
+                  setSubmitForm({
+                    unitPriceForeignCurrency: 0,
+                    currencyCode: "USD",
+                    exchangeRate: 1,
+                    calculationMethod: "Percentage",
+                    percentageValue: 100,
+                    fixedAmount: null,
+                    plannedAmountVND: null,
+                    standardHours: 160, // Always 160, not editable
+                    notes: null,
+                  });
+                  setSowExcelFile(null);
+                  setSowFileError(null);
+                  setExchangeRateData(null);
+                  setExchangeRateError(null);
+                  setExchangeRateData(null);
+                  setExchangeRateError(null);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Lỗi khi ghi nhận thông tin");
     } finally {
@@ -579,26 +599,29 @@ export default function ClientContractDetailPage() {
                 Thông tin chi tiết hợp đồng thanh toán khách hàng
               </p>
               <div className="flex items-center gap-3 flex-wrap">
-                <div
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${contractStatusConfig.bgColor}`}
-                >
-                  {contractStatusConfig.icon}
-                  <span className={`text-sm font-medium ${contractStatusConfig.color}`}>
-                    {contractStatusConfig.label}
-                  </span>
-                </div>
-                <div
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${paymentStatusConfig.bgColor}`}
-                >
-                  <span className={`text-sm font-medium ${paymentStatusConfig.color}`}>
-                    {paymentStatusConfig.label}
-                  </span>
-                </div>
-                {contractPayment.isFinished && (
+                {contractPayment.isFinished ? (
                   <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 border border-green-200">
                     <CheckCircle className="w-4 h-4 text-green-600" />
                     <span className="text-sm font-medium text-green-800">Đã hoàn thành</span>
                   </div>
+                ) : (
+                  <>
+                    <div
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${contractStatusConfig.bgColor}`}
+                    >
+                      {contractStatusConfig.icon}
+                      <span className={`text-sm font-medium ${contractStatusConfig.color}`}>
+                        {contractStatusConfig.label}
+                      </span>
+                    </div>
+                    <div
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${paymentStatusConfig.bgColor}`}
+                    >
+                      <span className={`text-sm font-medium ${paymentStatusConfig.color}`}>
+                        {paymentStatusConfig.label}
+                      </span>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -620,8 +643,7 @@ export default function ClientContractDetailPage() {
                       percentageValue: method === "Percentage" ? (contractPayment.percentageValue ?? 100) : null,
                       fixedAmount: method === "FixedAmount" ? (contractPayment.fixedAmount ?? contractPayment.unitPriceForeignCurrency ?? null) : null,
                       plannedAmountVND: contractPayment.plannedAmountVND ?? null,
-                      sowDescription: contractPayment.sowDescription ?? null,
-                      standardHours: contractPayment.standardHours || 160,
+                      standardHours: 160, // Always 160, not editable
                       notes: contractPayment.notes ?? null,
                     });
                     setShowSubmitContractModal(true);
@@ -674,6 +696,17 @@ export default function ClientContractDetailPage() {
                 <FileText className="w-4 h-4" />
                 Tài liệu
               </button>
+              <button
+                onClick={() => setActiveMainTab("notes")}
+                className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all duration-300 whitespace-nowrap border-b-2 ${
+                  activeMainTab === "notes"
+                    ? "border-primary-600 text-primary-600 bg-primary-50"
+                    : "border-transparent text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50"
+                }`}
+              >
+                <StickyNote className="w-4 h-4" />
+                Ghi chú
+              </button>
             </div>
           </div>
 
@@ -698,24 +731,38 @@ export default function ClientContractDetailPage() {
                   label="Số hợp đồng"
                   value={contractPayment.contractNumber}
                 />
-                <InfoItem
-                  icon={<FileText className="w-4 h-4" />}
-                  label="Trạng thái hợp đồng"
-                  value={
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${contractStatusConfig.bgColor} ${contractStatusConfig.color}`}>
-                      {contractStatusConfig.label}
-                    </span>
-                  }
-                />
-                <InfoItem
-                  icon={<FileText className="w-4 h-4" />}
-                  label="Trạng thái thanh toán"
-                  value={
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${paymentStatusConfig.bgColor} ${paymentStatusConfig.color}`}>
-                      {paymentStatusConfig.label}
-                    </span>
-                  }
-                />
+                {contractPayment.isFinished ? (
+                  <InfoItem
+                    icon={<CheckCircle className="w-4 h-4" />}
+                    label="Trạng thái"
+                    value={
+                      <span className="px-2 py-1 rounded text-xs font-medium bg-green-50 text-green-800 border border-green-200">
+                        Đã hoàn thành
+                      </span>
+                    }
+                  />
+                ) : (
+                  <>
+                    <InfoItem
+                      icon={<FileText className="w-4 h-4" />}
+                      label="Trạng thái hợp đồng"
+                      value={
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${contractStatusConfig.bgColor} ${contractStatusConfig.color}`}>
+                          {contractStatusConfig.label}
+                        </span>
+                      }
+                    />
+                    <InfoItem
+                      icon={<FileText className="w-4 h-4" />}
+                      label="Trạng thái thanh toán"
+                      value={
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${paymentStatusConfig.bgColor} ${paymentStatusConfig.color}`}>
+                          {paymentStatusConfig.label}
+                        </span>
+                      }
+                    />
+                  </>
+                )}
                 {contractPayment.isFinished && (
                   <InfoItem
                     icon={<CheckCircle className="w-4 h-4" />}
@@ -934,35 +981,7 @@ export default function ClientContractDetailPage() {
                 )}
               </div>
 
-              {contractPayment.sowDescription && (
-                <div className="mt-6 pt-6 border-t border-neutral-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileText className="w-4 h-4 text-neutral-400" />
-                    <p className="text-sm font-medium text-neutral-600">Mô tả SOW</p>
-                  </div>
-                  <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.sowDescription}</p>
-                </div>
-              )}
 
-              {contractPayment.rejectionReason && (
-                <div className="mt-6 pt-6 border-t border-neutral-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <XCircle className="w-4 h-4 text-red-400" />
-                    <p className="text-sm font-medium text-red-600">Lý do từ chối</p>
-                  </div>
-                  <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.rejectionReason}</p>
-                </div>
-              )}
-
-                  {contractPayment.notes && (
-                    <div className="mt-6 pt-6 border-t border-neutral-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <StickyNote className="w-4 h-4 text-neutral-400" />
-                        <p className="text-sm font-medium text-neutral-600">Ghi chú</p>
-                      </div>
-                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.notes}</p>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -1093,6 +1112,48 @@ export default function ClientContractDetailPage() {
                 )}
               </div>
             )}
+
+            {/* Tab: Ghi chú */}
+            {activeMainTab === "notes" && (
+              <div className="space-y-6">
+                {/* Ghi chú hợp đồng */}
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-yellow-100 rounded-lg">
+                      <StickyNote className="w-5 h-5 text-yellow-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">Ghi chú hợp đồng</h3>
+                  </div>
+
+                  {contractPayment.notes ? (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.notes}</p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200 border-dashed">
+                      <StickyNote className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">Không có ghi chú nào</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Lý do từ chối (nếu có) */}
+                {contractPayment.rejectionReason && (
+                  <div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-red-100 rounded-lg">
+                        <XCircle className="w-5 h-5 text-red-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Lý do từ chối</h3>
+                    </div>
+
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="text-gray-900 whitespace-pre-wrap">{contractPayment.rejectionReason}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1103,9 +1164,11 @@ export default function ClientContractDetailPage() {
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Ghi nhận thông tin</h3>
-              <button 
+              <button
                 onClick={() => {
                   setShowSubmitContractModal(false);
+                  setShowSubmitConfirmation(false);
+                  setShowSuccessMessage(false);
                   setExchangeRateData(null);
                   setExchangeRateError(null);
                 }} 
@@ -1397,14 +1460,14 @@ export default function ClientContractDetailPage() {
                     type="number"
                     step="1"
                     min="1"
-                    value={submitForm.standardHours}
-                    onChange={(e) => setSubmitForm({ ...submitForm, standardHours: parseFloat(e.target.value) || 0 })}
-                    className="w-full border rounded-lg p-2"
-                    placeholder="Ví dụ: 160 (full month), 132 (mid-month)"
+                    value={160}
+                    className="w-full border rounded-lg p-2 bg-gray-50 cursor-not-allowed"
+                    placeholder="160"
+                    disabled
                     required
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Ví dụ: 160 giờ (full month), 132 giờ (mid-month)
+                    Số giờ tiêu chuẩn mặc định là 160 giờ và không thể chỉnh sửa
                   </p>
                 </div>
               </div>
@@ -1412,21 +1475,43 @@ export default function ClientContractDetailPage() {
                 <label className="block text-sm font-medium mb-2">File Statement of Work <span className="text-red-500">*</span></label>
                 <input
                   type="file"
-                  accept=".xlsx,.xls"
-                  onChange={(e) => setSowExcelFile(e.target.files?.[0] || null)}
-                  className="w-full border rounded-lg p-2"
+                  accept=".pdf,.xlsx,.xls,.docx"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (file) {
+                      // Validate file size (max 10MB)
+                      const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+                      if (file.size > maxSize) {
+                        setSowFileError(`Kích thước file không được vượt quá 10MB. File hiện tại: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+                        setSowExcelFile(null);
+                        return;
+                      }
+                      // Validate file extension
+                      const allowedExtensions = ['.pdf', '.xlsx', '.xls', '.docx'];
+                      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+                      if (!allowedExtensions.includes(fileExtension)) {
+                        setSowFileError('Chỉ chấp nhận file PDF, Excel (.xlsx, .xls), Word (.docx)');
+                        setSowExcelFile(null);
+                        return;
+                      }
+                    }
+                    setSowFileError(null);
+                    setSowExcelFile(file);
+                  }}
+                  className={`w-full border rounded-lg p-2 ${sowFileError ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                   required
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Mô tả SOW</label>
-                <textarea
-                  value={submitForm.sowDescription || ""}
-                  onChange={(e) => setSubmitForm({ ...submitForm, sowDescription: e.target.value || null })}
-                  className="w-full border rounded-lg p-2"
-                  rows={3}
-                  placeholder="Ví dụ: Full month work: Backend development, API integration, testing"
-                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Định dạng được phép: PDF, Excel (.xlsx, .xls), Word (.docx). Kích thước tối đa: 10MB
+                </p>
+                {sowFileError && (
+                  <p className="mt-1 text-xs text-red-600">{sowFileError}</p>
+                )}
+                {sowExcelFile && !sowFileError && (
+                  <p className="mt-1 text-xs text-green-600">
+                    File đã chọn: {sowExcelFile.name} ({(sowExcelFile.size / 1024 / 1024).toFixed(2)}MB)
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Ghi chú</label>
@@ -1439,32 +1524,51 @@ export default function ClientContractDetailPage() {
                 />
               </div>
               {/* Hiển thị tính toán PlannedAmountVND */}
-              {submitForm.calculationMethod === "Percentage" && submitForm.unitPriceForeignCurrency && submitForm.exchangeRate && submitForm.percentageValue && (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm font-semibold text-blue-900 mb-2">Tính toán chi phí dự kiến:</p>
-                  <p className="text-sm text-blue-800">
-                    Chi phí dự kiến = {formatNumberVi(submitForm.unitPriceForeignCurrency)} × {formatNumberVi(submitForm.exchangeRate)} × ({submitForm.percentageValue} / 100)
-                  </p>
-                  <p className="text-sm text-blue-800">
-                    = {formatNumberVi(submitForm.unitPriceForeignCurrency * submitForm.exchangeRate)} × {formatNumberWithoutTrailingZeros(submitForm.percentageValue / 100)}
-                  </p>
-                  <p className="text-sm font-bold text-blue-900 mt-1">
-                    = {calculatePlannedAmountVND() ? formatNumberVi(calculatePlannedAmountVND()!) : "0"} VND
-                  </p>
-                </div>
-              )}
-              {submitForm.calculationMethod === "FixedAmount" && submitForm.fixedAmount && submitForm.exchangeRate && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-sm font-semibold text-green-900 mb-2">Tính toán chi phí dự kiến:</p>
-                  <p className="text-sm text-green-800">
-                    Chi phí dự kiến = {formatNumberVi(submitForm.fixedAmount)} × {formatNumberVi(submitForm.exchangeRate)}
-                  </p>
-                  <p className="text-sm font-bold text-green-900 mt-1">
-                    = {calculatePlannedAmountVND() ? formatNumberVi(calculatePlannedAmountVND()!) : "0"} VND
-                  </p>
-                  <p className="text-xs text-green-700 mt-2 italic">
-                    Lưu ý: Số tiền cố định không phụ thuộc vào số giờ làm việc
-                  </p>
+              {((submitForm.calculationMethod === "Percentage" && submitForm.unitPriceForeignCurrency && submitForm.exchangeRate && submitForm.percentageValue) ||
+                (submitForm.calculationMethod === "FixedAmount" && submitForm.fixedAmount && submitForm.exchangeRate)) && (
+                <div className="border border-gray-200 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setShowCostCalculation(!showCostCalculation)}
+                    className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors rounded-lg"
+                  >
+                    <p className="text-sm font-semibold text-gray-900">Tính toán chi phí dự kiến</p>
+                    {showCostCalculation ? (
+                      <ChevronUp className="w-4 h-4 text-gray-600" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-gray-600" />
+                    )}
+                  </button>
+                  {showCostCalculation && (
+                    <div className={`p-4 ${submitForm.calculationMethod === "Percentage" ? "bg-blue-50 border-t border-blue-200" : "bg-green-50 border-t border-green-200"}`}>
+                      {submitForm.calculationMethod === "Percentage" && submitForm.unitPriceForeignCurrency && submitForm.exchangeRate && submitForm.percentageValue && (
+                        <div>
+                          <p className="text-sm text-blue-800 mb-2">
+                            Chi phí dự kiến = {formatNumberVi(submitForm.unitPriceForeignCurrency)} × {formatNumberVi(submitForm.exchangeRate)} × ({submitForm.percentageValue} / 100)
+                          </p>
+                          <p className="text-sm text-blue-800 mb-2">
+                            = {formatNumberVi(submitForm.unitPriceForeignCurrency * submitForm.exchangeRate)} × {formatNumberWithoutTrailingZeros(submitForm.percentageValue / 100)}
+                          </p>
+                          <p className="text-sm font-bold text-blue-900">
+                            = {calculatePlannedAmountVND() ? formatNumberVi(calculatePlannedAmountVND()!) : "0"} VND
+                          </p>
+                        </div>
+                      )}
+                      {submitForm.calculationMethod === "FixedAmount" && submitForm.fixedAmount && submitForm.exchangeRate && (
+                        <div>
+                          <p className="text-sm text-green-800 mb-2">
+                            Chi phí dự kiến = {formatNumberVi(submitForm.fixedAmount)} × {formatNumberVi(submitForm.exchangeRate)}
+                          </p>
+                          <p className="text-sm font-bold text-green-900 mb-2">
+                            = {calculatePlannedAmountVND() ? formatNumberVi(calculatePlannedAmountVND()!) : "0"} VND
+                          </p>
+                          <p className="text-xs text-green-700 italic">
+                            Lưu ý: Số tiền cố định không phụ thuộc vào số giờ làm việc
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1480,11 +1584,11 @@ export default function ClientContractDetailPage() {
                     percentageValue: 100,
                     fixedAmount: null,
                     plannedAmountVND: null,
-                    sowDescription: null,
-                    standardHours: contractPayment.standardHours || 160,
+                    standardHours: 160, // Always 160, not editable
                     notes: null,
                   });
                   setSowExcelFile(null);
+                  setSowFileError(null);
                   setExchangeRateData(null);
                   setExchangeRateError(null);
                 }}
@@ -1495,18 +1599,104 @@ export default function ClientContractDetailPage() {
               <button
                 onClick={handleSubmitContract}
                 disabled={
-                  isProcessing || 
-                  !sowExcelFile || 
-                  !submitForm.unitPriceForeignCurrency || 
-                  !submitForm.exchangeRate || 
-                  !submitForm.standardHours ||
-                  submitForm.standardHours <= 0 ||
+                  isProcessing ||
+                  !sowExcelFile ||
+                  !!sowFileError ||
+                  !submitForm.unitPriceForeignCurrency ||
+                  !submitForm.exchangeRate ||
                   (submitForm.calculationMethod === "Percentage" && (!submitForm.percentageValue || submitForm.percentageValue <= 0)) ||
                   (submitForm.calculationMethod === "FixedAmount" && (!submitForm.fixedAmount || submitForm.fixedAmount <= 0))
                 }
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ghi nhận"}
+                Ghi nhận
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submit Confirmation Modal */}
+      {showSubmitConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Xác nhận ghi nhận thông tin</h3>
+              <button
+                onClick={() => setShowSubmitConfirmation(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-yellow-800 mb-2">
+                      Bạn có chắc chắn muốn ghi nhận thông tin hợp đồng này?
+                    </p>
+                    <div className="text-sm text-yellow-700 space-y-1">
+                      <p>• Số giờ tiêu chuẩn: <span className="font-medium">160 giờ</span></p>
+                      <p>• Đơn giá: <span className="font-medium">{formatNumberVi(submitForm.unitPriceForeignCurrency)} {submitForm.currencyCode}</span></p>
+                      <p>• Tỷ giá: <span className="font-medium">{formatNumberVi(submitForm.exchangeRate)}</span></p>
+                      <p>• Phương pháp tính: <span className="font-medium">
+                        {submitForm.calculationMethod === "Percentage"
+                          ? `Theo phần trăm (${submitForm.percentageValue}%)`
+                          : "Số tiền cố định"
+                        }
+                      </span></p>
+                      <p>• File SOW: <span className="font-medium">{sowExcelFile?.name}</span></p>
+                      {calculatePlannedAmountVND() && (
+                        <p>• Chi phí dự kiến: <span className="font-medium">{formatNumberVi(calculatePlannedAmountVND()!)} VND</span></p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600">
+                Hành động này sẽ gửi thông tin hợp đồng để chờ xác minh từ kế toán.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => setShowSubmitConfirmation(false)}
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSubmitContractConfirm}
+                disabled={isProcessing}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Xác nhận ghi nhận"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message Toast */}
+      {showSuccessMessage && (
+        <div className="fixed top-4 right-4 z-50 animate-slide-in">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 shadow-lg max-w-sm transform transition-all duration-300 ease-in-out">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-green-800">
+                  Ghi nhận thông tin thành công!
+                </p>
+                <p className="text-xs text-green-600 mt-1">
+                  Thông tin đã được gửi để chờ xác minh từ kế toán.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSuccessMessage(false)}
+                className="text-green-400 hover:text-green-600"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>

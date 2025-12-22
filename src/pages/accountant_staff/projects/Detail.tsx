@@ -394,7 +394,7 @@ export default function AccountantProjectDetailPage() {
           projectId: Number(id),
           excludeDeleted: true,
         });
-        const openPeriods = allPeriods.filter(p => p.projectId === Number(id) && p.status === "Open");
+        const openPeriods = allPeriods.filter(p => p.projectId === Number(id) && (p.status === "Open" || p.status === "Processing"));
 
         if (openPeriods.length > 0) {
           // Lấy tất cả talent assignments active
@@ -612,8 +612,8 @@ export default function AccountantProjectDetailPage() {
           projectId: Number(id),
           excludeDeleted: true,
         });
-        const openPeriods = allPeriods.filter(p => p.projectId === Number(id) && p.status === "Open");
-        
+        const openPeriods = allPeriods.filter(p => p.projectId === Number(id) && (p.status === "Open" || p.status === "Processing"));
+
         if (openPeriods.length > 0) {
           const assignments = await talentAssignmentService.getAll({
             projectId: Number(id),
@@ -1359,7 +1359,7 @@ export default function AccountantProjectDetailPage() {
                           </div>
                         ) : (
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Client Contract Payments */}
+                              {/* Client Contract Payments */}
                             <div>
                               <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -1413,12 +1413,20 @@ export default function AccountantProjectDetailPage() {
                                                 <p className="text-sm text-neutral-600">{payment.talentName || "—"}</p>
                                               </div>
                                               <div className="flex flex-col items-end gap-2">
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${contractStatusColors[payment.contractStatus] || 'bg-gray-100 text-gray-800'}`}>
-                                                  {contractStatusLabels[payment.contractStatus] || payment.contractStatus}
-                                                </span>
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${paymentStatusColors[payment.paymentStatus] || 'bg-gray-100 text-gray-800'}`}>
-                                                  {paymentStatusLabels[payment.paymentStatus] || payment.paymentStatus}
-                                                </span>
+                                                {payment.isFinished ? (
+                                                  <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                    Đã hoàn thành
+                                                  </span>
+                                                ) : (
+                                                  <>
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${contractStatusColors[payment.contractStatus] || 'bg-gray-100 text-gray-800'}`}>
+                                                      {contractStatusLabels[payment.contractStatus] || payment.contractStatus}
+                                                    </span>
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${paymentStatusColors[payment.paymentStatus] || 'bg-gray-100 text-gray-800'}`}>
+                                                      {paymentStatusLabels[payment.paymentStatus] || payment.paymentStatus}
+                                                    </span>
+                                                  </>
+                                                )}
                                               </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-4 pt-3 border-t border-neutral-100">
@@ -1507,24 +1515,32 @@ export default function AccountantProjectDetailPage() {
                                                 <p className="text-sm text-neutral-600">{talentNamesMap[payment.talentAssignmentId] || `Talent Assignment ID: ${payment.talentAssignmentId}`}</p>
                                               </div>
                                               <div className="flex flex-col items-end gap-2">
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                  payment.contractStatus === 'Approved' 
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : payment.contractStatus === 'Verified'
-                                                    ? 'bg-purple-100 text-purple-800'
-                                                    : 'bg-gray-100 text-gray-800'
-                                                }`}>
-                                                  {contractStatusLabels[payment.contractStatus] || payment.contractStatus}
-                                                </span>
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                  payment.paymentStatus === 'Paid' 
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : payment.paymentStatus === 'Processing'
-                                                    ? 'bg-yellow-100 text-yellow-800'
-                                                    : 'bg-gray-100 text-gray-800'
-                                                }`}>
-                                                  {payment.paymentStatus === 'Paid' ? 'Đã thanh toán' : payment.paymentStatus === 'Processing' ? 'Đang xử lý' : 'Chờ thanh toán'}
-                                                </span>
+                                                {payment.isFinished ? (
+                                                  <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                    Đã hoàn thành
+                                                  </span>
+                                                ) : (
+                                                  <>
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                      payment.contractStatus === 'Approved'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : payment.contractStatus === 'Verified'
+                                                        ? 'bg-purple-100 text-purple-800'
+                                                        : 'bg-gray-100 text-gray-800'
+                                                    }`}>
+                                                      {contractStatusLabels[payment.contractStatus] || payment.contractStatus}
+                                                    </span>
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                      payment.paymentStatus === 'Paid'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : payment.paymentStatus === 'Processing'
+                                                        ? 'bg-yellow-100 text-yellow-800'
+                                                        : 'bg-gray-100 text-gray-800'
+                                                    }`}>
+                                                      {payment.paymentStatus === 'Paid' ? 'Đã thanh toán' : payment.paymentStatus === 'Processing' ? 'Đang xử lý' : 'Chờ thanh toán'}
+                                                    </span>
+                                                  </>
+                                                )}
                                               </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-4 pt-3 border-t border-neutral-100">
