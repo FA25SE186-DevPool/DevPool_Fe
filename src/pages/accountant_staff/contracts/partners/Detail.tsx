@@ -748,12 +748,42 @@ export default function PartnerContractDetailPage() {
       await partnerDocumentService.create(contractDocumentPayload);
 
       // Refresh documents immediately and after a short delay to ensure new files are loaded
+      const loadPartnerDocuments = async () => {
+        if (!id) {
+          setPartnerDocuments([]);
+          return;
+        }
+        try {
+          const data = await partnerDocumentService.getAll({
+            partnerContractPaymentId: Number(id),
+            excludeDeleted: true,
+          });
+          // Handle different response structures
+          let documents: PartnerDocument[] = [];
+          if (Array.isArray(data)) {
+            documents = data;
+          } else if (data?.items && Array.isArray(data.items)) {
+            documents = data.items;
+          } else if (data?.data && Array.isArray(data.data)) {
+            documents = data.data;
+          } else if (data?.data?.items && Array.isArray(data.data.items)) {
+            documents = data.data.items;
+          }
+          setPartnerDocuments(documents);
+        } catch (err) {
+          console.error("❌ Lỗi tải tài liệu:", err);
+        }
+      };
+
+      // Refresh contract payment data and documents
       await fetchData();
+      await loadPartnerDocuments();
 
       // Add a small delay and fetch again to ensure backend has processed the new documents
       setTimeout(async () => {
         await fetchData();
-      }, 1000);
+        await loadPartnerDocuments();
+      }, 1500);
 
       const payload: PartnerContractPaymentVerifyModel = {
         unitPriceForeignCurrency: verifyForm.unitPriceForeignCurrency,
@@ -1015,12 +1045,42 @@ export default function PartnerContractDetailPage() {
       await partnerDocumentService.create(receiptDocument);
 
       // Refresh documents immediately and after a short delay to ensure new files are loaded
+      const loadPartnerDocuments = async () => {
+        if (!id) {
+          setPartnerDocuments([]);
+          return;
+        }
+        try {
+          const data = await partnerDocumentService.getAll({
+            partnerContractPaymentId: Number(id),
+            excludeDeleted: true,
+          });
+          // Handle different response structures
+          let documents: PartnerDocument[] = [];
+          if (Array.isArray(data)) {
+            documents = data;
+          } else if (data?.items && Array.isArray(data.items)) {
+            documents = data.items;
+          } else if (data?.data && Array.isArray(data.data)) {
+            documents = data.data;
+          } else if (data?.data?.items && Array.isArray(data.data.items)) {
+            documents = data.data.items;
+          }
+          setPartnerDocuments(documents);
+        } catch (err) {
+          console.error("❌ Lỗi tải tài liệu:", err);
+        }
+      };
+
+      // Refresh contract payment data and documents
       await fetchData();
+      await loadPartnerDocuments();
 
       // Add a small delay and fetch again to ensure backend has processed the new documents
       setTimeout(async () => {
         await fetchData();
-      }, 1000);
+        await loadPartnerDocuments();
+      }, 1500);
       setShowMarkAsPaidModal(false);
       setMarkAsPaidForm({
         paidAmount: 0,
@@ -1034,13 +1094,16 @@ export default function PartnerContractDetailPage() {
       setPaymentProofFileError(null);
       setPartnerReceiptFileError(null);
 
-      // Hiển thị success message và tự động ẩn sau 3 giây
+      // Đóng confirmation modal và hiển thị success message
+      setShowMarkAsPaidConfirmation(false);
       setShowSuccessMessage("paid");
       setTimeout(() => setShowSuccessMessage(false), 3000);
     } catch (err: unknown) {
       console.error("❌ Lỗi đánh dấu đã thanh toán:", err);
       const errorMessage = err instanceof Error ? err.message : "Không thể đánh dấu đã thanh toán";
       alert(errorMessage);
+      // Đóng confirmation modal khi có lỗi
+      setShowMarkAsPaidConfirmation(false);
     } finally {
       setIsProcessing(false);
     }
@@ -1816,18 +1879,24 @@ export default function PartnerContractDetailPage() {
             <div className="flex gap-3 justify-end mt-6">
               <button
                 onClick={() => setShowMarkAsPaidConfirmation(false)}
-                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700"
+                disabled={isProcessing}
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Hủy
               </button>
               <button
-                onClick={() => {
-                  setShowMarkAsPaidConfirmation(false);
-                  handleMarkAsPaid();
-                }}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                onClick={() => handleMarkAsPaid()}
+                disabled={isProcessing}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                Xác nhận thanh toán
+                {isProcessing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Đang xử lý...
+                  </>
+                ) : (
+                  "Xác nhận thanh toán"
+                )}
               </button>
             </div>
           </div>

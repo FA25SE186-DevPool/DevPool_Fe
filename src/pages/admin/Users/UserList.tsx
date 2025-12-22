@@ -442,7 +442,7 @@ export default function StaffManagementPage() {
                               }}
                               className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2"
                             >
-                              <Shield className="w-4 h-4" /> Sửa vai trò / thông tin
+                              <Shield className="w-4 h-4" /> Sửa thông tin
                             </button>
                             <button
                               onClick={() => {
@@ -558,14 +558,7 @@ export default function StaffManagementPage() {
                   fullName: payload.fullName,
                   phoneNumber: payload.phone,
                 });
-                
-                // Update role if changed
-                if (payload.roles[0] !== showEdit.roles[0]) {
-                  await userService.updateRole(showEdit.id, {
-                    role: payload.roles[0] || "TA",
-                  });
-                }
-                
+
                 await fetchUsers(currentPage);
                 setShowEdit(null);
               } catch (err: any) {
@@ -674,35 +667,37 @@ function UserModal({
             </div>
           </div>
 
-          <div>
-            <label className="text-sm text-gray-600">Vai trò & quyền</label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {(
-                [
-                  "Manager",
-                  "TA",
-                  "Sale",
-                  "Accountant",
-                ] as StaffRole[]
-              ).map((r) => (
-                <button
-                  type="button"
-                  key={r}
-                  onClick={() => toggleRole(r)}
-                  className={`px-3 py-1.5 rounded-lg text-sm border transition ${roles.includes(r)
-                    ? "border-transparent bg-primary-600 text-white"
-                    : "border-gray-200 hover:bg-gray-50"
-                    }`}
-                >
-                  {roles.includes(r) ? <ShieldCheck className="w-4 h-4 inline mr-1" /> : <Shield className="w-4 h-4 inline mr-1" />}
-                  {r}
-                </button>
-              ))}
+          {!initial && (
+            <div>
+              <label className="text-sm text-gray-600">Vai trò & quyền</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(
+                  [
+                    "Manager",
+                    "TA",
+                    "Sale",
+                    "Accountant",
+                  ] as StaffRole[]
+                ).map((r) => (
+                  <button
+                    type="button"
+                    key={r}
+                    onClick={() => toggleRole(r)}
+                    className={`px-3 py-1.5 rounded-lg text-sm border transition ${roles.includes(r)
+                      ? "border-transparent bg-primary-600 text-white"
+                      : "border-gray-200 hover:bg-gray-50"
+                      }`}
+                  >
+                    {roles.includes(r) ? <ShieldCheck className="w-4 h-4 inline mr-1" /> : <Shield className="w-4 h-4 inline mr-1" />}
+                    {r}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Gợi ý: 1 người dùng có thể có nhiều vai trò. Quyền chi tiết nên kiểm soát ở BE (RBAC) theo mô tả nghiệp vụ.
+              </p>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              Gợi ý: 1 người dùng có thể có nhiều vai trò. Quyền chi tiết nên kiểm soát ở BE (RBAC) theo mô tả nghiệp vụ.
-            </p>
-          </div>
+          )}
         </div>
 
         <div className="p-6 border-t border-gray-100 flex items-center justify-end gap-3">

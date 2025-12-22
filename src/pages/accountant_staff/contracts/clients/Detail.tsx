@@ -652,6 +652,8 @@ export default function ClientContractDetailPage() {
       setVerifyContractFileError(null);
     } catch (err: unknown) {
       alert((err as { message?: string })?.message || "Lỗi khi xác minh hợp đồng");
+      // Đóng confirmation modal khi có lỗi
+      setShowVerifyConfirmation(false);
     } finally {
       setIsProcessing(false);
     }
@@ -1036,7 +1038,8 @@ export default function ClientContractDetailPage() {
       };
       await clientDocumentService.create(documentPayload);
 
-      // Hiển thị success message và tự động ẩn sau 3 giây
+      // Đóng confirmation modal và hiển thị success message
+      setShowCreateInvoiceConfirmation(false);
       setShowSuccessMessage("invoice");
       setTimeout(() => setShowSuccessMessage(false), 3000);
 
@@ -1048,10 +1051,12 @@ export default function ClientContractDetailPage() {
       setInvoiceFileError(null);
     } catch (err: unknown) {
       console.error("❌ Lỗi khi ghi nhận hóa đơn:", err);
-      const errorMessage = (err as { message?: string; response?: { data?: { message?: string } } })?.message || 
-                          (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 
+      const errorMessage = (err as { message?: string; response?: { data?: { message?: string } } })?.message ||
+                          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
                           "Lỗi khi ghi nhận hóa đơn";
       alert(errorMessage);
+      // Đóng confirmation modal khi có lỗi
+      setShowCreateInvoiceConfirmation(false);
     } finally {
       setIsProcessing(false);
     }
@@ -1152,7 +1157,8 @@ export default function ClientContractDetailPage() {
       };
       await clientDocumentService.create(documentPayload);
       
-      // Hiển thị success message và tự động ẩn sau 3 giây
+      // Đóng confirmation modal và hiển thị success message
+      setShowRecordPaymentConfirmation(false);
       setShowSuccessMessage("payment");
       setTimeout(() => setShowSuccessMessage(false), 3000);
 
@@ -1166,10 +1172,12 @@ export default function ClientContractDetailPage() {
       setPaymentAmountError(null);
     } catch (err: unknown) {
       console.error("❌ Lỗi khi ghi nhận thanh toán:", err);
-      const errorMessage = (err as { message?: string; response?: { data?: { message?: string } } })?.message || 
-                          (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 
+      const errorMessage = (err as { message?: string; response?: { data?: { message?: string } } })?.message ||
+                          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
                           "Lỗi khi ghi nhận thanh toán";
       alert(errorMessage);
+      // Đóng confirmation modal khi có lỗi
+      setShowRecordPaymentConfirmation(false);
     } finally {
       setIsProcessing(false);
     }
@@ -2460,18 +2468,24 @@ export default function ClientContractDetailPage() {
             <div className="flex gap-3 justify-end mt-6">
               <button
                 onClick={() => setShowCreateInvoiceConfirmation(false)}
-                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700"
+                disabled={isProcessing}
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Hủy
               </button>
               <button
-                onClick={() => {
-                  setShowCreateInvoiceConfirmation(false);
-                  handleCreateInvoice();
-                }}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                onClick={() => handleCreateInvoice()}
+                disabled={isProcessing}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                Xác nhận ghi nhận
+                {isProcessing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Đang xử lý...
+                  </>
+                ) : (
+                  "Xác nhận ghi nhận"
+                )}
               </button>
             </div>
           </div>
@@ -2743,18 +2757,24 @@ export default function ClientContractDetailPage() {
             <div className="flex gap-3 justify-end mt-6">
               <button
                 onClick={() => setShowRecordPaymentConfirmation(false)}
-                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700"
+                disabled={isProcessing}
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Hủy
               </button>
               <button
-                onClick={() => {
-                  setShowRecordPaymentConfirmation(false);
-                  handleRecordPayment();
-                }}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                onClick={() => handleRecordPayment()}
+                disabled={isProcessing}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                Xác nhận thanh toán
+                {isProcessing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Đang xử lý...
+                  </>
+                ) : (
+                  "Xác nhận thanh toán"
+                )}
               </button>
             </div>
           </div>
@@ -2803,18 +2823,24 @@ export default function ClientContractDetailPage() {
                   setVerifyContractFile(null);
                   setVerifyContractFileError(null);
                 }}
-                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700"
+                disabled={isProcessing}
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Hủy
               </button>
               <button
-                onClick={() => {
-                  setShowVerifyConfirmation(false);
-                  handleVerifyContract();
-                }}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                onClick={() => handleVerifyContract()}
+                disabled={isProcessing}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                Xác nhận xác minh
+                {isProcessing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Đang xử lý...
+                  </>
+                ) : (
+                  "Xác nhận xác minh"
+                )}
               </button>
             </div>
           </div>

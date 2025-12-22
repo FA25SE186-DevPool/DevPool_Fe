@@ -214,11 +214,15 @@ export default function ProjectDetailPage() {
   const [terminateForm, setTerminateForm] = useState<{
     terminationDate: string;
     terminationReason: string;
+    addToBlacklist: boolean;
+    blacklistReason: string;
   }>({
     terminationDate: "",
-    terminationReason: ""
+    terminationReason: "",
+    addToBlacklist: false,
+    blacklistReason: ""
   });
-  const [terminateErrors, setTerminateErrors] = useState<{ terminationDate?: string; terminationReason?: string }>({});
+  const [terminateErrors, setTerminateErrors] = useState<{ terminationDate?: string; terminationReason?: string; blacklistReason?: string }>({});
   const [submittingTerminate, setSubmittingTerminate] = useState(false);
 
   // Form state for cancelling draft assignment
@@ -785,6 +789,14 @@ export default function ProjectDetailPage() {
         setAssignmentErrors({ endDate: "Ngày kết thúc không được nhỏ hơn ngày bắt đầu" });
         return;
       }
+
+      // Validation: EndDate phải lớn hơn StartDate ít nhất 1 ngày
+      const minEndDate = new Date(startDate);
+      minEndDate.setDate(minEndDate.getDate() + 1);
+      if (endDate < minEndDate) {
+        setAssignmentErrors({ endDate: "Ngày kết thúc phải lớn hơn ngày bắt đầu ít nhất 1 ngày" });
+        return;
+      }
     }
 
     // Validation: Assignment phải nằm trong Project.StartDate – Project.EndDate
@@ -1231,6 +1243,13 @@ export default function ProjectDetailPage() {
       return;
     }
 
+    if (terminateForm.addToBlacklist) {
+      if (!terminateForm.blacklistReason || terminateForm.blacklistReason.trim() === "") {
+        setTerminateErrors({ blacklistReason: "Lý do blacklist là bắt buộc khi chọn thêm vào blacklist" });
+        return;
+      }
+    }
+
     // Validation: terminationDate phải >= startDate
     if (selectedAssignment.startDate) {
       const terminationDate = new Date(terminateForm.terminationDate);
@@ -1269,8 +1288,9 @@ export default function ProjectDetailPage() {
       `📋 Thông tin:\n` +
       `• Nhân sự: ${talentName}\n` +
       `• Ngày chấm dứt: ${terminationDateStr}\n` +
-      `• Lý do: ${terminateForm.terminationReason}\n\n` +
-      `⚠️ Lưu ý: Sau khi chấm dứt, phân công này sẽ không thể tiếp tục hoạt động.`;
+      `• Lý do: ${terminateForm.terminationReason}\n` +
+      (terminateForm.addToBlacklist ? `• Thêm vào blacklist: Có\n• Lý do blacklist: ${terminateForm.blacklistReason.trim()}\n` : `• Thêm vào blacklist: Không\n`) +
+      `\n⚠️ Lưu ý: Sau khi chấm dứt, phân công này sẽ không thể tiếp tục hoạt động.`;
 
     // Show confirm modal instead of window.confirm
     showConfirmDialog({
@@ -1293,7 +1313,9 @@ export default function ProjectDetailPage() {
     try {
       const payload: TalentAssignmentTerminateModel = {
         terminationDate: toUTCISOString(terminateForm.terminationDate) || "",
-        terminationReason: terminateForm.terminationReason.trim()
+        terminationReason: terminateForm.terminationReason.trim(),
+        addToBlacklist: !!terminateForm.addToBlacklist,
+        blacklistReason: terminateForm.addToBlacklist ? terminateForm.blacklistReason.trim() : null
       };
 
       await talentAssignmentService.terminate(selectedAssignment.id, payload);
@@ -1306,7 +1328,9 @@ export default function ProjectDetailPage() {
       // Reset form and close modal
       setTerminateForm({
         terminationDate: "",
-        terminationReason: ""
+        terminationReason: "",
+        addToBlacklist: false,
+        blacklistReason: ""
       });
       setTerminateErrors({});
       setShowTerminateAssignmentModal(false);
@@ -4280,7 +4304,9 @@ export default function ProjectDetailPage() {
                       onClick={() => {
                         setTerminateForm({
                           terminationDate: "",
-                          terminationReason: ""
+                          terminationReason: "",
+                          addToBlacklist: false,
+                          blacklistReason: ""
                         });
                         setTerminateErrors({});
                         setShowDetailAssignmentModal(false);
@@ -4395,8 +4421,8 @@ export default function ProjectDetailPage() {
                   rows={4}
                   required
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-primary-500 ${
-                    terminateErrors.terminationReason 
-                      ? 'border-red-500 focus:border-red-500' 
+                    terminateErrors.terminationReason
+                      ? 'border-red-500 focus:border-red-500'
                       : 'border-neutral-200 focus:border-primary-500'
                   }`}
                   placeholder="Nhập lý do chấm dứt..."
@@ -4406,13 +4432,60 @@ export default function ProjectDetailPage() {
                 )}
               </div>
 
+              {/* Add to Blacklist */}
+              <div className="flex items-center gap-2">
+                <input
+                  id="terminateAddToBlacklist"
+                  type="checkbox"
+                  checked={terminateForm.addToBlacklist}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setTerminateForm(prev => ({ ...prev, addToBlacklist: checked, blacklistReason: checked ? prev.blacklistReason : "" }));
+                    setTerminateErrors(prev => ({ ...prev, blacklistReason: undefined }));
+                  }}
+                  className="h-4 w-4"
+                />
+                <label htmlFor="terminateAddToBlacklist" className="text-sm text-gray-700">
+                  Thêm talent vào danh sách đen của công ty khách hàng
+                </label>
+              </div>
+
+              {/* Blacklist Reason */}
+              {terminateForm.addToBlacklist && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Lý do blacklist <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={terminateForm.blacklistReason}
+                    onChange={(e) => {
+                      setTerminateForm({ ...terminateForm, blacklistReason: e.target.value });
+                      if (terminateErrors.blacklistReason) {
+                        setTerminateErrors({ ...terminateErrors, blacklistReason: undefined });
+                      }
+                    }}
+                    rows={3}
+                    required
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-primary-500 ${
+                      terminateErrors.blacklistReason
+                        ? 'border-red-500 focus:border-red-500'
+                        : 'border-neutral-200 focus:border-primary-500'
+                    }`}
+                    placeholder="Nhập lý do thêm vào blacklist..."
+                  />
+                  {terminateErrors.blacklistReason && (
+                    <p className="mt-1 text-sm text-red-500">{terminateErrors.blacklistReason}</p>
+                  )}
+                </div>
+              )}
+
               {/* Submit Button */}
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     setShowTerminateAssignmentModal(false);
-                    setTerminateForm({ terminationDate: "", terminationReason: "" });
+                    setTerminateForm({ terminationDate: "", terminationReason: "", addToBlacklist: false, blacklistReason: "" });
                     setTerminateErrors({});
                   }}
                   className="px-4 py-2 border border-neutral-200 rounded-lg text-neutral-700 hover:bg-neutral-50 transition-colors"
