@@ -7,6 +7,7 @@ export const BackendRole = {
   Accountant: 4,
   Sale: 5,
   Dev: 6,
+  Partner: 7, // Đối tác
 } as const;
 
 export type BackendRole = typeof BackendRole[keyof typeof BackendRole];
@@ -18,7 +19,8 @@ export type FrontendRole =
   | "Staff TA"
   | "Staff Accountant"
   | "Staff Sales"
-  | "Developer";
+  | "Developer"
+  | "Partner";
 
 export interface LoginPayload {
   email: string;

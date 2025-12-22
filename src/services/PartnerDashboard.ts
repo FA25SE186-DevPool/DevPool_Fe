@@ -25,6 +25,8 @@ export interface PartnerTalentSummary {
   email?: string;
   phone?: string;
   status?: string;
+  locationId?: number;
+  workingMode?: number;
 
   // Current assignment info (if Working)
   currentProjectName?: string;
@@ -136,15 +138,19 @@ export const partnerDashboardService = {
   /**
    * Get Partner Dashboard - Overview statistics
    * Shows talent counts and financial summary
+   * Backend automatically gets userId from JWT token
    */
-  async getDashboard(partnerId: number): Promise<PartnerDashboardStats> {
+  async getDashboard(): Promise<PartnerDashboardStats> {
     try {
-      const response = await apiClient.get(`/partner/${partnerId}/dashboard`);
+      const response = await apiClient.get('/partnerdashboard/dashboard');
       return response.data.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         if (error.response?.status === 404) {
           throw new Error("Partner not found");
+        }
+        if (error.response?.status === 401) {
+          throw new Error("Unauthorized - Invalid role or token");
         }
         throw error.response?.data || { message: "Failed to fetch dashboard" };
       }
@@ -155,17 +161,21 @@ export const partnerDashboardService = {
   /**
    * Get My Talents - List of talents managed by this partner
    * Optionally filter by status
+   * Backend automatically gets userId from JWT token
    */
-  async getMyTalents(partnerId: number, status?: string): Promise<PartnerTalentSummary[]> {
+  async getMyTalents(status?: string): Promise<PartnerTalentSummary[]> {
     try {
       const params = new URLSearchParams();
       if (status) params.append("status", status);
 
-      const url = `/partner/${partnerId}/talents${params.toString() ? `?${params}` : ""}`;
+      const url = `/partnerdashboard/talents${params.toString() ? `?${params}` : ""}`;
       const response = await apiClient.get(url);
       return response.data.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
+        if (error.response?.status === 401) {
+          throw new Error("Unauthorized - Invalid role or token");
+        }
         throw error.response?.data || { message: "Failed to fetch talents" };
       }
       throw { message: "Unexpected error occurred" };
@@ -174,10 +184,11 @@ export const partnerDashboardService = {
 
   /**
    * Get Talent Detail - Detailed information about a specific talent
+   * Backend automatically gets userId from JWT token
    */
-  async getTalentDetail(partnerId: number, talentId: number): Promise<PartnerTalentDetail> {
+  async getTalentDetail(talentId: number): Promise<PartnerTalentDetail> {
     try {
-      const response = await apiClient.get(`/partner/${partnerId}/talents/${talentId}`);
+      const response = await apiClient.get(`/partnerdashboard/talents/${talentId}`);
       return response.data.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -186,6 +197,9 @@ export const partnerDashboardService = {
         }
         if (error.response?.status === 403) {
           throw new Error("Access denied to this talent");
+        }
+        if (error.response?.status === 401) {
+          throw new Error("Unauthorized - Invalid role or token");
         }
         throw error.response?.data || { message: "Failed to fetch talent detail" };
       }
@@ -196,17 +210,21 @@ export const partnerDashboardService = {
   /**
    * Get My Contracts/Assignments - List of talent assignments with buying rates
    * Shows ONLY partner rates, hides client rates
+   * Backend automatically gets userId from JWT token
    */
-  async getMyAssignments(partnerId: number, status?: string): Promise<PartnerAssignmentSummary[]> {
+  async getMyAssignments(status?: string): Promise<PartnerAssignmentSummary[]> {
     try {
       const params = new URLSearchParams();
       if (status) params.append("status", status);
 
-      const url = `/partner/${partnerId}/assignments${params.toString() ? `?${params}` : ""}`;
+      const url = `/partnerdashboard/assignments${params.toString() ? `?${params}` : ""}`;
       const response = await apiClient.get(url);
       return response.data.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
+        if (error.response?.status === 401) {
+          throw new Error("Unauthorized - Invalid role or token");
+        }
         throw error.response?.data || { message: "Failed to fetch assignments" };
       }
       throw { message: "Unexpected error occurred" };
@@ -215,17 +233,24 @@ export const partnerDashboardService = {
 
   /**
    * Get Monthly Payments - Track payments for a specific period (month/year)
+   * Backend automatically gets userId from JWT token
    */
-  async getMonthlyPayments(partnerId: number, year: number, month: number): Promise<PartnerMonthlyPayment[]> {
+  async getMonthlyPayments(year: number, month: number): Promise<PartnerMonthlyPayment[]> {
     try {
       if (month < 1 || month > 12) {
         throw new Error("Month must be between 1 and 12");
       }
 
-      const response = await apiClient.get(`/partner/${partnerId}/payments/${year}/${month}`);
+      const response = await apiClient.get(`/partnerdashboard/payments/${year}/${month}`);
       return response.data.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
+        if (error.response?.status === 400) {
+          throw new Error("Invalid month/year parameters");
+        }
+        if (error.response?.status === 401) {
+          throw new Error("Unauthorized - Invalid role or token");
+        }
         throw error.response?.data || { message: "Failed to fetch monthly payments" };
       }
       throw { message: "Unexpected error occurred" };
@@ -234,10 +259,11 @@ export const partnerDashboardService = {
 
   /**
    * Get Payment Detail - Detailed information about a specific payment
+   * Backend automatically gets userId from JWT token
    */
-  async getPaymentDetail(partnerId: number, paymentId: number): Promise<PartnerPaymentDetail> {
+  async getPaymentDetail(paymentId: number): Promise<PartnerPaymentDetail> {
     try {
-      const response = await apiClient.get(`/partner/${partnerId}/payments/${paymentId}`);
+      const response = await apiClient.get(`/partnerdashboard/payments/${paymentId}`);
       return response.data.data;
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -246,6 +272,9 @@ export const partnerDashboardService = {
         }
         if (error.response?.status === 403) {
           throw new Error("Access denied to this payment");
+        }
+        if (error.response?.status === 401) {
+          throw new Error("Unauthorized - Invalid role or token");
         }
         throw error.response?.data || { message: "Failed to fetch payment detail" };
       }

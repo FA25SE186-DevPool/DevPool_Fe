@@ -9,7 +9,7 @@ interface RegisterFormProps {
 
 export default function RegisterForm({ onToggleForm }: RegisterFormProps) {
   const [formData, setFormData] = useState({
-    role: 'Developer' as 'Staff TA' | 'Staff Accountant' | 'Staff Sales' | 'Developer' | 'Manager' | 'Admin',
+    role: 'Developer' as 'Staff TA' | 'Staff Accountant' | 'Staff Sales' | 'Developer' | 'Manager' | 'Admin' | 'Partner',
     email: '',
     password: '',
     confirmPassword: ''

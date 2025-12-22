@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Search, Filter, Plus, Shield, ShieldCheck, MoreVertical, UserRound, Mail, Phone, CheckCircle2, XCircle, Ban, UserCheck } from "lucide-react";
 import { sidebarItems } from "../../../components/sidebar/admin";
 import Sidebar from "../../../components/common/Sidebar";
-import Breadcrumb from "../../../components/common/Breadcrumb";
 import { userService, type User, type UserFilter, type PagedResult } from "../../../services/User";
+import { authService, type UserProvisionPayload } from "../../../services/Auth";        
 import ConfirmModal from "../../../components/ui/confirm-modal";
 import SuccessToast from "../../../components/ui/success-toast";
 
@@ -61,9 +61,6 @@ export default function StaffManagementPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState<null | UserRow>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<PagedResult<User> | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(10);
 
   // Modal states
   const [confirmModal, setConfirmModal] = useState<{
@@ -81,11 +78,11 @@ export default function StaffManagementPage() {
   } | null>(null);
 
   // Fetch users from API
-  const fetchUsers = async (page = 1) => {
+  const fetchUsers = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const filter: UserFilter = {
         name: query || undefined,
         role: roleFilter === "All" ? undefined : roleFilter,
@@ -127,6 +124,7 @@ export default function StaffManagementPage() {
         items: filteredItems,
         totalCount: filteredItems.length,
       });
+
       setUsers(filteredItems.map(convertToUserRow));
     } catch (err: any) {
       console.error("❌ Lỗi khi tải danh sách người dùng:", err);
@@ -138,18 +136,14 @@ export default function StaffManagementPage() {
 
   // Load users on component mount and when filters change
   useEffect(() => {
-    fetchUsers(currentPage);
-  }, [query, roleFilter, statusFilter, currentPage]);
+    fetchUsers();
+  }, [query, roleFilter, statusFilter]);
 
 
   // Debounced search
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (currentPage !== 1) {
-        setCurrentPage(1);
-      } else {
-        fetchUsers(1);
-      }
+      fetchUsers();
     }, 500);
 
     return () => clearTimeout(timeoutId);
@@ -188,6 +182,7 @@ export default function StaffManagementPage() {
         title: "Gỡ cấm người dùng thành công",
         message: `Đã gỡ cấm người dùng ${user.fullName}`
       });
+
     } catch (err: any) {
       console.error("❌ Lỗi khi gỡ cấm người dùng:", err);
       setSuccessToast({
@@ -251,11 +246,6 @@ export default function StaffManagementPage() {
       <Sidebar items={sidebarItems} title="Admin" />
 
       <div className="flex-1 p-8">
-        <Breadcrumb
-          items={[
-            { label: "Người dùng" }
-          ]}
-        />
         <header className="mb-8 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Quản lý Nhân viên</h1>
@@ -334,7 +324,7 @@ export default function StaffManagementPage() {
             <XCircle className="w-5 h-5 text-red-600" />
             <p className="text-red-700 font-medium">{error}</p>
             <button
-              onClick={() => fetchUsers(currentPage)}
+              onClick={() => fetchUsers()}
               className="ml-auto px-3 py-1 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
             >
               Thử lại
@@ -343,9 +333,9 @@ export default function StaffManagementPage() {
         )}
 
         {/* Table */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-soft overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-soft overflow-hidden" style={{ contain: 'layout style' }}>
           <div className="overflow-x-auto">
-            <table className="min-w-full text-left">
+            <table className="min-w-full text-left table-fixed">
               <thead className="bg-gray-50 text-gray-600 text-sm">
                 <tr>
                   <th className="px-4 py-3">Người dùng</th>
@@ -358,14 +348,35 @@ export default function StaffManagementPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
-                  <tr>
-                    <td colSpan={6} className="py-10 text-center text-gray-500">
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600"></div>
-                        Đang tải người dùng...
-                      </div>
-                    </td>
-                  </tr>
+                  // Loading skeleton
+                  Array.from({ length: 6 }).map((_, index) => (
+                    <tr key={`skeleton-${index}`}>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-gray-200"></div>
+                          <div className="space-y-2">
+                            <div className="h-4 bg-gray-200 rounded w-32"></div>
+                            <div className="h-3 bg-gray-200 rounded w-48"></div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="h-4 bg-gray-200 rounded w-24"></div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="h-4 bg-gray-200 rounded w-16"></div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="h-4 bg-gray-200 rounded w-20"></div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="h-4 bg-gray-200 rounded w-28"></div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="w-8 h-8 bg-gray-200 rounded"></div>
+                      </td>
+                    </tr>
+                  ))
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-10 text-center text-gray-500">
@@ -374,7 +385,10 @@ export default function StaffManagementPage() {
                   </tr>
                 ) : (
                   filtered.map((u) => (
-                    <tr key={u.id} className="hover:bg-gray-50/70">
+                    <tr
+                      key={u.id}
+                      className="hover:bg-gray-50/70"
+                    >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
@@ -480,47 +494,6 @@ export default function StaffManagementPage() {
           </div>
         </div>
 
-        {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Hiển thị {((pagination.pageNumber - 1) * pagination.pageSize) + 1} - {Math.min(pagination.pageNumber * pagination.pageSize, pagination.totalCount)} trong {pagination.totalCount} người dùng
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentPage(1)}
-                disabled={!pagination.hasPreviousPage}
-                className="px-3 py-2 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-              >
-                Đầu
-              </button>
-              <button
-                onClick={() => setCurrentPage(currentPage - 1)}
-                disabled={!pagination.hasPreviousPage}
-                className="px-3 py-2 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-              >
-                Trước
-              </button>
-              <span className="px-3 py-2 text-sm text-gray-600">
-                Trang {pagination.pageNumber} / {pagination.totalPages}
-              </span>
-              <button
-                onClick={() => setCurrentPage(currentPage + 1)}
-                disabled={!pagination.hasNextPage}
-                className="px-3 py-2 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-              >
-                Sau
-              </button>
-              <button
-                onClick={() => setCurrentPage(pagination.totalPages)}
-                disabled={!pagination.hasNextPage}
-                className="px-3 py-2 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-              >
-                Cuối
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Create Modal */}
         {showCreate && (
@@ -529,18 +502,29 @@ export default function StaffManagementPage() {
             onClose={() => setShowCreate(false)}
             onSubmit={async (payload) => {
               try {
-                await userService.create({
+                // Xác nhận trước khi tạo tài khoản
+                const confirmed = window.confirm(
+                  `Bạn có chắc muốn tạo tài khoản cho:\n\n- Họ tên: ${payload.fullName}\n- Email: ${payload.email}\n- Vai trò: ${payload.roles[0] || "TA"}\n\nMật khẩu sẽ được tạo tự động và gửi qua email này.`
+                );
+                if (!confirmed) return;
+
+                const provisionPayload: UserProvisionPayload = {
                   email: payload.email,
                   fullName: payload.fullName,
-                  phoneNumber: payload.phone,
-                  password: "TempPassword123!", // This should be generated or set by admin
-                  role: payload.roles[0] || "TA", // Take first role for now
-                });
-                await fetchUsers(currentPage);
+                  phoneNumber: payload.phone || null,
+                  role: payload.roles[0] || "TA"
+                };
+
+                const response = await authService.adminProvision(provisionPayload);
+
+                // Hiển thị thông báo thành công với password được generate
+                alert(`✅ Tạo tài khoản thành công!\n\nEmail: ${response.email}\nMật khẩu: ${response.password}\n\nMật khẩu đã được gửi qua email.`);
+
+                await fetchUsers();
                 setShowCreate(false);
               } catch (err: any) {
                 console.error("❌ Lỗi khi tạo người dùng:", err);
-                alert(err.message || "Không thể tạo người dùng. Vui lòng thử lại.");
+                // Không hiển thị alert lỗi để tránh báo lỗi trùng lặp
               }
             }}
           />
@@ -558,7 +542,14 @@ export default function StaffManagementPage() {
                   fullName: payload.fullName,
                   phoneNumber: payload.phone,
                 });
-
+              
+                // Update role if changed
+                if (payload.roles[0] !== showEdit.roles[0]) {
+                  await userService.updateRole(showEdit.id, {
+                    role: payload.roles[0] || "TA",
+                  });
+                }
+                
                 await fetchUsers(currentPage);
                 setShowEdit(null);
               } catch (err: any) {
@@ -619,11 +610,57 @@ function UserModal({
   const [roles, setRoles] = useState<StaffRole[]>(
     (initial?.roles as StaffRole[]) ?? []
   );
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  // Validation functions
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePhone = (phone: string): boolean => {
+    if (!phone.trim()) return true; // Optional field
+    const phoneRegex = /^[0-9]{10}$/;
+    return phoneRegex.test(phone.replace(/\s/g, ''));
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: {[key: string]: string} = {};
+
+    // Validate fullName (required)
+    if (!fullName.trim()) {
+      newErrors.fullName = "Họ và tên là bắt buộc";
+    }
+
+    // Validate email (required)
+    if (!email.trim()) {
+      newErrors.email = "Email là bắt buộc";
+    } else if (!validateEmail(email)) {
+      newErrors.email = "Email không hợp lệ";
+    }
+
+    // Validate phone (optional but must be 10 digits if provided)
+    if (phone.trim() && !validatePhone(phone)) {
+      newErrors.phone = "Số điện thoại phải có 10 chữ số";
+    }
+
+    // Validate roles (required)
+    if (roles.length === 0) {
+      newErrors.roles = "Vui lòng chọn ít nhất một vai trò";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   function toggleRole(r: StaffRole) {
     setRoles((cur) =>
       cur.includes(r) ? cur.filter((x) => x !== r) : [...cur, r]
     );
+    // Clear role error when user selects a role
+    if (errors.roles) {
+      setErrors(prev => ({ ...prev, roles: "" }));
+    }
   }
 
   return (
@@ -639,65 +676,95 @@ function UserModal({
         <div className="p-6 space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm text-gray-600">Họ và tên</label>
+              <label className="text-sm text-gray-600">
+                Họ và tên <span className="text-red-500">*</span>
+              </label>
               <input
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-200"
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  if (errors.fullName) {
+                    setErrors(prev => ({ ...prev, fullName: "" }));
+                  }
+                }}
+                className={`mt-1 w-full px-3 py-2 rounded-xl border ${errors.fullName ? 'border-red-500' : 'border-gray-200'}`}
                 placeholder="VD: Nguyễn Văn B"
               />
+              {errors.fullName && (
+                <p className="text-xs text-red-600 mt-1">{errors.fullName}</p>
+              )}
             </div>
             <div>
-              <label className="text-sm text-gray-600">Email</label>
+              <label className="text-sm text-gray-600">
+                Email <span className="text-red-500">*</span>
+              </label>
               <input
+                type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-200"
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) {
+                    setErrors(prev => ({ ...prev, email: "" }));
+                  }
+                }}
+                className={`mt-1 w-full px-3 py-2 rounded-xl border ${errors.email ? 'border-red-500' : 'border-gray-200'}`}
                 placeholder="email@devpool.com"
               />
+              {errors.email && (
+                <p className="text-xs text-red-600 mt-1">{errors.email}</p>
+              )}
             </div>
             <div>
               <label className="text-sm text-gray-600">Số điện thoại</label>
               <input
+                type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-200"
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  if (errors.phone) {
+                    setErrors(prev => ({ ...prev, phone: "" }));
+                  }
+                }}
+                className={`mt-1 w-full px-3 py-2 rounded-xl border ${errors.phone ? 'border-red-500' : 'border-gray-200'}`}
                 placeholder="09xx xxx xxx"
               />
+              {errors.phone && (
+                <p className="text-xs text-red-600 mt-1">{errors.phone}</p>
+              )}
             </div>
           </div>
 
-          {!initial && (
-            <div>
-              <label className="text-sm text-gray-600">Vai trò & quyền</label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(
-                  [
-                    "Manager",
-                    "TA",
-                    "Sale",
-                    "Accountant",
-                  ] as StaffRole[]
-                ).map((r) => (
-                  <button
-                    type="button"
-                    key={r}
-                    onClick={() => toggleRole(r)}
-                    className={`px-3 py-1.5 rounded-lg text-sm border transition ${roles.includes(r)
-                      ? "border-transparent bg-primary-600 text-white"
-                      : "border-gray-200 hover:bg-gray-50"
-                      }`}
-                  >
-                    {roles.includes(r) ? <ShieldCheck className="w-4 h-4 inline mr-1" /> : <Shield className="w-4 h-4 inline mr-1" />}
-                    {r}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Gợi ý: 1 người dùng có thể có nhiều vai trò. Quyền chi tiết nên kiểm soát ở BE (RBAC) theo mô tả nghiệp vụ.
-              </p>
+          <div>
+            <label className="text-sm text-gray-600">
+              Vai trò & quyền <span className="text-red-500">*</span>
+            </label>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(
+                [
+                  "Manager",
+                  "TA",
+                  "Sale",
+                  "Accountant",
+                ] as StaffRole[]
+              ).map((r) => (
+                <button
+                  type="button"
+                  key={r}
+                  onClick={() => toggleRole(r)}
+                  className={`px-3 py-1.5 rounded-lg text-sm border transition ${roles.includes(r)
+                    ? "border-transparent bg-primary-600 text-white"
+                    : "border-gray-200 hover:bg-gray-50"
+                    }`}
+                >
+                  {roles.includes(r) ? <ShieldCheck className="w-4 h-4 inline mr-1" /> : <Shield className="w-4 h-4 inline mr-1" />}
+                  {r}
+                </button>
+              ))}
             </div>
-          )}
+            {errors.roles && (
+              <p className="text-xs text-red-600 mt-1">{errors.roles}</p>
+            )}
+          </div>
         </div>
 
         <div className="p-6 border-t border-gray-100 flex items-center justify-end gap-3">
@@ -705,7 +772,11 @@ function UserModal({
             Hủy
           </button>
           <button
-            onClick={() => onSubmit({ fullName, email, phone, roles })}
+            onClick={() => {
+              if (validateForm()) {
+                onSubmit({ fullName, email, phone, roles });
+              }
+            }}
             className="px-4 py-2 rounded-xl bg-primary-600 text-white hover:bg-primary-700"
           >
             Lưu

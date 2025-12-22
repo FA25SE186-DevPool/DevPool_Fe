@@ -285,7 +285,7 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
     await login(
       response.email,
       '',
-      frontendRole as 'Staff TA' | 'Staff Accountant' | 'Staff Sales' | 'Developer' | 'Manager' | 'Admin'
+      frontendRole as 'Staff TA' | 'Staff Accountant' | 'Staff Sales' | 'Developer' | 'Manager' | 'Admin' | 'Partner'
     );
 
     setSuccess(true);

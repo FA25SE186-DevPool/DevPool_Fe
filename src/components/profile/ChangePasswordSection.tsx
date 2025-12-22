@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AlertCircle, CheckCircle, KeyRound, X } from "lucide-react";
 import { userService } from "../../services/User";
-import { getPassword, setPassword } from "../../utils/storage";
 
 export function ChangePasswordSection({ userId }: { userId: string | null }) {
   const [open, setOpen] = useState(false);
@@ -13,13 +12,6 @@ export function ChangePasswordSection({ userId }: { userId: string | null }) {
   const [success, setSuccess] = useState(false);
   const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
 
-  // Load password từ localStorage khi component mount
-  useEffect(() => {
-    const savedPassword = getPassword();
-    if (savedPassword) {
-      setCurrentPassword(savedPassword);
-    }
-  }, []);
 
   const close = () => {
     setOpen(false);
@@ -50,13 +42,6 @@ export function ChangePasswordSection({ userId }: { userId: string | null }) {
       setError("Vui lòng nhập mật khẩu hiện tại.");
       return;
     }
-
-    // Kiểm tra mật khẩu hiện tại có khớp với mật khẩu lưu trong localStorage (nếu có)
-    const savedPassword = getPassword();
-    if (savedPassword && currentPwd !== savedPassword) {
-      setError("Mật khẩu hiện tại không đúng. Vui lòng nhập lại mật khẩu hiện tại.");
-      return;
-    }
     if (!pwd) {
       setError("Vui lòng nhập mật khẩu mới.");
       return;
@@ -77,9 +62,6 @@ export function ChangePasswordSection({ userId }: { userId: string | null }) {
         newPassword: pwd,
         confirmPassword: confirm
       });
-
-      // Cập nhật mật khẩu mới vào localStorage để sử dụng cho lần đăng nhập tiếp theo
-      setPassword(pwd);
 
       setSuccess(true);
       setShowSuccessOverlay(true);

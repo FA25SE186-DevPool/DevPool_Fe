@@ -46,7 +46,7 @@ export function getRoleFromToken(token: string): FrontendRole | null {
   const role = Array.isArray(roles) ? roles[0] : roles;
 
   // Map role từ backend sang frontend
-  // Backend roles: "Admin", "Manager", "HR" (sẽ đổi thành "TA" sau), "Accountant", "Sale", "Dev"
+  // Backend roles: "Admin", "Manager", "HR" (sẽ đổi thành "TA" sau), "Accountant", "Sale", "Dev", "Partner"
   // Frontend hiển thị "TA" nhưng backend vẫn trả về "HR" (chưa đổi)
   switch (role) {
     case 'Admin':
@@ -62,6 +62,8 @@ export function getRoleFromToken(token: string): FrontendRole | null {
       return 'Staff Sales';
     case 'Dev':
       return 'Developer';
+    case 'Partner':
+      return 'Partner';
     default:
       return 'Developer';
   }
@@ -82,6 +84,8 @@ export function mapBackendRoleToFrontend(role: BackendRole): FrontendRole {
       return "Staff Sales";
     case BackendRole.Dev:
       return "Developer";
+    case BackendRole.Partner:
+      return "Partner";
     default:
       return "Developer";
   }

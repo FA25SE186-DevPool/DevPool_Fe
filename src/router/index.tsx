@@ -34,8 +34,8 @@ const AdminDashboard = React.lazy(() => import('../pages/admin/Dashboard/AdminDa
 const AdminProfile = React.lazy(() => import('../pages/admin/Profile'));
 
 // Users
-const CreateAccount = React.lazy(() => import('../pages/admin/Users/Create'));
 const StaffManagementPage = React.lazy(() => import('../pages/admin/Users/UserList'));
+const PartnerManagementPage = React.lazy(() => import('../pages/admin/Users/PartnerList'));
 
 // Categories - Certificate Types
 const CertificateTypeCreatePage = React.lazy(() => import('../pages/admin/Categories/certificate-types/Create'));
@@ -223,8 +223,9 @@ const AccountantProjectDetailPage = React.lazy(() => import('../pages/accountant
 // ========================================
 const PartnerDashboard = React.lazy(() => import('../pages/partner/Dashboard'));
 const PartnerTalents = React.lazy(() => import('../pages/partner/Talents'));
-const PartnerAssignments = React.lazy(() => import('../pages/partner/Assignments'));
-const DeveloperProfile = React.lazy(() => import('../pages/developer/Profile'));
+const PartnerTalentDetailPage = React.lazy(() => import('../pages/partner/TalentDetail'));
+const PartnerPayments = React.lazy(() => import('../pages/partner/Payments'));
+const PartnerProfile = React.lazy(() => import('../pages/partner/Profile'));
 
 // ========================================
 // MANAGER PAGES - Lazy Loading
@@ -250,7 +251,8 @@ const ManagerHandoverAssignmentPage = React.lazy(() => import('../pages/manager/
 
 
 const AppRouter: React.FC = () => {
-  const { user } = useAuth();
+  const authContext = useAuth();
+  const { user } = authContext;
 
   return (
     <>
@@ -423,11 +425,12 @@ const AppRouter: React.FC = () => {
           {/* PARTNER ROUTES (với PrivateLayout) */}
           {/* ======================================== */}
           <Route element={<PrivateLayout />}>
-            <Route element={<ProtectedRoute requiredRole="Developer"><Outlet /></ProtectedRoute>}>
+            <Route element={<ProtectedRoute requiredRoles={["Developer", "Partner"]}><Outlet /></ProtectedRoute>}>
               <Route path={ROUTES.PARTNER.DASHBOARD} element={<PartnerDashboard />} />
               <Route path={ROUTES.PARTNER.TALENTS} element={<PartnerTalents />} />
-              <Route path={ROUTES.PARTNER.ASSIGNMENTS} element={<PartnerAssignments />} />
-              <Route path={ROUTES.PARTNER.PROFILE} element={<DeveloperProfile />} />
+              <Route path={ROUTES.PARTNER.TALENT_DETAIL} element={<PartnerTalentDetailPage />} />
+              <Route path={ROUTES.PARTNER.PAYMENTS} element={<PartnerPayments />} />
+              <Route path={ROUTES.PARTNER.PROFILE} element={<PartnerProfile />} />
               <Route path={ROUTES.PARTNER.CV_CREATE} element={<TalentCVCreatePage />} />
             </Route>
           </Route>
@@ -468,7 +471,7 @@ const AppRouter: React.FC = () => {
 
               {/* Users */}
               <Route path={ROUTES.ADMIN.USERS.LIST} element={<StaffManagementPage />} />
-              <Route path={ROUTES.ADMIN.USERS.CREATE_ACCOUNT} element={<CreateAccount />} />
+              <Route path={ROUTES.ADMIN.USERS.PARTNERS} element={<PartnerManagementPage />} />
 
               {/* Categories - Certificate Types */}
               <Route path={ROUTES.ADMIN.CATEGORIES.CERTIFICATE_TYPES.LIST} element={<CertificateTypeListPage />} />

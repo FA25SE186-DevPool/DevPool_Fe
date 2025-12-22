@@ -90,9 +90,25 @@ export interface CheckCodeUniqueResponse {
   message?: string;
 }
 
+export interface CreatePartnerAccountModel {
+  email: string;
+}
+
+export interface CreatePartnerAccountResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    generatedPassword: string;
+    email: string;
+  };
+}
+
 export interface PartnerFilter {
   companyName?: string;
   contactPerson?: string;
+  taxCode?: string;
+  phone?: string;
+  partnerType?: PartnerType;
   excludeDeleted?: boolean;
   /**
    * Page number (1-based)
