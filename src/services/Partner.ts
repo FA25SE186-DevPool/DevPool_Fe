@@ -1,10 +1,10 @@
 // src/services/partnerService.ts
 import apiClient from "../lib/apiClient";
 import { AxiosError } from "axios";
-import { PartnerType, type Partner, type PartnerPayload, type PartnerContractModel, type PartnerTalentModel, type PartnerPaymentPeriodModel, type PartnerDetailedModel, type SuggestCodeResponse, type CheckCodeUniqueResponse, type PartnerFilter } from "../types/partner.types";
+import { PartnerType, type Partner, type PartnerPayload, type PartnerContractModel, type PartnerTalentModel, type PartnerPaymentPeriodModel, type PartnerDetailedModel, type SuggestCodeResponse, type CheckCodeUniqueResponse, type PartnerFilter, type CreatePartnerAccountModel, type CreatePartnerAccountResponse } from "../types/partner.types";
 
 export { PartnerType };
-export type { Partner, PartnerPayload, PartnerContractModel, PartnerTalentModel, PartnerPaymentPeriodModel, PartnerDetailedModel, SuggestCodeResponse, CheckCodeUniqueResponse, PartnerFilter };
+export type { Partner, PartnerPayload, PartnerContractModel, PartnerTalentModel, PartnerPaymentPeriodModel, PartnerDetailedModel, SuggestCodeResponse, CheckCodeUniqueResponse, PartnerFilter, CreatePartnerAccountModel, CreatePartnerAccountResponse };
 
 export const partnerService = {
   async getAll(filter?: PartnerFilter) {
@@ -12,6 +12,9 @@ export const partnerService = {
       const params = new URLSearchParams();
       if (filter?.companyName) params.append("CompanyName", filter.companyName);
       if (filter?.contactPerson) params.append("ContactPerson", filter.contactPerson);
+      if (filter?.taxCode) params.append("TaxCode", filter.taxCode);
+      if (filter?.phone) params.append("Phone", filter.phone);
+      if (filter?.partnerType !== undefined) params.append("PartnerType", filter.partnerType.toString());
       if (filter?.excludeDeleted !== undefined) params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
       if (filter?.pageNumber !== undefined) params.append("PageNumber", filter.pageNumber.toString());
       if (filter?.pageSize !== undefined) params.append("PageSize", filter.pageSize.toString());
@@ -120,6 +123,33 @@ export const partnerService = {
           throw errorData;
         }
         throw { message: "Failed to check code uniqueness" };
+      }
+      throw error || { message: "Unexpected error occurred" };
+    }
+  },
+
+  /**
+   * Create partner account for partner (similar to Talent)
+   * Validates: Partner.UserId == null
+   * Creates user account with role=Partner, links to partner, and sends credentials email
+   * @param id Partner ID
+   * @param model Create developer account model with email
+   * @returns Created account information with generated password
+   */
+  async createAccount(id: number, model: CreatePartnerAccountModel): Promise<CreatePartnerAccountResponse> {
+    try {
+      if (!model?.email || !model.email.trim()) {
+        throw { message: "Email is required" };
+      }
+      const response = await apiClient.post(`/partner/${id}/create-account`, model);
+      return response.data;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        const errorData = error.response?.data;
+        if (errorData?.message) {
+          throw errorData;
+        }
+        throw { message: "Failed to create partner account" };
       }
       throw error || { message: "Unexpected error occurred" };
     }

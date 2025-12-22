@@ -103,10 +103,10 @@ export const ROUTES = {
     DASHBOARD: '/admin/dashboard',
     PROFILE: '/admin/profile',
 
-    // Quản lý Users
+    // Quản lý Staff
     USERS: {
-      LIST: '/admin/users',                          // Danh sách users (staff)
-      CREATE_ACCOUNT: '/admin/users/create-account', // Tạo tài khoản cho staff
+      LIST: '/admin/users',                          // Danh sách staff
+      PARTNERS: '/admin/partners',                   // Danh sách partners
     },
 
     // Danh mục
@@ -302,7 +302,8 @@ export const ROUTES = {
 
     // Quản lý nhân sự
     TALENTS: '/partner/talents',              // Danh sách nhân sự của partner
-    ASSIGNMENTS: '/partner/assignments',      // Danh sách phân công của partner
+    TALENT_DETAIL: '/partner/talents/:talentId', // Chi tiết nhân sự
+    PAYMENTS: '/partner/payments',            // Danh sách thanh toán của partner
   },
 
 } as const;
@@ -326,6 +327,8 @@ export const getDashboardRoute = (role: string): string => {
       return ROUTES.ACCOUNTANT_STAFF.DASHBOARD;
     case 'Staff Sales':
       return ROUTES.SALES_STAFF.DASHBOARD;
+    case 'Partner':
+      return ROUTES.PARTNER.DASHBOARD;
     case 'Developer':
       return ROUTES.PARTNER.DASHBOARD;
     case 'Manager':

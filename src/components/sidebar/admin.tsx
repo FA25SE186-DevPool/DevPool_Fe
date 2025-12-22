@@ -2,7 +2,7 @@ import { BarChart3, Grid, Users, History, UserCog } from "lucide-react";
 
 export const sidebarItems = [
   {
-    label: 'Tổng Quan Hệ Thống',
+    label: 'Dashboard',
     href: '/admin/dashboard',
     icon: BarChart3
   },
@@ -11,9 +11,8 @@ export const sidebarItems = [
     href: '/admin/users',
     icon: Users,
     subItems: [
-      { label: 'Danh sách người dùng', href: '/admin/users' },
-      // { label: 'Danh sách nhân sự', href: '/admin/users/talents' },
-      { label: 'Tạo tài khoản nhân viên', href: '/admin/users/create-account' },
+      { label: 'Nhân viên', href: '/admin/users' },
+      { label: 'Đối tác', href: '/admin/partners' },
     ]
   },
   {
@@ -58,7 +57,6 @@ export const sidebarItems = [
           { label: 'Chuyên gia đánh giá', href: '/admin/categories/experts', icon: UserCog },
         ]
       },
-      // { label: 'Kiểu làm việc', href: '/admin/categories/working-styles' },
     ]
   },
   {
@@ -66,15 +64,5 @@ export const sidebarItems = [
     href: '/admin/audit-log',
     icon: History
   },
-  // {
-  //   label: 'Cài Đặt',
-  //   href: '/admin/settings',
-  //   icon: Settings,
-  //   subItems: [
-  //     // { label: 'Thông tin tài khoản', href: '/admin/settings/profile', icon: User },
-  //     // { label: 'Thông báo', href: '/admin/settings/notifications', icon: Bell },
-  //     { label: 'Đăng xuất', href: '/logout', icon: LogOut },
-  //   ]
-  // }
 ];
 

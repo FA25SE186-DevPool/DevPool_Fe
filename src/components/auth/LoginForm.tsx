@@ -123,39 +123,42 @@ export default function LoginForm() {
       await login(
         response.email,
         '', // Không cần password nữa vì đã có token
-        frontendRole as 'Staff TA' | 'Staff Accountant' | 'Staff Sales' | 'Developer' | 'Manager' | 'Admin'
+        frontendRole as 'Staff TA' | 'Staff Accountant' | 'Staff Sales' | 'Developer' | 'Manager' | 'Admin' | 'Partner'
       );
 
       // Hiển thị thông báo thành công
       setSuccess(true);
       setIsLoggingIn(false);
 
-      // Đợi 1.5 giây để người dùng thấy thông báo thành công trước khi redirect
+      // Đợi một chút để đảm bảo auth state được update trước khi redirect
       setTimeout(() => {
         // Redirect based on role
         switch (frontendRole) {
-          case 'Staff TA':
-            navigate('/ta/dashboard');
-            break;
-          case 'Staff Accountant':
-            navigate('/accountant/dashboard');
-            break;
-          case 'Staff Sales':
-            navigate('/sales/dashboard');
-            break;
-          case 'Developer':
-            navigate('/partner/dashboard');
-            break;
-          case 'Manager':
-            navigate('/manager/dashboard');
-            break;
-          case 'Admin':
-            navigate('/admin/dashboard');
-            break;
+        case 'Staff TA':
+          navigate('/ta/dashboard', { replace: true });
+          break;
+        case 'Staff Accountant':
+          navigate('/accountant/dashboard', { replace: true });
+          break;
+        case 'Staff Sales':
+          navigate('/sales/dashboard', { replace: true });
+          break;
+        case 'Partner':
+          navigate('/partner/dashboard', { replace: true });
+          break;
+        case 'Developer':
+          navigate('/partner/dashboard', { replace: true });
+          break;
+        case 'Manager':
+          navigate('/manager/dashboard', { replace: true });
+          break;
+        case 'Admin':
+          navigate('/admin/dashboard', { replace: true });
+          break;
           default:
-            navigate('/');
+            navigate('/', { replace: true });
         }
-      }, 1500);
+      }, 100); // Delay 100ms để đảm bảo auth state được update
     } catch (error: any) {
       setIsLoggingIn(false);
       // Xử lý lỗi từ API

@@ -910,6 +910,7 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
                         to={user ? (user.role === 'Staff TA' ? ROUTES.TA_STAFF.PROFILE :
                                    user.role === 'Staff Sales' ? ROUTES.SALES_STAFF.PROFILE :
                                    user.role === 'Staff Accountant' ? ROUTES.ACCOUNTANT_STAFF.PROFILE :
+                                   user.role === 'Partner' ? ROUTES.PARTNER.PROFILE :
                                    user.role === 'Developer' ? ROUTES.PARTNER.PROFILE :
                                    user.role === 'Manager' ? ROUTES.MANAGER.PROFILE :
                                    user.role === 'Admin' ? ROUTES.ADMIN.PROFILE : '/') : '/'}

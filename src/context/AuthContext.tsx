@@ -10,7 +10,8 @@ type Role =
   | 'Staff Sales'
   | 'Developer'
   | 'Manager'
-  | 'Admin';
+  | 'Admin'
+  | 'Partner';
 
 interface User {
   id: string;
@@ -46,6 +47,8 @@ function roleDisplayName(role: Role, email: string) {
       return 'Quản lý';
     case 'Admin':
       return 'Admin';
+    case 'Partner':
+      return 'Đối tác';
     default:
       return email;
   }
@@ -209,7 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

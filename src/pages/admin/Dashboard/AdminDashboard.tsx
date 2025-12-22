@@ -22,9 +22,6 @@ import {
   AlertCircle,
   BarChart3,
   Activity,
-  FileCheck,
-  CreditCard,
-  AlertTriangle,
 } from 'lucide-react';
 import { userService } from '../../../services/User';
 import { skillService } from '../../../services/Skill';
@@ -211,7 +208,6 @@ export default function AdminDashboard() {
   const categoryStats = [
     { name: 'Kỹ Năng (skill)', count: categoryBreakdown.skills, icon: <Star className="w-5 h-5" />, link: '/admin/categories/skills', color: 'blue' },
     { name: 'Nhóm Kỹ Năng (skill group)', count: categoryBreakdown.skillGroups, icon: <Tag className="w-5 h-5" />, link: '/admin/categories/skill-groups', color: 'green' },
-    { name: 'Mẫu CV (cv template)', count: categoryBreakdown.cvTemplates, icon: <FileText className="w-5 h-5" />, link: '/admin/categories/cv-templates', color: 'purple' },
     { name: 'Loại Chứng Chỉ', count: categoryBreakdown.certificateTypes, icon: <FileText className="w-5 h-5" />, link: '/admin/categories/certificate-types', color: 'orange' },
     { name: 'Vị trí tuyển dụng (job role level)', count: categoryBreakdown.jobRoleLevels, icon: <Briefcase className="w-5 h-5" />, link: '/admin/categories/job-role-levels', color: 'blue' },
     { name: 'Loại vị trí tuyển dụng (job role)', count: categoryBreakdown.jobRoles, icon: <Briefcase className="w-5 h-5" />, link: '/admin/categories/job-roles', color: 'green' },
@@ -300,49 +296,14 @@ export default function AdminDashboard() {
           ))}
         </div>
 
-        {/* Category Breakdown Cards */}
-        <div className="bg-white rounded-2xl shadow-soft hover:shadow-medium transition-all duration-300 border border-neutral-100 mb-8 animate-fade-in">
-          <div className="p-6 border-b border-neutral-200">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Chi Tiết Danh Mục (10 Loại)</h2>
-              <Link 
-                to="/admin/categories/skills"
-                className="text-primary-600 hover:text-primary-800 text-sm font-medium transition-colors duration-300 hover:scale-105 transform"
-              >
-                Xem tất cả
-              </Link>
-            </div>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              {categoryStats.map((cat, index) => (
-                <Link
-                  key={index}
-                  to={cat.link}
-                  className="group p-4 bg-gradient-to-r from-neutral-50 to-primary-50 rounded-xl hover:from-primary-50 hover:to-accent-50 transition-all duration-300 border border-neutral-200 hover:border-primary-300 hover:shadow-soft"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className={`p-2 rounded-lg ${getCategoryColor(cat.color)} group-hover:scale-110 transition-transform duration-300`}>
-                      {cat.icon}
-                    </div>
-                    <CheckCircle className="w-4 h-4 text-secondary-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  </div>
-                  <h3 className="text-xs font-medium text-neutral-600 group-hover:text-neutral-700 transition-colors duration-300 mb-1">{cat.name}</h3>
-                  <p className="text-2xl font-bold text-gray-900 group-hover:text-primary-700 transition-colors duration-300">{cat.count}</p>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slide-up">
           {/* Recent Users */}
           <div className="bg-white rounded-2xl shadow-soft hover:shadow-medium transition-all duration-300 border border-neutral-100">
             <div className="p-6 border-b border-neutral-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">Người Dùng</h2>
-                <Link 
-                  to="/admin/users/list"
+                <Link
+                  to="/admin/users"
                   className="text-primary-600 hover:text-primary-800 text-sm font-medium transition-colors duration-300 hover:scale-105 transform"
                 >
                   Xem tất cả
@@ -393,7 +354,7 @@ export default function AdminDashboard() {
             </div>
             <div className="p-6">
               <div className="grid grid-cols-1 gap-3">
-                <Link to="/admin/users/list" className="group flex items-center justify-between p-4 border border-neutral-200 rounded-xl hover:bg-primary-50 hover:border-primary-300 transition-all duration-300 hover:shadow-soft">
+                <Link to="/admin/users" className="group flex items-center justify-between p-4 border border-neutral-200 rounded-xl hover:bg-primary-50 hover:border-primary-300 transition-all duration-300 hover:shadow-soft">
                   <div className="flex items-center space-x-3">
                     <Users className="w-5 h-5 text-primary-600 group-hover:scale-110 transition-transform duration-300" />
                     <span className="font-medium group-hover:text-primary-700 transition-colors duration-300">Quản lý người dùng</span>
@@ -416,16 +377,52 @@ export default function AdminDashboard() {
                   </div>
                 </Link>
 
-                <Link to="/admin/users/create" className="group flex items-center justify-between p-4 border border-neutral-200 rounded-xl hover:bg-warning-50 hover:border-warning-300 transition-all duration-300 hover:shadow-soft">
+                <Link to="/admin/users" className="group flex items-center justify-between p-4 border border-neutral-200 rounded-xl hover:bg-warning-50 hover:border-warning-300 transition-all duration-300 hover:shadow-soft">
                   <div className="flex items-center space-x-3">
                     <Users className="w-5 h-5 text-warning-600 group-hover:scale-110 transition-transform duration-300" />
-                    <span className="font-medium group-hover:text-warning-700 transition-colors duration-300">Tạo người dùng mới</span>
+                    <span className="font-medium group-hover:text-warning-700 transition-colors duration-300">Thêm người dùng</span>
                   </div>
                 </Link>
               </div>
             </div>
           </div>
         </div>
+        
+        {/* Category Breakdown Cards */}
+        <div className="bg-white rounded-2xl shadow-soft hover:shadow-medium transition-all duration-300 border border-neutral-100 mb-8 animate-fade-in">
+          <div className="p-6 border-b border-neutral-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Chi Tiết Danh Mục (9 Loại)</h2>
+              <Link 
+                to="/admin/categories/skills"
+                className="text-primary-600 hover:text-primary-800 text-sm font-medium transition-colors duration-300 hover:scale-105 transform"
+              >
+                Xem tất cả
+              </Link>
+            </div>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {categoryStats.map((cat, index) => (
+                <Link
+                  key={index}
+                  to={cat.link}
+                  className="group p-4 bg-gradient-to-r from-neutral-50 to-primary-50 rounded-xl hover:from-primary-50 hover:to-accent-50 transition-all duration-300 border border-neutral-200 hover:border-primary-300 hover:shadow-soft"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className={`p-2 rounded-lg ${getCategoryColor(cat.color)} group-hover:scale-110 transition-transform duration-300`}>
+                      {cat.icon}
+                    </div>
+                    <CheckCircle className="w-4 h-4 text-secondary-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  </div>
+                  <h3 className="text-xs font-medium text-neutral-600 group-hover:text-neutral-700 transition-colors duration-300 mb-1">{cat.name}</h3>
+                  <p className="text-2xl font-bold text-gray-900 group-hover:text-primary-700 transition-colors duration-300">{cat.count}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+        
       </div>
     );
   };
@@ -482,168 +479,9 @@ export default function AdminDashboard() {
 
     if (!operationsData) return null;
 
-    const getPriorityColor = (priority: string) => {
-      if (priority === 'High') return 'text-red-600 bg-red-50';
-      if (priority === 'Medium') return 'text-amber-600 bg-amber-50';
-      return 'text-blue-600 bg-blue-50';
-    };
 
     return (
       <div className="space-y-6">
-        {/* Contract Status Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Total Contracts</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{operationsData.totalContracts}</p>
-              </div>
-              <FileCheck className="w-8 h-8 text-primary-600" />
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
-            <p className="text-sm font-medium text-neutral-600">Draft</p>
-            <p className="text-2xl font-bold text-gray-600 mt-2">{operationsData.draftContracts}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
-            <p className="text-sm font-medium text-neutral-600">Submitted</p>
-            <p className="text-2xl font-bold text-blue-600 mt-2">{operationsData.submittedContracts}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
-            <p className="text-sm font-medium text-neutral-600">Verified</p>
-            <p className="text-2xl font-bold text-cyan-600 mt-2">{operationsData.verifiedContracts}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
-            <p className="text-sm font-medium text-neutral-600">Approved</p>
-            <p className="text-2xl font-bold text-green-600 mt-2">{operationsData.approvedContracts}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6 border border-neutral-100">
-            <p className="text-sm font-medium text-neutral-600">Rejected</p>
-            <p className="text-2xl font-bold text-red-600 mt-2">{operationsData.rejectedContracts}</p>
-          </div>
-        </div>
-
-        {/* Payment Status Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Total Payments</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{operationsData.totalPayments}</p>
-              </div>
-              <CreditCard className="w-8 h-8 text-primary-600" />
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Pending</p>
-            <p className="text-2xl font-bold text-amber-600 mt-2">{operationsData.pendingPayments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Processing</p>
-            <p className="text-2xl font-bold text-blue-600 mt-2">{operationsData.processingPayments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Invoiced</p>
-            <p className="text-2xl font-bold text-purple-600 mt-2">{operationsData.invoicedPayments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Partially Paid</p>
-            <p className="text-2xl font-bold text-cyan-600 mt-2">{operationsData.partiallyPaidPayments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Paid</p>
-            <p className="text-2xl font-bold text-green-600 mt-2">{operationsData.paidPayments}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <p className="text-sm font-medium text-neutral-600">Overdue</p>
-            <p className="text-2xl font-bold text-red-600 mt-2">{operationsData.overduePayments}</p>
-          </div>
-        </div>
-
-        {/* Processing Times & Bottlenecks */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Processing Times</h3>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-neutral-600">Average Contract Processing</p>
-                <p className="text-2xl font-bold text-primary-600 mt-1">
-                  {Math.round(operationsData.averageContractProcessingTime)} ngày
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-neutral-600">Average Payment Processing</p>
-                <p className="text-2xl font-bold text-green-600 mt-1">
-                  {Math.round(operationsData.averagePaymentProcessingTime)} ngày
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Document Status</h3>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-neutral-600">Total Documents</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{operationsData.totalDocuments}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-neutral-600">Client Documents</p>
-                  <p className="text-xl font-semibold text-blue-600 mt-1">{operationsData.clientDocuments}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-neutral-600">Partner Documents</p>
-                  <p className="text-xl font-semibold text-green-600 mt-1">{operationsData.partnerDocuments}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Pending Actions */}
-        {operationsData.pendingActions && operationsData.pendingActions.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-soft p-6 mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Pending Actions</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {operationsData.pendingActions.map((action, index) => (
-                <div key={index} className="p-4 bg-gray-50 rounded-lg border border-neutral-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium text-gray-900">{action.actionType}</p>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(action.priority)}`}>
-                      {action.priority}
-                    </span>
-                  </div>
-                  <p className="text-2xl font-bold text-primary-600">{action.count}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Bottlenecks */}
-        {operationsData.bottlenecks && operationsData.bottlenecks.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-soft p-6 mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-amber-600" />
-              Bottlenecks
-            </h2>
-            <div className="space-y-3">
-              {operationsData.bottlenecks.slice(0, 5).map((bottleneck, index) => (
-                <div key={index} className="p-4 bg-red-50 rounded-lg border border-red-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium text-red-900">{bottleneck.stage}</p>
-                    <span className="text-red-600 font-semibold">{bottleneck.stuckItems} items</span>
-                  </div>
-                  <p className="text-sm text-red-700 mb-1">
-                    Average stuck: {Math.round(bottleneck.averageStuckDays)} ngày
-                  </p>
-                  <p className="text-sm text-red-600">{bottleneck.reason}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Recent Activities */}
         {operationsData.recentActivities && operationsData.recentActivities.length > 0 && (
           <div className="bg-white rounded-2xl shadow-soft p-6">

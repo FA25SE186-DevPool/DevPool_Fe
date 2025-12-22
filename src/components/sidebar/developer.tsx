@@ -1,7 +1,7 @@
 import {
   BarChart3,
   Users,
-  Briefcase,
+  DollarSign,
 } from "lucide-react";
 
 export const sidebarItems = [
@@ -16,9 +16,9 @@ export const sidebarItems = [
     icon: Users
   },
   {
-    label: 'Phân Công',
-    href: '/partner/assignments',
-    icon: Briefcase
+    label: 'Thanh toán',
+    href: '/partner/payments',
+    icon: DollarSign
   },
 ];
 
