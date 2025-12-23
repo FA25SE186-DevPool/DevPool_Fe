@@ -220,7 +220,7 @@ export default function FaceIDEnroll({ email, onSuccess, onCancel }: FaceIDEnrol
             {success && (
                 <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center space-x-3">
                     <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    <span className="text-green-700 text-sm font-medium">✅ Đăng ký FaceID thành công!</span>
+                    <span className="text-green-700 text-sm font-medium">Đăng ký FaceID thành công!</span>
                 </div>
             )}
 

@@ -104,6 +104,54 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
   // Track previous user để detect khi user thay đổi
   const prevUserKeyRef = useRef<string | null>(null);
 
+  // Fetch notifications khi component mount nếu user đã có sẵn
+  useEffect(() => {
+    if (user && resolvedUserId && !prevUserKeyRef.current) {
+      prevUserKeyRef.current = `${user.id}-${user.role}-${resolvedUserId}`;
+      setIsLoadingNotifications(true);
+
+      const fetchInitialNotifications = async () => {
+        try {
+          const token = localStorage.getItem('accessToken');
+          if (!token) return;
+
+          const result = await notificationService.getAll({
+            pageNumber: 1,
+            pageSize: 20,
+          });
+
+          const notifications = (
+            result?.notifications ||
+            (Array.isArray(result) ? result : [])
+          ) as ExtendedNotification[];
+
+          const finalItems = notifications.slice(0, 50) as ExtendedNotification[];
+          const unreadCount = finalItems.filter((n: ExtendedNotification) => !n.isRead).length;
+          setItems(finalItems);
+          setUnread(unreadCount);
+
+        } catch (error) {
+          console.error('❌ Error loading initial notifications:', error);
+        } finally {
+          setIsLoadingNotifications(false);
+        }
+      };
+
+      fetchInitialNotifications();
+
+      // Start notification hub connection
+      (async () => {
+        try {
+          await stopNotificationConnection(); // Ensure clean state
+          await new Promise(resolve => setTimeout(resolve, 200));
+          await startNotificationConnection(false);
+        } catch (error) {
+          console.warn('⚠️ Failed to start notification connection:', error);
+        }
+      })();
+    }
+  }, []); // Empty dependency array - chỉ chạy 1 lần khi mount
+
   // Tạo userKey từ user hiện tại
   const currentUserKey = useMemo(() => {
     if (!user) return null;
@@ -241,6 +289,46 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserKey, user, resolvedUserId]); // Chạy khi userKey, user hoặc resolvedUserId thay đổi
+
+  // Thêm useEffect riêng để đảm bảo notifications được load khi user login
+  useEffect(() => {
+    if (user && resolvedUserId && currentUserKey && currentUserKey === prevUserKeyRef.current) {
+      // User đã ổn định, đảm bảo có ít nhất 1 lần fetch
+      if (items.length === 0 && !isLoadingNotifications) {
+        setIsLoadingNotifications(true);
+
+        const fetchNotificationsAgain = async () => {
+          try {
+            const token = localStorage.getItem('accessToken');
+            if (!token) return;
+
+            const result = await notificationService.getAll({
+              pageNumber: 1,
+              pageSize: 20,
+            });
+
+            const notifications = (
+              result?.notifications ||
+              (Array.isArray(result) ? result : [])
+            ) as ExtendedNotification[];
+
+            const finalItems = notifications.slice(0, 50) as ExtendedNotification[];
+            const unreadCount = finalItems.filter((n: ExtendedNotification) => !n.isRead).length;
+            setItems(finalItems);
+            setUnread(unreadCount);
+
+          } catch (error) {
+            console.error('❌ Error in fallback notification fetch:', error);
+          } finally {
+            setIsLoadingNotifications(false);
+          }
+        };
+
+        // Delay một chút để tránh conflict với useEffect chính
+        setTimeout(fetchNotificationsAgain, 1000);
+      }
+    }
+  }, [user, resolvedUserId, currentUserKey, items.length, isLoadingNotifications]);
 
   // Đồng bộ unread với items mỗi khi items thay đổi (ví dụ từ realtime updates)
   // React sẽ tự động optimize nếu giá trị không thay đổi
@@ -681,11 +769,15 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
                     className="group relative p-2 text-neutral-600 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-all duration-300"
                   >
                     <Bell className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                    {unread > 0 && (
+                    {isLoadingNotifications ? (
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-neutral-400 rounded-full flex items-center justify-center">
+                        <Loader2 className="w-3 h-3 animate-spin text-white" />
+                      </div>
+                    ) : unread > 0 ? (
                       <span className="absolute -top-1 -right-1 bg-error-500 text-white text-xs rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center animate-pulse-gentle">
                         {unread > 9 ? '9+' : unread}
                       </span>
-                    )}
+                    ) : null}
                   </button>
 
                   {isNotificationOpen && (

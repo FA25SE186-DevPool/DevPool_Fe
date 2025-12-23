@@ -34,7 +34,7 @@ interface AuthContextType {
 const STORAGE_KEY = 'devpool_user';
 
 // Session timeout settings
-const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+const SESSION_TIMEOUT = 45 * 60 * 1000; // 45 minutes
 const WARNING_TIME = 5 * 60 * 1000; // Show warning 5 minutes before timeout
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

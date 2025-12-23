@@ -374,7 +374,7 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
       {success && (
         <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-100 border border-green-200 rounded-xl flex items-center space-x-3 animate-slide-down shadow-soft">
           <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-          <span className="text-green-700 text-sm font-medium">✅ Đăng nhập thành công! Đang chuyển hướng...</span>
+          <span className="text-green-700 text-sm font-medium">Đăng nhập thành công! Đang chuyển hướng...</span>
         </div>
       )}
 

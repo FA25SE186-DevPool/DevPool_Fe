@@ -196,7 +196,7 @@ export function useTalentCreateCVModal({
       result.stats.addedJobRoleLevelsCount > 0
         ? `\nĐã tự động thêm ${result.stats.addedJobRoleLevelsCount} vị trí công việc vào form.`
         : ''
-    }${createCVFromExtract ? `\n✅ Đã tạo CV và upload lên Firebase.` : ''}`;
+    }${createCVFromExtract ? `\nĐã tạo CV và upload lên Firebase.` : ''}`;
     alert(successMessage);
 
     // Copy file and preview URL to main page

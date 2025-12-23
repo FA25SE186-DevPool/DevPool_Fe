@@ -1047,14 +1047,10 @@ export default function JobRequestCreatePage() {
                       <div className="flex items-center gap-2 text-sm text-neutral-700">
                         <Target className="w-4 h-4 text-neutral-400" />
                         <span>
-                          {form.workingMode === WorkingMode.None
-                            ? "Không xác định"
-                            : form.workingMode === WorkingMode.Onsite
+                          {form.workingMode === WorkingMode.Onsite
                             ? "Tại văn phòng"
                             : form.workingMode === WorkingMode.Remote
                             ? "Từ xa"
-                            : form.workingMode === WorkingMode.Hybrid
-                            ? "Kết hợp"
                             : form.workingMode === WorkingMode.Flexible
                             ? "Linh hoạt"
                             : "Chọn chế độ làm việc"}
@@ -1068,20 +1064,6 @@ export default function JobRequestCreatePage() {
                         onMouseLeave={() => setIsWorkingModeDropdownOpen(false)}
                       >
                         <div className="max-h-56 overflow-y-auto">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setForm(prev => ({ ...prev, workingMode: WorkingMode.None }));
-                              setIsWorkingModeDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-4 py-2.5 text-sm ${
-                              form.workingMode === WorkingMode.None
-                                ? "bg-primary-50 text-primary-700"
-                                : "hover:bg-neutral-50 text-neutral-700"
-                            }`}
-                          >
-                            Không xác định
-                          </button>
                           <button
                             type="button"
                             onClick={() => {
@@ -1109,20 +1091,6 @@ export default function JobRequestCreatePage() {
                             }`}
                           >
                             Từ xa
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setForm(prev => ({ ...prev, workingMode: WorkingMode.Hybrid }));
-                              setIsWorkingModeDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-4 py-2.5 text-sm ${
-                              form.workingMode === WorkingMode.Hybrid
-                                ? "bg-primary-50 text-primary-700"
-                                : "hover:bg-neutral-50 text-neutral-700"
-                            }`}
-                          >
-                            Kết hợp
                           </button>
                           <button
                             type="button"
@@ -1231,7 +1199,7 @@ export default function JobRequestCreatePage() {
                 <div className="col-span-1 md:col-span-3">
                   <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
                     <Users className="w-4 h-4" />
-                    Vị trí tuyển dụng <span className="text-red-500">*</span>
+                    Vị trí tuyển dụng
                   </label>
                   
                   {/* Filter theo loại vị trí */}
@@ -1762,6 +1730,7 @@ export default function JobRequestCreatePage() {
                   value={form.description}
                   onChange={(val) => updateField("description", val)}
                   placeholder="Nhập mô tả chi tiết về công việc..."
+                  simple={true}
                 />
               </div>
             </div>
@@ -1781,6 +1750,7 @@ export default function JobRequestCreatePage() {
                   value={form.requirements}
                   onChange={(val) => updateField("requirements", val)}
                   placeholder="Nhập yêu cầu cụ thể cho ứng viên..."
+                  simple={true}
                 />
               </div>
             </div>

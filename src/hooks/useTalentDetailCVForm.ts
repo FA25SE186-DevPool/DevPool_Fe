@@ -876,6 +876,15 @@ export function useTalentDetailCVForm({
         setAnalysisResultCVId(null);
       }
 
+      // Xóa kết quả phân tích khỏi sessionStorage
+      if (analysisResultStorageKey) {
+        try {
+          sessionStorage.removeItem(analysisResultStorageKey);
+        } catch (storageError) {
+          console.warn("Không thể xóa kết quả phân tích CV khỏi sessionStorage:", storageError);
+        }
+      }
+
       // Hiển thị loading overlay trong 2 giây rồi close form và refresh
       setTimeout(() => {
         setShowCreateCVSuccessOverlay(false);
