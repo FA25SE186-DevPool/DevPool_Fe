@@ -442,7 +442,7 @@ export default function JobRequestDetailHRPage() {
 
     const handleApproveWithConfirm = () => {
         if (!jobRequest) return;
-        const confirmApprove = window.confirm(`✅ Bạn có chắc muốn duyệt yêu cầu tuyển dụng "${jobRequest.title}"?`);
+        const confirmApprove = window.confirm(`Bạn có chắc muốn duyệt yêu cầu tuyển dụng "${jobRequest.title}"?`);
         if (!confirmApprove) return;
         void handleApprove(1);
     };
@@ -685,36 +685,35 @@ export default function JobRequestDetailHRPage() {
                                     Matching CV
                                 </Button>
                             )}
-                            <Button
-                    onClick={handleApproveWithConfirm}
-                                disabled={
-                                    updating ||
-                                    Number(jobRequest.status) === 1 ||
-                                    Number(jobRequest.status) === 3
-                                }
-                                className={`group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${
-                                    updating ||
-                                    Number(jobRequest.status) === 1 ||
-                                    Number(jobRequest.status) === 3
-                                        ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
-                                        : "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
-                                }`}
-                            >
-                                <CheckCircle className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-                                Duyệt
-                            </Button>
-                            <Button
-                                onClick={handleOpenRejectDialog}
-                                disabled={updating || Number(jobRequest.status) === 3 || Number(jobRequest.status) === 1}
-                                className={`group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${
-                                    updating || Number(jobRequest.status) === 3 || Number(jobRequest.status) === 1
-                                        ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
-                                        : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
-                                }`}
-                            >
-                                <XCircle className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-                                Từ chối
-                            </Button>
+                            {/* Ẩn nút duyệt/từ chối nếu đã duyệt hoặc từ chối */}
+                            {Number(jobRequest.status) !== 1 && Number(jobRequest.status) !== 3 && (
+                                <>
+                                    <Button
+                                        onClick={handleApproveWithConfirm}
+                                        disabled={updating}
+                                        className={`group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${
+                                            updating
+                                                ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
+                                                : "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
+                                        }`}
+                                    >
+                                        <CheckCircle className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+                                        Duyệt
+                                    </Button>
+                                    <Button
+                                        onClick={handleOpenRejectDialog}
+                                        disabled={updating}
+                                        className={`group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${
+                                            updating
+                                                ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
+                                                : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
+                                        }`}
+                                    >
+                                        <XCircle className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+                                        Từ chối
+                                    </Button>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -832,10 +831,9 @@ export default function JobRequestDetailHRPage() {
                                     </div>
                                     <div className="prose prose-sm max-w-none">
                                         {jobRequest.description ? (
-                                            <div
-                                                className="text-gray-700 leading-relaxed"
-                                                dangerouslySetInnerHTML={{ __html: jobRequest.description }}
-                                            />
+                                            <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                                                {jobRequest.description}
+                                            </p>
                                         ) : (
                                             <p className="text-gray-500 italic">Chưa có mô tả công việc cụ thể</p>
                                         )}

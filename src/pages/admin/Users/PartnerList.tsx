@@ -122,7 +122,7 @@ const PartnerManagementPage = () => {
       successMessage += `Mật khẩu: ${response.data?.generatedPassword}\n\n`;
 
       if (emailChanged) {
-        successMessage += `✅ Email đối tác đã được cập nhật thành: ${email}\n\n`;
+        successMessage += `Email đối tác đã được cập nhật thành: ${email}\n\n`;
       }
 
       successMessage += `Mật khẩu đã được gửi qua email này.`;

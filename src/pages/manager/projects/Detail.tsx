@@ -713,12 +713,12 @@ export default function ManagerProjectDetailPage() {
                 <div className="space-y-6">
                   <InfoItem
                     label="Ngày bắt đầu"
-                    value={formatViDateTime(project.startDate)}
+                    value={formatViDate(project.startDate)}
                     icon={<CalendarDays className="w-4 h-4" />}
                   />
                   <InfoItem
                     label="Ngày kết thúc"
-                    value={project.endDate ? formatViDateTime(project.endDate) : "—"}
+                    value={project.endDate ? formatViDate(project.endDate) : "—"}
                     icon={<CalendarDays className="w-4 h-4" />}
                   />
                 </div>

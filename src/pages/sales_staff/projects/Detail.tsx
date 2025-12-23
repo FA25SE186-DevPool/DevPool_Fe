@@ -2187,14 +2187,14 @@ export default function ProjectDetailPage() {
 
                 {/* Cột 3: Ngày bắt đầu, Ngày kết thúc */}
                 <div className="space-y-6">
-                  <InfoItem 
-                    label="Ngày bắt đầu" 
-                    value={formatViDateTime(project.startDate)}
+                  <InfoItem
+                    label="Ngày bắt đầu"
+                    value={formatViDate(project.startDate)}
                     icon={<CalendarDays className="w-4 h-4" />}
                   />
-                  <InfoItem 
-                    label="Ngày kết thúc" 
-                    value={project.endDate ? formatViDateTime(project.endDate) : "—"}
+                  <InfoItem
+                    label="Ngày kết thúc"
+                    value={project.endDate ? formatViDate(project.endDate) : "—"}
                     icon={<CalendarDays className="w-4 h-4" />}
                   />
                 </div>

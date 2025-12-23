@@ -36,8 +36,6 @@ export function TalentBasicInfoForm({
       switch (formData.workingMode) {
         case WorkingMode.Onsite: // Tại văn phòng
           return true;
-        case WorkingMode.Hybrid: // Kết hợp
-          return true;
         case WorkingMode.Remote: // Từ xa
           return false;
         case WorkingMode.Flexible: // Linh hoạt
@@ -200,10 +198,9 @@ export function TalentBasicInfoForm({
                 errors.workingMode ? 'border-red-500' : 'border-neutral-200'
               }`}
             >
-              <option value={WorkingMode.None}>Không xác định</option>
+              <option value={WorkingMode.None}>Chọn chế độ làm việc</option>
               <option value={WorkingMode.Onsite}>Tại văn phòng</option>
               <option value={WorkingMode.Remote}>Từ xa</option>
-              <option value={WorkingMode.Hybrid}>Kết hợp</option>
               <option value={WorkingMode.Flexible}>Linh hoạt</option>
             </select>
             {errors.workingMode && <p className="mt-1 text-sm text-red-500">{errors.workingMode}</p>}

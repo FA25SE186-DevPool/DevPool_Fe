@@ -23,6 +23,7 @@ interface RichTextEditorProps {
   onChange: (value: string) => void;
   placeholder?: string;
   minHeight?: number;
+  simple?: boolean; // Disable formatting toolbar
 }
 
 export default function RichTextEditor({
@@ -30,6 +31,7 @@ export default function RichTextEditor({
   onChange,
   placeholder = "Nhập nội dung...",
   minHeight = 180,
+  simple = false,
 }: RichTextEditorProps) {
   const [, forceUpdate] = useState(0);
 
@@ -259,6 +261,19 @@ export default function RichTextEditor({
       <div className="flex items-center gap-1.5">{children}</div>
     </div>
   );
+
+  if (simple) {
+    return (
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full border border-neutral-200 rounded-xl bg-white px-4 py-3 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 transition-all text-sm leading-relaxed resize-vertical"
+        style={{ minHeight: `${minHeight}px` }}
+        rows={6}
+      />
+    );
+  }
 
   return (
     <div className="space-y-3">

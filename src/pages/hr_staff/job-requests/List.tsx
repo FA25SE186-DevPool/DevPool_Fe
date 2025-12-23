@@ -134,7 +134,10 @@ const getStatusConfig = (status: string): StatusConfig => {
 export default function HRJobRequestList() {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { clientCompanies, projects, jobRoleLevels, loading: lookupLoading } = useLookupData({ includeJobRequestData: true });
+    const { clientCompanies, projects, jobRoleLevels, skills, loading: lookupLoading, refreshCache } = useLookupData({
+        includeJobRequestData: true,
+        includeTalentData: true
+    });
     const [requests, setRequests] = useState<HRJobRequest[]>([]);
     const [filteredRequests, setFilteredRequests] = useState<HRJobRequest[]>([]);
     const [loading, setLoading] = useState(true);
@@ -253,6 +256,7 @@ const stats = [
                 const jobSkillsArray = ensureArray<JobSkill>(jobSkills);
                 const applicationsArray = ensureArray<TalentApplication>(applications);
 
+
                 // Lấy tất cả yêu cầu
                 const filteredReqs = [...jobReqsArray].sort((a, b) => {
                     const metaA = a as { createdAt?: string };
@@ -277,12 +281,17 @@ const stats = [
                 const positionDict: Record<number, JobRoleLevel> = {};
                 jobRoleLevels.forEach((p) => (positionDict[p.id] = p));
 
+                // Tạo skill dictionary để map skillsId -> name
+                const skillDict: Record<number, string> = {};
+                skills.forEach((s) => (skillDict[s.id] = s.name));
+
                 const groupedJobSkills: Record<number, string[]> = {};
                 jobSkillsArray.forEach((js) => {
                     if (!groupedJobSkills[js.jobRequestId])
                         groupedJobSkills[js.jobRequestId] = [];
-                    // Hiển thị skill ID thay vì tên vì không có skills lookup trong context này
-                    groupedJobSkills[js.jobRequestId].push(`Skill ${js.skillsId}`);
+                    // Hiển thị tên skill thực tế thay vì ID
+                    const skillName = skillDict[js.skillsId] || `Skill ${js.skillsId}`;
+                    groupedJobSkills[js.jobRequestId].push(skillName);
                 });
 
                 // Đếm số lượng hồ sơ ứng tuyển cho mỗi job request
@@ -304,6 +313,8 @@ const stats = [
                         (r as any).jobRoleLevelID ??
                         (r as any).JobRoleLevelID;
                     const position = jobRoleLevelId ? positionDict[Number(jobRoleLevelId)] : undefined;
+
+
                     return {
                         id: r.id,
                         code: r.code,
@@ -330,9 +341,15 @@ const stats = [
 
         // Chỉ fetch khi lookup data đã sẵn sàng
         if (!lookupLoading) {
+            // Nếu không có client companies hoặc projects, force refresh cache
+            if (clientCompanies.length === 0 || projects.length === 0) {
+                refreshCache();
+                return;
+            }
+
             fetchData();
         }
-    }, [lookupLoading, clientCompanies, projects, jobRoleLevels]);
+    }, [lookupLoading, clientCompanies, projects, jobRoleLevels, refreshCache]);
 
     const closeApplicationsPopup = () => {
         setIsApplicationsOpen(false);

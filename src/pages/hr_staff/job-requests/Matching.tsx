@@ -60,11 +60,38 @@ interface EnrichedCVWithoutScore {
 }
 
 const WORKING_MODE_OPTIONS = [
-    { value: WorkingMode.Onsite, label: "Làm việc tại văn phòng" },
-    { value: WorkingMode.Remote, label: "Làm việc từ xa" },
-    { value: WorkingMode.Hybrid, label: "Hybrid (kết hợp tại văn phòng và từ xa)" },
-    { value: WorkingMode.Flexible, label: "Linh hoạt theo thỏa thuận" },
+    { value: WorkingMode.Onsite, label: "(Tại văn phòng)" },
+    { value: WorkingMode.Remote, label: "(từ xa)" },
+    { value: WorkingMode.Hybrid, label: "(Kết hợp)" },
+    { value: WorkingMode.Flexible, label: "(Linh hoạt)" },
 ];
+
+const statusLabels: Record<string, { label: string; badgeClass: string }> = {
+    Available: {
+        label: 'Sẵn sàng',
+        badgeClass: 'bg-green-100 text-green-800',
+    },
+    Busy: {
+        label: 'Đang bận',
+        badgeClass: 'bg-yellow-100 text-yellow-800',
+    },
+    Working: {
+        label: 'Đang làm việc',
+        badgeClass: 'bg-blue-100 text-blue-800',
+    },
+    Applying: {
+        label: 'Đang ứng tuyển',
+        badgeClass: 'bg-purple-100 text-purple-800',
+    },
+    Unavailable: {
+        label: 'Tạm ngưng',
+        badgeClass: 'bg-gray-100 text-gray-700',
+    },
+};
+
+const getStatusInfo = (status: string) => {
+    return statusLabels[status] || { label: status, badgeClass: 'bg-gray-100 text-gray-800' };
+};
 
 const formatWorkingMode = (mode?: number) => {
     if (!mode || mode === WorkingMode.None) return "";
@@ -99,7 +126,7 @@ const formatAvailabilityTimes = (talentId: number, talentAvailableTimes: TalentA
     // Show first 2 time ranges
     const timeStrings = sortedTimes.slice(0, 2).map(time => {
         const start = new Date(time.startTime).toLocaleDateString('vi-VN');
-        const end = time.endTime ? new Date(time.endTime).toLocaleDateString('vi-VN') : 'Chưa xác định';
+        const end = time.endTime ? new Date(time.endTime).toLocaleDateString('vi-VN') : 'Đến khi có cập nhật';
         return `${start} - ${end}`;
     });
 
@@ -115,7 +142,7 @@ const calculateAvailabilityBonus = (
 ): number => {
     // Nếu không có project data, không thể tính availability
     if (!projectData?.startDate) {
-        return -5; // Không có thông tin project dates
+        return 0; // Không có thông tin project dates - không thưởng không phạt
     }
 
     // Lấy available times của talent này
@@ -123,7 +150,7 @@ const calculateAvailabilityBonus = (
 
     // Nếu talent không có available time defined
     if (!talentAvailableTimesForTalent.length) {
-        return -5; // Không có thông tin availability
+        return 0; // Không có thông tin availability - không thưởng không phạt
     }
 
     // Parse project dates
@@ -521,9 +548,22 @@ export default function CVMatchingPage() {
     const handleCreateApplication = async (match: EnrichedMatchResult) => {
         if (!jobRequestId) return;
 
+        // Tính lại điểm cho confirmation (đơn giản hóa)
+        const totalRequiredSkills = (match.matchedSkills?.length || 0) + (match.missingSkills?.length || 0);
+        const skillPoints = totalRequiredSkills > 0
+            ? Math.round((50.0 / totalRequiredSkills) * (match.matchedSkills?.length || 0))
+            : 50;
+        const levelPoints = match.levelMatch ? 20 : 0;
+        const availabilityBonus = calculateAvailabilityBonus(
+            match.talentCV.talentId,
+            talentAvailableTimes,
+            projectData
+        );
+        const calculatedScoreForConfirm = levelPoints + 10 + 15 + skillPoints + availabilityBonus; // working mode + location default
+
         const confirm = window.confirm(
             `⚠️ Bạn có chắc muốn tạo hồ sơ ứng tuyển cho ${match.talentInfo?.fullName || 'talent này'}?\n\n` +
-            `Điểm khớp: ${match.matchScore}%\n` +
+            `Điểm khớp: ${calculatedScoreForConfirm}%\n` +
             `CV: v${match.talentCV.version}`
         );
         
@@ -560,7 +600,7 @@ export default function CVMatchingPage() {
                 jobRequestId: Number(jobRequestId),
                 cvId: match.talentCV.id,
                 submittedBy: submittedBy,
-                note: `Điểm khớp: ${match.matchScore}%`,
+                note: `Điểm khớp: ${calculatedScoreForConfirm}%`,
             });
 
       // Cập nhật trạng thái nhân sự sang Applying
@@ -916,38 +956,41 @@ export default function CVMatchingPage() {
                                 talentAvailableTimes,
                                 projectData
                             );
+
+                            // Tính tổng điểm từ frontend (bao gồm availability bonus đã sửa)
+                            const calculatedScore = levelPoints + workingModePoints + locationPoints + skillPoints + availabilityBonus;
                             
                             // Xác định tiêu chí phù hợp - rút gọn
-                            const jobLevelDisplay = jobRoleLevel
-                                ? `${jobRoleLevel.name} (${formatLevel(jobRoleLevel.level)})`
-                                : "N/A";
-
                             // Lấy cấp độ của Talent
                             const talentJobRoleLevel = jobRoleLevelObjectMap.get(match.talentCV.jobRoleLevelId);
-                            const talentLevelDisplay = talentJobRoleLevel
-                                ? `${talentJobRoleLevel.name} (${formatLevel(talentJobRoleLevel.level)})`
-                                : "—";
 
-                            const levelMatchReason = match.levelMatch
-                                ? `✅ Khớp: Talent ${talentLevelDisplay} ↔ Job: ${jobLevelDisplay}`
-                                : `❌ Không khớp: Talent ${talentLevelDisplay} ↔ Job: ${jobLevelDisplay}`;
+                            // Tách riêng so sánh tên vị trí và cấp độ
+                            const talentPositionName = talentJobRoleLevel?.name || "—";
+                            const talentLevelOnly = talentJobRoleLevel ? `(${formatLevel(talentJobRoleLevel.level)})` : "(—)";
+                            const jobLevelOnly = jobRoleLevel ? `(${formatLevel(jobRoleLevel.level)})` : "(N/A)";
+
+                            const positionMatchReason = `Vị trí: ${talentPositionName}`;
+
+                            const levelOnlyMatchReason = match.levelMatch
+                                ? `✅ Khớp: Talent ${talentLevelOnly} ↔ Job ${jobLevelOnly}`
+                                : `❌ Không khớp: Talent ${talentLevelOnly} ↔ Job ${jobLevelOnly}`;
                             
                             const workingModeMatchReason = workingModeRequired
                                 ? workingModeMatch
-                                    ? `✅ Khớp: Talent ${talentWorkingModeText || "chưa cập nhật"} ↔ Job yêu cầu ${workingModeRequirementText}`
-                                    : `❌ Không khớp: Talent ${talentWorkingModeText || "chưa cập nhật"} ↔ Job yêu cầu ${workingModeRequirementText}`
+                                    ? `✅ Khớp: Talent ${talentWorkingModeText || "chưa cập nhật"} ↔ Job ${workingModeRequirementText}`
+                                    : `❌ Không khớp: Talent ${talentWorkingModeText || "chưa cập nhật"} ↔ Job ${workingModeRequirementText}`
                                 : "✅ Không yêu cầu: Job chấp nhận mọi chế độ làm việc";
                             
                             const talentLocationName = (match.talentInfo as Talent & { locationName?: string | null })?.locationName || null;
                             const locationMatchReason = isRemoteOrFlexible
-                                ? "✅ Remote/Hybrid: Job cho phép làm việc từ xa nên không yêu cầu địa điểm cố định"
+                                ? "✅ Job cho phép làm việc từ xa nên không yêu cầu địa điểm cố định"
                                 : locationRequired
                                     ? talentLocationId
                                         ? locationMatch
-                                            ? `✅ Khớp: Talent ở ${talentLocationName || "N/A"} ↔ Job yêu cầu ${jobLocation?.name || "N/A"}`
-                                            : `❌ Khác địa điểm: Talent ở ${talentLocationName || "N/A"} ↔ Job yêu cầu ${jobLocation?.name || "N/A"}`
-                                        : "⚠️ Chưa xác định: Job yêu cầu địa điểm cụ thể nhưng Talent chưa cập nhật"
-                                    : "✅ Không yêu cầu: Job không yêu cầu địa điểm cụ thể";
+                                            ? `✅ Khớp: Talent (${(talentLocationName) || "N/A"}) ↔ Job (${(jobLocation?.name) || "N/A"})`
+                                            : `❌ Khác địa điểm: Talent (${(talentLocationName) || "N/A"}) ↔ Job (${(jobLocation?.name) || "N/A"})`
+                                        : "❌ Talent (Chưa cập nhật) ↔ Job (Yêu cầu địa điểm cụ thể)"
+                                    : "✅ Job Không yêu cầu địa điểm cụ thể";
                             
                             const skillMatchReason = totalRequiredSkills > 0
                                 ? `${match.matchedSkills?.length || 0}/${totalRequiredSkills} kỹ năng (${skillMatchPercent}%)`
@@ -1007,11 +1050,11 @@ export default function CVMatchingPage() {
 
                                             {/* Match Score */}
                                             <div className="text-right">
-                                                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-2xl border-2 ${getScoreColor(match.matchScore)}`}>
-                                                    {match.matchScore}
+                                                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-2xl border-2 ${getScoreColor(calculatedScore)}`}>
+                                                    {calculatedScore}
                                                     <span className="text-sm font-medium">/100</span>
                                                 </div>
-                                                <p className="text-xs text-neutral-500 mt-1">{getScoreLabel(match.matchScore)}</p>
+                                                <p className="text-xs text-neutral-500 mt-1">{getScoreLabel(calculatedScore)}</p>
                                                 {match.hasFailedApplication && match.failedApplicationStatus && (
                                                     <p className="text-xs text-red-600 mt-1 font-medium">
                                                         Đã {match.failedApplicationStatus === 'Rejected' ? 'bị từ chối' : 'rút hồ sơ'}
@@ -1024,17 +1067,17 @@ export default function CVMatchingPage() {
                                         <div className="mb-4">
                                             <div className="flex items-center justify-between text-xs text-neutral-600 mb-2">
                                                 <span>Độ phù hợp</span>
-                                                <span>{match.matchScore}%</span>
+                                                <span>{calculatedScore}%</span>
                                             </div>
                                             <div className="w-full bg-neutral-200 rounded-full h-2.5 overflow-hidden">
                                                 <div
                                                     className={`h-full rounded-full transition-all duration-500 ${
-                                                        match.matchScore >= 80 ? 'bg-gradient-to-r from-green-500 to-green-600' :
-                                                        match.matchScore >= 60 ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
-                                                        match.matchScore >= 40 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
+                                                        calculatedScore >= 80 ? 'bg-gradient-to-r from-green-500 to-green-600' :
+                                                        calculatedScore >= 60 ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
+                                                        calculatedScore >= 40 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
                                                         'bg-gradient-to-r from-red-500 to-red-600'
                                                     }`}
-                                                    style={{ width: `${match.matchScore}%` }}
+                                                    style={{ width: `${calculatedScore}%` }}
                                                 ></div>
                                             </div>
                                         </div>
@@ -1067,13 +1110,13 @@ export default function CVMatchingPage() {
                                             {/* Score Cards Grid */}
                                             <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 ${showMatchingDetails[match.talentCV.id] ? '' : 'hidden'}`}>
                                                 {/* Availability Bonus/Penalty */}
-                                                {availabilityBonus !== 0 && (
-                                                    <div className={`col-span-1 md:col-span-2 p-4 rounded-xl border-2 mb-4 ${
-                                                        availabilityBonus > 0
-                                                            ? 'bg-purple-50 border-purple-200'
-                                                            : 'bg-red-50 border-red-200'
-                                                    }`}>
-                                                        <div className="flex items-center gap-3">
+                                                <div className={`col-span-1 md:col-span-2 p-4 rounded-xl border-2 mb-4 ${
+                                                    availabilityBonus > 0
+                                                        ? 'bg-purple-50 border-purple-200'
+                                                        : 'bg-red-50 border-red-200'
+                                                }`}>
+                                                    <div className="flex items-start justify-between mb-2">
+                                                        <div className="flex items-center gap-2">
                                                             <div className={`p-2 rounded-lg ${
                                                                 availabilityBonus > 0 ? 'bg-purple-100' : 'bg-red-100'
                                                             }`}>
@@ -1081,43 +1124,42 @@ export default function CVMatchingPage() {
                                                                     availabilityBonus > 0 ? 'text-purple-600' : 'text-red-600'
                                                                 }`} />
                                                             </div>
-                                                            <div className="flex-1">
-                                                                <p className={`font-semibold ${
-                                                                    availabilityBonus > 0 ? 'text-gray-900' : 'text-gray-900'
-                                                                }`}>
-                                                                    {availabilityBonus > 0 ? 'Bonus sẵn sàng làm việc' : 'Phạt không sẵn sàng'}
-                                                                </p>
-                                                                <p className="text-sm text-gray-600">
-                                                                    {availabilityBonus > 0
-                                                                        ? 'Thời gian rảnh khớp với dự án'
-                                                                        : talentAvailableTimes.some(at => at.talentId === match.talentCV.talentId)
-                                                                            ? `Thời gian rảnh không khớp với dự án`
-                                                                            : 'Không có thông tin thời gian rảnh'
-                                                                    }
-                                                                </p>
-                                                                {talentAvailableTimes.some(at => at.talentId === match.talentCV.talentId) && (
-                                                                    <p className="text-xs text-gray-500 mt-1">
-                                                                        Dự án: {projectData?.startDate ? new Date(projectData.startDate).toLocaleDateString('vi-VN') : 'Chưa xác định'}
-                                                                        {projectData?.endDate ? ` - ${new Date(projectData.endDate).toLocaleDateString('vi-VN')}` : ' (Chưa xác định kết thúc)'}
-                                                                    </p>
-                                                                )}
-                                                                {talentAvailableTimes.some(at => at.talentId === match.talentCV.talentId) && (
-                                                                    <p className="text-xs text-gray-500 mt-1">
-                                                                        Thời gian rảnh: {formatAvailabilityTimes(match.talentCV.talentId, talentAvailableTimes)}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <p className={`text-2xl font-bold ${
-                                                                    availabilityBonus > 0 ? 'text-purple-600' : 'text-red-600'
-                                                                }`}>
-                                                                    {availabilityBonus > 0 ? '+' : ''}{availabilityBonus}
-                                                                </p>
-                                                                <p className="text-xs text-gray-500">điểm</p>
+                                                            <div>
+                                                                <p className="font-semibold text-gray-900">Thời gian rảnh</p>
+                                                                <p className="text-xs text-gray-600">Tối đa 5 điểm</p>
                                                             </div>
                                                         </div>
+                                                        <div className="text-right">
+                                                            <p className={`text-2xl font-bold ${
+                                                                availabilityBonus > 0 ? 'text-purple-600' : 'text-red-600'
+                                                            }`}>
+                                                                {availabilityBonus > 0 ? availabilityBonus : 0}
+                                                            </p>
+                                                            <p className="text-xs text-gray-500">/5</p>
+                                                        </div>
                                                     </div>
-                                                )}
+                                                    <p className={`text-sm mt-2 font-medium ${
+                                                        availabilityBonus > 0 ? 'text-purple-700' : 'text-red-700'
+                                                    }`}>
+                                                        {availabilityBonus > 0
+                                                            ? 'Thời gian rảnh khớp với dự án'
+                                                            : talentAvailableTimes.some(at => at.talentId === match.talentCV.talentId)
+                                                                ? `Thời gian rảnh không khớp với dự án`
+                                                                : 'Không có thông tin thời gian rảnh'
+                                                        }
+                                                    </p>
+                                                    {talentAvailableTimes.some(at => at.talentId === match.talentCV.talentId) && (
+                                                        <p className="text-xs text-gray-500 mt-1">
+                                                            Dự án: {projectData?.startDate ? new Date(projectData.startDate).toLocaleDateString('vi-VN') : 'Chưa xác định'}
+                                                            {projectData?.endDate ? ` - ${new Date(projectData.endDate).toLocaleDateString('vi-VN')}` : ' (Chưa xác định kết thúc)'}
+                                                        </p>
+                                                    )}
+                                                    {talentAvailableTimes.some(at => at.talentId === match.talentCV.talentId) && (
+                                                        <p className="text-xs text-gray-500 mt-1">
+                                                            Thời gian rảnh: {formatAvailabilityTimes(match.talentCV.talentId, talentAvailableTimes)}
+                                                        </p>
+                                                    )}
+                                                </div>
 
                                                 {/* Cấp độ/Kinh nghiệm */}
                                                 <div className={`p-4 rounded-xl border-2 ${
@@ -1148,11 +1190,12 @@ export default function CVMatchingPage() {
                                                             <p className="text-xs text-gray-500">/20</p>
                                                         </div>
                                                     </div>
-                                                    <p className={`text-sm mt-2 font-medium ${
+                                                    <div className={`text-sm mt-2 font-medium space-y-1 ${
                                                         match.levelMatch ? 'text-green-700' : 'text-red-700'
                                                     }`}>
-                                                        {levelMatchReason}
-                                                    </p>
+                                                        <p>{positionMatchReason}</p>
+                                                        <p>{levelOnlyMatchReason}</p>
+                                                    </div>
                                                 </div>
 
                                                 {/* Chế độ làm việc */}
@@ -1194,16 +1237,16 @@ export default function CVMatchingPage() {
                                                 {/* Địa điểm */}
                                                 <div className={`p-4 rounded-xl border-2 ${
                                                     locationPoints === 15
-                                                        ? 'bg-green-50 border-green-200' 
-                                                        : 'bg-yellow-50 border-yellow-200'
+                                                        ? 'bg-green-50 border-green-200'
+                                                        : 'bg-red-50 border-red-200'
                                                 }`}>
                                                     <div className="flex items-start justify-between mb-2">
                                                         <div className="flex items-center gap-2">
                                                             <div className={`p-2 rounded-lg ${
-                                                                locationPoints === 15 ? 'bg-green-100' : 'bg-yellow-100'
+                                                                locationPoints === 15 ? 'bg-green-100' : 'bg-red-100'
                                                             }`}>
                                                                 <MapPin className={`w-4 h-4 ${
-                                                                    locationPoints === 15 ? 'text-green-600' : 'text-yellow-600'
+                                                                    locationPoints === 15 ? 'text-green-600' : 'text-red-600'
                                                                 }`} />
                                                             </div>
                                                             <div>
@@ -1213,7 +1256,7 @@ export default function CVMatchingPage() {
                                                         </div>
                                                         <div className="text-right">
                                                             <p className={`text-2xl font-bold ${
-                                                                locationPoints === 15 ? 'text-green-600' : 'text-yellow-600'
+                                                                locationPoints === 15 ? 'text-green-600' : 'text-red-600'
                                                             }`}>
                                                                 {locationPoints}
                                                             </p>
@@ -1221,7 +1264,7 @@ export default function CVMatchingPage() {
                                                         </div>
                                                     </div>
                                                     <p className={`text-sm mt-2 font-medium ${
-                                                        locationPoints === 15 ? 'text-green-700' : 'text-yellow-700'
+                                                        locationPoints === 15 ? 'text-green-700' : 'text-red-700'
                                                     }`}>
                                                         {locationMatchReason}
                                                     </p>
@@ -1264,7 +1307,7 @@ export default function CVMatchingPage() {
                                                         </p>
                                                         {match.matchedSkills.length > 0 && (
                                                             <div className="mb-2">
-                                                                <p className="text-xs font-medium text-green-600 mb-1">✅ Kỹ năng có:</p>
+                                                                <p className="text-xs font-medium text-green-600 mb-1">Kỹ năng Talent có:</p>
                                                                 <div className="flex flex-wrap gap-1">
                                                                     {match.matchedSkills.slice(0, 5).map((skill, idx) => (
                                                                         <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-green-100 text-green-800 border border-green-200">
@@ -1315,21 +1358,21 @@ export default function CVMatchingPage() {
                                                     </div>
                                                     <div className="text-right">
                                                         <p className={`text-4xl font-bold ${
-                                                            match.matchScore >= 80 ? 'text-green-600' :
-                                                            match.matchScore >= 60 ? 'text-blue-600' :
-                                                            match.matchScore >= 40 ? 'text-yellow-600' :
+                                                            calculatedScore >= 80 ? 'text-green-600' :
+                                                            calculatedScore >= 60 ? 'text-blue-600' :
+                                                            calculatedScore >= 40 ? 'text-yellow-600' :
                                                             'text-red-600'
                                                         }`}>
-                                                            {match.matchScore}
+                                                            {calculatedScore}
                                                         </p>
                                                         <p className="text-sm text-gray-500">/100 điểm</p>
                                                         <p className={`text-xs font-medium mt-1 ${
-                                                            match.matchScore >= 80 ? 'text-green-600' :
-                                                            match.matchScore >= 60 ? 'text-blue-600' :
-                                                            match.matchScore >= 40 ? 'text-yellow-600' :
+                                                            calculatedScore >= 80 ? 'text-green-600' :
+                                                            calculatedScore >= 60 ? 'text-blue-600' :
+                                                            calculatedScore >= 40 ? 'text-yellow-600' :
                                                             'text-red-600'
                                                         }`}>
-                                                            {getScoreLabel(match.matchScore)}
+                                                            {getScoreLabel(calculatedScore)}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -1531,10 +1574,39 @@ export default function CVMatchingPage() {
 
                                     <div className="space-y-3">
                                         <div className="flex items-center gap-2">
+                                            <Briefcase className="w-4 h-4 text-neutral-400" />
+                                            <span className="text-sm font-medium text-neutral-700">Chế độ làm việc:</span>
+                                        </div>
+                                        <p className="text-sm text-neutral-900 ml-6">{formatWorkingMode(selectedTalent.workingMode)}</p>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2">
                                             <MapPin className="w-4 h-4 text-neutral-400" />
+                                            <span className="text-sm font-medium text-neutral-700">Khu vực làm việc:</span>
+                                        </div>
+                                        <p className="text-sm text-neutral-900 ml-6">{selectedTalent.locationName || "—"}</p>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <User className="w-4 h-4 text-neutral-400" />
                                             <span className="text-sm font-medium text-neutral-700">Trạng thái:</span>
                                         </div>
-                                        <p className="text-sm text-neutral-900 ml-6">{selectedTalent.status || "—"}</p>
+                                        <div className="ml-6">
+                                            {selectedTalent.status ? (
+                                                (() => {
+                                                    const statusInfo = getStatusInfo(selectedTalent.status);
+                                                    return (
+                                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${statusInfo.badgeClass}`}>
+                                                            {statusInfo.label}
+                                                        </span>
+                                                    );
+                                                })()
+                                            ) : (
+                                                <span className="text-sm text-neutral-500">—</span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 

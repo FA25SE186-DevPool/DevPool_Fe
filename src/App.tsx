@@ -20,17 +20,15 @@ function AppContent() {
     );
   }
 
-  return (
-    <Router>
-      <AppRouter />
-    </Router>
-  );
+  return <AppRouter />;
 }
 
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <Router>
+        <AppContent />
+      </Router>
     </AuthProvider>
   );
 }

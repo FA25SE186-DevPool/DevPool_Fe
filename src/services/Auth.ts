@@ -10,6 +10,7 @@ import {
 import { db } from "../config/firebase";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { BackendRole, type FrontendRole, type LoginPayload, type RegisterPayload, type UserProvisionPayload, type UserProvisionResponse, type LoginResponse, type JwtPayload, type ForgotPasswordPayload, type ResetPasswordByOtpPayload, type MessageResponse } from "../types/auth.types";
+import { API_BASE_URL } from "../config/env.config";
 
 export { BackendRole };
 export type { FrontendRole, LoginPayload, RegisterPayload, UserProvisionPayload, UserProvisionResponse, LoginResponse, JwtPayload, ForgotPasswordPayload, ResetPasswordByOtpPayload, MessageResponse };
@@ -319,12 +320,21 @@ export const authService = {
         return;
       }
 
-      const response = await apiClient.post("/auth/logout");
-      // Không log success vì logout API có thể return 401 (expected) nhưng interceptor xử lý thành success
-      return response.data;
+      // Sử dụng fetch thay vì axios để tránh hiển thị 401 trong Network tab
+      await fetch(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      // Không cần check status code vì logout luôn thành công (server có thể trả 401 nhưng vẫn xóa token)
+      console.log('Backend logout completed');
     } catch (error: unknown) {
-      // Fallback: nếu có lỗi bất ngờ (interceptor đã xử lý 401 thành success rồi)
-      console.warn('Unexpected logout error:', error);
+      // Fallback: nếu có lỗi bất ngờ (network error, etc.)
+      console.warn('Backend logout failed, but local logout continues:', error);
     }
   },
 
