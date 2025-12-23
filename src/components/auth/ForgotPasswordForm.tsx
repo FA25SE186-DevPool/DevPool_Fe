@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import type { NavigateOptions, To } from 'react-router-dom';
 import { Mail, Lock, AlertCircle, CheckCircle, ArrowLeft, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { authService } from '../../services/Auth';
+import { getPasswordValidationError } from '../../utils/validators';
 import logoDevPool from '../../assets/images/logo-DevPool.jpg';
 
 type Step = 'email' | 'reset';
@@ -239,19 +240,13 @@ export default function ForgotPasswordForm() {
 
   // Validate password strength
   const validatePassword = (password: string): string => {
-    if (!password || password.trim() === '') {
-      return 'Vui lòng nhập mật khẩu';
-    }
-    if (password.length < 6) {
-      return 'Mật khẩu phải có ít nhất 6 ký tự';
-    }
-    if (password.length > 100) {
-      return 'Mật khẩu không được vượt quá 100 ký tự';
-    }
-    
-    // Check if password is too simple or common
+    // Use common validation
+    let error = getPasswordValidationError(password);
+    if (error) return error;
+
+    // Additional checks for forgot password form
     const passwordLower = password.toLowerCase();
-    
+
     // Check if password contains email (if email is available)
     if (email) {
       const emailLocalPart = email.split('@')[0].toLowerCase();
@@ -259,18 +254,13 @@ export default function ForgotPasswordForm() {
         return 'Mật khẩu không nên chứa tên email của bạn';
       }
     }
-    
+
     // Check for common weak passwords
     const commonPasswords = ['password', '123456', '12345678', 'qwerty', 'abc123', 'password123'];
     if (commonPasswords.includes(passwordLower)) {
       return 'Mật khẩu này quá phổ biến, vui lòng chọn mật khẩu khác';
     }
-    
-    // Check if password is all the same character
-    if (password.split('').every(char => char === password[0])) {
-      return 'Mật khẩu không được chứa toàn bộ ký tự giống nhau';
-    }
-    
+
     return '';
   };
 

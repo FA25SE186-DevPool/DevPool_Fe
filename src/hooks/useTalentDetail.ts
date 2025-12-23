@@ -41,6 +41,7 @@ export function useTalentDetail() {
   const [locationName, setLocationName] = useState<string>('—');
   const [partnerName, setPartnerName] = useState<string>('—');
   const [loading, setLoading] = useState(true);
+  const [loadingPhase, setLoadingPhase] = useState<'phase1' | 'complete'>('phase1');
 
   // Related data
   const [talentCVs, setTalentCVs] = useState<(TalentCV & { jobRoleLevelName?: string })[]>([]);
@@ -67,83 +68,86 @@ export function useTalentDetail() {
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
   const [myManagedTalents, setMyManagedTalents] = useState<Talent[]>([]);
 
-  // Fetch all data
+  // Single phase loading - load everything at once
   useEffect(() => {
     if (!id) return;
 
     const fetchData = async () => {
       try {
         setLoading(true);
+        setLoadingPhase('phase1');
 
-        // Fetch main data and lookup data in parallel
+
+        // ===== SINGLE PHASE: Load all data simultaneously =====
+        // Get talent data first (needed for location lookup)
+        const talentData = await talentService.getById(Number(id));
+
         const [
-          talentData,
-          myManagedData,
-          allJobRoleLevelsForCV,
-          allJobRoleLevelsForTalent,
+          // Lookup data
           allJobRoles,
           allSkills,
+          allJobRoleLevelsForTalent,
+          allJobRoleLevelsForCV,
           skillGroupsData,
           allCertificateTypes,
-          partners,
+
+          // Location and partner
+          locationData,
+          partnersData,
+
+          // Related talent data
+          cvs,
+          projects,
+          skills,
+          experiences,
+          jobRoleLevelsData,
+          certificatesData,
+          availableTimesData,
+
+          // Additional data
+          myManagedData,
           blacklistData,
         ] = await Promise.all([
-          talentService.getById(Number(id)),
-          talentService.getMyManagedTalents().catch(() => []),
-          jobRoleLevelService.getAll({ excludeDeleted: true, distinctByName: true }),
-          jobRoleLevelService.getAll({ excludeDeleted: true }),
+          // Lookup data
           jobRoleService.getAll(),
           skillService.getAll(),
+          jobRoleLevelService.getAll({ excludeDeleted: true }),
+          jobRoleLevelService.getAll({ excludeDeleted: true, distinctByName: true }),
           skillGroupService.getAll({ excludeDeleted: true }).catch(() => null),
-          certificateTypeService.getAll(),
+          certificateTypeService.getAll({ excludeDeleted: true }).catch(() => []),
+
+          // Location and partner
+          talentData.locationId
+            ? locationService.getById(talentData.locationId).catch(() => null)
+            : Promise.resolve(null),
           partnerService.getAll().catch(() => []),
+
+          // Related talent data
+          talentCVService.getAll({ talentId: Number(id), excludeDeleted: true }),
+          talentProjectService.getAll({ talentId: Number(id), excludeDeleted: true }),
+          talentSkillService.getAll({ talentId: Number(id), excludeDeleted: true }),
+          talentWorkExperienceService.getAll({ talentId: Number(id), excludeDeleted: true }),
+          talentJobRoleLevelService.getAll({ talentId: Number(id), excludeDeleted: true }),
+          talentCertificateService.getAll({ talentId: Number(id), excludeDeleted: true }),
+          talentAvailableTimeService.getAll({ talentId: Number(id), excludeDeleted: true }),
+
+          // Additional data
+          talentService.getMyManagedTalents().catch(() => []),
           clientTalentBlacklistService.getByTalentId(Number(id), true).catch(() => null),
         ]);
 
+        // Set main talent data
         setTalent(talentData);
-        
-        // Ensure myManagedData is an array
-        const myManagedArray = ensureArray<Talent>(myManagedData);
-        setMyManagedTalents(myManagedArray);
-        
-        setJobRoles(allJobRoles);
-
-        // Resolve location and partner
-        const locationPromise = talentData.locationId
-          ? locationService.getById(talentData.locationId).catch(() => null)
-          : Promise.resolve(null);
-        
-        // Ensure partners is an array
-        const partnersArray = ensureArray<Partner>(partners);
-        const talentPartner = partnersArray.find((p: Partner) => p.id === talentData.currentPartnerId);
-        setPartnerName(talentPartner?.companyName ?? '—');
-
-        // Fetch related talent data in parallel
-        const [cvs, projects, skills, experiences, jobRoleLevelsData, certificatesData, availableTimesData, location] =
-          await Promise.all([
-            talentCVService.getAll({ talentId: Number(id), excludeDeleted: true }),
-            talentProjectService.getAll({ talentId: Number(id), excludeDeleted: true }),
-            talentSkillService.getAll({ talentId: Number(id), excludeDeleted: true }),
-            talentWorkExperienceService.getAll({ talentId: Number(id), excludeDeleted: true }),
-            talentJobRoleLevelService.getAll({ talentId: Number(id), excludeDeleted: true }),
-            talentCertificateService.getAll({ talentId: Number(id), excludeDeleted: true }),
-            talentAvailableTimeService.getAll({ talentId: Number(id), excludeDeleted: true }),
-            locationPromise,
-          ]);
-
-        if (location) {
-          setLocationName(location.name ?? '—');
-        }
 
         // Set lookup data
-        const jobRoleLevelsArray = Array.isArray(allJobRoleLevelsForCV) ? allJobRoleLevelsForCV : [];
-        setLookupJobRoleLevels(jobRoleLevelsArray);
+        setJobRoles(allJobRoles);
         setLookupJobRoleLevelsForTalent(
           Array.isArray(allJobRoleLevelsForTalent) ? allJobRoleLevelsForTalent : []
         );
         setLookupSkills(Array.isArray(allSkills) ? allSkills : []);
+        setLookupJobRoleLevels(Array.isArray(allJobRoleLevelsForCV) ? allJobRoleLevelsForCV : []);
 
-        // Set skill groups
+        // Set skill groups and certificate types
         try {
           const skillGroupsArray = Array.isArray(skillGroupsData)
             ? skillGroupsData
@@ -160,87 +164,123 @@ export function useTalentDetail() {
 
         setLookupCertificateTypes(Array.isArray(allCertificateTypes) ? allCertificateTypes : []);
 
-        // Set blacklist
+        // Set location and partner info
+        const location = locationData;
+        if (location) {
+          setLocationName(location.name ?? '—');
+        }
+
+        const partnersArray = ensureArray<Partner>(partnersData);
+        const talentPartner = partnersArray.find((p: Partner) => p.id === talentData.currentPartnerId);
+        setPartnerName(talentPartner?.companyName ?? '—');
+
+        // Set related data
+        const cvsWithJobRoleLevel = ensureArray<TalentCV & { jobRoleLevelName?: string }>(cvs);
+        setTalentCVs(cvsWithJobRoleLevel);
+
+        const projectsArray = ensureArray<TalentProject>(projects);
+        setTalentProjects(projectsArray);
+
+        const skillsArray = ensureArray<TalentSkill & { skillName: string; skillGroupId?: number }>(skills);
+        setTalentSkills(skillsArray);
+
+        const experiencesArray = ensureArray<TalentWorkExperience>(experiences);
+        setWorkExperiences(experiencesArray);
+
+        const jobRoleLevelsArray = ensureArray<TalentJobRoleLevel & { jobRoleLevelName: string; jobRoleLevelLevel: string }>(jobRoleLevelsData);
+        setJobRoleLevels(jobRoleLevelsArray);
+
+        const certificatesArray = ensureArray<TalentCertificate & { certificateTypeName: string }>(certificatesData);
+        setCertificates(certificatesArray);
+
+        const availableTimesArray = ensureArray<TalentAvailableTime>(availableTimesData);
+        setAvailableTimes(availableTimesArray);
+
+        // Set additional data
         if (blacklistData) {
           setBlacklists(Array.isArray(blacklistData) ? blacklistData : blacklistData?.data || []);
         }
 
-        // Set related data - ensure all are arrays
-        setTalentProjects(ensureArray<TalentProject>(projects));
-        setWorkExperiences(ensureArray<TalentWorkExperience>(experiences));
-        setAvailableTimes(ensureArray<TalentAvailableTime>(availableTimesData));
+        const myManagedArray = ensureArray<Talent>(myManagedData);
+        setMyManagedTalents(myManagedArray);
 
-        // Map CVs with job role level names - ensure cvs is an array
-        const cvsArray = ensureArray<TalentCV>(cvs);
-        const cvsWithJobRoleLevelNames = cvsArray.map((cv: TalentCV) => {
-          const jobRoleLevelInfo = jobRoleLevelsArray.find((jrl: JobRoleLevel) => jrl.id === cv.jobRoleLevelId);
-          return { ...cv, jobRoleLevelName: jobRoleLevelInfo?.name ?? 'Chưa xác định' };
-        });
+        // All data loaded - complete
+        setLoading(false);
+        setLoadingPhase('complete');
 
-        // Sort CVs: group by jobRoleLevelName, active first, then by version descending
-        const sortedCVs = cvsWithJobRoleLevelNames.sort(
-          (a: TalentCV & { jobRoleLevelName?: string }, b: TalentCV & { jobRoleLevelName?: string }) => {
-            const nameA = a.jobRoleLevelName || '';
-            const nameB = b.jobRoleLevelName || '';
-            if (nameA !== nameB) {
-              return nameA.localeCompare(nameB);
-            }
-            if (a.isActive !== b.isActive) {
-              return a.isActive ? -1 : 1;
-            }
-            return (b.version || 0) - (a.version || 0);
-          }
-        );
-        setTalentCVs(sortedCVs);
 
-        // Map skills with names - ensure skills is an array
-        const skillsArray = ensureArray<TalentSkill>(skills);
-        const skillsWithNames = skillsArray.map((skill: TalentSkill) => {
-          const skillInfo = allSkills.find((s: Skill) => s.id === skill.skillId);
-          return {
-            ...skill,
-            skillName: skillInfo?.name ?? 'Unknown Skill',
-            skillGroupId: skillInfo?.skillGroupId,
-          };
-        });
-        setTalentSkills(skillsWithNames);
-
-        // Map job role levels with names - ensure jobRoleLevelsData is an array
-        const talentJobRoleLevelsArray = ensureArray<TalentJobRoleLevel>(jobRoleLevelsData);
-        const jobRoleLevelsWithNames = talentJobRoleLevelsArray.map(
-          (jrl: TalentJobRoleLevel) => {
-            const jobRoleLevelInfo = allJobRoleLevelsForTalent.find((j: JobRoleLevel) => j.id === jrl.jobRoleLevelId);
-            if (!jobRoleLevelInfo) {
-              return { ...jrl, jobRoleLevelName: 'Unknown Level', jobRoleLevelLevel: '—' };
-            }
-            const levelText = getLevelText(jobRoleLevelInfo.level);
-            return {
-              ...jrl,
-              jobRoleLevelName: jobRoleLevelInfo.name || '—',
-              jobRoleLevelLevel: levelText,
-            };
-          }
-        );
-        setJobRoleLevels(jobRoleLevelsWithNames);
-
-        // Map certificates with names - ensure certificatesData is an array
-        const certificatesArray = ensureArray<TalentCertificate>(certificatesData);
-        const certificatesWithNames = certificatesArray.map(
-          (cert: TalentCertificate) => {
-            const certTypeInfo = allCertificateTypes.find((c: CertificateType) => c.id === cert.certificateTypeId);
-            return { ...cert, certificateTypeName: certTypeInfo?.name ?? 'Unknown Certificate' };
-          }
-        );
-        setCertificates(certificatesWithNames);
+        // CVs have already been processed and sorted in Phase 2
+        // Skills, job role levels, and certificates will be re-processed by useEffect when lookup data is available
       } catch (err) {
         console.error('❌ Lỗi tải chi tiết nhân sự:', err);
       } finally {
         setLoading(false);
+        setLoadingPhase('complete');
       }
     };
 
     fetchData();
   }, [id]);
+
+  // Re-process skills when skill lookup data becomes available
+  useEffect(() => {
+    if (lookupSkills.length > 0 && talentSkills.length > 0) {
+      const skillsWithNames = talentSkills.map((skill: TalentSkill & { skillName?: string; skillGroupId?: number }) => {
+        const skillInfo = lookupSkills.find((s: Skill) => s.id === skill.skillId);
+        return {
+          ...skill,
+          skillName: skillInfo?.name ?? skill.skillName ?? 'Unknown Skill',
+          skillGroupId: skillInfo?.skillGroupId ?? skill.skillGroupId,
+        };
+      });
+      setTalentSkills(skillsWithNames);
+    }
+  }, [lookupSkills, talentSkills.length]);
+
+  // Re-process job role levels when lookup data becomes available
+  useEffect(() => {
+    if (lookupJobRoleLevelsForTalent.length > 0 && jobRoleLevels.length > 0) {
+      const jobRoleLevelsWithNames = jobRoleLevels.map(
+        (jrl: TalentJobRoleLevel & { jobRoleLevelName?: string; jobRoleLevelLevel?: string }) => {
+          const jobRoleLevelInfo = lookupJobRoleLevelsForTalent.find((j: JobRoleLevel) => j.id === jrl.jobRoleLevelId);
+          if (!jobRoleLevelInfo) {
+            return { ...jrl, jobRoleLevelName: jrl.jobRoleLevelName || 'Unknown Level', jobRoleLevelLevel: jrl.jobRoleLevelLevel || '—' };
+          }
+          const levelText = getLevelText(jobRoleLevelInfo.level);
+          return {
+            ...jrl,
+            jobRoleLevelName: jobRoleLevelInfo.name || jrl.jobRoleLevelName || '—',
+            jobRoleLevelLevel: levelText,
+          };
+        }
+      );
+      setJobRoleLevels(jobRoleLevelsWithNames);
+    }
+  }, [lookupJobRoleLevelsForTalent, jobRoleLevels.length]);
+
+  // Re-process certificates when certificate type lookup data becomes available
+  useEffect(() => {
+    if (lookupCertificateTypes.length > 0 && certificates.length > 0) {
+      const certificatesWithNames = certificates.map(
+        (cert: TalentCertificate & { certificateTypeName?: string }) => {
+          const certTypeInfo = lookupCertificateTypes.find((c: CertificateType) => c.id === cert.certificateTypeId);
+          return { ...cert, certificateTypeName: certTypeInfo?.name ?? cert.certificateTypeName ?? 'Unknown Certificate' };
+        }
+      );
+      setCertificates(certificatesWithNames);
+    }
+  }, [lookupCertificateTypes, certificates.length]);
+
+  // Re-process CVs when job role level lookup data becomes available
+  useEffect(() => {
+    if (lookupJobRoleLevels.length > 0 && talentCVs.length > 0) {
+      const cvsWithJobRoleLevelNames = talentCVs.map((cv: TalentCV & { jobRoleLevelName?: string }) => {
+        const jobRoleLevelInfo = lookupJobRoleLevels.find((jrl: JobRoleLevel) => jrl.id === cv.jobRoleLevelId);
+        return { ...cv, jobRoleLevelName: jobRoleLevelInfo?.name ?? 'Chưa xác định' };
+      });
+      setTalentCVs(cvsWithJobRoleLevelNames);
+    }
+  }, [lookupJobRoleLevels, talentCVs.length]);
 
   // Check edit permission
   const canEdit = useMemo(() => {
@@ -268,6 +308,7 @@ export function useTalentDetail() {
     locationName,
     partnerName,
     loading,
+    loadingPhase,
 
     // Related data
     talentCVs,

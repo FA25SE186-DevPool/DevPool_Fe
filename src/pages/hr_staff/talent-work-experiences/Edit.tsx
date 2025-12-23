@@ -247,7 +247,7 @@ export default function TalentWorkExperienceEditPage() {
       console.log("Payload gửi đi:", updateData);
       await talentWorkExperienceService.update(Number(id), updateData);
 
-      alert("✅ Cập nhật kinh nghiệm làm việc thành công!");
+      alert("Cập nhật kinh nghiệm làm việc thành công!");
       navigate(`/ta/talents/${talentId}`, { state: { tab: 'experiences' } });
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật:", err);

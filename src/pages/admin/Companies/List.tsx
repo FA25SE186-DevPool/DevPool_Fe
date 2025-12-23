@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { Plus, Search, Mail, Phone } from "lucide-react";
 import Sidebar from "../../../components/common/Sidebar";
-import Breadcrumb from "../../../components/common/Breadcrumb";
 import { sidebarItems } from "../../../components/sidebar/admin";
 
 type CompanyRow = {
@@ -57,11 +56,6 @@ export default function CompaniesPage() {
     <div className="flex bg-gray-50 min-h-screen">
       <Sidebar items={sidebarItems} title="Admin" />
       <div className="flex-1 p-8">
-        <Breadcrumb
-          items={[
-            { label: "Công ty" }
-          ]}
-        />
         <header className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Danh sách Công ty</h1>

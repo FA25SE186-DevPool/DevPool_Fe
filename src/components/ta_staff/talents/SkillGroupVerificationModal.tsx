@@ -107,7 +107,7 @@ export function SkillGroupVerificationModal({
                   className="w-4 h-4 text-emerald-600 border-neutral-300 focus:ring-emerald-500"
                 />
                 <span className={`text-sm font-medium ${verifyResult === true ? 'text-emerald-700' : 'text-neutral-600'}`}>
-                  ✅ Verify Pass (Hợp lệ)
+                  Verify Pass (Hợp lệ)
                 </span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">

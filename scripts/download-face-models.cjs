@@ -84,7 +84,7 @@ async function main() {
         }
     }
 
-    console.log('\n✅ Done! Models are ready in public/models/');
+    console.log('\nDone! Models are ready in public/models/');
 }
 
 main().catch(console.error);

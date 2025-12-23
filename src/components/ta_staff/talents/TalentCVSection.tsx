@@ -259,11 +259,12 @@ export function TalentCVSection({
 
               {/* CV Details */}
               <div className="space-y-4">
-                {/* Job Role Level */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-neutral-700">
-                    Vị trí công việc <span className="text-red-500">*</span>
-                  </label>
+                {/* Job Role Level - Chỉ hiển thị khi có file CV */}
+                {(cvFile || cvPreviewUrl) && (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-neutral-700">
+                      Vị trí công việc <span className="text-red-500">*</span>
+                    </label>
 
                   {/* Filter theo loại vị trí và Cấp độ */}
                   <div className="grid grid-cols-2 gap-2">
@@ -646,12 +647,14 @@ export function TalentCVSection({
                     </p>
                   )}
                 </div>
+                )}
 
               </div>
 
 
-              {/* Summary */}
-              <div className="mt-4">
+              {/* Summary - Chỉ hiển thị khi có file CV */}
+              {(cvFile || cvPreviewUrl) && (
+                <div className="mt-4">
                 <button
                   type="button"
                   onClick={() =>
@@ -684,6 +687,7 @@ export function TalentCVSection({
                   />
                 )}
               </div>
+              )}
             </div>
           );
         })}

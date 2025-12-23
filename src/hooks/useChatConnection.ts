@@ -18,6 +18,7 @@ const getHubUrl = () => {
 };
 
 interface UseChatConnectionOptions {
+    enabled?: boolean;
     onReceiveMessage?: (message: MessageModel) => void;
     onUserTyping?: (indicator: TypingIndicator) => void;
     onMessagesRead?: (event: MessagesReadEvent) => void;
@@ -28,6 +29,7 @@ interface UseChatConnectionOptions {
 }
 
 export function useChatConnection(options: UseChatConnectionOptions = {}) {
+    const { enabled = true, ...callbacks } = options;
     const connectionRef = useRef<signalR.HubConnection | null>(null);
     const isConnectingRef = useRef(false);
     const isMountedRef = useRef(true);
@@ -39,8 +41,8 @@ export function useChatConnection(options: UseChatConnectionOptions = {}) {
     const [error, setError] = useState<string | null>(null);
 
     // Store callbacks in refs to prevent dependency cycle
-    const callbacksRef = useRef(options);
-    callbacksRef.current = options;
+    const callbacksRef = useRef(callbacks);
+    callbacksRef.current = callbacks;
 
     // Stop connection
     const stopConnection = useCallback(async () => {
@@ -82,18 +84,32 @@ export function useChatConnection(options: UseChatConnectionOptions = {}) {
 
         isConnectingRef.current = true;
 
+        const hubUrl = getHubUrl();
+        console.log("[ChatHub] Building connection to:", hubUrl);
+
         try {
-            const hubUrl = getHubUrl();
-            console.log("[ChatHub] Building connection to:", hubUrl);
+            // Skip backend connectivity check - SignalR will handle connection errors gracefully
+            // If backend is down, SignalR connection will fail with proper error messages
 
             const connection = new signalR.HubConnectionBuilder()
                 .withUrl(hubUrl, {
                     accessTokenFactory: () => token,
-                    transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.ServerSentEvents,
+                    transport: signalR.HttpTransportType.ServerSentEvents | signalR.HttpTransportType.LongPolling,
                     skipNegotiation: false,
+                    timeout: 10000, // 10 second timeout for negotiation
+                    withCredentials: true, // Send cookies for CORS
                 })
-                .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-                .configureLogging(signalR.LogLevel.Warning)
+                .withAutomaticReconnect({
+                    nextRetryDelayInMilliseconds: (retryContext) => {
+                        // Exponential backoff: 0s, 2s, 5s, 10s, 30s
+                        if (retryContext.previousRetryCount === 0) return 0;
+                        if (retryContext.previousRetryCount === 1) return 2000;
+                        if (retryContext.previousRetryCount === 2) return 5000;
+                        if (retryContext.previousRetryCount === 3) return 10000;
+                        return 30000;
+                    },
+                })
+                .configureLogging(signalR.LogLevel.None) // Reduce noise
                 .build();
 
             connectionRef.current = connection;
@@ -162,15 +178,35 @@ export function useChatConnection(options: UseChatConnectionOptions = {}) {
                 callbacksRef.current.onConnectionStateChange?.(signalR.HubConnectionState.Connected);
                 setError(null);
             }
-        } catch (err) {
-            console.error("[ChatHub] Connection failed:", err);
+        } catch (err: any) {
+            const errorMessage = err?.message || 'Unknown error';
+            const statusCode = err?.statusCode || err?.status;
+
+            console.error("[ChatHub] Connection failed:", {
+                url: hubUrl,
+                error: errorMessage,
+                statusCode,
+                transport: 'ServerSentEvents/LongPolling'
+            });
+
             if (isMountedRef.current) {
-                setError("Không thể kết nối chat");
+                // Provide more specific error messages
+                let userFriendlyError = "Không thể kết nối chat";
+                if (errorMessage.includes('WebSocket') || errorMessage.includes('transport')) {
+                    userFriendlyError = "Lỗi kết nối mạng - đang thử lại...";
+                } else if (statusCode === 401) {
+                    userFriendlyError = "Phiên đăng nhập hết hạn";
+                } else if (statusCode === 404) {
+                    userFriendlyError = "Server không phản hồi";
+                }
+
+                setError(userFriendlyError);
                 setConnectionState(signalR.HubConnectionState.Disconnected);
 
                 // Retry after delay (only if still mounted)
                 reconnectTimeoutRef.current = setTimeout(() => {
                     if (isMountedRef.current) {
+                        console.log("[ChatHub] Retrying connection...");
                         isConnectingRef.current = false;
                         startConnection();
                     }
@@ -226,8 +262,10 @@ export function useChatConnection(options: UseChatConnectionOptions = {}) {
         await connectionRef.current.invoke("StartDirectConversation", targetUserId, firstMessage);
     }, []);
 
-    // Auto-connect on mount (only once)
+    // Auto-connect on mount (only once) when enabled
     useEffect(() => {
+        if (!enabled) return;
+
         isMountedRef.current = true;
 
         // Delay initial connection slightly to prevent race conditions
@@ -240,7 +278,7 @@ export function useChatConnection(options: UseChatConnectionOptions = {}) {
             clearTimeout(initTimeout);
             stopConnection();
         };
-    }, []); // Empty dependency array - only run once
+    }, [enabled]); // Add enabled to dependency array
 
     return {
         connectionState,

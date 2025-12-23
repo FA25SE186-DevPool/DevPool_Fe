@@ -465,10 +465,10 @@ export default function JobRequestListPage() {
   // Status options
   const statusOptions = [
     { value: "", label: "Tất cả trạng thái" },
-    { value: "0", label: "⏳ Chờ duyệt" },
-    { value: "1", label: "✅ Đã duyệt" },
-    { value: "2", label: "🔒 Đã đóng" },
-    { value: "3", label: "❌ Bị từ chối" },
+    { value: "0", label: "Chờ duyệt" },
+    { value: "1", label: "Đã duyệt" },
+    { value: "2", label: "Đã đóng" },
+    { value: "3", label: "Bị từ chối" },
   ];
 
   // Check if there are active filters

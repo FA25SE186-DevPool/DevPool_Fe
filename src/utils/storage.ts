@@ -3,6 +3,60 @@
  * Luôn sử dụng localStorage cho token và user data
  */
 
+/**
+ * Decode JWT token để lấy payload
+ */
+const decodeJWT = (token: string): any => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error('Invalid JWT token:', error);
+    return null;
+  }
+};
+
+/**
+ * Check xem token có expired không
+ */
+export const isTokenExpired = (token: string | null): boolean => {
+  if (!token) return true;
+
+  try {
+    const payload = decodeJWT(token);
+    if (!payload || !payload.exp) return true;
+
+    // exp is in seconds, Date.now() is in milliseconds
+    const currentTime = Math.floor(Date.now() / 1000);
+    return payload.exp < currentTime;
+  } catch (error) {
+    console.error('Error checking token expiry:', error);
+    return true;
+  }
+};
+
+/**
+ * Lấy thời gian còn lại của token (giây)
+ */
+export const getTokenExpiryTime = (token: string | null): number => {
+  if (!token) return 0;
+
+  try {
+    const payload = decodeJWT(token);
+    if (!payload || !payload.exp) return 0;
+
+    const currentTime = Math.floor(Date.now() / 1000);
+    return Math.max(0, payload.exp - currentTime);
+  } catch (error) {
+    console.error('Error getting token expiry time:', error);
+    return 0;
+  }
+};
+
 const TOKEN_KEYS = {
   ACCESS_TOKEN: 'accessToken',
   REFRESH_TOKEN: 'refreshToken',

@@ -76,7 +76,7 @@ export default function SkillGroupDetailPage() {
 
     try {
       await skillGroupService.delete(Number(id));
-      showSuccessOverlay("✅ Đã xóa nhóm kỹ năng thành công!");
+      showSuccessOverlay(" Đã xóa nhóm kỹ năng thành công!");
       navigate("/admin/categories/skill-groups");
     } catch (err) {
       console.error("❌ Lỗi khi xóa:", err);

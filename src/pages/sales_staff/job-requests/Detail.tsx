@@ -384,7 +384,7 @@ export default function JobRequestDetailPage() {
 
     try {
       await jobRequestService.delete(Number(id));
-      showSuccessOverlay("✅ Đã xóa yêu cầu tuyển dụng thành công!");
+      showSuccessOverlay("Đã xóa yêu cầu tuyển dụng thành công!");
       navigate("/sales/job-requests");
     } catch (err) {
       console.error("❌ Lỗi khi xóa:", err);

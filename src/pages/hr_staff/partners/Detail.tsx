@@ -209,7 +209,7 @@ export default function PartnerDetailPage() {
 
     try {
       await partnerService.deleteById(Number(id));
-      showSuccessOverlay("✅ Xóa đối tác thành công!");
+      showSuccessOverlay("Xóa đối tác thành công!");
       navigate(ROUTES.TA_STAFF.PARTNERS.LIST);
     } catch (err) {
       console.error("❌ Lỗi khi xóa đối tác:", err);

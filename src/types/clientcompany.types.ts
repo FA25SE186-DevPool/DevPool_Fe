@@ -1,5 +1,4 @@
 import type { Project } from "./project.types";
-import type { ClientCompanyTemplate } from "./clientcompanytemplate.types";
 import type { ClientJobRoleLevel } from "./clientjobrolelevel.types";
 
 export interface ClientCompany {
@@ -31,7 +30,7 @@ export interface ClientCompanyDetailedModel {
   updatedAt: string;
   // Related Collections
   projects: Project[];
-  assignedCVTemplates: ClientCompanyTemplate[];
+  // assignedCVTemplates: ClientCompanyTemplate[]; // Removed - CV Templates deleted
   jobRoleLevels: ClientJobRoleLevel[];
 }
 

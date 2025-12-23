@@ -273,7 +273,7 @@ export function useFileUpload() {
         console.log('Đang xóa file từ Firebase:', firebasePath);
         const storageRef = ref(storage, firebasePath);
         await deleteObject(storageRef);
-        console.log('✅ Đã xóa file thành công từ Firebase');
+        console.log('Đã xóa file thành công từ Firebase');
         setShowDeleteCVSuccessOverlay(true);
 
         // Hiển thị loading overlay trong 2 giây
@@ -324,7 +324,7 @@ export function useFileUpload() {
         console.log('Đang xóa ảnh từ Firebase:', firebasePath);
         const storageRef = ref(storage, firebasePath);
         await deleteObject(storageRef);
-        console.log('✅ Đã xóa ảnh thành công từ Firebase');
+        console.log('Đã xóa ảnh thành công từ Firebase');
         setShowDeleteCertificateImageSuccessOverlay(true);
 
         // Hiển thị loading overlay trong 2 giây

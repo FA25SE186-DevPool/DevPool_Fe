@@ -142,7 +142,7 @@ export default function TalentProjectEditPage() {
       console.log("Payload gửi đi:", formData);
       await talentProjectService.update(Number(id), formData);
 
-      alert("✅ Cập nhật dự án nhân sự thành công!");
+      alert("Cập nhật dự án nhân sự thành công!");
       navigate(`/ta/talents/${talentId}`, { state: { tab: 'projects' } });
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật:", err);

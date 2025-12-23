@@ -17,8 +17,6 @@ import Sidebar from "../../../components/common/Sidebar";
 import Breadcrumb from "../../../components/common/Breadcrumb";
 import { sidebarItems } from "../../../components/sidebar/sales";
 import { clientCompanyService, type ClientCompanyPayload } from "../../../services/ClientCompany";
-import { clientCompanyCVTemplateService } from "../../../services/ClientCompanyTemplate";
-import { cvTemplateService } from "../../../services/CVTemplate";
 
 export default function ClientCompanyCreatePage() {
   const navigate = useNavigate();
@@ -213,30 +211,6 @@ export default function ClientCompanyCreatePage() {
         const companyId = createdCompany?.id || createdCompany?.data?.id || (createdCompany as any)?.data?.id;
         
         if (companyId) {
-          // Tìm template "Default Professional"
-          const templates = await cvTemplateService.getAll({ excludeDeleted: true });
-          const templatesArray = Array.isArray(templates)
-            ? templates
-            : (Array.isArray((templates as any)?.items)
-              ? (templates as any).items
-              : (Array.isArray((templates as any)?.data)
-                ? (templates as any).data
-                : []));
-          
-          // Tìm template có tên "Default Professional" hoặc template mặc định
-          const defaultTemplate = templatesArray.find(
-            (t: any) => 
-              t.name === "Default Professional" || 
-              (t.name && t.name.toLowerCase().includes("default professional")) ||
-              (t.isDefault && t.name && t.name.toLowerCase().includes("professional"))
-          );
-          
-          if (defaultTemplate) {
-            await clientCompanyCVTemplateService.assignTemplate(companyId, defaultTemplate.id);
-            console.log("✅ Đã tự động gán template mặc định:", defaultTemplate.name);
-          } else {
-            console.warn("⚠️ Không tìm thấy template 'Default Professional'");
-          }
         } else {
           console.warn("⚠️ Không lấy được ID công ty vừa tạo");
         }
@@ -547,7 +521,7 @@ export default function ClientCompanyCreatePage() {
                 <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
                   <CheckCircle className="w-5 h-5 text-green-600" />
                   <p className="text-green-700 font-medium">
-                    ✅ Tạo công ty thành công! Đang chuyển hướng...
+                    Tạo công ty thành công! Đang chuyển hướng...
                   </p>
                 </div>
               )}

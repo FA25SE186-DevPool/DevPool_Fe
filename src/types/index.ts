@@ -100,9 +100,6 @@ export * from './expert.types';
 // Certificate Type
 export * from './certificatetype.types';
 
-// CV Template
-export * from './cvtemplate.types';
-
 // Audit Log
 export * from './auditlog.types';
 

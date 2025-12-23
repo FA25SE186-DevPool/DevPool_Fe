@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import Sidebar from "../../../../components/common/Sidebar";
-import Breadcrumb from "../../../../components/common/Breadcrumb";
 import { sidebarItems } from "../../../../components/sidebar/admin";
 import { Link } from "react-router-dom";
 import { industryService, type Industry } from "../../../../services/Industry";
@@ -116,12 +115,6 @@ export default function IndustryListPage() {
       <div className="flex-1 p-8">
         {/* Header */}
         <div className="mb-8 animate-slide-up">
-          <Breadcrumb
-            items={[
-              { label: "Danh mục" , to: "/admin/categories" },
-              { label: "Lĩnh vực" }
-            ]}
-          />
           <div className="flex justify-between items-center mb-6">
           <div>
               <h1 className="text-3xl font-bold text-gray-900">Lĩnh vực (Industries)</h1>

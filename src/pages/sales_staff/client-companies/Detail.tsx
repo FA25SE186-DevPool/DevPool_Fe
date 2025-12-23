@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
 import Breadcrumb from "../../../components/common/Breadcrumb";
@@ -6,8 +6,6 @@ import { sidebarItems } from "../../../components/sidebar/sales";
 import { clientCompanyService, type ClientCompanyDetailedModel } from "../../../services/ClientCompany";
 import { clientTalentBlacklistService, type ClientTalentBlacklist, type ClientTalentBlacklistCreate, type ClientTalentBlacklistRemove } from "../../../services/ClientTalentBlacklist";
 import { talentService, type Talent } from "../../../services/Talent";
-import { clientCompanyCVTemplateService } from "../../../services/ClientCompanyTemplate";
-import { cvTemplateService, type CVTemplate } from "../../../services/CVTemplate";
 import { clientJobRoleLevelService, type ClientJobRoleLevelCreate } from "../../../services/ClientJobRoleLevel";
 import { jobRoleLevelService, type JobRoleLevel } from "../../../services/JobRoleLevel";
 import { jobRoleService, type JobRole } from "../../../services/JobRole";
@@ -81,14 +79,6 @@ export default function ClientCompanyDetailPage() {
   const [showBlacklistDetailModal, setShowBlacklistDetailModal] = useState(false);
   const [selectedBlacklist, setSelectedBlacklist] = useState<ClientTalentBlacklist | null>(null);
   
-  // Assign Template Modal
-  const [showAssignTemplateModal, setShowAssignTemplateModal] = useState(false);
-  const [availableTemplates, setAvailableTemplates] = useState<CVTemplate[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
-  const [isAssigningTemplate, setIsAssigningTemplate] = useState(false);
-  const [templateSearchQuery, setTemplateSearchQuery] = useState<string>("");
-  const [isTemplateDropdownOpen, setIsTemplateDropdownOpen] = useState(false);
-  const templatePreviewRef = useRef<HTMLDivElement>(null);
   
   // Add Job Role Level Modal
   const [showAddJobRoleLevelModal, setShowAddJobRoleLevelModal] = useState(false);
@@ -312,60 +302,6 @@ export default function ClientCompanyDetailPage() {
     setFilteredTalents(filtered);
   }, [talentSearchQuery, allTalents]);
 
-  // Fetch available templates when opening Assign Template modal
-  useEffect(() => {
-    const fetchTemplates = async () => {
-      if (!showAssignTemplateModal || !id) return;
-      
-      try {
-        const templates = await cvTemplateService.getAll({ excludeDeleted: true });
-        const templatesArray = ensureArray<CVTemplate>(templates);
-        
-        // Filter out already assigned templates
-        const assignedTemplateIds = company?.assignedCVTemplates?.map(t => t.templateId) || [];
-        const available = templatesArray.filter((t: CVTemplate) => !assignedTemplateIds.includes(t.id));
-        
-        setAvailableTemplates(available);
-      } catch (err) {
-        console.error("❌ Lỗi khi tải danh sách template:", err);
-        setAvailableTemplates([]);
-      }
-    };
-
-    fetchTemplates();
-  }, [showAssignTemplateModal, id, company?.assignedCVTemplates]);
-
-  // Auto scroll to preview when template is selected
-  useEffect(() => {
-    if (selectedTemplateId && templatePreviewRef.current && showAssignTemplateModal) {
-      // Dùng requestAnimationFrame để đảm bảo DOM đã render
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          const contentContainer = document.getElementById('template-modal-content');
-          if (contentContainer && templatePreviewRef.current) {
-            // Tính toán vị trí relative với container
-            const containerRect = contentContainer.getBoundingClientRect();
-            const previewRect = templatePreviewRef.current.getBoundingClientRect();
-            const scrollTop = contentContainer.scrollTop;
-            const relativeTop = previewRect.top - containerRect.top + scrollTop;
-            
-            // Scroll để preview hiển thị ở đầu container (với padding)
-            contentContainer.scrollTo({
-              top: relativeTop - 30,
-              behavior: 'smooth'
-            });
-          } else if (templatePreviewRef.current) {
-            // Fallback: scroll vào view với block start
-            templatePreviewRef.current.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'start',
-              inline: 'nearest'
-            });
-          }
-        }, 300);
-      });
-    }
-  }, [selectedTemplateId, showAssignTemplateModal]);
 
   // Fetch all job role levels when opening Add Job Role Level modal (không filter, hiển thị tất cả)
   useEffect(() => {
@@ -401,7 +337,7 @@ export default function ClientCompanyDetailPage() {
 
     try {
       await clientCompanyService.delete(Number(id));
-      showSuccessOverlay("✅ Xóa công ty thành công!");
+      showSuccessOverlay("Xóa công ty thành công!");
       navigate("/sales/clients");
     } catch (err) {
       console.error("❌ Lỗi khi xóa công ty:", err);
@@ -452,7 +388,7 @@ export default function ClientCompanyDetailPage() {
       };
 
       await clientTalentBlacklistService.add(payload);
-      showSuccessOverlay("✅ Đã thêm nhân sự vào blacklist thành công!");
+      showSuccessOverlay("Đã thêm nhân sự vào blacklist thành công!");
       
       // Refresh blacklist
       const data = await clientTalentBlacklistService.getByClientId(Number(id), true);
@@ -500,7 +436,7 @@ export default function ClientCompanyDetailPage() {
       setLoadingOverlay({
         show: true,
         type: 'success',
-        message: '✅ Đã gỡ bỏ nhân sự khỏi blacklist thành công!',
+        message: 'Đã gỡ bỏ nhân sự khỏi blacklist thành công!',
       });
 
       // Refresh blacklist and close modal after 2 seconds
@@ -519,38 +455,6 @@ export default function ClientCompanyDetailPage() {
     }
   };
 
-  // Handle Assign Template
-  const handleCloseAssignTemplateModal = () => {
-    setShowAssignTemplateModal(false);
-    setSelectedTemplateId(null);
-    setTemplateSearchQuery("");
-    setIsTemplateDropdownOpen(false);
-  };
-
-  const handleAssignTemplate = async () => {
-    if (!id || !selectedTemplateId) {
-      alert("⚠️ Vui lòng chọn template!");
-      return;
-    }
-
-    try {
-      setIsAssigningTemplate(true);
-      await clientCompanyCVTemplateService.assignTemplate(Number(id), selectedTemplateId);
-      showSuccessOverlay("✅ Đã gán template thành công!");
-      
-      // Refresh company data
-      const data = await clientCompanyService.getDetailedById(Number(id));
-      setCompany(data);
-      
-      handleCloseAssignTemplateModal();
-    } catch (error: any) {
-      console.error("❌ Lỗi gán template:", error);
-      const errorMessage = error?.message || error?.data?.message || "Không thể gán template!";
-      alert(`⚠️ ${errorMessage}`);
-    } finally {
-      setIsAssigningTemplate(false);
-    }
-  };
 
   const handleCloseAddJobRoleLevelModal = () => {
     setShowAddJobRoleLevelModal(false);
@@ -585,14 +489,14 @@ export default function ClientCompanyDetailPage() {
           ...jobRoleLevelForm,
           clientCompanyId: Number(id),
         });
-        showSuccessOverlay("✅ Đã cập nhật vị trí tuyển dụng thành công!");
+        showSuccessOverlay("Đã cập nhật vị trí tuyển dụng thành công!");
       } else {
         // Create new
         await clientJobRoleLevelService.create({
           ...jobRoleLevelForm,
           clientCompanyId: Number(id),
         });
-        showSuccessOverlay("✅ Đã thêm vị trí tuyển dụng thành công!");
+        showSuccessOverlay("Đã thêm vị trí tuyển dụng thành công!");
       }
       
       // Refresh company data
@@ -1285,221 +1189,6 @@ export default function ClientCompanyDetailPage() {
                     </Button>
                   </div>
                 )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Assign Template Modal */}
-        {showAssignTemplateModal && (
-          <div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-            onClick={(e) => {
-              if (e.target === e.currentTarget && !isAssigningTemplate) {
-                handleCloseAssignTemplateModal();
-              }
-            }}
-          >
-            <div className="w-full max-w-4xl rounded-2xl bg-white shadow-xl border border-neutral-200 overflow-hidden flex flex-col" style={{ maxHeight: '95vh' }}>
-              <div className="px-8 py-5 border-b border-neutral-200 flex items-center justify-between flex-shrink-0">
-                <h2 className="text-2xl font-semibold text-gray-900">Gán CV Template cho công ty</h2>
-                <button
-                  onClick={handleCloseAssignTemplateModal}
-                  disabled={isAssigningTemplate}
-                  className="text-neutral-400 hover:text-neutral-600 transition-colors disabled:opacity-50"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div id="template-modal-content" className="px-8 py-6 overflow-y-auto flex-1" style={{ minHeight: '60vh', maxHeight: 'calc(95vh - 140px)' }}>
-                {availableTemplates.length === 0 ? (
-                  <div className="text-center py-8">
-                    <FileText className="w-12 h-12 text-neutral-400 mx-auto mb-3" />
-                    <p className="text-neutral-500">Không còn template nào để gán</p>
-                    <p className="text-sm text-neutral-400 mt-1">Tất cả templates đã được gán cho công ty này</p>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {/* Template Dropdown */}
-                    <div>
-                      <label className="block text-base font-medium text-gray-700 mb-3">
-                        Chọn CV Template <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setIsTemplateDropdownOpen(prev => !prev)}
-                          disabled={isAssigningTemplate}
-                          className={`w-full flex items-center justify-between px-4 py-3 border rounded-lg bg-white text-left focus:ring-2 focus:ring-primary-500/20 transition-all ${
-                            !selectedTemplateId ? 'border-neutral-300 focus:border-primary-500' : 'border-primary-300 bg-primary-50'
-                          } disabled:opacity-50 disabled:cursor-not-allowed`}
-                        >
-                          <div className="flex items-center gap-2 text-base text-neutral-700">
-                            <FileText className="w-4 h-4 text-neutral-400" />
-                            <span>
-                              {selectedTemplateId
-                                ? availableTemplates.find(t => t.id === selectedTemplateId)?.name || "Chọn template"
-                                : "Chọn template"}
-                            </span>
-                          </div>
-                        </button>
-                        {isTemplateDropdownOpen && !isAssigningTemplate && (
-                          <div 
-                            className="absolute z-[60] mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-2xl"
-                            onMouseLeave={() => {
-                              setIsTemplateDropdownOpen(false);
-                              setTemplateSearchQuery("");
-                            }}
-                          >
-                            <div className="p-3 border-b border-neutral-100">
-                              <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4" />
-                                <input
-                                  type="text"
-                                  value={templateSearchQuery}
-                                  onChange={(e) => setTemplateSearchQuery(e.target.value)}
-                                  placeholder="Tìm template theo tên hoặc mô tả..."
-                                  className="w-full pl-9 pr-3 py-2.5 text-sm border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
-                                />
-                              </div>
-                            </div>
-                            <div className="max-h-56 overflow-y-auto">
-                              {(() => {
-                                const filteredTemplates = templateSearchQuery.trim()
-                                  ? availableTemplates.filter((template) => {
-                                      const query = templateSearchQuery.toLowerCase();
-                                      return (
-                                        template.name.toLowerCase().includes(query) ||
-                                        (template.description && template.description.toLowerCase().includes(query))
-                                      );
-                                    })
-                                  : availableTemplates;
-
-                                if (filteredTemplates.length === 0) {
-                                  return <p className="px-4 py-3 text-sm text-neutral-500">Không tìm thấy template nào</p>;
-                                }
-
-                                return filteredTemplates.map((template) => (
-                                  <button
-                                    type="button"
-                                    key={template.id}
-                                    onClick={() => {
-                                      setSelectedTemplateId(template.id);
-                                      setIsTemplateDropdownOpen(false);
-                                      setTemplateSearchQuery("");
-                                      
-                                      // Scroll to preview ngay sau khi chọn
-                                      setTimeout(() => {
-                                        const contentContainer = document.getElementById('template-modal-content');
-                                        if (contentContainer && templatePreviewRef.current) {
-                                          const containerRect = contentContainer.getBoundingClientRect();
-                                          const previewRect = templatePreviewRef.current.getBoundingClientRect();
-                                          const scrollTop = contentContainer.scrollTop;
-                                          const relativeTop = previewRect.top - containerRect.top + scrollTop;
-                                          
-                                          contentContainer.scrollTo({
-                                            top: relativeTop - 30,
-                                            behavior: 'smooth'
-                                          });
-                                        }
-                                      }, 100);
-                                    }}
-                                    className={`w-full text-left px-5 py-4 hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-b-0 ${
-                                      selectedTemplateId === template.id ? "bg-primary-50 border-primary-200" : ""
-                                    }`}
-                                  >
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex-1">
-                                        <div className="flex items-center gap-3 mb-2">
-                                          <div className="p-2 bg-primary-100 rounded-lg">
-                                            <FileText className="w-5 h-5 text-primary-600" />
-                                          </div>
-                                          <div>
-                                            <h3 className="font-semibold text-gray-900 text-base">{template.name}</h3>
-                                            {template.description && (
-                                              <p className="text-sm text-neutral-500 mt-1 line-clamp-2">{template.description}</p>
-                                            )}
-                                          </div>
-                                        </div>
-                                        {template.isDefault && (
-                                          <span className="inline-flex items-center px-2.5 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full mt-2 ml-14">
-                                            Template mặc định
-                                          </span>
-                                        )}
-                                      </div>
-                                      {selectedTemplateId === template.id && (
-                                        <CheckCircle className="w-5 h-5 text-primary-600 flex-shrink-0 mt-1" />
-                                      )}
-                                    </div>
-                                  </button>
-                                ));
-                              })()}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Selected Template Preview */}
-                    {selectedTemplateId && (
-                      <div ref={templatePreviewRef} className="p-5 border-2 border-primary-200 rounded-xl bg-primary-50 animate-fade-in">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-3">
-                              <div className="p-2.5 bg-primary-100 rounded-lg">
-                                <FileText className="w-6 h-6 text-primary-600" />
-                              </div>
-                              <div>
-                                <h3 className="font-semibold text-gray-900 text-lg">
-                                  {availableTemplates.find(t => t.id === selectedTemplateId)?.name}
-                                </h3>
-                                {availableTemplates.find(t => t.id === selectedTemplateId)?.description && (
-                                  <p className="text-sm text-neutral-500 mt-2">
-                                    {availableTemplates.find(t => t.id === selectedTemplateId)?.description}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            {availableTemplates.find(t => t.id === selectedTemplateId)?.isDefault && (
-                              <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium bg-green-100 text-green-800 rounded-full mt-2">
-                                Template mặc định
-                              </span>
-                            )}
-                          </div>
-                          <CheckCircle className="w-6 h-6 text-primary-600 flex-shrink-0" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="px-8 py-5 border-t border-neutral-200 flex justify-end gap-3 flex-shrink-0">
-                <Button
-                  onClick={handleCloseAssignTemplateModal}
-                  disabled={isAssigningTemplate}
-                  className="px-5 py-2.5 text-base font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Hủy
-                </Button>
-                <Button
-                  onClick={handleAssignTemplate}
-                  disabled={isAssigningTemplate || !selectedTemplateId}
-                  className="px-5 py-2.5 text-base font-medium text-white bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {isAssigningTemplate ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      Đang xử lý...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4" />
-                      Gán Template
-                    </>
-                  )}
-                </Button>
               </div>
             </div>
           </div>

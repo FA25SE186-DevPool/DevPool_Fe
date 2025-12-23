@@ -176,7 +176,7 @@ export function useTalentCreateCVModal({
     }
 
     // Show success message
-    const successMessage = `✅ Trích xuất thông tin CV thành công!${
+    const successMessage = `Trích xuất thông tin CV thành công!${
       result.basicInfo.locationId !== undefined ? `\nĐã tự động chọn khu vực làm việc.` : ''
     }${
       result.basicInfo.workingMode !== WorkingMode.None ? `\nĐã tự động chọn chế độ làm việc.` : ''

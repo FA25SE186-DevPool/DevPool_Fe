@@ -28,7 +28,7 @@ export default function CreateTalent() {
   const [showModalCVPreview, setShowModalCVPreview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); // State để quản lý loading khi submit
   const [submittingMessage, setSubmittingMessage] = useState('Đang xử lý...'); // Message hiển thị khi đang submit
-  const lastAutoSkillJobRoleLevelIdRef = useRef<number | null>(null);
+  const lastAutoSkillJobRoleLevelIdRef = useRef<string | null>(null);
   const didAutoOpenSkillFormRef = useRef(false);
   const [autoSkillToast, setAutoSkillToast] = useState<{ open: boolean; message: string }>({
     open: false,
@@ -104,6 +104,7 @@ export default function CreateTalent() {
     talentSkills,
     talentWorkExperiences,
     talentProjects,
+    loadingPhase: createLoadingPhase,
     talentCertificates,
     talentJobRoleLevels,
     initialCVs,
@@ -344,7 +345,7 @@ export default function CreateTalent() {
             category,
           },
         }));
-        showSuccessOverlay(`✅ Đã gửi ${notificationIds.length} đề xuất cho admin!`);
+        showSuccessOverlay(`Đã gửi ${notificationIds.length} đề xuất cho admin!`);
       }
     } catch (error) {
       console.error('Lỗi khi gửi đề xuất:', error);
@@ -463,27 +464,19 @@ export default function CreateTalent() {
   const selectedLevelValue = useMemo(() => filters.selectedLevel[0], [filters.selectedLevel]);
 
   // Tự động tạo jobRoleLevel từ CV khi chọn vị trí ở CV
+  // Chỉ sync khi user chưa tự chọn level từ UI (để tránh ghi đè lựa chọn của user)
   useEffect(() => {
     if (!initialCVs || initialCVs.length === 0) return;
     if (!jobRoleLevels || jobRoleLevels.length === 0) return;
 
     const cv = initialCVs[0];
     const cvJobRoleLevelId = cv.jobRoleLevelId;
-    
-    // Kiểm tra xem talentJobRoleLevels hiện tại có khớp với CV jobRoleLevelId không
-    const currentJobRoleLevelId = talentJobRoleLevels[0]?.jobRoleLevelId;
-    
+
+    // Luôn sync từ CV sang talentJobRoleLevels vì jobRoleLevel name của CV
+    // giống với jobRoleLevel name của talentJobRoleLevels
+    // Ô cấp độ sẽ hiển thị level của jobRoleLevel của talentJobRoleLevels
+
     if (!cvJobRoleLevelId || cvJobRoleLevelId <= 0) {
-      // Nếu CV chưa có vị trí và talentJobRoleLevels đang có vị trí, reset về trạng thái ban đầu
-      if (currentJobRoleLevelId && currentJobRoleLevelId > 0) {
-        setTalentJobRoleLevels([
-          {
-            jobRoleLevelId: 0,
-            yearsOfExp: 0,
-            ratePerMonth: undefined,
-          },
-        ]);
-      }
       return;
     }
 
@@ -543,6 +536,12 @@ export default function CreateTalent() {
         if (cvsSameJobRoleLevel.length === 0) {
           updated[index] = { ...updated[index], version: 1 };
         }
+
+        // Reset level khi chọn vị trí mới (vì vị trí mới có thể có level khác nhau)
+        filters.setSelectedLevel((prev) => ({
+          ...prev,
+          [index]: undefined,
+        }));
       }
 
       return updated;
@@ -593,45 +592,162 @@ export default function CreateTalent() {
     }
   }, [initialCVs, jobRoleLevels, talentJobRoleLevels, filters]);
 
-  // Tự động thêm kỹ năng theo "Vị trí công việc" được chọn ở CV ban đầu (template skills từ BE)
+  // Tự động gợi ý kỹ năng khi chọn vị trí (jobRoleLevelId) - lấy skills của chính jobRoleLevel đó
+  // - Trigger khi chỉ chọn vị trí (không cần cấp độ)
+  // - Sử dụng skills của jobRoleLevel đã chọn (không tìm level thấp nhất)
+  // - Chỉ hiện confirm dialog nếu có skills mới (chưa có trong danh sách)
+  // - Nếu chỉ có skills trùng thì không hiện dialog
   // - Chỉ "thêm" (merge), không xóa kỹ năng user đã chọn
-  // - Không thêm trùng skillId
-  useEffect(() => {
-    const jobRoleLevelId = initialCVs?.[0]?.jobRoleLevelId ?? 0;
+  const loadSkillsForJobRole = useCallback(async (jobRoleLevelId: number) => {
     if (!jobRoleLevelId || jobRoleLevelId <= 0) return;
 
-    // Tránh chạy lặp cho cùng 1 lựa chọn (kể cả khi state khác thay đổi)
-    if (lastAutoSkillJobRoleLevelIdRef.current === jobRoleLevelId) return;
+    // Tránh chạy lặp cho cùng 1 lựa chọn
+    const key = `jobRole_${jobRoleLevelId}`;
+    if (lastAutoSkillJobRoleLevelIdRef.current === key) return;
 
-    const hasExistingSkills = (talentSkills || []).some((s) => s.skillId && s.skillId > 0);
-    const confirmed = window.confirm(
-      hasExistingSkills
-        ? 'Bạn muốn thêm kỹ năng gợi ý theo vị trí vào danh sách kỹ năng hiện có không?\n\n(Không tạo trùng kỹ năng, và không xóa kỹ năng đã có)'
-        : 'Bạn muốn tự động thêm kỹ năng gợi ý theo vị trí không?'
-    );
-    if (!confirmed) {
+    try {
+      // Tìm jobRoleLevel đã chọn
+      const selectedJobRoleLevel = jobRoleLevels?.find(jrl => jrl.id === jobRoleLevelId);
+      if (!selectedJobRoleLevel) return;
+
+      // Sử dụng chính jobRoleLevel này (không tìm level thấp nhất của jobRole)
+      const targetJobRoleLevel = selectedJobRoleLevel;
+
+      if (!targetJobRoleLevel) return;
+
+      // Lấy skills của jobRoleLevel đã chọn
+      const resp = await masterDataService.getSkillsByJobRoleLevel(targetJobRoleLevel.id);
+      const skillIds = (resp?.data || [])
+        .map((s: any) => s?.id)
+        .filter((id: any): id is number => typeof id === 'number' && id > 0);
+      if (skillIds.length === 0) return;
+
+      // Kiểm tra xem có skill nào mới không (chưa có trong danh sách)
+      const existing = new Set((talentSkills || []).map((x) => x.skillId));
+      const toAdd = skillIds.filter((id) => !existing.has(id));
+
+      // Nếu không có skill mới nào thì không hiện confirm dialog và không thêm gì
+      if (toAdd.length === 0) return;
+
+      // Chỉ hiện confirm dialog khi thực sự có skills mới để gợi ý
+      const hasExistingSkills = (talentSkills || []).some((s) => s.skillId && s.skillId > 0);
+      const confirmed = window.confirm(
+        hasExistingSkills
+          ? 'Bạn muốn thêm kỹ năng gợi ý theo vị trí vào danh sách kỹ năng hiện có không?\n\n(Không tạo trùng kỹ năng, và không xóa kỹ năng đã có)'
+          : 'Bạn muốn tự động thêm kỹ năng gợi ý theo vị trí không?'
+      );
+      if (!confirmed) return;
+
+      // Set ref sau khi user đã xác nhận
+      lastAutoSkillJobRoleLevelIdRef.current = key;
+
+      let addedCount = 0;
+      setTalentSkills((prev) => {
+        // Sử dụng lại existing và toAdd đã tính toán ở trên
+        addedCount = toAdd.length;
+        if (toAdd.length === 0) return prev;
+        return [
+          ...toAdd.map((skillId) => ({ skillId, level: 'Beginner', yearsExp: 1 })),
+          ...(prev || []),
+        ];
+      });
+
+      if (addedCount > 0) {
+        // Clear timer cũ nếu có
+        if (autoSkillToastTimerRef.current) {
+          window.clearTimeout(autoSkillToastTimerRef.current);
+        }
+        setAutoSkillToast({
+          open: true,
+          message: `Đã thêm ${addedCount} kỹ năng theo vị trí`,
+        });
+        autoSkillToastTimerRef.current = window.setTimeout(() => {
+          setAutoSkillToast({ open: false, message: '' });
+          autoSkillToastTimerRef.current = null;
+        }, 2500);
+      }
+    } catch (error) {
+      console.error('Lỗi khi load skills cho job role:', error);
+    }
+  }, [jobRoleLevels, talentSkills]);
+
+  // useEffect cho việc gợi ý khi chỉ chọn vị trí
+  useEffect(() => {
+    const jobRoleLevelId = initialCVs?.[0]?.jobRoleLevelId;
+    if (!jobRoleLevelId || jobRoleLevelId <= 0) return;
+
+    // Nếu đã chọn level cụ thể, không trigger logic này (để logic level cụ thể xử lý)
+    // Và clear ref để reset state
+    if (filters.selectedLevel[0] !== undefined && filters.selectedLevel[0] !== null) {
+      lastAutoSkillJobRoleLevelIdRef.current = null; // Reset ref
       return;
     }
 
-    // Chỉ set ref sau khi user đã xác nhận
-    lastAutoSkillJobRoleLevelIdRef.current = jobRoleLevelId;
+    loadSkillsForJobRole(jobRoleLevelId);
+  }, [initialCVs?.[0]?.jobRoleLevelId, filters.selectedLevel[0], loadSkillsForJobRole]);
+
+  // Tự động gợi ý kỹ năng của job role level cụ thể đã chọn (bao gồm vị trí và cấp độ)
+  // - Trigger khi đã chọn cả vị trí công việc và cấp độ
+  // - Chỉ lấy skills của level cụ thể đó
+  // - Chỉ hiện confirm dialog nếu có skills mới (chưa có trong danh sách)
+  // - Nếu chỉ có skills trùng thì không hiện dialog
+  // - Chỉ "thêm" (merge), không xóa kỹ năng user đã chọn
+  // - Không thêm trùng skillId
+  // Memoize current job role level ID từ talentJobRoleLevels để tránh re-computation
+  const currentJobRoleLevelId = useMemo(() => talentJobRoleLevels?.[0]?.jobRoleLevelId ?? 0, [talentJobRoleLevels]);
+  const currentSelectedLevel = useMemo(() => filters.selectedLevel[0], [filters.selectedLevel]);
+
+  // Tạo key duy nhất cho combination của jobRoleLevelId và level
+  const skillSuggestionKey = useMemo(() =>
+    `${currentJobRoleLevelId}_${currentSelectedLevel || ''}`,
+    [currentJobRoleLevelId, currentSelectedLevel]
+  );
+
+  useEffect(() => {
+    // Chỉ trigger khi đã chọn cả vị trí công việc và cấp độ
+    if (!currentJobRoleLevelId || currentJobRoleLevelId <= 0 || currentSelectedLevel === undefined || currentSelectedLevel === null) return;
+
+    // Tránh chạy lặp cho cùng 1 combination (kể cả khi state khác thay đổi)
+    if (lastAutoSkillJobRoleLevelIdRef.current === skillSuggestionKey) return;
 
     let cancelled = false;
 
     (async () => {
       try {
-        const resp = await masterDataService.getSkillsByJobRoleLevel(jobRoleLevelId);
+        // Kiểm tra trước xem level này có skills không
+        const resp = await masterDataService.getSkillsByJobRoleLevel(currentJobRoleLevelId);
         const skillIds = (resp?.data || [])
           .map((s: any) => s?.id)
           .filter((id: any): id is number => typeof id === 'number' && id > 0);
 
         if (cancelled) return;
+        // Nếu không có skill nào thì không hiện confirm dialog
         if (skillIds.length === 0) return;
+
+        // Kiểm tra xem có skill nào mới không (chưa có trong danh sách)
+        const existing = new Set((talentSkills || []).map((x) => x.skillId));
+        const toAdd = skillIds.filter((id) => !existing.has(id));
+
+        // Nếu không có skill mới nào thì không hiện confirm dialog và không thêm gì
+        if (toAdd.length === 0) return;
+
+        // Chỉ hiện confirm dialog khi thực sự có skills mới để gợi ý
+        const hasExistingSkills = (talentSkills || []).some((s) => s.skillId && s.skillId > 0);
+        const confirmed = window.confirm(
+          hasExistingSkills
+            ? 'Bạn muốn thêm kỹ năng gợi ý theo vị trí vào danh sách kỹ năng hiện có không?\n\n(Không tạo trùng kỹ năng, và không xóa kỹ năng đã có)'
+            : 'Bạn muốn tự động thêm kỹ năng gợi ý theo vị trí không?'
+        );
+        if (!confirmed) {
+          return;
+        }
+
+        // Chỉ set ref sau khi user đã xác nhận
+        lastAutoSkillJobRoleLevelIdRef.current = skillSuggestionKey;
 
         let addedCount = 0;
         setTalentSkills((prev) => {
-          const existing = new Set((prev || []).map((x) => x.skillId));
-          const toAdd = skillIds.filter((id) => !existing.has(id));
+          // Sử dụng lại existing và toAdd đã tính toán ở trên
           addedCount = toAdd.length;
           if (toAdd.length === 0) return prev;
           return [
@@ -662,10 +778,13 @@ export default function CreateTalent() {
     return () => {
       cancelled = true;
     };
-  }, [initialCVs, talentSkills, setTalentSkills]);
+  }, [skillSuggestionKey]);
 
   // Ref cho tab navigation container để scroll đến tab active
   const tabNavRef = useRef<HTMLDivElement>(null);
+
+  // Show initial loading only during phase 1
+  const showInitialLoading = loading && createLoadingPhase === 'phase1';
 
   // Tự động scroll đến tab active khi chuyển tab
   useEffect(() => {
@@ -684,6 +803,18 @@ export default function CreateTalent() {
 
   return (
     <div className="flex bg-gray-50 min-h-screen relative">
+      {/* Initial loading overlay */}
+      {showInitialLoading && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[9999] flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-lg p-8 flex flex-col items-center space-y-4 min-w-[300px]">
+            <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <div className="text-center">
+              <p className="text-lg font-semibold text-primary-700 mb-2">Đang tải dữ liệu...</p>
+              <p className="text-sm text-neutral-600">Chuẩn bị form tạo nhân sự</p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Toast: Auto-add skills */}
       {autoSkillToast.open && (
         <div className="fixed top-4 right-4 z-[10000] animate-slide-in-right">
@@ -701,7 +832,7 @@ export default function CreateTalent() {
         </div>
       )}
       {/* Loading Overlay ở giữa màn hình */}
-      {(isSubmitting || loading) && (
+      {(isSubmitting || (loading && createLoadingPhase === 'phase1')) && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center">
           <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-4 min-w-[300px]">
             <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
@@ -940,7 +1071,7 @@ export default function CreateTalent() {
                 const result = await performSubmit(uploadedCVUrl);
 
                 // Success - hiển thị overlay và navigate
-                showSuccessOverlay('✅ Tạo nhân sự thành công!');
+                showSuccessOverlay('Tạo nhân sự thành công!');
 
                 // Kiểm tra result trước khi navigate
                 let talentId = null;
@@ -962,7 +1093,7 @@ export default function CreateTalent() {
                 }
 
                 if (talentId) {
-                  console.log('✅ Navigate to talent detail:', talentId);
+                  console.log('Navigate to talent detail:', talentId);
                   setTimeout(() => {
                     navigate(`/ta/talents/${talentId}`);
                   }, 2000);
@@ -1257,10 +1388,10 @@ export default function CreateTalent() {
                   <div className="pt-6 border-t border-neutral-200 mt-8">
                     <button
                       type="submit"
-                      disabled={loading || isSubmitting}
+                      disabled={(loading && createLoadingPhase === 'phase1') || isSubmitting}
                       className="w-full bg-gradient-to-r from-primary-600 to-secondary-600 text-white py-3.5 px-6 rounded-xl hover:from-primary-700 hover:to-secondary-700 font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-glow hover:shadow-glow-lg transform hover:scale-[1.02] active:scale-[0.98]"
                     >
-                      {loading || isSubmitting ? (
+                      {(loading && createLoadingPhase === 'phase1') || isSubmitting ? (
                         <div className="flex items-center justify-center space-x-2">
                           <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                           <span>{isSubmitting ? 'Đang xử lý...' : 'Đang tạo...'}</span>

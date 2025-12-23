@@ -1,6 +1,7 @@
 import axios, { AxiosError, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios';
 import { UNAUTHORIZED_EVENT } from '../constants/events';
 import { API_BASE_URL } from '../config/env.config';
+import { isTokenExpired } from '../utils/storage';
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
@@ -105,12 +106,26 @@ const handleRefreshToken = async (): Promise<string | null> => {
     }
 };
 
-// 🧩 Request interceptor: tự động thêm token vào header
+// 🧩 Request interceptor: tự động thêm token vào header và check expiry
 apiClient.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
         // Lấy token từ localStorage
         const token = localStorage.getItem('accessToken');
         if (token) {
+            // Check if token is expired before sending request
+            if (isTokenExpired(token)) {
+                console.warn('🚨 Token expired, dispatching unauthorized event');
+                // Clear expired token
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                localStorage.removeItem('devpool_user');
+                sessionStorage.removeItem('accessToken');
+                sessionStorage.removeItem('refreshToken');
+                sessionStorage.removeItem('devpool_user');
+                // Dispatch unauthorized event to trigger logout
+                window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+                return Promise.reject(new Error('Token expired'));
+            }
             config.headers.Authorization = `Bearer ${token}`;
         }
         return config;

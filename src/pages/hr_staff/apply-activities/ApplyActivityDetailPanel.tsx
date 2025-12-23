@@ -287,7 +287,7 @@ export default function ApplyActivityDetailPanel({
         status: ApplyActivityStatus.Scheduled,
       });
       setDateValidationError("");
-      showSuccessOverlay("✅ Đã cập nhật hoạt động thành công!");
+      showSuccessOverlay("Đã cập nhật hoạt động thành công!");
     } catch (err) {
       console.error("❌ Lỗi cập nhật hoạt động:", err);
       hideOverlay();
@@ -642,7 +642,7 @@ export default function ApplyActivityDetailPanel({
 
           if (allStepsPassed && activity.applicationInfo.status === "Interviewing") {
             await talentApplicationService.changeStatus(activity.applicationInfo.id, { NewStatus: "Hired" });
-            showSuccessOverlay("✅ Đã cập nhật trạng thái thành công!\n🎉 Tất cả các bước đã hoàn thành, tự động chuyển application sang trạng thái Hired (Đã tuyển)!");
+            showSuccessOverlay("Đã cập nhật trạng thái thành công!\n🎉 Tất cả các bước đã hoàn thành, tự động chuyển application sang trạng thái Hired (Đã tuyển)!");
             await fetchData();
             return;
           }
@@ -652,7 +652,7 @@ export default function ApplyActivityDetailPanel({
       }
 
       await fetchData();
-      showSuccessOverlay("✅ Đã cập nhật trạng thái thành công!");
+      showSuccessOverlay("Đã cập nhật trạng thái thành công!");
     } catch (err) {
       console.error("❌ Lỗi cập nhật trạng thái:", err);
       hideOverlay();

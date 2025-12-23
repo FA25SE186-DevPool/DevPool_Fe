@@ -552,7 +552,7 @@ export default function AccountantProjectDetailPage() {
                       };
                       await clientContractPaymentService.create(clientPayload);
                       createdPaymentsCount++;
-                      console.log(`✅ Đã tạo client contract payment cho talent assignment ${assignment.id} trong project period ${period.periodMonth}/${period.periodYear}`);
+                      console.log(`Đã tạo client contract payment cho talent assignment ${assignment.id} trong project period ${period.periodMonth}/${period.periodYear}`);
                     } catch (err) {
                       console.error(`❌ Lỗi khi tạo client contract payment cho talent assignment ${assignment.id}:`, err);
                     }
@@ -582,7 +582,7 @@ export default function AccountantProjectDetailPage() {
                       };
                       await partnerContractPaymentService.create(partnerPayload);
                       createdPaymentsCount++;
-                      console.log(`✅ Đã tạo partner contract payment cho talent assignment ${assignment.id} trong project period ${period.periodMonth}/${period.periodYear}`);
+                      console.log(`Đã tạo partner contract payment cho talent assignment ${assignment.id} trong project period ${period.periodMonth}/${period.periodYear}`);
                     } catch (err) {
                       console.error(`❌ Lỗi khi tạo partner contract payment cho talent assignment ${assignment.id}:`, err);
                     }
@@ -596,7 +596,7 @@ export default function AccountantProjectDetailPage() {
           }
 
           if (createdPaymentsCount > 0) {
-            console.log(`✅ Đã tạo ${createdPaymentsCount} contract payment(s) cho các talent assignment còn thiếu trong các chu kỳ đã tồn tại.`);
+            console.log(`Đã tạo ${createdPaymentsCount} contract payment(s) cho các talent assignment còn thiếu trong các chu kỳ đã tồn tại.`);
           }
         }
       } catch (err) {
@@ -764,7 +764,7 @@ export default function AccountantProjectDetailPage() {
 
         const newPeriod = await projectPeriodService.create(payload);
         createdPeriods.push(newPeriod);
-        console.log(`✅ Tạo thành công chu kỳ ${period.month}/${period.year}`);
+        console.log(`Tạo thành công chu kỳ ${period.month}/${period.year}`);
       } catch (err: unknown) {
         const error = err as { message?: string; errors?: Record<string, string[]>; innerException?: string };
         const errorMessage = error.message || error.errors ? JSON.stringify(error, null, 2) : String(err);

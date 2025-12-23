@@ -34,6 +34,7 @@ const HUB_URL = getHubUrl();
 let connection: HubConnection | null = null;
 let isStarting = false;
 let reconnectAttempts = 0;
+let hasInitialized = false;
 const MAX_RECONNECT_ATTEMPTS = 3;
 
 // Hàm refresh token (sử dụng cùng logic như axios config)
@@ -176,6 +177,11 @@ export const createNotificationConnection = (): HubConnection => {
 };
 
 export const startNotificationConnection = async (forceRestart: boolean = false): Promise<void> => {
+	// Prevent multiple initialization unless force restart
+	if (hasInitialized && !forceRestart) {
+		return;
+	}
+
 	// Kiểm tra và refresh token trước khi kết nối
 	let token = getTokenFromStorage();
 	if (!token) {
@@ -192,6 +198,7 @@ export const startNotificationConnection = async (forceRestart: boolean = false)
 		try {
 			await connection.stop();
 			connection = null; // Reset connection để tạo mới
+			hasInitialized = false; // Reset flag for force restart
 		} catch {
 			// ignore
 		}
@@ -214,11 +221,12 @@ export const startNotificationConnection = async (forceRestart: boolean = false)
 	try {
 		await newConn.start();
 		reconnectAttempts = 0; // Reset counter khi kết nối thành công
+		hasInitialized = true; // Mark as initialized to prevent multiple attempts
 		if (import.meta.env.DEV) {
 			// Log transport type đang sử dụng (nếu có)
 			try {
-				const transport = (newConn as any).connection?.transport?.name || 
-				                  (newConn as any).connectionState?.transport?.name || 
+				const transport = (newConn as any).connection?.transport?.name ||
+				                  (newConn as any).connectionState?.transport?.name ||
 				                  'unknown';
 				console.log(`✅ Notification Hub connected successfully to: ${HUB_URL} (transport: ${transport})`);
 			} catch {
@@ -262,14 +270,13 @@ export const startNotificationConnection = async (forceRestart: boolean = false)
 			}
 		}
 
-		// Chỉ log lỗi khi thực sự không kết nối được (sau khi đã thử fallback/retry)
-		// Và không phải là lỗi recoverable (vì đó là expected behavior)
-		if (!shouldRetryWithoutLog && statusCode !== 404) {
-			console.error('❌ Failed to start notification connection:', {
+		// Trong production/development, chỉ log lỗi một lần và silent ignore để không spam console
+		// Notification hub thường không khả dụng trong môi trường dev, đây là expected behavior
+		if (!shouldRetryWithoutLog && statusCode !== 404 && reconnectAttempts === 0) {
+			console.warn('⚠️ Notification hub connection failed (this is normal in dev environment):', {
 				url: HUB_URL,
 				error: errorMessage,
 				statusCode,
-				attempts: reconnectAttempts + 1,
 			});
 		}
 		

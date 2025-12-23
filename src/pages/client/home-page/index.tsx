@@ -3,7 +3,7 @@ import HeroSection from "../../../components/home/HeroSection";
 import FeaturesSection from "../../../components/home/FeaturesSection";
 import HowItWorksSection from "../../../components/home/HowItWorksSection";
 import CTASection from "../../../components/home/CTASection";
-import ExpertsSection from "../../../components/home/ExpertsSection";
+// import ExpertsSection from "../../../components/home/ExpertsSection";
 
 
 const HomePage: React.FC = () => {
@@ -12,7 +12,7 @@ const HomePage: React.FC = () => {
     <div className="min-h-screen bg-white">
       <HeroSection />
       <FeaturesSection />
-      <ExpertsSection />
+      {/* <ExpertsSection /> */}
       {/* <TestimonialsSection /> */}
       <HowItWorksSection />
       <CTASection />

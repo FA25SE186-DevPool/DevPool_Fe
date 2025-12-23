@@ -65,6 +65,7 @@ export default function TalentDetailPage() {
     locationName,
     partnerName,
     loading,
+    loadingPhase,
     talentCVs,
     setTalentCVs,
     talentProjects,
@@ -289,7 +290,7 @@ export default function TalentDetailPage() {
         }
         return (b.version || 0) - (a.version || 0);
       });
-      console.log(`✅ Setting talentCVs - count: ${sortedCVs.length}`, sortedCVs);
+      console.log(`Setting talentCVs - count: ${sortedCVs.length}`, sortedCVs);
       setTalentCVs(sortedCVs);
     } catch (err) {
       console.error('❌ Lỗi khi refresh CVs:', err);
@@ -342,7 +343,7 @@ export default function TalentDetailPage() {
 
       const updated = await talentService.getById(Number(id));
       setTalent(updated);
-      showSuccessOverlay(`✅ Đã chuyển trạng thái sang "${nextStatusLabel}"!`);
+      showSuccessOverlay(`Đã chuyển trạng thái sang "${nextStatusLabel}"!`);
     } catch (err) {
       console.error('❌ Lỗi khi đổi trạng thái:', err);
       alert('Không thể thay đổi trạng thái nhân sự!');
@@ -817,7 +818,7 @@ export default function TalentDetailPage() {
       <div className="flex bg-gray-50 min-h-screen">
         <Sidebar items={sidebarItems} title="TA Staff" />
         <div className="flex-1">
-          <PageLoader />
+          <PageLoader phase={loadingPhase} />
         </div>
       </div>
     );

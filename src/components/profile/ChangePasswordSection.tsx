@@ -1,8 +1,14 @@
 import { useState } from "react";
 import { AlertCircle, CheckCircle, KeyRound, X } from "lucide-react";
 import { userService } from "../../services/User";
+import { getPasswordValidationError } from "../../utils/validators";
 
 export function ChangePasswordSection({ userId }: { userId: string | null }) {
+  // Validate password strength using common utility
+  const validatePassword = (password: string): string => {
+    return getPasswordValidationError(password);
+  };
+
   const [open, setOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -46,8 +52,10 @@ export function ChangePasswordSection({ userId }: { userId: string | null }) {
       setError("Vui lòng nhập mật khẩu mới.");
       return;
     }
-    if (pwd.length < 6) {
-      setError("Mật khẩu mới phải có ít nhất 6 ký tự.");
+
+    const passwordValidationError = validatePassword(pwd);
+    if (passwordValidationError) {
+      setError(passwordValidationError);
       return;
     }
     if (pwd !== confirm) {

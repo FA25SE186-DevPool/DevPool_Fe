@@ -188,7 +188,7 @@ export default function TalentCVEditPage() {
 
       await talentCVService.updateFields(Number(id), payload);
 
-      alert("✅ Cập nhật CV thành công!");
+      alert("Cập nhật CV thành công!");
       navigate(`/ta/talents/${talentId}`, { state: { defaultTab: "cvs" } });
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật:", err);

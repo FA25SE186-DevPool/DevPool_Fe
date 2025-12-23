@@ -7,12 +7,12 @@ export const sidebarItems = [
     icon: BarChart3
   },
   {
-    label: 'Người Dùng',
+    label: 'Tài Khoản',
     href: '/admin/users',
     icon: Users,
     subItems: [
-      { label: 'Nhân viên', href: '/admin/users' },
-      { label: 'Đối tác', href: '/admin/partners' },
+      { label: 'Người Dùng', href: '/admin/users' },
+      { label: 'Cấp Tài Khoản', href: '/admin/partners' },
     ]
   },
   {
@@ -31,10 +31,9 @@ export const sidebarItems = [
       },
       // CV & Chứng chỉ (nhóm con)
       {
-        label: 'CV & Chứng Chỉ',
+        label: 'Chứng Chỉ',
         href: '/admin/categories/cv-templates',
         subItems: [
-          { label: 'Mẫu CV', href: '/admin/categories/cv-templates' },
           { label: 'Loại chứng chỉ', href: '/admin/categories/certificate-types' },
         ]
       },

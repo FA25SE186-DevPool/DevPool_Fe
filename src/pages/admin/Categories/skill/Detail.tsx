@@ -87,7 +87,7 @@ export default function SkillDetailPage() {
       }
 
       await skillService.delete(Number(id));
-      showSuccessOverlay("✅ Đã xóa kỹ năng thành công!");
+      showSuccessOverlay("Đã xóa kỹ năng thành công!");
       // Quay về trang chi tiết skill group nếu có, nếu không thì về danh sách skills
       if (skill.skillGroupId) {
         navigate(`/admin/categories/skill-groups/${skill.skillGroupId}`);

@@ -569,12 +569,12 @@ export function useTalentCreate(selectedLevel?: Record<number, number | undefine
         };
 
         const result = await talentService.createWithRelatedData(payload);
-        console.log('✅ API createWithRelatedData result:', result);
-        console.log('✅ Result type:', typeof result);
-        console.log('✅ Result keys:', result && typeof result === 'object' ? Object.keys(result) : 'Not an object');
-        console.log('✅ Result ID (direct):', result?.id);
-        console.log('✅ Result data.id:', result?.data?.id);
-        console.log('✅ Result talent.id:', result?.talent?.id);
+        console.log('API createWithRelatedData result:', result);
+        console.log('Result type:', typeof result);
+        console.log('Result keys:', result && typeof result === 'object' ? Object.keys(result) : 'Not an object');
+        console.log('Result ID (direct):', result?.id);
+        console.log('Result data.id:', result?.data?.id);
+        console.log('Result talent.id:', result?.talent?.id);
         return result;
       } catch (err: any) {
         console.error('❌ Lỗi khi tạo nhân sự:', err);

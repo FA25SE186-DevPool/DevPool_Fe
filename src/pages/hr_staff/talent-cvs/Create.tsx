@@ -346,7 +346,7 @@ export default function TalentCVCreatePage() {
             }));
           }
           
-          alert("✅ Trích xuất thông tin CV thành công! Tóm tắt CV đã được tự động điền.");
+          alert("Trích xuất thông tin CV thành công! Tóm tắt CV đã được tự động điền.");
         } catch (parseError) {
           console.error("Lỗi parse JSON:", parseError);
           alert("❌ Lỗi khi phân tích dữ liệu CV!");
@@ -428,7 +428,7 @@ export default function TalentCVCreatePage() {
         setCvPreviewUrl(null);
       }
 
-      alert("✅ Đã xóa file CV thành công!");
+      alert("Đã xóa file CV thành công!");
     } catch (err: any) {
       console.error("❌ Error deleting CV file:", err);
       // Vẫn xóa URL khỏi form dù không xóa được file
@@ -1147,7 +1147,7 @@ export default function TalentCVCreatePage() {
                 <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
                   <CheckCircle className="w-5 h-5 text-green-600" />
                   <p className="text-green-700 font-medium">
-                    ✅ Thêm CV thành công! Đang chuyển hướng...
+                    Thêm CV thành công! Đang chuyển hướng...
                   </p>
                 </div>
               )}

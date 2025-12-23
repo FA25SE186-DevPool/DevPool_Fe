@@ -443,7 +443,7 @@ export default function TalentCVApplicationDetailPage() {
           if (allStepsPassed && application.status === 'Interviewing') {
             await talentApplicationService.changeStatus(application.id, { NewStatus: 'Hired' });
             setApplication({ ...application, status: 'Hired' });
-            showSuccessOverlay(`✅ Đã cập nhật trạng thái thành công!\n🎉 Tất cả các bước đã hoàn thành, tự động chuyển application sang trạng thái Hired (Đã tuyển)!`);
+            showSuccessOverlay(`Đã cập nhật trạng thái thành công!\n🎉 Tất cả các bước đã hoàn thành, tự động chuyển application sang trạng thái Hired (Đã tuyển)!`);
             // Không cần reload vì đã cập nhật state local
             setEditingActivity(null);
             setEditActivityForm({
@@ -471,7 +471,7 @@ export default function TalentCVApplicationDetailPage() {
       });
       setScheduleTouched(false);
       setDateValidationError("");
-      showSuccessOverlay(`✅ Đã cập nhật trạng thái thành công!`);
+      showSuccessOverlay(`Đã cập nhật trạng thái thành công!`);
     } catch (err) {
       console.error("❌ Lỗi cập nhật trạng thái:", err);
       hideOverlay();
@@ -853,7 +853,7 @@ export default function TalentCVApplicationDetailPage() {
       
       // Refresh data
       await fetchData();
-      showSuccessOverlay(`✅ Đã xóa ${activities.length} hoạt động thành công!`);
+      showSuccessOverlay(`Đã xóa ${activities.length} hoạt động thành công!`);
     } catch (err) {
       console.error("❌ Lỗi xóa activities:", err);
       hideOverlay();
@@ -945,7 +945,7 @@ export default function TalentCVApplicationDetailPage() {
       }
 
       await fetchData();
-      showSuccessOverlay(`✅ Đã tạo ${createdList.length} hoạt động theo quy trình!`);
+      showSuccessOverlay(`Đã tạo ${createdList.length} hoạt động theo quy trình!`);
     } catch (err) {
       console.error("❌ Lỗi tạo hoạt động tự động:", err);
       hideOverlay();
@@ -1043,7 +1043,7 @@ export default function TalentCVApplicationDetailPage() {
 
      
 
-      showSuccessOverlay(`✅ Đã cập nhật trạng thái thành công!`);
+      showSuccessOverlay(`Đã cập nhật trạng thái thành công!`);
 
       // Reload data để cập nhật UI với thay đổi từ backend
       await fetchData();
@@ -2409,7 +2409,7 @@ export default function TalentCVApplicationDetailPage() {
                   });
                   setScheduleTouched(false);
                   setDateValidationError("");
-                  showSuccessOverlay("✅ Đã cập nhật hoạt động thành công!");
+                  showSuccessOverlay("Đã cập nhật hoạt động thành công!");
                 } catch (err) {
                   console.error("❌ Lỗi cập nhật hoạt động:", err);
                   hideOverlay();

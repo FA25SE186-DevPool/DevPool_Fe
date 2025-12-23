@@ -95,7 +95,7 @@ export default function ProfessionalClientPage() {
                 );
 
                 if (devpoolPartner) {
-                    console.log("✅ Tìm thấy partner DEVPOOL:", devpoolPartner);
+                    console.log("Tìm thấy partner DEVPOOL:", devpoolPartner);
                     setDevpoolPartnerId(devpoolPartner.id);
                 } else {
                     console.warn("⚠️ Không tìm thấy partner có code DEVPOOL. Danh sách partners:", partnersArray);
@@ -326,7 +326,7 @@ export default function ProfessionalClientPage() {
                         return false;
                     }
 
-                    console.log(`✅ Giữ lại talent ${professional.name} (ID: ${professional.id}): partner OK, availability = ${professional.availability}`);
+                    console.log(`Giữ lại talent ${professional.name} (ID: ${professional.id}): partner OK, availability = ${professional.availability}`);
                     return true;
                 });
 

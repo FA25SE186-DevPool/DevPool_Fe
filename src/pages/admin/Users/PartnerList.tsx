@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Search, Filter, Building, Mail, Phone, XCircle, MoreVertical, Shield } from "lucide-react";
 import { sidebarItems } from "../../../components/sidebar/admin";
 import Sidebar from "../../../components/common/Sidebar";
@@ -34,8 +34,9 @@ const PartnerManagementPage = () => {
   const [phoneFilter, setPhoneFilter] = useState("");
   const [partnerTypeFilter, setPartnerTypeFilter] = useState<PartnerType | "All">("All");
   const [showFilters, setShowFilters] = useState(false);
-  const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState<number | null>(null);
   const [showCreateAccount, setShowCreateAccount] = useState<Partner | null>(null);
+  const [creatingAccount, setCreatingAccount] = useState(false);
   const [pagination, setPagination] = useState<PagedResult<Partner> | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(6);
@@ -70,48 +71,66 @@ const PartnerManagementPage = () => {
     }
   };
 
-  // Load partners on component mount and when filters change
+  // Load partners on component mount and when filters/page change
   useEffect(() => {
     fetchPartners(currentPage);
-  }, [query, taxCodeFilter, phoneFilter, partnerTypeFilter, currentPage]);
+  }, [currentPage]); // Only depend on currentPage
 
-  // Debounced search
+  // Debounced search - reset to page 1 when filters change
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (currentPage !== 1) {
-        setCurrentPage(1);
-      } else {
-        fetchPartners(1);
-      }
+      setCurrentPage(1);
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [query, taxCodeFilter, phoneFilter]);
+  }, [query, taxCodeFilter, phoneFilter, partnerTypeFilter]);
 
   // Since filtering is now done on the server, we just use the partners directly
   const filtered = partners;
+  const lastItemIndex = filtered.length - 1;
 
   // Handle create account for partner
   const handleCreateAccount = async (partner: Partner, email: string) => {
     try {
+      setCreatingAccount(true);
       const model: CreatePartnerAccountModel = {
         email: email.trim()
       };
 
       const response = await partnerService.createAccount(partner.id, model);
 
+      // Check if email was changed and update partner if needed
+      const originalEmail = partner.email || '';
+      const emailChanged = email.trim() !== originalEmail.trim();
+
+      if (emailChanged) {
+        // Update partner email
+        await partnerService.update(partner.id, {
+          ...partner,
+          email: email.trim()
+        });
+
+        // Update local state
+        setPartners(prev => prev.map(p =>
+          p.id === partner.id ? { ...p, email: email.trim() } : p
+        ));
+      }
+
       // Build success message
-      let successMessage = `✅ Cấp tài khoản thành công!\n\n`;
+      let successMessage = `Cấp tài khoản thành công!\n\n`;
       successMessage += `Email: ${response.data?.email}\n`;
       successMessage += `Mật khẩu: ${response.data?.generatedPassword}\n\n`;
 
-      const originalEmail = partner.email || '';
-      const emailChanged = email.trim() !== originalEmail.trim();
       if (emailChanged) {
-        successMessage += `📧 Email đối tác đã được cập nhật thành: ${email}\n\n`;
+        successMessage += `✅ Email đối tác đã được cập nhật thành: ${email}\n\n`;
       }
 
-      successMessage += `Mật khẩu đã được gửi qua email.`;
+      successMessage += `Mật khẩu đã được gửi qua email này.`;
+
+      // Update partner's userId status (set a temporary userId to indicate account created)
+      setPartners(prev => prev.map(p =>
+        p.id === partner.id ? { ...p, userId: 1 } : p // Set userId to indicate account is created
+      ));
 
       alert(successMessage);
       setShowCreateAccount(null);
@@ -124,17 +143,19 @@ const PartnerManagementPage = () => {
         errorMessage = err.message;
       }
       alert(errorMessage);
+    } finally {
+      setCreatingAccount(false);
     }
   };
 
   // Handlers
-  function handlePartnerTypeChange(e: React.ChangeEvent<HTMLSelectElement>) {
+  const handlePartnerTypeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const v = e.target.value;
     if (v === "All") setPartnerTypeFilter("All");
     else if (Object.values(PartnerType).includes(v as unknown as PartnerType)) {
       setPartnerTypeFilter(v as unknown as PartnerType);
     }
-  }
+  }, []);
 
   return (
     <div className="flex bg-gray-50 min-h-screen">
@@ -143,9 +164,9 @@ const PartnerManagementPage = () => {
       <div className="flex-1 p-8">
         <header className="mb-8 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Quản lý Đối tác</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Quản lý Cấp Tài Khoản</h1>
             <p className="text-neutral-600 mt-1">
-              Quản lý danh sách đối tác trong hệ thống.
+              Danh sách đối tác cần cấp tài khoản trong hệ thống.
             </p>
           </div>
         </header>
@@ -281,7 +302,7 @@ const PartnerManagementPage = () => {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((partner) => (
+                  filtered.map((partner, index) => (
                     <tr
                       key={partner.id}
                       className="hover:bg-gray-50/70"
@@ -332,26 +353,33 @@ const PartnerManagementPage = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right relative">
-                        <button
-                          className="p-2 rounded-lg hover:bg-gray-100"
-                          onClick={() => setMenuOpen(menuOpen === partner.id.toString() ? null : partner.id.toString())}
-                          aria-label="More"
-                        >
-                          <MoreVertical className="w-5 h-5" />
-                        </button>
-                        {menuOpen === partner.id.toString() && (
-                          <div className="absolute right-4 mt-2 w-56 rounded-xl border border-gray-200 bg-white shadow-xl z-10">
+                        {partner.userId ? (
+                          <span className="text-xs text-green-600 font-medium px-2 py-1 bg-green-50 rounded">
+                            Đã có TK
+                          </span>
+                        ) : (
+                          <>
                             <button
-                              onClick={() => {
-                                console.log('Menu clicked for partner:', partner.companyName);
-                                setShowCreateAccount(partner);
-                                setMenuOpen(null);
-                              }}
-                              className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2"
+                              className="p-2 rounded-lg hover:bg-gray-100"
+                              onClick={() => setMenuOpen(menuOpen === partner.id ? null : partner.id)}
+                              aria-label="More"
                             >
-                              <Shield className="w-4 h-4" /> Cấp tài khoản
+                              <MoreVertical className="w-5 h-5" />
                             </button>
-                          </div>
+                            {menuOpen === partner.id && (
+                              <div className={`absolute right-4 w-56 rounded-xl border border-gray-200 bg-white shadow-xl z-10 ${index === lastItemIndex ? 'bottom-full mb-2' : 'mt-2'}`}>
+                                <button
+                                  onClick={() => {
+                                    setShowCreateAccount(partner);
+                                    setMenuOpen(null);
+                                  }}
+                                  className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2"
+                                >
+                                  <Shield className="w-4 h-4" /> Cấp tài khoản
+                                </button>
+                              </div>
+                            )}
+                          </>
                         )}
                       </td>
                     </tr>
@@ -413,11 +441,15 @@ const PartnerManagementPage = () => {
 
       {/* Create Account Modal */}
       {showCreateAccount && (
-        <div className="fixed inset-0 z-40 grid place-items-center bg-black/30 p-4">
+        <div className={`fixed inset-0 z-40 grid place-items-center p-4 ${creatingAccount ? 'bg-black/50' : 'bg-black/30'}`}>
           <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-200">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Cấp tài khoản cho đối tác</h3>
-              <button onClick={() => setShowCreateAccount(null)} className="p-2 rounded-lg hover:bg-gray-100">
+              <button
+                onClick={() => setShowCreateAccount(null)}
+                disabled={creatingAccount}
+                className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 ✕
               </button>
             </div>
@@ -438,6 +470,8 @@ const PartnerManagementPage = () => {
 
               <form onSubmit={(e) => {
                 e.preventDefault();
+                if (creatingAccount) return; // Prevent double submission
+
                 const formData = new FormData(e.target as HTMLFormElement);
                 const email = formData.get('email') as string;
 
@@ -470,8 +504,9 @@ const PartnerManagementPage = () => {
                       type="email"
                       name="email"
                       required
+                      disabled={creatingAccount}
                       defaultValue={showCreateAccount?.email || ''}
-                      className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                      className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
                       placeholder="Nhập email để cấp tài khoản (đã điền sẵn)"
                     />
                   </div>
@@ -485,15 +520,24 @@ const PartnerManagementPage = () => {
                   <button
                     type="button"
                     onClick={() => setShowCreateAccount(null)}
-                    className="px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50"
+                    disabled={creatingAccount}
+                    className="px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Hủy
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-xl bg-primary-600 text-white hover:bg-primary-700"
+                    disabled={creatingAccount}
+                    className="px-4 py-2 rounded-xl bg-primary-600 text-white hover:bg-primary-700 disabled:bg-primary-400 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    Cấp tài khoản
+                    {creatingAccount ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Đang xử lý...
+                      </>
+                    ) : (
+                      'Cấp tài khoản'
+                    )}
                   </button>
                 </div>
               </form>

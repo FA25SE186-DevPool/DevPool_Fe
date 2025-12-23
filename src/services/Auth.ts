@@ -122,21 +122,9 @@ async function syncUserToFirestore(
         ...userData,
         createdAt: serverTimestamp(),
       });
-      console.log('Created new user document in Firestore:', {
-        userId,
-        email,
-        role,
-        isAdmin
-      });
     } else {
       // Cập nhật user document nếu đã tồn tại
       await setDoc(userRef, userData, { merge: true });
-      console.log('Updated user document in Firestore:', {
-        userId,
-        email,
-        role,
-        isAdmin
-      });
     }
   } catch (error) {
     console.error('Error syncing user to Firestore:', error);
@@ -238,12 +226,7 @@ export async function authenticateWithFirebase(
 
     // Sync user vào Firestore sau khi authenticate thành công
     if (firebaseUser) {
-      console.log('Firebase authenticated successfully:', {
-        uid: firebaseUser.uid,
-        email: firebaseUser.email
-      });
       await syncUserToFirestore(firebaseUser.uid, email, role);
-      console.log('User synced to Firestore successfully');
     }
   } catch (error: any) {
     console.error('Firebase authentication error (caught in outer catch):', error);
