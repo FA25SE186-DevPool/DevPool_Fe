@@ -129,12 +129,6 @@ export const ROUTES = {
         EDIT: '/admin/categories/certificate-types/edit/:id',
         CREATE: '/admin/categories/certificate-types/create',
       },
-      CV_TEMPLATES: {
-        LIST: '/admin/categories/cv-templates',
-        DETAIL: '/admin/categories/cv-templates/:id',
-        EDIT: '/admin/categories/cv-templates/edit/:id',
-        CREATE: '/admin/categories/cv-templates/create',
-      },
       JOB_ROLE_LEVELS: {
         LIST: '/admin/categories/job-role-levels',
         DETAIL: '/admin/categories/job-role-levels/:id',

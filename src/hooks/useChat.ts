@@ -45,6 +45,18 @@ export function useChat() {
         });
     };
 
+    // SignalR connection - delay initialization to avoid blocking app loading
+    const [shouldInitializeChat, setShouldInitializeChat] = useState(false);
+
+    // Delay chat connection initialization to prevent blocking app load
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setShouldInitializeChat(true);
+        }, 2000); // Delay 2 seconds to let app load first
+
+        return () => clearTimeout(timer);
+    }, []);
+
     // SignalR connection
     const {
         isConnected,
@@ -54,6 +66,7 @@ export function useChat() {
         sendTypingIndicator,
         markAsRead: markAsReadViaSignalR,
     } = useChatConnection({
+        enabled: shouldInitializeChat,
         onReceiveMessage: async (message) => {
             const currentConversation = activeConversationRef.current;
 

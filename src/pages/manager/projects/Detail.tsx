@@ -431,7 +431,7 @@ export default function ManagerProjectDetailPage() {
       const updatedProject = await projectService.getDetailedById(Number(id));
       setProject(updatedProject);
       
-      showSuccessOverlay("✅ Đã thay đổi trạng thái dự án thành công!");
+      showSuccessOverlay("Đã thay đổi trạng thái dự án thành công!");
     } catch (error: any) {
       console.error("❌ Lỗi khi thay đổi trạng thái:", error);
       alert(error.message || "Không thể thay đổi trạng thái dự án");

@@ -172,7 +172,7 @@ export default function ClientCompanyEditPage() {
 
     try {
       await clientCompanyService.update(Number(id), formData);
-      showSuccessOverlay("✅ Cập nhật công ty thành công!");
+      showSuccessOverlay("Cập nhật công ty thành công!");
       navigate(`/sales/clients/${id}`);
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật công ty:", err);

@@ -12,7 +12,6 @@ import { applyProcessTemplateService } from "../../../services/ApplyProcessTempl
 import { applyProcessStepService, type ApplyProcessStep } from "../../../services/ApplyProcessStep";
 import { Button } from "../../../components/ui/button";
 import { jobSkillService, type JobSkill } from "../../../services/JobSkill";
-import { clientCompanyCVTemplateService } from "../../../services/ClientCompanyTemplate";
 import { talentApplicationService, type TalentApplication } from "../../../services/TalentApplication";
 import { talentCVService, type TalentCV } from "../../../services/TalentCV";
 import { talentService, type Talent } from "../../../services/Talent";
@@ -217,16 +216,8 @@ export default function JobRequestDetailHRPage() {
             );
 
             let templateName = "—";
-            if (clientCompany) {
-                const templates =
-                    await clientCompanyCVTemplateService.listEffectiveTemplates(
-                        clientCompany.id
-                    );
-                const matched = templates.find(
-                    (t) => t.templateId === jobReqData.clientCompanyCVTemplateId
-                );
-                templateName = matched ? matched.templateName : "—";
-            }
+            // Template functionality removed
+            templateName = "—"
 
             if (position) {
                 try {
@@ -438,7 +429,7 @@ export default function JobRequestDetailHRPage() {
                 ...(status === 3 ? { notes: trimmedNote } : {}),
             });
             const statusMessage = status === 1 ? 'Đã duyệt' : status === 3 ? 'Đã từ chối' : status === 2 ? 'Đã đóng' : 'Cập nhật';
-            showSuccessOverlay(`✅ ${statusMessage} yêu cầu tuyển dụng thành công!`);
+            showSuccessOverlay(`${statusMessage} yêu cầu tuyển dụng thành công!`);
             // Reload dữ liệu để cập nhật trạng thái mới
             await fetchData();
         } catch (err) {

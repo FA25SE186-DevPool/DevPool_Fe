@@ -573,7 +573,7 @@ export default function CVMatchingPage() {
         console.error("⚠️ Không thể cập nhật trạng thái nhân sự sang Applying:", statusErr);
       }
 
-            showSuccessOverlay("✅ Đã tạo hồ sơ ứng tuyển thành công!");
+            showSuccessOverlay("Đã tạo hồ sơ ứng tuyển thành công!");
             navigate(`/ta/applications/${createdApply.id}`);
         } catch (err) {
             console.error("❌ Lỗi tạo hồ sơ ứng tuyển:", err);

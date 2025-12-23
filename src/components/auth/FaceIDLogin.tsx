@@ -242,15 +242,6 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
     setTokens(response.accessToken, response.refreshToken, false);
     window.dispatchEvent(new Event('storage'));
 
-    // Authenticate với Firebase
-    try {
-      if (response.firebaseCustomToken) {
-        await authenticateWithFirebase(response, response.email, '', frontendRole);
-      }
-    } catch (firebaseError) {
-      console.warn('Firebase authentication skipped for FaceID login:', firebaseError);
-    }
-
     // Lưu thông tin user
     const userData = {
       id: response.userID,
@@ -260,26 +251,6 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
       avatar: undefined,
     };
     setUser(userData, false);
-
-    // Khởi tạo kết nối SignalR
-    try {
-      await startNotificationConnection();
-      try {
-        const count = await getUnreadCount();
-        if (typeof count === 'number') setUnread(count);
-      } catch {
-        // Ignore error
-      }
-      onReceiveNotification((n: any) => {
-        pushItem(n);
-        console.log('ReceiveNotification', n);
-      });
-      onUnreadCountUpdated((count: number) => {
-        if (typeof count === 'number') setUnread(count);
-      });
-    } catch (e) {
-      console.warn('Không thể khởi tạo kết nối thông báo realtime:', e);
-    }
 
     // Gọi login từ AuthContext
     await login(
@@ -291,7 +262,7 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
     setSuccess(true);
     setIsProcessing(false);
 
-    // Redirect sau 1.5 giây
+    // Redirect ngay lập tức
     setTimeout(() => {
       switch (frontendRole) {
         case 'Staff TA':
@@ -316,7 +287,41 @@ export default function FaceIDLogin({ onSuccess, onCancel, onSwitchToPassword }:
           navigate('/');
       }
       onSuccess?.();
-    }, 1500);
+    }, 500); // Giảm thời gian redirect
+
+    // Thực hiện Firebase authentication và SignalR connection trong background
+    setTimeout(async () => {
+      try {
+        // Authenticate với Firebase
+        if (response.firebaseCustomToken) {
+          await authenticateWithFirebase(response, response.email, '', frontendRole);
+          console.log('Firebase authentication completed in background for FaceID');
+        }
+      } catch (firebaseError) {
+        console.warn('Firebase authentication failed in background for FaceID:', firebaseError);
+      }
+
+      try {
+        // Khởi tạo kết nối SignalR
+        await startNotificationConnection();
+        try {
+          const count = await getUnreadCount();
+          if (typeof count === 'number') setUnread(count);
+        } catch {
+          // Ignore error
+        }
+        onReceiveNotification((n: any) => {
+          pushItem(n);
+          console.log('ReceiveNotification', n);
+        });
+        onUnreadCountUpdated((count: number) => {
+          if (typeof count === 'number') setUnread(count);
+        });
+        console.log('SignalR connection established in background for FaceID');
+      } catch (e) {
+        console.warn('Không thể khởi tạo kết nối thông báo realtime:', e);
+      }
+    }, 0);
   };
 
   const handleCancel = () => {

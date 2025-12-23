@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { authService } from '../services/Auth';
 import { auth, onAuthStateChanged } from '../config/firebase';
@@ -27,9 +27,15 @@ interface AuthContextType {
   register: (email: string, password: string, role: Role) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
+  sessionWarning: boolean;
+  resetSession: () => void;
 }
 
 const STORAGE_KEY = 'devpool_user';
+
+// Session timeout settings
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+const WARNING_TIME = 5 * 60 * 1000; // Show warning 5 minutes before timeout
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -57,7 +63,11 @@ function roleDisplayName(role: Role, email: string) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionWarning, setSessionWarning] = useState(false);
   const userRef = useRef<User | null>(null);
+  const sessionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastActivityRef = useRef<number>(Date.now());
 
   // Cập nhật ref khi user thay đổi
   useEffect(() => {
@@ -75,10 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Kiểm tra Firebase auth state
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        console.log('Firebase auth state restored:', {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email
-        });
+        // Firebase user authenticated (silent)
       } else {
         console.warn('Firebase auth state: No user authenticated');
       }
@@ -174,6 +181,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   };
 
+  // Reset session activity timer
+  const resetSession = useCallback(() => {
+    lastActivityRef.current = Date.now();
+    setSessionWarning(false);
+
+    // Clear existing timers
+    if (sessionTimeoutRef.current) {
+      clearTimeout(sessionTimeoutRef.current);
+    }
+    if (warningTimeoutRef.current) {
+      clearTimeout(warningTimeoutRef.current);
+    }
+
+    // Setup new timers if user is logged in
+    if (user) {
+      warningTimeoutRef.current = setTimeout(() => {
+        setSessionWarning(true);
+      }, SESSION_TIMEOUT - WARNING_TIME);
+
+      sessionTimeoutRef.current = setTimeout(async () => {
+        console.log('Session timeout - auto logout');
+        await logout();
+      }, SESSION_TIMEOUT);
+    }
+  }, [user]);
+
+  // Setup session timeout when user logs in
+  useEffect(() => {
+    if (user) {
+      resetSession();
+    } else {
+      // Clear timers when user logs out
+      if (sessionTimeoutRef.current) {
+        clearTimeout(sessionTimeoutRef.current);
+      }
+      if (warningTimeoutRef.current) {
+        clearTimeout(warningTimeoutRef.current);
+      }
+      setSessionWarning(false);
+    }
+
+    return () => {
+      if (sessionTimeoutRef.current) {
+        clearTimeout(sessionTimeoutRef.current);
+      }
+      if (warningTimeoutRef.current) {
+        clearTimeout(warningTimeoutRef.current);
+      }
+    };
+  }, [user, resetSession]);
+
+  // Track user activity
+  useEffect(() => {
+    const handleActivity = () => {
+      if (user) {
+        resetSession();
+      }
+    };
+
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    events.forEach(event => {
+      document.addEventListener(event, handleActivity, true);
+    });
+
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, handleActivity, true);
+      });
+    };
+  }, [user, resetSession]);
+
   const logout = async () => {
     try {
       // Clear user state TRƯỚC để UI cập nhật ngay lập tức
@@ -203,7 +281,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, isLoading, sessionWarning, resetSession }}>
       {children}
     </AuthContext.Provider>
   );

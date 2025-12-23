@@ -104,9 +104,6 @@ export { expertService } from './Expert';
 // Certificate Type
 export { certificateTypeService } from './CertificateType';
 
-// CV Template
-export { cvTemplateService } from './CVTemplate';
-
 // Audit Log
 export { auditLogService } from './AuditLog';
 

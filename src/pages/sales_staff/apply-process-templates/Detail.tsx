@@ -59,7 +59,7 @@ export default function SalesApplyProcessTemplateDetailPage() {
 
     try {
       await applyProcessTemplateService.delete(Number(id));
-      alert("✅ Đã xóa template thành công!");
+      alert("Đã xóa template thành công!");
       navigate("/sales/apply-process-templates");
     } catch (err) {
       console.error("❌ Lỗi khi xóa:", err);
@@ -78,7 +78,7 @@ export default function SalesApplyProcessTemplateDetailPage() {
 
     try {
       await Promise.all(selectedSteps.map((stepId) => applyProcessStepService.deleteById(stepId)));
-      alert("✅ Đã xóa các bước thành công!");
+      alert("Đã xóa các bước thành công!");
       const remainingSteps = steps
         .filter((step) => !selectedSteps.includes(step.id))
         .sort((a, b) => a.stepOrder - b.stepOrder);

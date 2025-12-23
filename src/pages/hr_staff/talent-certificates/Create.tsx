@@ -251,7 +251,7 @@ function TalentCertificateCreatePage() {
         (document.getElementById('certificate-image-input') as HTMLInputElement).value = '';
       }
 
-      alert("✅ Upload ảnh chứng chỉ thành công!");
+      alert("Upload ảnh chứng chỉ thành công!");
     } catch (err: any) {
       console.error("❌ Error uploading certificate image:", err);
       alert(`❌ Lỗi khi upload ảnh: ${err.message || 'Vui lòng thử lại.'}`);
@@ -298,7 +298,7 @@ function TalentCertificateCreatePage() {
         (document.getElementById('certificate-image-input') as HTMLInputElement).value = '';
       }
 
-      alert("✅ Xóa ảnh thành công!");
+      alert("Xóa ảnh thành công!");
     } catch (err: any) {
       console.error("❌ Error deleting certificate image:", err);
       alert(`❌ Lỗi khi xóa ảnh: ${err.message || 'Vui lòng thử lại.'}`);
@@ -854,7 +854,7 @@ function TalentCertificateCreatePage() {
                 <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
                   <CheckCircle className="w-5 h-5 text-green-600" />
                   <p className="text-green-700 font-medium">
-                    ✅ Thêm chứng chỉ thành công! Đang chuyển hướng...
+                    Thêm chứng chỉ thành công! Đang chuyển hướng...
                   </p>
                 </div>
               )}

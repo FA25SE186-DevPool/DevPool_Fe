@@ -51,7 +51,7 @@ export default function DocumentTypeDetailPage() {
     try {
       setDeleting(true);
       await documentTypeService.deleteById(Number(id));
-      alert("✅ Xóa loại tài liệu thành công!");
+      alert("Xóa loại tài liệu thành công!");
       navigate("/admin/categories/document-types");
     } catch (err: any) {
       console.error("❌ Lỗi khi xóa loại tài liệu:", err);

@@ -22,7 +22,7 @@ export interface JobRequest {
   projectId: number;
   jobRoleLevelId: number;
   applyProcessTemplateId?: number | null;
-  clientCompanyCVTemplateId: number;
+  // clientCompanyCVTemplateId: number; // Removed - CV Templates deleted
   title: string;
   description: string;
   requirements: string;
@@ -40,7 +40,7 @@ export interface JobRequestPayload {
   projectId: number;
   jobRoleLevelId: number;
   applyProcessTemplateId?: number | null;
-  clientCompanyCVTemplateId?: number | null;
+  // clientCompanyCVTemplateId?: number | null; // Removed - CV Templates deleted
   title: string;
   description?: string;
   requirements?: string;
@@ -61,7 +61,7 @@ export interface JobRequestFilter {
   projectId?: number;
   jobRoleLevelId?: number;
   applyProcessTemplateId?: number;
-  clientCompanyCVTemplateId?: number;
+  // clientCompanyCVTemplateId?: number; // Removed - CV Templates deleted
   title?: string;
   locationId?: number;
   workingMode?: WorkingMode;

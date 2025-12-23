@@ -232,7 +232,7 @@ export default function PartnerEditPage() {
 
     try {
       await partnerService.update(Number(id), formData);
-      showSuccessOverlay("✅ Cập nhật đối tác thành công!");
+      showSuccessOverlay("Cập nhật đối tác thành công!");
       navigate(`${ROUTES.TA_STAFF.PARTNERS.LIST}/${id}`);
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật đối tác:", err);

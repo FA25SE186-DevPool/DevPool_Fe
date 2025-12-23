@@ -65,7 +65,7 @@ export default function LocationDetailPage() {
 
     try {
       await locationService.delete(Number(id));
-      showSuccessOverlay("✅ Đã xóa khu vực làm việc thành công!");
+      showSuccessOverlay("Đã xóa khu vực làm việc thành công!");
       navigate("/admin/categories/locations");
     } catch (err) {
       console.error("❌ Lỗi khi xóa:", err);

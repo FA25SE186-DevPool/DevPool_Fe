@@ -63,7 +63,7 @@ export default function CertificateTypeDetailPage() {
 
     try {
       await certificateTypeService.deleteById(Number(id));
-      alert("✅ Đã xóa loại chứng chỉ thành công!");
+      alert("Đã xóa loại chứng chỉ thành công!");
       navigate("/admin/categories/certificate-types");
     } catch (err) {
       console.error("❌ Lỗi khi xóa:", err);

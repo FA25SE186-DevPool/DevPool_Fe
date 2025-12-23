@@ -178,7 +178,7 @@ export default function ManagerClientCompanyDetailPage() {
       };
 
       await clientTalentBlacklistService.add(payload);
-      alert("✅ Đã thêm nhân sự vào blacklist thành công!");
+      alert("Đã thêm nhân sự vào blacklist thành công!");
       
       // Refresh blacklist
       const data = await clientTalentBlacklistService.getByClientId(Number(id), true);
@@ -219,7 +219,7 @@ export default function ManagerClientCompanyDetailPage() {
       };
 
       await clientTalentBlacklistService.removeBlacklist(selectedBlacklistId, payload);
-      alert("✅ Đã gỡ bỏ nhân sự khỏi blacklist thành công!");
+      alert("Đã gỡ bỏ nhân sự khỏi blacklist thành công!");
       
       // Refresh blacklist
       const data = await clientTalentBlacklistService.getByClientId(Number(id), true);

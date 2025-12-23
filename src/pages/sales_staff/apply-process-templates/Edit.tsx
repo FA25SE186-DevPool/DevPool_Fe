@@ -60,7 +60,7 @@ export default function SalesApplyProcessTemplateEditPage() {
         name: formData.name,
         description: formData.description || undefined,
       });
-      alert("✅ Cập nhật template thành công!");
+      alert("Cập nhật template thành công!");
       navigate(`/sales/apply-process-templates/${id}`);
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật:", err);

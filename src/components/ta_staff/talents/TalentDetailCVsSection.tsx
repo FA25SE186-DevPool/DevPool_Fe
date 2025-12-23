@@ -3,7 +3,6 @@ import {
   FileText,
   Upload,
   Trash2,
-  Eye,
   Workflow,
   ChevronDown,
   ChevronUp,
@@ -351,19 +350,8 @@ export function TalentDetailCVsSection({
                   </button>
 
                   {openDropdownId === cv.id && (
-                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 z-10 dropdown-menu">
+                    <div className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 z-10 dropdown-menu">
                       <div className="py-1">
-                        {/* Xem PDF */}
-                        <a
-                          href={cv.cvFileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => setOpenDropdownId(null)}
-                          className="flex items-center gap-2 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                          Xem PDF
-                        </a>
 
                         {/* Phân tích - chỉ hiển thị khi chưa phân tích và form CV không ở giai đoạn đầy đủ */}
                         {!isCVFormInFullMode && (
@@ -478,19 +466,8 @@ export function TalentDetailCVsSection({
                     </button>
 
                     {openDropdownId === cv.id && (
-                      <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 z-10 dropdown-menu">
+                      <div className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 z-10 dropdown-menu">
                         <div className="py-1">
-                          {/* Xem PDF */}
-                          <a
-                            href={cv.cvFileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={() => setOpenDropdownId(null)}
-                            className="flex items-center gap-2 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
-                          >
-                            <Eye className="w-4 h-4" />
-                            Xem PDF
-                          </a>
                         </div>
                       </div>
                     )}

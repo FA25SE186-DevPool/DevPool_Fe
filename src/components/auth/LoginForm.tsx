@@ -19,6 +19,7 @@ export default function LoginForm() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginStep, setLoginStep] = useState<string>('');
   const { login, isLoading } = useAuth();
   const { setUnread, pushItem } = useNotification();
   const navigate = useNavigate();
@@ -50,6 +51,8 @@ export default function LoginForm() {
     }
 
     try {
+      setLoginStep('Đang xác thực thông tin đăng nhập...');
+
       // Kiểm tra nếu đã có tài khoản khác đang đăng nhập
       const existingUser = getUser();
       const existingToken = getAccessToken();
@@ -62,6 +65,7 @@ export default function LoginForm() {
 
       // Gọi API login
       const response = await authService.login({ email, password });
+      setLoginStep('Đang xử lý thông tin đăng nhập...');
 
       // Lấy role từ JWT token
       const frontendRole = getRoleFromToken(response.accessToken);
@@ -82,10 +86,6 @@ export default function LoginForm() {
       // Phát sự kiện để các tab khác biết token đã thay đổi
       window.dispatchEvent(new Event('storage'));
 
-      // Authenticate với Firebase để có quyền truy cập Firestore/Storage
-      // Cần role để sync vào Firestore
-      await authenticateWithFirebase(response, email, password, frontendRole);
-
       // Lưu thông tin user vào storage dựa trên rememberMe
       const userData = {
         id: response.userID,
@@ -95,29 +95,6 @@ export default function LoginForm() {
         avatar: undefined
       };
       setUser(userData, rememberMe);
-
-      // Khởi tạo kết nối SignalR sau khi đã có token
-      try {
-        await startNotificationConnection();
-        // Lấy badge ban đầu
-        try {
-          const count = await getUnreadCount();
-          if (typeof count === 'number') setUnread(count);
-        } catch { }
-        // Lắng nghe realtime
-        onReceiveNotification((n: any) => {
-          pushItem(n);
-          // Nếu BE không gửi UnreadCountUpdated, có thể tự +1 (tùy chọn)
-          // setUnread(prev => prev + 1);
-          console.log('ReceiveNotification', n);
-        });
-        onUnreadCountUpdated((count: number) => {
-          if (typeof count === 'number') setUnread(count);
-        });
-      } catch (e) {
-        // Không chặn flow đăng nhập nếu WS lỗi
-        console.warn('Không thể khởi tạo kết nối thông báo realtime:', e);
-      }
 
       // Gọi login từ AuthContext để lưu thông tin user
       await login(
@@ -130,7 +107,7 @@ export default function LoginForm() {
       setSuccess(true);
       setIsLoggingIn(false);
 
-      // Đợi một chút để đảm bảo auth state được update trước khi redirect
+      // Chuyển hướng ngay lập tức sau khi login thành công
       setTimeout(() => {
         // Redirect based on role
         switch (frontendRole) {
@@ -159,8 +136,47 @@ export default function LoginForm() {
             navigate('/', { replace: true });
         }
       }, 100); // Delay 100ms để đảm bảo auth state được update
+
+      // Thực hiện Firebase authentication và SignalR connection trong background
+      // Không chặn quá trình login
+      setTimeout(async () => {
+        try {
+          // Authenticate với Firebase để có quyền truy cập Firestore/Storage
+          // Cần role để sync vào Firestore
+          await authenticateWithFirebase(response, email, password, frontendRole);
+          console.log('Firebase authentication completed in background');
+        } catch (e) {
+          console.warn('Firebase authentication failed in background:', e);
+        }
+
+        try {
+          // Khởi tạo kết nối SignalR sau khi đã có token
+          await startNotificationConnection();
+          // Lấy badge ban đầu
+          try {
+            const count = await getUnreadCount();
+            if (typeof count === 'number') setUnread(count);
+          } catch { }
+          // Lắng nghe realtime
+          onReceiveNotification((n: any) => {
+            pushItem(n);
+            // Nếu BE không gửi UnreadCountUpdated, có thể tự +1 (tùy chọn)
+            // setUnread(prev => prev + 1);
+            console.log('ReceiveNotification', n);
+          });
+          onUnreadCountUpdated((count: number) => {
+            if (typeof count === 'number') setUnread(count);
+          });
+          console.log('SignalR connection established in background');
+        } catch (e) {
+          // Không chặn flow đăng nhập nếu WS lỗi
+          console.warn('Không thể khởi tạo kết nối thông báo realtime:', e);
+        }
+      }, 0); // Thực hiện ngay sau khi UI update
+
     } catch (error: any) {
       setIsLoggingIn(false);
+      setLoginStep('');
       // Xử lý lỗi từ API
       let errorMessage = 'Email hoặc mật khẩu không chính xác';
 
@@ -308,7 +324,7 @@ export default function LoginForm() {
           {(isLoggingIn || isLoading) ? (
             <div className="flex items-center justify-center space-x-2">
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              <span>Đang xử lý...</span>
+              <span>{loginStep || 'Đang xử lý...'}</span>
             </div>
           ) : (
             'Đăng Nhập'

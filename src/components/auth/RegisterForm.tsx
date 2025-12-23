@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, User, Building, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { validatePasswordStrength, getPasswordValidationError } from '../../utils/validators';
 
 interface RegisterFormProps {
   onToggleForm: () => void;
@@ -22,13 +23,7 @@ export default function RegisterForm({ onToggleForm }: RegisterFormProps) {
   const navigate = useNavigate();
 
   const validatePassword = (password: string) => {
-    const requirements = {
-      length: password.length >= 8,
-      lowercase: /[a-z]/.test(password),
-      uppercase: /[A-Z]/.test(password),
-      number: /\d/.test(password),
-    };
-    return requirements;
+    return validatePasswordStrength(password);
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -52,9 +47,9 @@ export default function RegisterForm({ onToggleForm }: RegisterFormProps) {
     if (!formData.password) {
       newErrors.password = 'Vui lòng nhập mật khẩu';
     } else {
-      const requirements = validatePassword(formData.password);
-      if (!requirements.length) {
-        newErrors.password = 'Mật khẩu phải có ít nhất 8 ký tự';
+      const passwordError = getPasswordValidationError(formData.password);
+      if (passwordError) {
+        newErrors.password = passwordError;
       }
     }
 
@@ -223,6 +218,30 @@ export default function RegisterForm({ onToggleForm }: RegisterFormProps) {
                 <CheckCircle className={`w-4 h-4 transition-colors duration-300 ${passwordRequirements.length ? 'text-success-500' : 'text-neutral-300'}`} />
                 <span className={`font-medium transition-colors duration-300 ${passwordRequirements.length ? 'text-success-600' : 'text-neutral-500'}`}>
                   Ít nhất 8 ký tự
+                </span>
+              </div>
+              <div className="flex items-center text-xs space-x-2 animate-fade-in">
+                <CheckCircle className={`w-4 h-4 transition-colors duration-300 ${passwordRequirements.uppercase ? 'text-success-500' : 'text-neutral-300'}`} />
+                <span className={`font-medium transition-colors duration-300 ${passwordRequirements.uppercase ? 'text-success-600' : 'text-neutral-500'}`}>
+                  Ít nhất 1 chữ cái in hoa (A-Z)
+                </span>
+              </div>
+              <div className="flex items-center text-xs space-x-2 animate-fade-in">
+                <CheckCircle className={`w-4 h-4 transition-colors duration-300 ${passwordRequirements.lowercase ? 'text-success-500' : 'text-neutral-300'}`} />
+                <span className={`font-medium transition-colors duration-300 ${passwordRequirements.lowercase ? 'text-success-600' : 'text-neutral-500'}`}>
+                  Ít nhất 1 chữ cái thường (a-z)
+                </span>
+              </div>
+              <div className="flex items-center text-xs space-x-2 animate-fade-in">
+                <CheckCircle className={`w-4 h-4 transition-colors duration-300 ${passwordRequirements.number ? 'text-success-500' : 'text-neutral-300'}`} />
+                <span className={`font-medium transition-colors duration-300 ${passwordRequirements.number ? 'text-success-600' : 'text-neutral-500'}`}>
+                  Ít nhất 1 chữ số (0-9)
+                </span>
+              </div>
+              <div className="flex items-center text-xs space-x-2 animate-fade-in">
+                <CheckCircle className={`w-4 h-4 transition-colors duration-300 ${passwordRequirements.special ? 'text-success-500' : 'text-neutral-300'}`} />
+                <span className={`font-medium transition-colors duration-300 ${passwordRequirements.special ? 'text-success-600' : 'text-neutral-500'}`}>
+                  Ít nhất 1 ký tự đặc biệt (!@#$%^&*...)
                 </span>
               </div>
             </div>

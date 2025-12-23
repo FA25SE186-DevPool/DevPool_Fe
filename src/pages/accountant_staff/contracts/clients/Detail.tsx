@@ -723,12 +723,12 @@ export default function ClientContractDetailPage() {
                 partnerContractPayment.id,
                 { rejectionReason: rejectForm.rejectionReason }
               );
-              console.log(`✅ Đã từ chối partner contract ${partnerContractPayment.id} khi từ chối client contract ${id}`);
+              console.log(`Đã từ chối partner contract ${partnerContractPayment.id} khi từ chối client contract ${id}`);
             } catch (rejectErr: unknown) {
               // Nếu lỗi là do contract đã ở Draft (backend đã tự động reject), thì bỏ qua
               const errorMessage = rejectErr instanceof Error ? rejectErr.message : String(rejectErr);
               if (errorMessage.includes("Draft") || errorMessage.includes("must be in Verified")) {
-                console.log(`ℹ️ Partner contract ${partnerContractPayment.id} đã được backend tự động reject về Draft`);
+                console.log(`ℹPartner contract ${partnerContractPayment.id} đã được backend tự động reject về Draft`);
               } else {
                 throw rejectErr; // Ném lại lỗi khác
               }

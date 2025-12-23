@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Search, Filter, Plus, Shield, ShieldCheck, MoreVertical, UserRound, Mail, Phone, CheckCircle2, XCircle, Ban, UserCheck } from "lucide-react";
 import { sidebarItems } from "../../../components/sidebar/admin";
 import Sidebar from "../../../components/common/Sidebar";
-import { userService, type User, type UserFilter } from "../../../services/User";
+import { userService, type User, type UserFilter, type PagedResult } from "../../../services/User";
 import { authService, type UserProvisionPayload } from "../../../services/Auth";        
 import ConfirmModal from "../../../components/ui/confirm-modal";
 import SuccessToast from "../../../components/ui/success-toast";
@@ -63,8 +63,9 @@ export default function StaffManagementPage() {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
   // Pagination state
-  const [currentPage] = useState(1);
-  const [pageSize] = useState(20); // Fixed page size
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(6); // Match PartnerList page size
+  const [pagination, setPagination] = useState<PagedResult<User> | null>(null);
 
   // Modal states
   const [confirmModal, setConfirmModal] = useState<{
@@ -81,8 +82,8 @@ export default function StaffManagementPage() {
     message?: string;
   } | null>(null);
 
-  // Fetch users from API
-  const fetchUsers = async () => {
+  // Fetch users from API with pagination
+  const fetchUsers = async (page = 1) => {
     try {
       setLoading(true);
       setError(null);
@@ -90,40 +91,24 @@ export default function StaffManagementPage() {
       const filter: UserFilter = {
         name: query || undefined,
         role: roleFilter === "All" ? undefined : roleFilter,
-        isActive: statusFilter === "Inactive" ? undefined : (statusFilter === "All" ? undefined : statusFilter === "Active"),
-        excludeDeleted: false, // Always get all users, filter client-side
-        pageNumber: currentPage,
+        isActive: statusFilter === "All" ? undefined : (statusFilter === "Active" ? true : false),
+        excludeDeleted: statusFilter === "Inactive" ? false : true, // Include deleted only when filtering inactive
+        pageNumber: page,
         pageSize: pageSize,
       };
 
-      console.log('Filter params:', filter);
       const result = await userService.getAll(filter);
-      console.log('Raw API result:', result.items);
 
-      // Lọc bỏ Admin khỏi danh sách và lọc theo status
-      let filteredItems = result.items.filter((user: User) =>
+      // Lọc bỏ Admin khỏi danh sách
+      const filteredItems = result.items.filter((user: User) =>
         !user.roles.includes("Admin")
       );
-      console.log('After admin filter:', filteredItems);
-
-      // Lọc theo status filter
-      if (statusFilter === "Active") {
-        console.log('Filtering for Active users...');
-        filteredItems = filteredItems.filter((user: User) => {
-          console.log(`User ${user.email}: isDeleted = ${user.isDeleted}`);
-          return !user.isDeleted;
-        });
-        console.log('After active filter:', filteredItems);
-      } else if (statusFilter === "Inactive") {
-        console.log('Filtering for Inactive users...');
-        filteredItems = filteredItems.filter((user: User) => {
-          console.log(`User ${user.email}: isDeleted = ${user.isDeleted}`);
-          return user.isDeleted;
-        });
-        console.log('After inactive filter:', filteredItems);
-      }
 
       setUsers(filteredItems.map(convertToUserRow));
+      setPagination({
+        ...result,
+        items: filteredItems // Update pagination with filtered items
+      });
     } catch (err: any) {
       console.error("❌ Lỗi khi tải danh sách người dùng:", err);
       setError(err.message || "Không thể tải danh sách người dùng");
@@ -132,23 +117,23 @@ export default function StaffManagementPage() {
     }
   };
 
-  // Load users on component mount and when filters change
+  // Load users on component mount and when page change
   useEffect(() => {
-    fetchUsers();
-  }, [query, roleFilter, statusFilter]);
+    fetchUsers(currentPage);
+  }, [currentPage]); // Only depend on currentPage
 
-
-  // Debounced search
+  // Debounced search - reset to page 1 when filters change
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      fetchUsers();
+      setCurrentPage(1);
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [query]);
+  }, [query, roleFilter, statusFilter]);
 
   // Since filtering is now done on the server, we just use the users directly
   const filtered = users;
+  const lastItemIndex = filtered.length - 1;
 
 
 
@@ -191,7 +176,7 @@ export default function StaffManagementPage() {
     }
   }
 
-  function handleBanUser(user: UserRow) {
+  const handleBanUser = useCallback((user: UserRow) => {
     setConfirmModal({
       isOpen: true,
       title: "Cấm người dùng",
@@ -203,9 +188,9 @@ export default function StaffManagementPage() {
         setConfirmModal(null);
       }
     });
-  }
+  }, []);
 
-  function handleUnbanUser(user: UserRow) {
+  const handleUnbanUser = useCallback((user: UserRow) => {
     setConfirmModal({
       isOpen: true,
       title: "Gỡ cấm người dùng",
@@ -217,27 +202,27 @@ export default function StaffManagementPage() {
         setConfirmModal(null);
       }
     });
-  }
+  }, []);
   // Guards
   function isStaffRole(v: string): v is StaffRole {
     return (ROLE_OPTIONS as readonly string[]).includes(v);
   }
 
   // Handlers
-  function handleRoleChange(e: React.ChangeEvent<HTMLSelectElement>) {
+  const handleRoleChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const v = e.target.value;
     if (v === "All") setRoleFilter("All");
     else if (isStaffRole(v)) setRoleFilter(v);
-  }
+  }, []);
 
-  function handleStatusChange(e: React.ChangeEvent<HTMLSelectElement>) {
+  const handleStatusChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const v = e.target.value as StatusFilter;
     setStatusFilter(v);
-  }
+  }, []);
 
-  function handleMenuClick(userId: string) {
+  const handleMenuClick = useCallback((userId: string) => {
     setMenuOpen(menuOpen === userId ? null : userId);
-  }
+  }, [menuOpen]);
 
   return (
     <div className="flex bg-gray-50 min-h-screen">
@@ -246,16 +231,16 @@ export default function StaffManagementPage() {
       <div className="flex-1 p-8">
         <header className="mb-8 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Quản lý Nhân viên</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Quản lý Người Dùng</h1>
             <p className="text-neutral-600 mt-1">
-              Tạo/sửa tài khoản nhân viên (Manager, TA, Sales, Accountant), phân quyền vai trò và vô hiệu hóa khi cần.
+              Tạo/sửa tài khoản người dùng (Manager, TA, Sales, Accountant), phân quyền vai trò và vô hiệu hóa khi cần.
             </p>
           </div>
           <button
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 text-white hover:bg-primary-700"
           >
-            <Plus className="w-5 h-5" /> Thêm người dùng
+            <Plus className="w-5 h-5" /> Thêm Tài Khoản
           </button>
         </header>
 
@@ -382,7 +367,7 @@ export default function StaffManagementPage() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((u) => (
+                  filtered.map((u, index) => (
                     <tr
                       key={u.id}
                       className="hover:bg-gray-50/70"
@@ -442,11 +427,7 @@ export default function StaffManagementPage() {
                           <MoreVertical className="w-5 h-5" />
                         </button>
                         {menuOpen === u.id && (
-                          <div className={`absolute right-0 w-56 rounded-xl border border-gray-200 bg-white shadow-xl z-[100] ${
-                            filtered.indexOf(u) >= filtered.length - 3
-                              ? 'bottom-full mb-1 origin-bottom-right'
-                              : 'top-full mt-1 origin-top-right'
-                          }`}>
+                          <div className={`absolute right-4 w-56 rounded-xl border border-gray-200 bg-white shadow-xl z-10 ${index === lastItemIndex ? 'bottom-full mb-2' : 'mt-2'}`}>
                             <button
                               onClick={() => {
                                 setShowEdit(u);
@@ -492,11 +473,56 @@ export default function StaffManagementPage() {
           </div>
         </div>
 
+        {/* Pagination */}
+        {(() => {
+          if (!pagination || pagination.totalPages <= 1) return null;
+          const p = pagination!;
+          return (
+            <div className="mt-6 flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                Hiển thị {((p.pageNumber - 1) * p.pageSize) + 1} - {Math.min(p.pageNumber * p.pageSize, p.totalCount)} trong {p.totalCount} nhân viên
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={!p.hasPreviousPage}
+                  className="px-3 py-2 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  Đầu
+                </button>
+                <button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={!p.hasPreviousPage}
+                  className="px-3 py-2 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  Trước
+                </button>
+                <span className="px-3 py-2 text-sm text-gray-600">
+                  Trang {p.pageNumber} / {p.totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={!p.hasNextPage}
+                  className="px-3 py-2 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  Sau
+                </button>
+                <button
+                  onClick={() => setCurrentPage(p.totalPages)}
+                  disabled={!p.hasNextPage}
+                  className="px-3 py-2 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  Cuối
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Create Modal */}
         {showCreate && (
           <UserModal
-            title="Thêm người dùng"
+            title="Thêm Người Dùng"
             onClose={() => setShowCreate(false)}
             onSubmit={async (payload) => {
               try {
@@ -516,7 +542,7 @@ export default function StaffManagementPage() {
                 const response = await authService.adminProvision(provisionPayload);
 
                 // Hiển thị thông báo thành công với password được generate
-                alert(`✅ Tạo tài khoản thành công!\n\nEmail: ${response.email}\nMật khẩu: ${response.password}\n\nMật khẩu đã được gửi qua email.`);
+                alert(`Tạo tài khoản thành công!\n\nEmail: ${response.email}\nMật khẩu: ${response.password}\n\nMật khẩu đã được gửi qua email.`);
 
                 await fetchUsers();
                 setShowCreate(false);
@@ -531,7 +557,7 @@ export default function StaffManagementPage() {
         {/* Edit Modal */}
         {showEdit && (
           <UserModal
-            title="Cập nhật người dùng"
+            title="Cập nhật người dùng "
             initial={showEdit}
             onClose={() => setShowEdit(null)}
             onSubmit={async (payload) => {

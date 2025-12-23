@@ -10,12 +10,10 @@ import {
 } from '../../../services/Notification';
 import { useAuth } from '../../../context/AuthContext';
 import { decodeJWT } from '../../../services/Auth';
-import { getDashboardRoute } from '../../../router/routes';
 import { useNotification } from '../../../context/NotificationContext';
 import { talentCVService } from '../../../services/TalentCV';
 import { talentService } from '../../../services/Talent';
 import { jobRoleLevelService } from '../../../services/JobRoleLevel';
-import Breadcrumb from '../../../components/common/Breadcrumb';
 
 type StatusFilter = 'all' | 'unread' | 'read';
 
@@ -360,7 +358,7 @@ const NotificationCenterPage = () => {
         fetchNotifications();
       }
       
-      alert(`✅ Đã xóa ${deletedCount} thông báo đã đọc thành công!`);
+      alert(`Đã xóa ${deletedCount} thông báo đã đọc thành công!`);
     } catch (error) {
       console.error('❌ Lỗi khi xóa thông báo đã đọc:', error);
       alert('Không thể xóa một số thông báo. Vui lòng thử lại sau.');
@@ -568,12 +566,6 @@ const NotificationCenterPage = () => {
     <div className="min-h-screen bg-gray-50 py-10">
       <div className="max-w-5xl mx-auto px-4">
         <div className="mb-8">
-          <Breadcrumb
-            items={[
-              { label: 'Dashboard', to: getDashboardRoute(user?.role || '') },
-              { label: 'Trung tâm thông báo' }
-            ]}
-          />
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-primary-100 text-primary-700">

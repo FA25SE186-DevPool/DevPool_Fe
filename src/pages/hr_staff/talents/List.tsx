@@ -6,11 +6,10 @@ import { sidebarItems } from "../../../components/sidebar/ta_staff";
 import { Button } from "../../../components/ui/button";
 import { useTalents } from "../../../hooks/useTalents";
 import { useTalentFilters } from "../../../hooks/useTalentFilters";
+import { useLookupData } from "../../../hooks/useLookupData";
 import { TalentStats } from "../../../components/ta_staff/talents/TalentStats";
 import { TalentFilters } from "../../../components/ta_staff/talents/TalentFilters";
 import { TalentTable } from "../../../components/ta_staff/talents/TalentTable";
-import { locationService, type Location } from "../../../services/location";
-import { partnerService, type Partner } from "../../../services/Partner";
 import { type Talent, talentService } from "../../../services/Talent";
 import { clientTalentBlacklistService, type ClientTalentBlacklist } from "../../../services/ClientTalentBlacklist";
 import PageLoader from "../../../components/common/PageLoader";
@@ -18,26 +17,25 @@ import PageLoader from "../../../components/common/PageLoader";
 export default function ListDev() {
   // ========== HOOKS - Logic được tách ra hooks ==========
   const { talents, myManagedTalents, loading } = useTalents();
+  const { partners, locations, loading: lookupLoading } = useLookupData({ includeTalentData: true });
   const [activeTab, setActiveTab] = useState<"all" | "my" | "blacklist">("my");
   const [blacklistedTalents, setBlacklistedTalents] = useState<Talent[]>([]);
   const [loadingBlacklisted, setLoadingBlacklisted] = useState(false);
   const currentTalentsList = activeTab === "all" ? talents : activeTab === "blacklist" ? blacklistedTalents : myManagedTalents;
-  const { 
-    filters, 
-    setSearchTerm, 
-    setLocation, 
-    setStatus, 
+  const {
+    filters,
+    setSearchTerm,
+    setLocation,
+    setStatus,
     setWorkingMode,
     setPartnerId,
-    resetFilters, 
-    filteredTalents 
+    resetFilters,
+    filteredTalents
   } = useTalentFilters(currentTalentsList);
 
   // ========== State cho UI ==========
   const [showFilters, setShowFilters] = useState(false);
   const [showStats, setShowStats] = useState(false);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [partners, setPartners] = useState<Partner[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [statsStartIndex, setStatsStartIndex] = useState(0);
   const itemsPerPage = 10;
@@ -56,24 +54,6 @@ export default function ListDev() {
     return [];
   };
 
-  // ========== Load lookup data ==========
-  useEffect(() => {
-    const fetchLookupData = async () => {
-      try {
-        const [locationData, partnerData] = await Promise.all([
-          locationService.getAll({ excludeDeleted: true }),
-          partnerService.getAll(),
-        ]);
-        setLocations(ensureArray<Location>(locationData));
-        setPartners(ensureArray<Partner>(partnerData));
-      } catch (err) {
-        console.error("❌ Không thể tải dữ liệu lookup:", err);
-        setLocations([]);
-        setPartners([]);
-      }
-    };
-    fetchLookupData();
-  }, []);
 
   // ========== Load blacklisted talents on mount ==========
   useEffect(() => {
@@ -183,7 +163,7 @@ export default function ListDev() {
   };
 
   // ========== Loading state ==========
-  if (loading) {
+  if (loading || lookupLoading) {
     return (
       <div className="flex bg-gray-50 min-h-screen">
         <Sidebar items={sidebarItems} title="TA Staff" />

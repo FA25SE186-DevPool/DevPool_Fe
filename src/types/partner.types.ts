@@ -16,6 +16,7 @@ export interface Partner {
   email?: string;
   phone?: string;
   address?: string;
+  userId?: number;
 }
 
 export interface PartnerPayload {

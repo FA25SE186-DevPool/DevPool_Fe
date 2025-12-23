@@ -6,7 +6,6 @@ import {
   Users,
   Shield,
   CheckCircle,
-  Layers,
   FileText,
   Building2,
   Tag,
@@ -19,27 +18,22 @@ import {
   Star,
   Grid,
   Loader2,
-  AlertCircle,
-  BarChart3,
   Activity,
 } from 'lucide-react';
 import { userService } from '../../../services/User';
 import { skillService } from '../../../services/Skill';
 import { skillGroupService } from '../../../services/SkillGroup';
-import { cvTemplateService } from '../../../services/CVTemplate';
 import { certificateTypeService } from '../../../services/CertificateType';
 import { jobRoleLevelService } from '../../../services/JobRoleLevel';
 import { jobRoleService } from '../../../services/JobRole';
 import { locationService } from '../../../services/location';
 import { marketService } from '../../../services/Market';
 import { industryService } from '../../../services/Industry';
-import { dashboardService, type OperationsDashboardModel } from '../../../services/Dashboard';
-
-type DashboardTab = 'overview' | 'operations';
+import { documentTypeService } from '../../../services/DocumentType';
+import { expertService } from '../../../services/Expert';
 
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   
   // Overview tab states
   const [loading, setLoading] = useState(true);
@@ -59,15 +53,13 @@ export default function AdminDashboard() {
     jobRoles: 0,
     locations: 0,
     markets: 0,
-    industries: 0
+    industries: 0,
+    documentTypes: 0,
+    experts: 0
   });
 
   const [recentUsers, setRecentUsers] = useState<any[]>([]);
 
-  // Operations Dashboard states
-  const [loadingOperations, setLoadingOperations] = useState(false);
-  const [errorOperations, setErrorOperations] = useState<string | null>(null);
-  const [operationsData, setOperationsData] = useState<OperationsDashboardModel | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -83,18 +75,22 @@ export default function AdminDashboard() {
           jobRolesRes,
           locationsRes,
           marketsRes,
-          industriesRes
+          industriesRes,
+          documentTypesRes,
+          expertsRes
         ] = await Promise.all([
           userService.getAll({ excludeDeleted: true }).catch(() => ({ items: [], totalCount: 0 })),
           skillService.getAll({ excludeDeleted: true }).catch(() => []),
           skillGroupService.getAll({ excludeDeleted: true }).catch(() => []),
-          cvTemplateService.getAll({ excludeDeleted: true }).catch(() => []),
+          Promise.resolve([]), // CV Templates removed
           certificateTypeService.getAll({ excludeDeleted: true }).catch(() => []),
           jobRoleLevelService.getAll({ excludeDeleted: true }).catch(() => []),
           jobRoleService.getAll({ excludeDeleted: true }).catch(() => []),
           locationService.getAll({ excludeDeleted: true }).catch(() => []),
           marketService.getAll({ excludeDeleted: true }).catch(() => []),
-          industryService.getAll({ excludeDeleted: true }).catch(() => [])
+          industryService.getAll({ excludeDeleted: true }).catch(() => []),
+          documentTypeService.getAll({ excludeDeleted: true }).catch(() => []),
+          expertService.getAll({ excludeDeleted: true }).catch(() => [])
         ]);
 
         const skills = Array.isArray(skillsRes) ? skillsRes : [];
@@ -106,9 +102,11 @@ export default function AdminDashboard() {
         const locations = Array.isArray(locationsRes) ? locationsRes : [];
         const markets = Array.isArray(marketsRes) ? marketsRes : [];
         const industries = Array.isArray(industriesRes) ? industriesRes : [];
+        const documentTypes = Array.isArray(documentTypesRes) ? documentTypesRes : [];
+        const experts = Array.isArray(expertsRes) ? expertsRes : [];
 
-        // Đếm số loại danh mục (luôn là 9)
-        const categoryTypes = 9;
+        // Đếm số loại danh mục (cập nhật thành 11)
+        const categoryTypes = 11;
 
         setStats({
           totalUsers: usersRes.totalCount || 0,
@@ -126,7 +124,9 @@ export default function AdminDashboard() {
           jobRoles: jobRoles.length,
           locations: locations.length,
           markets: markets.length,
-          industries: industries.length
+          industries: industries.length,
+          documentTypes: documentTypes.length,
+          experts: experts.length
         });
 
         // Lấy 3 users mới nhất
@@ -149,33 +149,6 @@ export default function AdminDashboard() {
     fetchDashboardData();
   }, []);
 
-  useEffect(() => {
-    if (activeTab === 'operations' && !operationsData && !loadingOperations && !errorOperations) {
-      fetchOperationsData();
-    }
-  }, [activeTab]);
-
-  const fetchOperationsData = async () => {
-    try {
-      setLoadingOperations(true);
-      setErrorOperations(null);
-      const data = await dashboardService.getOperationsDashboard();
-      setOperationsData(data);
-    } catch (err: any) {
-      // Chỉ log error nếu không phải là NOT_IMPLEMENTED (expected behavior)
-      if (err.code !== 'NOT_IMPLEMENTED' && !err.message?.includes('chưa được triển khai')) {
-        console.error('Error fetching operations data:', err);
-      }
-      
-      if (err.code === 'NOT_IMPLEMENTED' || err.message?.includes('chưa được triển khai')) {
-        setErrorOperations('NOT_IMPLEMENTED');
-      } else {
-        setErrorOperations(err.message || 'Không thể tải dữ liệu operations. Vui lòng thử lại sau.');
-      }
-    } finally {
-      setLoadingOperations(false);
-    }
-  };
 
   const kpiStats = [
     {
@@ -213,7 +186,9 @@ export default function AdminDashboard() {
     { name: 'Loại vị trí tuyển dụng (job role)', count: categoryBreakdown.jobRoles, icon: <Briefcase className="w-5 h-5" />, link: '/admin/categories/job-roles', color: 'green' },
     { name: 'Khu vực làm việc (location)', count: categoryBreakdown.locations, icon: <MapPin className="w-5 h-5" />, link: '/admin/categories/locations', color: 'purple' },
     { name: 'Thị trường (market)', count: categoryBreakdown.markets, icon: <Building2 className="w-5 h-5" />, link: '/admin/categories/markets', color: 'orange' },
-    { name: 'Lĩnh vực (industry)', count: categoryBreakdown.industries, icon: <Building2 className="w-5 h-5" />, link: '/admin/categories/industries', color: 'blue' }
+    { name: 'Lĩnh vực (industry)', count: categoryBreakdown.industries, icon: <Building2 className="w-5 h-5" />, link: '/admin/categories/industries', color: 'blue' },
+    { name: 'Loại tài liệu (document type)', count: categoryBreakdown.documentTypes, icon: <FileText className="w-5 h-5" />, link: '/admin/categories/document-types', color: 'gray' },
+    { name: 'Chuyên gia đánh giá (expert)', count: categoryBreakdown.experts, icon: <UserCog className="w-5 h-5" />, link: '/admin/categories/experts', color: 'purple' }
   ];
 
   const getStatusColor = (isActive: boolean) => {
@@ -362,12 +337,11 @@ export default function AdminDashboard() {
                   <span className="bg-primary-100 text-primary-800 text-xs px-2 py-1 rounded-full">{stats.totalUsers}</span>
                 </Link>
 
-                <Link to="/admin/categories/skills" className="group flex items-center justify-between p-4 border border-neutral-200 rounded-xl hover:bg-secondary-50 hover:border-secondary-300 transition-all duration-300 hover:shadow-soft">
+                <Link to="/admin/audit-log" className="group flex items-center p-4 border border-neutral-200 rounded-xl hover:bg-secondary-50 hover:border-secondary-300 transition-all duration-300 hover:shadow-soft">
                   <div className="flex items-center space-x-3">
-                    <Layers className="w-5 h-5 text-secondary-600 group-hover:scale-110 transition-transform duration-300" />
-                    <span className="font-medium group-hover:text-secondary-700 transition-colors duration-300">Quản lý danh mục</span>
+                    <Activity className="w-5 h-5 text-secondary-600 group-hover:scale-110 transition-transform duration-300" />
+                    <span className="font-medium group-hover:text-secondary-700 transition-colors duration-300">Audit log</span>
                   </div>
-                  <span className="bg-secondary-100 text-secondary-800 text-xs px-2 py-1 rounded-full">{stats.totalCategories}</span>
                 </Link>
 
                 <Link to="/admin/categories/certificate-types/create" className="group flex items-center justify-between p-4 border border-neutral-200 rounded-xl hover:bg-accent-50 hover:border-accent-300 transition-all duration-300 hover:shadow-soft">
@@ -392,7 +366,7 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-2xl shadow-soft hover:shadow-medium transition-all duration-300 border border-neutral-100 mb-8 animate-fade-in">
           <div className="p-6 border-b border-neutral-200">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Chi Tiết Danh Mục (9 Loại)</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Chi Tiết Danh Mục (10)</h2>
               <Link 
                 to="/admin/categories/skills"
                 className="text-primary-600 hover:text-primary-800 text-sm font-medium transition-colors duration-300 hover:scale-105 transform"
@@ -427,89 +401,8 @@ export default function AdminDashboard() {
     );
   };
 
-  // Operations Dashboard Content
-  const renderOperationsDashboard = () => {
-    if (loadingOperations) {
-      return (
-        <div className="flex justify-center items-center min-h-[400px]">
-          <div className="text-center">
-            <Loader2 className="w-12 h-12 animate-spin text-primary-600 mx-auto mb-4" />
-            <p className="text-gray-600">Đang tải dữ liệu operations...</p>
-          </div>
-        </div>
-      );
-    }
 
-    if (errorOperations) {
-      if (errorOperations === 'NOT_IMPLEMENTED' || errorOperations.includes('chưa được triển khai')) {
-        return (
-          <div className="flex justify-center items-center min-h-[400px]">
-            <div className="text-center bg-amber-50 border border-amber-200 rounded-2xl p-8 max-w-lg">
-              <BarChart3 className="w-16 h-16 text-amber-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-amber-900 mb-2">Chức năng đang phát triển</h3>
-              <p className="text-amber-700 mb-4">
-                Operations Dashboard đang được phát triển và sẽ sớm có mặt trong phiên bản tiếp theo.
-              </p>
-              <button
-                onClick={() => setActiveTab('overview')}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-              >
-                Chuyển sang Tổng quan
-              </button>
-            </div>
-          </div>
-        );
-      }
-      return (
-        <div className="flex justify-center items-center min-h-[400px]">
-          <div className="text-center bg-red-50 border border-red-200 rounded-2xl p-8 max-w-md">
-            <AlertCircle className="w-12 h-12 text-red-600 mx-auto mb-4" />
-            <p className="text-red-800 font-medium mb-2">Không thể tải dữ liệu</p>
-            <p className="text-red-600 text-sm mb-4">{errorOperations}</p>
-            <button
-              onClick={fetchOperationsData}
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-            >
-              Thử lại
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    if (!operationsData) return null;
-
-
-    return (
-      <div className="space-y-6">
-        {/* Recent Activities */}
-        {operationsData.recentActivities && operationsData.recentActivities.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-soft p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activities</h2>
-            <div className="space-y-3">
-              {operationsData.recentActivities.slice(0, 10).map((activity, index) => (
-                <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-neutral-200">
-                  <Activity className="w-5 h-5 text-primary-600 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{activity.description}</p>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-neutral-600">
-                      <span>{activity.activityType}</span>
-                      <span>•</span>
-                      <span>{activity.userName}</span>
-                      <span>•</span>
-                      <span>{new Date(activity.timestamp).toLocaleString('vi-VN')}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  if (loading && activeTab === 'overview') {
+  if (loading) {
     return (
       <div className="flex bg-gray-50 min-h-screen">
         <Sidebar items={sidebarItems} title="Admin" />
@@ -534,35 +427,8 @@ export default function AdminDashboard() {
           <p className="text-neutral-600 mt-1">Giám sát và quản lý toàn bộ hoạt động DevPool</p>
         </div>
 
-        {/* Tabs */}
-        <div className="mb-6 border-b border-neutral-200">
-          <div className="flex gap-4">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-6 py-3 font-medium text-sm transition-colors border-b-2 ${
-                activeTab === 'overview'
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-neutral-600 hover:text-neutral-900'
-              }`}
-            >
-              Tổng quan
-            </button>
-            <button
-              onClick={() => setActiveTab('operations')}
-              className={`px-6 py-3 font-medium text-sm transition-colors border-b-2 ${
-                activeTab === 'operations'
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-neutral-600 hover:text-neutral-900'
-              }`}
-            >
-              Operations
-            </button>
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === 'overview' && renderOverviewDashboard()}
-        {activeTab === 'operations' && renderOperationsDashboard()}
+        {/* Content */}
+        {renderOverviewDashboard()}
       </div>
     </div>
   );

@@ -232,7 +232,7 @@ export default function TalentJobRoleLevelEditPage() {
       console.log("Payload gửi đi:", payload);
       await talentJobRoleLevelService.update(Number(id), payload);
 
-      alert("✅ Cập nhật vị trí công việc thành công!");
+      alert("Cập nhật vị trí công việc thành công!");
       navigate(`/ta/talents/${talentId}`);
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật:", err);

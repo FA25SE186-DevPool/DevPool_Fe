@@ -106,7 +106,7 @@ export function useTalentDetailOperations() {
       if (pathMatch && pathMatch[1]) {
         // Decode the path (Firebase encodes spaces and special chars)
         const decodedPath = decodeURIComponent(pathMatch[1].split('?')[0]); // Remove query params if any
-        console.log('✅ Extracted Firebase path:', decodedPath);
+        console.log('Extracted Firebase path:', decodedPath);
         return decodedPath;
       }
       console.warn('❌ Không thể extract path từ URL:', url);
@@ -214,7 +214,7 @@ export function useTalentDetailOperations() {
         console.log('📋 URL gốc:', currentUrl);
         const fileRef = ref(storage, firebasePath);
         await deleteObject(fileRef);
-        console.log('✅ Đã xóa file thành công từ Firebase:', firebasePath);
+        console.log('Đã xóa file thành công từ Firebase:', firebasePath);
       } else {
         console.warn('⚠️ Không phải Firebase URL hoặc không extract được path:', currentUrl);
       }

@@ -294,7 +294,7 @@ export default function CreatePartner() {
     setLoading(true);
     try {
       await partnerService.create(formData);
-      showSuccessOverlay('✅ Tạo đối tác thành công!');
+      showSuccessOverlay('Tạo đối tác thành công!');
       navigate(ROUTES.TA_STAFF.PARTNERS.LIST);
     } catch (error) {
       console.error(error);

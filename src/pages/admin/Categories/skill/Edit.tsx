@@ -291,7 +291,7 @@ export default function SkillEditPage() {
                 <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
                   <CheckCircle className="w-5 h-5 text-green-600" />
                   <p className="text-green-700 font-medium">
-                    ✅ Cập nhật kỹ năng thành công! Đang chuyển hướng...
+                    Cập nhật kỹ năng thành công! Đang chuyển hướng...
                   </p>
                 </div>
               )}

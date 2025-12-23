@@ -196,7 +196,7 @@ function TalentCertificateEditPage() {
         (document.getElementById('certificate-image-input') as HTMLInputElement).value = '';
       }
 
-      alert("✅ Upload ảnh chứng chỉ thành công!");
+      alert("Upload ảnh chứng chỉ thành công!");
     } catch (err: any) {
       console.error("❌ Error uploading certificate image:", err);
       alert(`❌ Lỗi khi upload ảnh: ${err.message || 'Vui lòng thử lại.'}`);
@@ -248,7 +248,7 @@ function TalentCertificateEditPage() {
         (document.getElementById('certificate-image-input') as HTMLInputElement).value = '';
       }
 
-      alert("✅ Đã xóa ảnh chứng chỉ thành công!");
+      alert("Đã xóa ảnh chứng chỉ thành công!");
     } catch (err: any) {
       console.error("❌ Error deleting certificate image:", err);
       // Vẫn xóa URL khỏi form dù không xóa được file
@@ -340,7 +340,7 @@ function TalentCertificateEditPage() {
         issuedDate: formData.issuedDate ? formData.issuedDate : undefined,
       });
 
-      alert("✅ Cập nhật chứng chỉ thành công!");
+      alert("Cập nhật chứng chỉ thành công!");
       navigate(`/ta/talents/${talentId}`, { state: { tab: 'certificates' } });
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật:", err);

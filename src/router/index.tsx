@@ -43,12 +43,6 @@ const CertificateTypeDetailPage = React.lazy(() => import('../pages/admin/Catego
 const CertificateTypeEditPage = React.lazy(() => import('../pages/admin/Categories/certificate-types/Edit'));
 const CertificateTypeListPage = React.lazy(() => import('../pages/admin/Categories/certificate-types/List'));
 
-// Categories - CV Templates
-const CVTemplateCreatePage = React.lazy(() => import('../pages/admin/Categories/cv-templates/Create'));
-const CVTemplateDetailPage = React.lazy(() => import('../pages/admin/Categories/cv-templates/Detail'));
-const CVTemplateEditPage = React.lazy(() => import('../pages/admin/Categories/cv-templates/Edit'));
-const CVTemplateListPage = React.lazy(() => import('../pages/admin/Categories/cv-templates/List'));
-
 // Categories - Document Types
 const DocumentTypeCreatePage = React.lazy(() => import('../pages/admin/Categories/document-types/Create'));
 const DocumentTypeDetailPage = React.lazy(() => import('../pages/admin/Categories/document-types/Detail'));
@@ -478,12 +472,6 @@ const AppRouter: React.FC = () => {
               <Route path={ROUTES.ADMIN.CATEGORIES.CERTIFICATE_TYPES.DETAIL} element={<CertificateTypeDetailPage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.CERTIFICATE_TYPES.CREATE} element={<CertificateTypeCreatePage />} />
               <Route path={ROUTES.ADMIN.CATEGORIES.CERTIFICATE_TYPES.EDIT} element={<CertificateTypeEditPage />} />
-
-              {/* Categories - CV Templates */}
-              <Route path={ROUTES.ADMIN.CATEGORIES.CV_TEMPLATES.LIST} element={<CVTemplateListPage />} />
-              <Route path={ROUTES.ADMIN.CATEGORIES.CV_TEMPLATES.DETAIL} element={<CVTemplateDetailPage />} />
-              <Route path={ROUTES.ADMIN.CATEGORIES.CV_TEMPLATES.CREATE} element={<CVTemplateCreatePage />} />
-              <Route path={ROUTES.ADMIN.CATEGORIES.CV_TEMPLATES.EDIT} element={<CVTemplateEditPage />} />
 
               {/* Categories - Document Types */}
               <Route path="/admin/categories/document-types" element={<DocumentTypeListPage />} />

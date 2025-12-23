@@ -98,7 +98,7 @@ export default function ApplyActivityCreatePage({
           // Lấy thông tin application
           try {
             const app = await applyService.getById(applyId);
-            console.log("✅ Tải thông tin application:", app);
+            console.log("Tải thông tin application:", app);
             setApplication(app);
           } catch (appErr) {
             console.error("❌ Lỗi tải thông tin application:", appErr);
@@ -449,7 +449,7 @@ export default function ApplyActivityCreatePage({
       } else {
         navigate(`/ta/applications/${form.applyId}`);
       }
-      showSuccessOverlay('✅ Tạo hoạt động thành công!');
+      showSuccessOverlay('Tạo hoạt động thành công!');
     } catch (err) {
       console.error("❌ Error creating Apply Activity:", err);
       setError("Không thể tạo hoạt động. Vui lòng thử lại.");
@@ -1062,7 +1062,7 @@ export default function ApplyActivityCreatePage({
                 <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
                   <CheckCircle className="w-5 h-5 text-green-600" />
                   <p className="text-green-700 font-medium">
-                    ✅ Tạo hoạt động thành công! Đang chuyển hướng...
+                    Tạo hoạt động thành công! Đang chuyển hướng...
                   </p>
                 </div>
               )}

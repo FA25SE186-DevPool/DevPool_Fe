@@ -643,7 +643,7 @@ export default function ProjectDetailPage() {
       });
       setDirectBookingErrors({});
 
-      showSuccessOverlay("✅ Thuê lại nhân sự thành công!");
+      showSuccessOverlay("Thuê lại nhân sự thành công!");
     } catch (error: unknown) {
       console.error("❌ Lỗi khi thuê lại (Direct Booking):", error);
       const message =
@@ -762,7 +762,7 @@ export default function ProjectDetailPage() {
 
     try {
       await projectService.delete(Number(id));
-      showSuccessOverlay("✅ Đã xóa dự án thành công!");
+      showSuccessOverlay("Đã xóa dự án thành công!");
       navigate("/sales/projects");
     } catch (err) {
       console.error("❌ Lỗi khi xóa dự án:", err);
@@ -991,7 +991,7 @@ export default function ProjectDetailPage() {
       setCompletedActivityDate(null);
       setShowCreateAssignmentModal(false);
 
-      showSuccessOverlay("✅ Tạo phân công nhân sự thành công!");
+      showSuccessOverlay("Tạo phân công nhân sự thành công!");
     } catch (error: unknown) {
       console.error("❌ Lỗi khi tạo phân công:", error);
       const message =

@@ -1233,7 +1233,7 @@ export default function PartnerContractDetailPage() {
                     setClientSowFileData(null);
                     try {
                       const sowFileData = await partnerContractPaymentService.getClientSowFile(Number(id));
-                      console.log("✅ File SOW data:", sowFileData);
+                      console.log("File SOW data:", sowFileData);
                       if (sowFileData && sowFileData.sowFileUrl) {
                         setClientSowFileData(sowFileData);
                       } else {

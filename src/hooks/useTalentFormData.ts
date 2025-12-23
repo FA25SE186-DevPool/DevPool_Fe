@@ -12,6 +12,7 @@ import { type JobRoleLevel, jobRoleLevelService } from '../services/JobRoleLevel
  */
 export function useTalentFormData() {
   const [loading, setLoading] = useState(true);
+  const [loadingPhase, setLoadingPhase] = useState<'phase1' | 'phase2' | 'complete'>('phase1');
   const [partners, setPartners] = useState<Partner[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
@@ -26,22 +27,20 @@ export function useTalentFormData() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        setLoadingPhase('phase1');
         setError(null);
 
+        // ===== PHASE 1: Essential data for basic form =====
         const [
           partnersData,
           locationsData,
-          skillsData,
           jobRolesData,
-          certificateTypesData,
           jobRoleLevelsData,
           jobRoleLevelsForCVData
         ] = await Promise.all([
           partnerService.getAll(),
           locationService.getAll({ excludeDeleted: true }),
-          skillService.getAll({ excludeDeleted: true }),
           jobRoleService.getAll({ excludeDeleted: true }),
-          certificateTypeService.getAll({ excludeDeleted: true }),
           jobRoleLevelService.getAll({ excludeDeleted: true }),
           jobRoleLevelService.getAll({ excludeDeleted: true, distinctByName: true })
         ]);
@@ -56,25 +55,36 @@ export function useTalentFormData() {
 
         setPartners(normalizeArray(partnersData));
         setLocations(normalizeArray(locationsData));
-        setSkills(normalizeArray(skillsData));
         setJobRoles(normalizeArray(jobRolesData));
-        setCertificateTypes(normalizeArray(certificateTypesData));
         setJobRoleLevels(normalizeArray(jobRoleLevelsData));
         setJobRoleLevelsForCV(normalizeArray(jobRoleLevelsForCVData));
 
-        // Load skill groups riêng để xử lý lỗi tốt hơn
-        try {
-          const skillGroupsData = await skillGroupService.getAll({ excludeDeleted: true });
-          setSkillGroups(normalizeArray(skillGroupsData));
-        } catch (skillGroupsError) {
-          console.error('❌ Lỗi khi tải nhóm kỹ năng:', skillGroupsError);
-          setSkillGroups([]);
-        }
+        // Phase 1 complete - form can render with basic data
+        setLoading(false);
+
+        // ===== PHASE 2: Additional data for advanced features =====
+        setLoadingPhase('phase2');
+
+        const [
+          skillsData,
+          certificateTypesData,
+          skillGroupsData
+        ] = await Promise.all([
+          skillService.getAll({ excludeDeleted: true }),
+          certificateTypeService.getAll({ excludeDeleted: true }).catch(() => []),
+          skillGroupService.getAll({ excludeDeleted: true }).catch(() => [])
+        ]);
+
+        setSkills(normalizeArray(skillsData));
+        setCertificateTypes(normalizeArray(certificateTypesData));
+        setSkillGroups(normalizeArray(skillGroupsData));
+
+        setLoadingPhase('complete');
       } catch (err) {
         console.error('❌ Lỗi khi tải dữ liệu:', err);
         setError('Không thể tải dữ liệu. Vui lòng thử lại.');
-      } finally {
         setLoading(false);
+        setLoadingPhase('complete');
       }
     };
 
@@ -83,6 +93,7 @@ export function useTalentFormData() {
 
   return {
     loading,
+    loadingPhase,
     error,
     partners,
     locations,

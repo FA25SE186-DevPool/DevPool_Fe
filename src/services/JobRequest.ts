@@ -19,8 +19,7 @@ export const jobRequestService = {
       if (filter?.jobRoleLevelId) params.append("JobRoleLevelId", filter.jobRoleLevelId.toString());
       if (filter?.applyProcessTemplateId)
         params.append("ApplyProcessTemplateId", filter.applyProcessTemplateId.toString());
-      if (filter?.clientCompanyCVTemplateId)
-        params.append("ClientCompanyCVTemplateId", filter.clientCompanyCVTemplateId.toString());
+      // CV Template filter removed
       if (filter?.title) params.append("Title", filter.title);
       if (filter?.locationId) params.append("LocationId", filter.locationId.toString());
       if (filter?.workingMode !== undefined) params.append("WorkingMode", filter.workingMode.toString());

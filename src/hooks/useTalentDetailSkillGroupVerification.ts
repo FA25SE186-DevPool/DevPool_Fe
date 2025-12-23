@@ -196,7 +196,7 @@ export function useTalentDetailSkillGroupVerification(
 
         showSuccessOverlay?.(
           verifyResult
-            ? '✅ Đã verify nhóm kỹ năng thành công (Pass)!'
+            ? 'Đã verify nhóm kỹ năng thành công (Pass)!'
             : '⚠️ Đã đánh dấu nhóm kỹ năng không hợp lệ (Fail)!'
         );
 
@@ -369,7 +369,7 @@ export function useTalentDetailSkillGroupVerification(
           }
         }
 
-        showSuccessOverlay?.('✅ Đã vô hiệu hóa đánh giá nhóm kỹ năng thành công!');
+        showSuccessOverlay?.('Đã vô hiệu hóa đánh giá nhóm kỹ năng thành công!');
       } catch (err) {
         console.error('❌ Lỗi khi invalidate assessment:', err);
         alert('Không thể vô hiệu hóa đánh giá, vui lòng thử lại.');
