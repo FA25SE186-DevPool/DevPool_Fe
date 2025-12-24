@@ -194,20 +194,23 @@ apiClient.interceptors.response.use(
 
         if (status === 401) {
             // Không log warning cho logout request vì đây là hành động hợp lệ
-            if (!isLogoutRequest) {
+            if (!isLogoutRequest && !isAuthRequest) {
                 console.warn('🔒 Token expired or unauthorized.');
             }
-            // Xóa từ localStorage
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('devpool_user');
-            // Xóa từ sessionStorage để đảm bảo (nếu có)
-            sessionStorage.removeItem('accessToken');
-            sessionStorage.removeItem('refreshToken');
-            sessionStorage.removeItem('devpool_user');
-            // Chỉ dispatch UNAUTHORIZED_EVENT nếu không phải logout request
-            if (!isLogoutRequest) {
-                window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+            // Chỉ xóa token và dispatch event nếu không phải auth request (login/register/forgot-password/etc.)
+            if (!isAuthRequest) {
+                // Xóa từ localStorage
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                localStorage.removeItem('devpool_user');
+                // Xóa từ sessionStorage để đảm bảo (nếu có)
+                sessionStorage.removeItem('accessToken');
+                sessionStorage.removeItem('refreshToken');
+                sessionStorage.removeItem('devpool_user');
+                // Chỉ dispatch UNAUTHORIZED_EVENT nếu không phải logout request
+                if (!isLogoutRequest) {
+                    window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+                }
             }
         } else if (status && status >= 400 && status < 500) {
             // Không log error cho logout request vì 401 là expected behavior
