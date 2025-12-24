@@ -5,6 +5,7 @@ import { sidebarItems } from "../../../components/sidebar/sales";
 import Breadcrumb from "../../../components/common/Breadcrumb";
 import { applyProcessStepService } from "../../../services/ApplyProcessStep";
 import { applyProcessTemplateService } from "../../../services/ApplyProcessTemplate";
+import { jobRequestService } from "../../../services/JobRequest";
 import { Button } from "../../../components/ui/button";
 import {
   Edit,
@@ -37,6 +38,8 @@ export default function SalesApplyProcessStepDetailPage() {
   const [activeTab, setActiveTab] = useState<string>('info');
   const [templateSteps, setTemplateSteps] = useState<any[]>([]);
   const [showDeleteSuccessOverlay, setShowDeleteSuccessOverlay] = useState(false);
+  const [isTemplateInUse, setIsTemplateInUse] = useState(false);
+  const [templateUsageCount, setTemplateUsageCount] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -60,6 +63,30 @@ export default function SalesApplyProcessStepDetailPage() {
             // Sort by stepOrder
             steps.sort((a, b) => a.stepOrder - b.stepOrder);
           } catch {}
+
+          // Kiểm tra xem template có đang được sử dụng không
+          try {
+            const jobRequests = await jobRequestService.getAll({
+              applyProcessTemplateId: stepData.templateId,
+              excludeDeleted: true
+            });
+
+            let jobRequestCount = 0;
+            if (Array.isArray(jobRequests)) {
+              jobRequestCount = jobRequests.length;
+            } else if (jobRequests?.data && Array.isArray(jobRequests.data)) {
+              jobRequestCount = jobRequests.data.length;
+            } else if (jobRequests?.items && Array.isArray(jobRequests.items)) {
+              jobRequestCount = jobRequests.items.length;
+            }
+
+            setIsTemplateInUse(jobRequestCount > 0);
+            setTemplateUsageCount(jobRequestCount);
+          } catch (err) {
+            console.error("❌ Lỗi kiểm tra job requests:", err);
+            setIsTemplateInUse(false);
+            setTemplateUsageCount(0);
+          }
         } catch {}
 
         setStep({ ...stepData, templateName });
@@ -76,6 +103,12 @@ export default function SalesApplyProcessStepDetailPage() {
 
   const handleDelete = async () => {
     if (!id) return;
+
+    if (isTemplateInUse) {
+      alert(`⚠️ Không thể xóa bước này vì template đang được sử dụng trong ${templateUsageCount} yêu cầu tuyển dụng!`);
+      return;
+    }
+
     const confirm = window.confirm("⚠️ Bạn có chắc muốn xóa bước quy trình này?");
     if (!confirm) return;
 
@@ -95,6 +128,11 @@ export default function SalesApplyProcessStepDetailPage() {
   };
 
   const handleEdit = () => {
+    if (isTemplateInUse) {
+      alert(`⚠️ Không thể sửa bước này vì template đang được sử dụng trong ${templateUsageCount} yêu cầu tuyển dụng!`);
+      return;
+    }
+
     const state =
       backTarget !== "/sales/apply-process-steps" ? { fromTemplate: backTarget } : undefined;
     navigate(`/sales/apply-process-steps/edit/${id}`, { state });
@@ -171,16 +209,28 @@ export default function SalesApplyProcessStepDetailPage() {
             <div className="flex gap-3">
               <Button
                 onClick={handleEdit}
-                className="group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white"
+                disabled={isTemplateInUse}
+                className={`group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft transform ${
+                  isTemplateInUse
+                    ? 'bg-gray-400 cursor-not-allowed opacity-60'
+                    : 'hover:shadow-glow hover:scale-105 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white'
+                }`}
+                title={isTemplateInUse ? `Không thể sửa vì template đang được sử dụng trong ${templateUsageCount} yêu cầu tuyển dụng` : 'Sửa bước này'}
               >
-                <Edit className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+                <Edit className={`w-4 h-4 ${isTemplateInUse ? '' : 'group-hover:scale-110'} transition-transform duration-300`} />
                 Sửa
               </Button>
               <Button
                 onClick={handleDelete}
-                className="group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
+                disabled={isTemplateInUse}
+                className={`group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft transform ${
+                  isTemplateInUse
+                    ? 'bg-gray-400 cursor-not-allowed opacity-60'
+                    : 'hover:shadow-glow hover:scale-105 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white'
+                }`}
+                title={isTemplateInUse ? `Không thể xóa vì template đang được sử dụng trong ${templateUsageCount} yêu cầu tuyển dụng` : 'Xóa bước này'}
               >
-                <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+                <Trash2 className={`w-4 h-4 ${isTemplateInUse ? '' : 'group-hover:scale-110'} transition-transform duration-300`} />
                 Xóa
               </Button>
             </div>

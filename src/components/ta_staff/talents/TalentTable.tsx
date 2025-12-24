@@ -3,7 +3,6 @@ import { Mail, Users } from 'lucide-react';
 import { type Talent } from '../../../services/Talent';
 import { type Location } from '../../../services/location';
 import { type Partner } from '../../../services/Partner';
-import { WORKING_MODE } from '../../../constants/WORKING_MODE';
 
 interface TalentTableProps {
   talents: Talent[];
@@ -61,14 +60,6 @@ export function TalentTable({
     return statusLabels[status] || { label: status, badgeClass: 'bg-gray-100 text-gray-800' };
   };
 
-  const getWorkingModeLabel = (workingMode: number): string => {
-    const modes: string[] = [];
-    if (workingMode & WORKING_MODE.Onsite) modes.push('Tại văn phòng');
-    if (workingMode & WORKING_MODE.Remote) modes.push('Từ xa');
-    if (workingMode & WORKING_MODE.Hybrid) modes.push('Kết hợp');
-    if (workingMode & WORKING_MODE.Flexible) modes.push('Linh hoạt');
-    return modes.length > 0 ? modes.join(', ') : 'Chưa xác định';
-  };
 
   if (loading) {
     return (
@@ -92,13 +83,12 @@ export function TalentTable({
               <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Đối tác</th>
               <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Họ và tên</th>
               <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Email</th>
-            <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase">Chế độ làm việc</th>
             <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase">Trạng thái</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-200">
             <tr>
-              <td colSpan={7} className="text-center py-12">
+              <td colSpan={6} className="text-center py-12">
                 <div className="flex flex-col items-center justify-center">
                   <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
                     <Users className="w-8 h-8 text-neutral-400" />
@@ -124,7 +114,6 @@ export function TalentTable({
             <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Đối tác</th>
             <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Họ và tên</th>
             <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase">Email</th>
-            <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase whitespace-nowrap">Chế độ làm việc</th>
             <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase whitespace-nowrap">Trạng thái</th>
           </tr>
         </thead>
@@ -165,11 +154,6 @@ export function TalentTable({
                       {t.email || '—'}
                     </span>
                   </div>
-                </td>
-                <td className="py-4 px-6 text-center">
-                  <span className="text-sm text-neutral-700">
-                    {getWorkingModeLabel(t.workingMode)}
-                  </span>
                 </td>
                 <td className="py-4 px-6 text-center">
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${statusInfo.badgeClass}`}>

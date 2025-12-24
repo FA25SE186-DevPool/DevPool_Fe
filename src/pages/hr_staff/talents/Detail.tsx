@@ -42,7 +42,7 @@ import { TalentDetailBasicInfoTabs } from '../../../components/ta_staff/talents/
 
 // Mapping WorkingMode values to Vietnamese names
 const workingModeLabels: Record<number, string> = {
-  [WorkingMode.None]: 'Không xác định',
+  [WorkingMode.None]: '—',
   [WorkingMode.Onsite]: 'Tại văn phòng',
   [WorkingMode.Remote]: 'Từ xa',
   [WorkingMode.Hybrid]: 'Kết hợp',

@@ -77,7 +77,7 @@ export function TalentDetailBasicInfoSection({
             <InfoItem label="Khu vực làm việc" value={locationName} icon={<MapPin className="w-4 h-4" />} />
             <InfoItem
               label="Chế độ làm việc"
-              value={workingModeLabels[talent.workingMode] || 'Không xác định'}
+              value={workingModeLabels[talent.workingMode] || '—'}
               icon={<Globe className="w-4 h-4" />}
             />
           </div>

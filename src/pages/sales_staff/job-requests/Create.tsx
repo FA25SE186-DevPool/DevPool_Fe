@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
 import Breadcrumb from "../../../components/common/Breadcrumb";
 import { sidebarItems } from "../../../components/sidebar/sales";
@@ -571,7 +571,8 @@ export default function JobRequestCreatePage() {
       return a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' });
     });
   const locationsFiltered = locations.filter(l =>
-    !locationSearch || l.name.toLowerCase().includes(locationSearch.toLowerCase())
+    (!locationSearch || l.name.toLowerCase().includes(locationSearch.toLowerCase())) &&
+    !l.name.toLowerCase().includes('remote') // Ẩn các location có tên chứa "remote"
   );
   // Helper function để format level
   const getLevelText = (level: number): string => {
@@ -588,7 +589,8 @@ export default function JobRequestCreatePage() {
     !jobRoleFilterSearch || role.name.toLowerCase().includes(jobRoleFilterSearch.toLowerCase())
   );
   const applyTemplatesFiltered = applyTemplates.filter(t =>
-    !applyTemplateSearch || t.name.toLowerCase().includes(applyTemplateSearch.toLowerCase())
+    (!applyTemplateSearch || t.name.toLowerCase().includes(applyTemplateSearch.toLowerCase())) &&
+    (templateStepCounts[t.id] ?? 0) > 0 // Chỉ hiển thị template có ít nhất 1 bước
   );
 
   const contactInquiryId = searchParams.get('contactInquiryId');
@@ -1778,13 +1780,6 @@ export default function JobRequestCreatePage() {
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-4 pt-6">
-            <Link
-              to="/sales/job-requests"
-              className="group flex items-center gap-2 px-6 py-3 border border-neutral-300 rounded-xl text-neutral-700 hover:bg-neutral-50 hover:border-neutral-400 transition-all duration-300 hover:scale-105 transform"
-            >
-              <X className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-              Hủy
-            </Link>
             <button
               type="submit"
               disabled={loading}

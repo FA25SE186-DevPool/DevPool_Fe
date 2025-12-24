@@ -156,7 +156,10 @@ apiClient.interceptors.response.use(
         // Skip refresh token logic cho logout endpoint - đây là hành động logout, không cần refresh
         const isLogoutRequest = originalRequest?.url?.includes('/auth/logout') ?? false;
 
-        if (status === 401 && originalRequest && !originalRequest._retry && !isLogoutRequest) {
+        // Skip refresh token logic cho các auth endpoints - đây là authentication failed, không phải token expired
+        const isAuthRequest = originalRequest?.url?.includes('/auth/') ?? false;
+
+        if (status === 401 && originalRequest && !originalRequest._retry && !isLogoutRequest && !isAuthRequest) {
             originalRequest._retry = true;
 
             if (!isRefreshing) {
