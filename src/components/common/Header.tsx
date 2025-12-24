@@ -769,11 +769,7 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
                     className="group relative p-2 text-neutral-600 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-all duration-300"
                   >
                     <Bell className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                    {isLoadingNotifications ? (
-                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-neutral-400 rounded-full flex items-center justify-center">
-                        <Loader2 className="w-3 h-3 animate-spin text-white" />
-                      </div>
-                    ) : unread > 0 ? (
+                    {unread > 0 ? (
                       <span className="absolute -top-1 -right-1 bg-error-500 text-white text-xs rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center animate-pulse-gentle">
                         {unread > 9 ? '9+' : unread}
                       </span>

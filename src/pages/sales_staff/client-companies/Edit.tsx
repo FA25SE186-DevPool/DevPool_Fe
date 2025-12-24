@@ -279,7 +279,7 @@ export default function ClientCompanyEditPage() {
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
                   <Briefcase className="w-4 h-4" />
-                  Mã công ty <span className="text-red-500">*</span>
+                  Mã công ty
                 </label>
                 <Input
                   name="code"

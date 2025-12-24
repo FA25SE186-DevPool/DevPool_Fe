@@ -1,13 +1,12 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { 
-  Building2, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  User, 
+import { useNavigate } from "react-router-dom";
+import {
+  Building2,
+  Mail,
+  Phone,
+  MapPin,
+  User,
   Briefcase,
-  ArrowLeft,
   Save,
   AlertCircle,
   CheckCircle,
@@ -59,7 +58,7 @@ export default function ClientCompanyCreatePage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     
-    // Chỉ cho phép số cho phone
+    // Chỉ cho phép số cho phone và taxCode
     if (name === "phone") {
       const digitsOnly = value.replace(/\D/g, "");
       if (digitsOnly.length <= 10) {
@@ -67,6 +66,18 @@ export default function ClientCompanyCreatePage() {
         // Clear error khi user đang nhập
         if (formErrors.phone) {
           setFormErrors((prev) => ({ ...prev, phone: undefined }));
+        }
+      }
+      return;
+    }
+
+    if (name === "taxCode") {
+      const digitsOnly = value.replace(/\D/g, "");
+      if (digitsOnly.length <= 13) {
+        setForm((prev) => ({ ...prev, [name]: digitsOnly }));
+        // Clear error khi user đang nhập
+        if (formErrors.taxCode) {
+          setFormErrors((prev) => ({ ...prev, taxCode: undefined }));
         }
       }
       return;
@@ -165,6 +176,14 @@ export default function ClientCompanyCreatePage() {
     // Validate mã số thuế (bắt buộc)
     if (!form.taxCode || form.taxCode.trim() === "") {
       errors.taxCode = "Mã số thuế là bắt buộc";
+    } else {
+      // Validate độ dài mã số thuế (10 số hoặc 13 số)
+      const taxCode = form.taxCode.trim();
+      if (!/^\d+$/.test(taxCode)) {
+        errors.taxCode = "Mã số thuế chỉ được chứa số";
+      } else if (taxCode.length !== 10 && taxCode.length !== 13) {
+        errors.taxCode = "Mã số thuế phải có 10 số hoặc 13 số";
+      }
     }
     
     // Validate người đại diện (bắt buộc)
@@ -366,6 +385,7 @@ export default function ClientCompanyCreatePage() {
                     value={form.taxCode}
                     onChange={handleChange}
                     placeholder="Nhập mã số thuế..."
+                    maxLength={13}
                     required
                     className={`w-full border rounded-xl px-4 py-3 focus:ring-primary-500 bg-white ${
                       formErrors.taxCode
@@ -530,13 +550,6 @@ export default function ClientCompanyCreatePage() {
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-4 pt-6">
-            <Link
-              to="/sales/clients"
-              className="group flex items-center gap-2 px-6 py-3 border border-neutral-300 rounded-xl text-neutral-700 hover:bg-neutral-50 hover:border-neutral-400 transition-all duration-300 hover:scale-105 transform"
-            >
-              <ArrowLeft className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-              Hủy
-            </Link>
             <button
               type="submit"
               disabled={loading}

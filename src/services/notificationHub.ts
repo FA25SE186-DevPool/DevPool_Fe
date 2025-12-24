@@ -160,6 +160,12 @@ export const createNotificationConnection = (): HubConnection => {
 		reconnectAttempts = 0;
 	});
 	connection.onclose(async (error) => {
+		// Silent ignore negotiation errors 401 để tránh spam console
+		if (error?.message?.includes('401') || error?.message?.includes('Unauthorized') ||
+		    error?.message?.includes('negotiation')) {
+			return; // Silent ignore
+		}
+
 		// Nếu lỗi 401 và chưa vượt quá số lần thử, thử refresh token và reconnect
 		if (error && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
 			const newToken = await refreshToken();
@@ -272,7 +278,8 @@ export const startNotificationConnection = async (forceRestart: boolean = false)
 
 		// Trong production/development, chỉ log lỗi một lần và silent ignore để không spam console
 		// Notification hub thường không khả dụng trong môi trường dev, đây là expected behavior
-		if (!shouldRetryWithoutLog && statusCode !== 404 && reconnectAttempts === 0) {
+		// Bỏ qua lỗi 401 (Unauthorized) vì đây là lỗi authentication, không cần log spam
+		if (!shouldRetryWithoutLog && statusCode !== 404 && statusCode !== 401 && reconnectAttempts === 0) {
 			console.warn('⚠️ Notification hub connection failed (this is normal in dev environment):', {
 				url: HUB_URL,
 				error: errorMessage,

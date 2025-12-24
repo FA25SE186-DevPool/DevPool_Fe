@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo, useState } from 'react';
-import { type NotificationType, type NotificationPriority } from '../services/Notification';
+import { NotificationType, NotificationPriority } from '../services/Notification';
 
 export interface RealtimeNotification {
 	id: number;
@@ -22,7 +22,7 @@ interface NotificationContextValue {
 	unread: number;
 	items: RealtimeNotification[];
 	setUnread: (n: number) => void;
-	pushItem: (n: RealtimeNotification) => void;
+	pushItem: (n: any) => void;
 	setItems: (items: RealtimeNotification[]) => void;
 	updateItemById: (id: number, patch: Partial<RealtimeNotification>) => void;
 	removeItemById: (id: number) => void;
@@ -50,29 +50,53 @@ export const NotificationProvider: React.FC<React.PropsWithChildren> = ({ childr
 		unread,
 		items,
 		setUnread,
-		pushItem: (n: RealtimeNotification) => {
+		pushItem: (n: any) => {
+			// Validate notification object to prevent runtime errors
+			if (!n || typeof n !== 'object') {
+				console.warn('Invalid notification object:', n);
+				return;
+			}
+
+      // Ensure required properties exist with fallbacks
+      const notification: RealtimeNotification = {
+        id: n.id || Date.now(), // Fallback to timestamp if no id
+        title: n.title || 'Thông báo',
+        message: n.message || '',
+        type: n.type || NotificationType.ApplicationStatusChanged, // Use a valid enum value
+        priority: n.priority || NotificationPriority.Medium,
+        userId: n.userId || '',
+        isRead: n.isRead !== undefined ? n.isRead : false,
+        readAt: n.readAt || null,
+        entityType: n.entityType || null,
+        entityId: n.entityId || null,
+        actionUrl: n.actionUrl || null,
+        iconClass: n.iconClass || null,
+        metaData: n.metaData || null,
+        createdAt: n.createdAt || new Date().toISOString(),
+      };
+
 			setItems(prev => {
 				// Kiểm tra xem notification đã tồn tại chưa (theo id)
-				const existingIndex = prev.findIndex(item => item.id === n.id);
+				const existingIndex = prev.findIndex(item => item.id === notification.id);
 				if (existingIndex !== -1) {
 					// Nếu đã tồn tại, cập nhật notification đó và di chuyển lên đầu
 					const updated = [...prev];
 					updated.splice(existingIndex, 1);
 					// Cập nhật unread: nếu notification cũ chưa đọc nhưng mới đã đọc thì giảm, ngược lại tăng
 					const oldItem = prev[existingIndex];
-					if (!oldItem.isRead && n.isRead) {
+					if (!oldItem.isRead && notification.isRead) {
 						setUnread(prevUnread => Math.max(0, prevUnread - 1));
-					} else if (oldItem.isRead && !n.isRead) {
+					} else if (oldItem.isRead && !notification.isRead) {
 						setUnread(prevUnread => prevUnread + 1);
 					}
-					return [n, ...updated];
+					return [notification, ...updated];
 				} else {
 					// Nếu chưa tồn tại, thêm mới vào đầu
 					// Tự động tăng unread nếu notification chưa đọc
-					if (!n.isRead) {
+					if (!notification.isRead) {
 						setUnread(prevUnread => prevUnread + 1);
 					}
-					return [n, ...prev];
+					return [notification, ...prev];
 				}
 			});
 		},

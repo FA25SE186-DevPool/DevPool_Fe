@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   CalendarDays,
   FileText,
@@ -841,13 +841,6 @@ export default function ProjectCreatePage() {
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-4 pt-6">
-            <Link
-              to="/sales/projects"
-              className="group flex items-center gap-2 px-6 py-3 border border-neutral-300 rounded-xl text-neutral-700 hover:bg-neutral-50 hover:border-neutral-400 transition-all duration-300 hover:scale-105 transform"
-            >
-              <X className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-              Hủy
-            </Link>
             <button
               type="submit"
               disabled={formLoading}
