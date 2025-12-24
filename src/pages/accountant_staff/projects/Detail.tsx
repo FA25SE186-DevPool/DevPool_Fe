@@ -476,14 +476,35 @@ export default function AccountantProjectDetailPage() {
                   }
                   
                   const assignmentStartDate = new Date(assignment.startDate);
-                  const assignmentEndDate = assignment.endDate ? new Date(assignment.endDate) : null;
-                  
+
+                  // Parse assignmentEndDate và đảm bảo không bị timezone offset
+                  let assignmentEndDate: Date | null = null;
+                  if (assignment.endDate) {
+                    // Nếu là string ISO, parse và đảm bảo timezone chính xác
+                    if (typeof assignment.endDate === 'string') {
+                      // Đảm bảo kết thúc bằng Z để tránh timezone issues
+                      const dateStr = assignment.endDate.endsWith('Z') ? assignment.endDate : assignment.endDate + 'Z';
+                      assignmentEndDate = new Date(dateStr);
+                      // Nếu parse thất bại, thử parse như local date
+                      if (isNaN(assignmentEndDate.getTime())) {
+                        assignmentEndDate = new Date(assignment.endDate);
+                      }
+                    } else {
+                      assignmentEndDate = new Date(assignment.endDate);
+                    }
+
+                    // Normalize để tránh timezone issues - set time to end of day
+                    if (assignmentEndDate && !isNaN(assignmentEndDate.getTime())) {
+                      assignmentEndDate = new Date(assignmentEndDate.getFullYear(), assignmentEndDate.getMonth(), assignmentEndDate.getDate(), 23, 59, 59, 999);
+                    }
+                  }
+
                   // Validate dates
                   if (isNaN(assignmentStartDate.getTime())) {
                     console.warn(`⚠️ Talent assignment ${assignment.id} có startDate không hợp lệ, bỏ qua`);
                     continue;
                   }
-                  
+
                   if (assignmentEndDate && isNaN(assignmentEndDate.getTime())) {
                     console.warn(`⚠️ Talent assignment ${assignment.id} có endDate không hợp lệ, bỏ qua`);
                     continue;
@@ -492,26 +513,38 @@ export default function AccountantProjectDetailPage() {
                   // Tính contract dates (overlap giữa period và assignment, và phải nằm trong project dates)
                   let contractStartDate: Date;
                   let contractEndDate: Date;
-                  
-                  // Contract start date: max của period start, assignment start, và project start
-                  const startDates = [
-                    periodStart.getTime(),
-                    assignmentStartDate.getTime()
-                  ];
-                  if (projectStartDate) {
-                    startDates.push(projectStartDate.getTime());
+
+                  // Logic contract dates theo format Việt Nam
+                  // Nếu assignment bắt đầu trong tháng này: contractStartDate = assignmentStartDate
+                  // Nếu assignment đã bắt đầu từ trước: contractStartDate = periodStart (ngày 1 của tháng)
+
+                  // Tạo date objects chỉ chứa date parts (không time) để so sánh chính xác theo ngày Việt Nam
+                  const createDateOnly = (date: Date) => {
+                    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                  };
+
+                  const assignmentStartDateOnly = createDateOnly(assignmentStartDate);
+                  const periodStartDateOnly = createDateOnly(periodStart);
+                  const periodEndDateOnly = createDateOnly(periodEnd);
+                  const assignmentEndDateOnly = assignmentEndDate ? createDateOnly(assignmentEndDate) : null;
+
+                  const assignmentStartInThisPeriod = assignmentStartDateOnly >= periodStartDateOnly && assignmentStartDateOnly <= periodEndDateOnly;
+                  contractStartDate = assignmentStartInThisPeriod ? assignmentStartDate : periodStart;
+
+                  // Contract end date: min của period end và assignment end
+                  if (assignmentEndDateOnly) {
+                    contractEndDate = assignmentEndDateOnly <= periodEndDateOnly ? assignmentEndDate! : periodEnd;
+                  } else {
+                    contractEndDate = periodEnd;
                   }
-                  contractStartDate = new Date(Math.max(...startDates));
-                  
-                  // Contract end date: min của period end, assignment end (nếu có), và project end (nếu có)
-                  const endDates = [periodEnd.getTime()];
-                  if (assignmentEndDate) {
-                    endDates.push(assignmentEndDate.getTime());
+
+                  // Áp dụng project constraints nếu có
+                  if (projectStartDate && contractStartDate < projectStartDate) {
+                    contractStartDate = new Date(projectStartDate);
                   }
-                  if (projectEndDate) {
-                    endDates.push(projectEndDate.getTime());
+                  if (projectEndDate && contractEndDate > projectEndDate) {
+                    contractEndDate = new Date(projectEndDate);
                   }
-                  contractEndDate = new Date(Math.min(...endDates));
                   
                   // Validate: contractStartDate phải <= contractEndDate
                   if (contractStartDate > contractEndDate) {
