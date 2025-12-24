@@ -16,6 +16,7 @@ import { applyProcessStepService, type ApplyProcessStep } from "../../../service
 import { applyActivityService, type ApplyActivity } from "../../../services/ApplyActivity";
 import { WorkingMode as WorkingModeEnum } from "../../../constants/WORKING_MODE";
 import { TalentLevel } from "../../../services/JobRoleLevel";
+import { Button } from "../../../components/ui/button";
 import {
   FileText,
   User as UserIcon,
@@ -44,6 +45,59 @@ const getLevelText = (level: number): string => {
     [TalentLevel.Lead]: 'Lead',
   };
   return levelMap[level] || 'Unknown';
+};
+
+const talentStatusLabels: Record<string, string> = {
+  Available: "Sẵn sàng làm việc",
+  Working: "Đang làm việc",
+  Applying: "Đang ứng tuyển",
+  Unavailable: "Tạm ngưng",
+  Busy: "Đang bận",
+  Interviewing: "Đang phỏng vấn",
+  OfferPending: "Đang chờ offer",
+  Hired: "Đã tuyển",
+  Inactive: "Không hoạt động",
+  OnProject: "Đang tham gia dự án",
+};
+
+const talentStatusStyles: Record<
+  string,
+  {
+    badgeClass: string;
+    textClass: string;
+  }
+> = {
+  Available: { badgeClass: "bg-emerald-50 border border-emerald-100", textClass: "text-emerald-700" },
+  Working: { badgeClass: "bg-blue-50 border border-blue-100", textClass: "text-blue-700" },
+  Applying: { badgeClass: "bg-sky-50 border border-sky-100", textClass: "text-sky-700" },
+  Unavailable: { badgeClass: "bg-neutral-50 border border-neutral-200", textClass: "text-neutral-600" },
+  Busy: { badgeClass: "bg-orange-50 border border-orange-100", textClass: "text-orange-700" },
+  Interviewing: { badgeClass: "bg-cyan-50 border border-cyan-100", textClass: "text-cyan-700" },
+  OfferPending: { badgeClass: "bg-teal-50 border border-teal-100", textClass: "text-teal-700" },
+  Hired: { badgeClass: "bg-purple-50 border border-purple-100", textClass: "text-purple-700" },
+  Inactive: { badgeClass: "bg-neutral-50 border border-neutral-200", textClass: "text-neutral-600" },
+  OnProject: { badgeClass: "bg-indigo-50 border border-indigo-100", textClass: "text-indigo-700" },
+};
+
+const getTalentStatusLabel = (status?: string | null) => {
+  if (!status) return "—";
+  return talentStatusLabels[status] ?? status;
+};
+
+const formatDate = (dateString?: string | null) => {
+  if (!dateString || dateString.trim() === "") return "—";
+  try {
+    const date = new Date(dateString);
+    // Kiểm tra xem date có hợp lệ không
+    if (isNaN(date.getTime())) return "—";
+    return date.toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  } catch {
+    return "—";
+  }
 };
 
 function InfoRow({
@@ -147,9 +201,14 @@ export default function SalesApplicationDetailPage() {
       { value: WorkingModeEnum.Onsite, label: "Tại văn phòng" },
       { value: WorkingModeEnum.Remote, label: "Làm từ xa" },
       { value: WorkingModeEnum.Hybrid, label: "Kết hợp" },
+      { value: WorkingModeEnum.Flexible, label: "Linh hoạt" },
     ];
-    const found = labels.find(item => item.value === workingMode);
-    return found?.label || "—";
+
+    const matched = labels
+      .filter(item => (workingMode & item.value) === item.value)
+      .map(item => item.label);
+
+    return matched.length > 0 ? matched.join(", ") : "—";
   };
 
   // Activity helpers
@@ -255,6 +314,7 @@ export default function SalesApplicationDetailPage() {
       console.log("Talent data from API:", detailedApplication.talent);
       console.log("Talent CV data:", talentCV);
       return {
+        code: detailedApplication.talent.code || "—",
         fullName: detailedApplication.talent.fullName || "—",
         email: detailedApplication.talent.email || "—",
         phone: detailedApplication.talent.phone || "—",
@@ -265,6 +325,7 @@ export default function SalesApplicationDetailPage() {
       };
     }
     return {
+      code: "—",
       fullName: "—",
       email: "—",
       phone: "—",
@@ -923,6 +984,16 @@ export default function SalesApplicationDetailPage() {
                   </div>
 
                 <div className="flex items-center gap-2">
+                  {talentCV?.cvFileUrl ? (
+                    <Button
+                      onClick={() => window.open(talentCV.cvFileUrl!, "_blank")}
+                      className="group flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-300 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white"
+                      title="Xem CV"
+                    >
+                      <Eye className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                      Xem CV
+                    </Button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={closeTalentPopup}
@@ -938,16 +1009,20 @@ export default function SalesApplicationDetailPage() {
               <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                 {/* Cột 1 */}
                 <div className="space-y-4">
+                  <InfoRow label="Mã nhân sự" value={talentData.code || "—"} icon={<UserIcon className="w-4 h-4" />} />
+                  <InfoRow label="Email" value={talentData.email} icon={<Mail className="w-4 h-4" />} />
+                  <InfoRow label="Số điện thoại" value={talentData.phone || "—"} icon={<Phone className="w-4 h-4" />} />
+                  <InfoRow label="Ngày sinh" value={formatDate(talentData.dateOfBirth)} icon={<Calendar className="w-4 h-4" />} />
+                </div>
+
+                {/* Cột 2 */}
+                <div className="space-y-4">
                   <InfoRow
                     label="Chế độ làm việc"
                     value={getWorkingModeDisplay(talentData.workingMode)}
                     icon={<GraduationCap className="w-4 h-4" />}
                   />
                   <InfoRow label="Địa điểm mong muốn" value={talentData.preferredLocation} icon={<MapPin className="w-4 h-4" />} />
-                </div>
-
-                {/* Cột 2 */}
-                <div className="space-y-4">
                   <div className="group">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="text-neutral-400">
@@ -955,8 +1030,14 @@ export default function SalesApplicationDetailPage() {
                       </div>
                       <p className="text-neutral-500 text-sm font-medium">Trạng thái hiện tại</p>
                     </div>
-                    <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-xl text-sm font-semibold bg-emerald-50 border border-emerald-100">
-                      <span className="text-emerald-700">{talentData.status}</span>
+                    <span
+                      className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-xl text-sm font-semibold ${
+                        talentStatusStyles[talentData.status ?? ""]?.badgeClass || "bg-neutral-50 border border-neutral-200"
+                      }`}
+                    >
+                      <span className={`${talentStatusStyles[talentData.status ?? ""]?.textClass || "text-neutral-700"}`}>
+                        {getTalentStatusLabel(talentData.status)}
+                      </span>
                     </span>
                   </div>
                 </div>
