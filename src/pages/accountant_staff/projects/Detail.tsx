@@ -12,6 +12,8 @@ import { partnerService, type Partner } from "../../../services/Partner";
 import { formatNumberInput } from "../../../utils/formatters";
 import { clientContractPaymentService, type ClientContractPaymentModel } from "../../../services/ClientContractPayment";
 import { partnerContractPaymentService, type PartnerContractPaymentModel } from "../../../services/PartnerContractPayment";
+import ConfirmModal from "../../../components/ui/confirm-modal";
+import { SuccessToast, ErrorToast } from "../../../components/ui/success-toast";
 import {
   CheckCircle,
   AlertCircle,
@@ -74,6 +76,17 @@ export default function AccountantProjectDetailPage() {
 
   const [showAllAssignments, setShowAllAssignments] = useState(false);
   const [assignmentPage, setAssignmentPage] = useState(1);
+
+  // Confirm modal states
+  const [showCreatePeriodConfirm, setShowCreatePeriodConfirm] = useState(false);
+
+  // Error toast state
+  const [showErrorToast, setShowErrorToast] = useState(false);
+  const [errorToastMessage, setErrorToastMessage] = useState("");
+
+  // Success toast state
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [successToastMessage, setSuccessToastMessage] = useState("");
 
   // Helper function to ensure data is an array
   const ensureArray = <T,>(data: unknown): T[] => {
@@ -699,7 +712,8 @@ export default function AccountantProjectDetailPage() {
 
       if (existingPeriod) {
         // Chu kỳ đã tồn tại, chỉ cần thông báo thành công (đã tạo contract payments ở bước 1)
-        alert(`Chu kỳ thanh toán của tháng ${currentPeriod.month}/${currentPeriod.year} đã tồn tại.\n\nĐã kiểm tra và tạo hợp đồng cho các nhân sự tham gia còn thiếu trong chu kỳ này.`);
+        setSuccessToastMessage(`Chu kỳ thanh toán của tháng ${currentPeriod.month}/${currentPeriod.year} đã tồn tại.\n\nĐã kiểm tra và tạo hợp đồng cho các nhân sự tham gia còn thiếu trong chu kỳ này.`);
+        setShowSuccessToast(true);
         setSelectedPeriodId(existingPeriod.id);
         setCreatingPeriod(false);
         return;
@@ -709,7 +723,8 @@ export default function AccountantProjectDetailPage() {
       const periodsToCreate = await calculatePeriodsToCreate();
 
       if (periodsToCreate.length === 0) {
-        alert("Không có chu kỳ thanh toán nào cần được tạo và không có hợp đồng nào mới cần tạo trong dự án này.\n\nLý do: Không có nhân sự tham gia nào đang hoạt động.");
+        setErrorToastMessage("Không có chu kỳ thanh toán nào cần được tạo và không có hợp đồng nào mới cần tạo trong dự án này.\n\nLý do: Không có nhân sự tham gia nào đang hoạt động.");
+        setShowErrorToast(true);
         setCreatingPeriod(false);
         return;
       }
@@ -726,9 +741,11 @@ export default function AccountantProjectDetailPage() {
 
       if (newPeriods.length === 0) {
         if (disallowedPeriods.length > 0) {
-          alert(`Không thể tạo chu kỳ thanh toán. Backend chỉ cho phép tạo chu kỳ cho tháng hiện tại (${currentPeriod.month}/${currentPeriod.year}).\n\nCác chu kỳ không được phép tạo:\n${disallowedPeriods.map(p => `- ${p.month}/${p.year}`).join('\n')}`);
+          setErrorToastMessage(`Không thể tạo chu kỳ thanh toán. Backend chỉ cho phép tạo chu kỳ cho tháng hiện tại (${currentPeriod.month}/${currentPeriod.year}).\n\nCác chu kỳ không được phép tạo:\n${disallowedPeriods.map(p => `- ${p.month}/${p.year}`).join('\n')}`);
+          setShowErrorToast(true);
         } else {
-          alert(`Không thể tạo chu kỳ thanh toán. Backend chỉ cho phép tạo chu kỳ cho tháng hiện tại (${currentPeriod.month}/${currentPeriod.year}).\n\nTháng hiện tại không nằm trong phạm vi của các nhân sự tham gia đang hoạt động.`);
+          setErrorToastMessage(`Không thể tạo chu kỳ thanh toán. Backend chỉ cho phép tạo chu kỳ cho tháng hiện tại (${currentPeriod.month}/${currentPeriod.year}).\n\nTháng hiện tại không nằm trong phạm vi của các nhân sự tham gia đang hoạt động.`);
+          setShowErrorToast(true);
         }
         setCreatingPeriod(false);
         return;
@@ -757,7 +774,8 @@ export default function AccountantProjectDetailPage() {
         );
         
         if (existingPeriod) {
-          alert(`Chu kỳ thanh toán của tháng ${period.month}/${period.year} đã tồn tại.\n\nBackend chỉ cho phép tạo 1 chu kỳ trong 1 tháng và chỉ có thể tạo chu kỳ của tháng hiện tại.`);
+          setErrorToastMessage(`Chu kỳ thanh toán của tháng ${period.month}/${period.year} đã tồn tại.\n\nBackend chỉ cho phép tạo 1 chu kỳ trong 1 tháng và chỉ có thể tạo chu kỳ của tháng hiện tại.`);
+setShowErrorToast(true);
           setCreatingPeriod(false);
           return;
         }
@@ -773,7 +791,8 @@ export default function AccountantProjectDetailPage() {
         
         // Kiểm tra xem có phải lỗi duplicate không
         if (errorMessage.includes("duplicate") || errorMessage.includes("already exists") || errorMessage.includes("unique constraint")) {
-          alert(`Chu kỳ thanh toán của tháng ${period.month}/${period.year} đã tồn tại.\n\nBackend chỉ cho phép tạo 1 chu kỳ trong 1 tháng và chỉ có thể tạo chu kỳ của tháng hiện tại.`);
+          setErrorToastMessage(`Chu kỳ thanh toán của tháng ${period.month}/${period.year} đã tồn tại.\n\nBackend chỉ cho phép tạo 1 chu kỳ trong 1 tháng và chỉ có thể tạo chu kỳ của tháng hiện tại.`);
+setShowErrorToast(true);
         } else {
           throw err; // Re-throw để xử lý ở catch bên ngoài
         }
@@ -814,7 +833,8 @@ export default function AccountantProjectDetailPage() {
       }
 
       if (createdPeriods.length === 0) {
-        alert(`Không thể tạo chu kỳ thanh toán. Có thể do:\n- Lỗi khi tạo các hợp đồng thanh toán tự động\n- Hoặc chu kỳ đã tồn tại trong database\n\nVui lòng kiểm tra console để biết chi tiết lỗi hoặc liên hệ quản trị viên.`);
+        setErrorToastMessage(`Không thể tạo chu kỳ thanh toán. Có thể do:\n- Lỗi khi tạo các hợp đồng thanh toán tự động\n- Hoặc chu kỳ đã tồn tại trong database\n\nVui lòng kiểm tra console để biết chi tiết lỗi hoặc liên hệ quản trị viên.`);
+        setShowErrorToast(true);
         setCreatingPeriod(false);
         return;
       }
@@ -825,12 +845,15 @@ export default function AccountantProjectDetailPage() {
         setSelectedPeriodId(newPeriod.id);
         
         // Hiển thị thông báo thành công
-        alert(`Tạo thành công chu kỳ thanh toán tháng ${newPeriod.periodMonth}/${newPeriod.periodYear}!\n\nHệ thống đã tự động tạo các hợp đồng cho các nhân sự tham gia đang hoạt động trong chu kỳ này.`);
+        // Hiển thị success toast
+        setShowSuccessToast(true);
+        setSuccessToastMessage(`Tạo thành công chu kỳ thanh toán tháng ${newPeriod.periodMonth}/${newPeriod.periodYear}!\n\nHệ thống đã tự động tạo các hợp đồng cho các nhân sự tham gia đang hoạt động trong chu kỳ này.`);
       }
     } catch (err: unknown) {
       console.error("❌ Lỗi tạo chu kỳ thanh toán:", err);
       const errorMessage = err && typeof err === 'object' && 'message' in err ? String(err.message) : "Không thể tạo chu kỳ thanh toán";
-      alert(errorMessage);
+      setErrorToastMessage(errorMessage);
+      setShowErrorToast(true);
     } finally {
       setCreatingPeriod(false);
     }
@@ -1280,16 +1303,7 @@ export default function AccountantProjectDetailPage() {
                         ))}
                     </select>
                     <button
-                      onClick={async () => {
-                        // Hiển thị thông báo xác nhận
-                        const confirmed = window.confirm(
-                          "Bạn có chắc chắn muốn tạo chu kỳ thanh toán cho tháng hiện tại?\n\n" +
-                          "Hệ thống sẽ tự động tạo các hợp đồng cho các nhân sự tham gia đang hoạt động trong chu kỳ này."
-                        );
-                        if (confirmed) {
-                          await handleCreatePeriod();
-                        }
-                      }}
+                      onClick={() => setShowCreatePeriodConfirm(true)}
                       className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-all duration-300"
                     >
                       <Plus className="w-4 h-4" />
@@ -2134,6 +2148,40 @@ export default function AccountantProjectDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Confirm Modal for Create Period */}
+      <ConfirmModal
+        isOpen={showCreatePeriodConfirm}
+        onClose={() => setShowCreatePeriodConfirm(false)}
+        onConfirm={async () => {
+          setShowCreatePeriodConfirm(false);
+          await handleCreatePeriod();
+        }}
+        title="Xác nhận tạo chu kỳ thanh toán"
+        message="Bạn có chắc chắn muốn tạo chu kỳ thanh toán cho tháng hiện tại?
+
+Hệ thống sẽ tự động tạo các hợp đồng cho các nhân sự tham gia đang hoạt động trong chu kỳ này."
+        confirmText="Tạo chu kỳ"
+        cancelText="Hủy"
+        variant="info"
+      />
+
+      {/* Success Toast */}
+      <SuccessToast
+        isOpen={showSuccessToast}
+        onClose={() => setShowSuccessToast(false)}
+        title="Thành công"
+        message={successToastMessage}
+      />
+
+      {/* Error Toast */}
+      <ErrorToast
+        isOpen={showErrorToast}
+        onClose={() => setShowErrorToast(false)}
+        title="Lỗi"
+        message={errorToastMessage}
+      />
+
     </div>
   );
 }

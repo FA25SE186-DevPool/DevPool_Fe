@@ -39,6 +39,8 @@ import { partnerDocumentService, type PartnerDocument } from "../../../../servic
 import { documentTypeService, type DocumentType } from "../../../../services/DocumentType";
 import { useAuth } from "../../../../context/AuthContext";
 import { getErrorMessage } from "../../../../utils/helpers";
+import ConfirmModal from "../../../../components/ui/confirm-modal";
+import { SuccessToast, ErrorToast } from "../../../../components/ui/success-toast";
 
 const formatDate = (value?: string | null): string => {
   if (!value) return "—";
@@ -205,6 +207,10 @@ export default function PartnerContractDetailPage() {
 
   // Success message state
   const [showSuccessMessage, setShowSuccessMessage] = useState<false | "approve" | "reject">(false);
+
+  // Error toast state
+  const [showErrorToast, setShowErrorToast] = useState(false);
+  const [errorToastMessage, setErrorToastMessage] = useState("");
 
   // Form states
   const [approveForm, setApproveForm] = useState<PartnerContractPaymentApproveModel>({ notes: null });
@@ -404,7 +410,8 @@ export default function PartnerContractDetailPage() {
         errorMessage = getErrorMessage(err) || errorMessage;
       }
       
-      alert(errorMessage);
+      setErrorToastMessage(errorMessage);
+      setShowErrorToast(true);
     } finally {
       setIsProcessing(false);
     }
@@ -414,7 +421,8 @@ export default function PartnerContractDetailPage() {
     if (!id || !contractPayment) return;
 
     if (!rejectForm.rejectionReason.trim()) {
-      alert("Vui lòng nhập lý do từ chối");
+      setErrorToastMessage("Vui lòng nhập lý do từ chối");
+      setShowErrorToast(true);
       return;
     }
 
@@ -465,7 +473,8 @@ export default function PartnerContractDetailPage() {
     } catch (err: unknown) {
       console.error("❌ Lỗi từ chối hợp đồng:", err);
       const errorMessage = err instanceof Error ? err.message : "Không thể từ chối hợp đồng";
-      alert(errorMessage);
+      setErrorToastMessage(errorMessage);
+      setShowErrorToast(true);
     } finally {
       setIsProcessing(false);
     }
@@ -1102,112 +1111,41 @@ export default function PartnerContractDetailPage() {
       )}
 
       {/* Approve Confirmation Modal */}
-      {showApproveConfirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Xác nhận duyệt hợp đồng</h3>
-              <button
-                onClick={() => setShowApproveConfirmation(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-green-800 mb-2">
-                      Bạn có chắc chắn muốn duyệt hợp đồng đối tác này?
-                    </p>
-                    <div className="text-sm text-green-700 space-y-1">
-                      <p>• Hợp đồng sẽ chuyển sang trạng thái "Đã duyệt"</p>
-                      <p>• Hợp đồng sẽ sẵn sàng để bắt đầu thanh toán</p>
-                      <p>• Không thể hoàn tác hành động này</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <p className="text-sm text-gray-600">
-                Hợp đồng đã được kiểm tra kỹ lưỡng và sẵn sàng để triển khai.
-              </p>
-            </div>
-            <div className="flex gap-3 justify-end mt-6">
-              <button
-                onClick={() => setShowApproveConfirmation(false)}
-                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={() => {
-                  setShowApproveConfirmation(false);
-                  handleApproveContract();
-                }}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                Xác nhận duyệt
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Approve Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showApproveConfirmation}
+        onClose={() => setShowApproveConfirmation(false)}
+        onConfirm={handleApproveContract}
+        title="Xác nhận duyệt hợp đồng"
+        message={`Bạn có chắc chắn muốn duyệt hợp đồng đối tác này?
+
+• Hợp đồng sẽ chuyển sang trạng thái "Đã duyệt"
+• Hợp đồng sẽ sẵn sàng để bắt đầu thanh toán
+• Không thể hoàn tác hành động này
+
+Hợp đồng đã được kiểm tra kỹ lưỡng và sẵn sàng để triển khai.`}
+        confirmText="Xác nhận duyệt"
+        cancelText="Hủy"
+        variant="warning"
+      />
 
       {/* Reject Confirmation Modal */}
-      {showRejectConfirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Xác nhận từ chối hợp đồng</h3>
-              <button
-                onClick={() => setShowRejectConfirmation(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-red-800 mb-2">
-                      Bạn có chắc chắn muốn từ chối hợp đồng này?
-                    </p>
-                    <div className="text-sm text-red-700 space-y-1">
-                      <p>• Hợp đồng sẽ quay về trạng thái "Nháp"</p>
-                      <p>• Tất cả tài liệu liên quan sẽ bị xóa</p>
-                      <p>• Lý do từ chối: <span className="font-medium">{rejectForm.rejectionReason}</span></p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <p className="text-sm text-gray-600">
-                Hành động này không thể hoàn tác. Hợp đồng sẽ cần được chỉnh sửa và gửi lại.
-              </p>
-            </div>
-            <div className="flex gap-3 justify-end mt-6">
-              <button
-                onClick={() => setShowRejectConfirmation(false)}
-                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={() => {
-                  setShowRejectConfirmation(false);
-                  handleRejectContract();
-                }}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                Xác nhận từ chối
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={showRejectConfirmation}
+        onClose={() => setShowRejectConfirmation(false)}
+        onConfirm={handleRejectContract}
+        title="Xác nhận từ chối hợp đồng"
+        message={`Bạn có chắc chắn muốn từ chối hợp đồng này?
+
+• Hợp đồng sẽ quay về trạng thái "Nháp"
+• Tất cả tài liệu liên quan sẽ bị xóa
+• Lý do từ chối: ${rejectForm.rejectionReason}
+
+Hành động này không thể hoàn tác. Hợp đồng sẽ cần được chỉnh sửa và gửi lại.`}
+        confirmText="Xác nhận từ chối"
+        cancelText="Hủy"
+        variant="danger"
+      />
 
       {/* Reject Contract Modal */}
       {showRejectContractModal && (
@@ -1272,36 +1210,26 @@ export default function PartnerContractDetailPage() {
       )}
 
       {/* Success Message Toast */}
-      {showSuccessMessage && (
-        <div className="fixed top-4 right-4 z-50 animate-slide-in">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 shadow-lg max-w-sm transform transition-all duration-300 ease-in-out">
-            <div className="flex items-start gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-green-800">
-                  {showSuccessMessage === "approve" ? "Duyệt hợp đồng thành công!" :
-                   showSuccessMessage === "reject" ? "Đã từ chối hợp đồng thành công!" :
-                   "Thao tác thành công!"}
-                </p>
-                <p className="text-xs text-green-600 mt-1">
-                  {showSuccessMessage === "approve"
-                    ? "Hợp đồng đã được duyệt và chuyển sang trạng thái tiếp theo."
-                    : showSuccessMessage === "reject"
-                    ? "Hợp đồng đã được từ chối và quay về trạng thái nháp."
-                    : "Thao tác đã được thực hiện thành công."
-                  }
-                </p>
-              </div>
-              <button
-                onClick={() => setShowSuccessMessage(false)}
-                className="text-green-400 hover:text-green-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SuccessToast
+        isOpen={showSuccessMessage !== false}
+        onClose={() => setShowSuccessMessage(false)}
+        title={showSuccessMessage === "approve" ? "Duyệt hợp đồng thành công!" :
+               showSuccessMessage === "reject" ? "Đã từ chối hợp đồng thành công!" :
+               "Thao tác thành công!"}
+        message={showSuccessMessage === "approve"
+          ? "Hợp đồng đã được duyệt và chuyển sang trạng thái tiếp theo."
+          : showSuccessMessage === "reject"
+          ? "Hợp đồng đã được từ chối và quay về trạng thái nháp."
+          : "Thao tác đã được thực hiện thành công."
+        }
+      />
+
+      <ErrorToast
+        isOpen={showErrorToast}
+        onClose={() => setShowErrorToast(false)}
+        title="Lỗi"
+        message={errorToastMessage}
+      />
     </div>
   );
 }

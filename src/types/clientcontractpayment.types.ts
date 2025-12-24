@@ -173,3 +173,9 @@ export interface RequestMoreInformationModel {
   notes?: string | null;
 }
 
+// Interface cho CreateAcceptanceModel (Payload để tạo biên bản nghiệm thu)
+export interface CreateAcceptanceModel {
+  acceptanceFileUrl: string;
+  notes?: string | null;
+}
+

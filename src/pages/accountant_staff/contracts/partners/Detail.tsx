@@ -51,6 +51,8 @@ import { formatNumberInput, parseNumberInput } from "../../../../utils/formatter
 import { useAuth } from "../../../../context/AuthContext";
 import { decodeJWT } from "../../../../services/Auth";
 import { getAccessToken } from "../../../../utils/storage";
+import { SuccessToast, ErrorToast } from "../../../../components/ui/success-toast";
+import ConfirmModal from "../../../../components/ui/confirm-modal";
 
 const formatDate = (value?: string | null): string => {
   if (!value) return "—";
@@ -278,6 +280,8 @@ export default function PartnerContractDetailPage() {
 
   // Success message state
   const [showSuccessMessage, setShowSuccessMessage] = useState<false | "verify" | "billing" | "paid">(false);
+  const [showErrorToast, setShowErrorToast] = useState(false);
+  const [errorToastMessage, setErrorToastMessage] = useState<{title: string, message?: string}>({title: ""});
 
   // File validation states
   const [timesheetFileError, setTimesheetFileError] = useState<string | null>(null);
@@ -315,8 +319,6 @@ export default function PartnerContractDetailPage() {
     actualWorkHours: 0,
     notes: null,
   });
-  const [isAutoFilledFromClient, setIsAutoFilledFromClient] = useState(false);
-  const [clientBillableHours, setClientBillableHours] = useState<number | null>(null);
 
   // File states
   const [timesheetFile, setTimesheetFile] = useState<File | null>(null);
@@ -831,17 +833,14 @@ export default function PartnerContractDetailPage() {
     if (!id || !contractPayment) return;
 
     if (!billingForm.actualWorkHours || billingForm.actualWorkHours <= 0) {
-      alert("Vui lòng nhập số giờ làm việc thực tế");
+      setErrorToastMessage({
+        title: "Thiếu thông tin",
+        message: "Không thể lấy số giờ làm việc từ hợp đồng khách hàng"
+      });
+      setShowErrorToast(true);
       return;
     }
 
-    // Validate notes when actual work hours differ from client billable hours
-    if (clientBillableHours !== null && billingForm.actualWorkHours !== clientBillableHours) {
-      if (!billingForm.notes || billingForm.notes.trim() === "") {
-        alert("Vui lòng nhập ghi chú giải thích lý do số giờ làm việc khác với thông tin từ khách hàng");
-        return;
-      }
-    }
     
     // Find Timesheet document type
     const timesheetType = Array.from(documentTypes.values()).find(
@@ -907,8 +906,6 @@ export default function PartnerContractDetailPage() {
       }, 1000);
       setShowStartBillingModal(false);
       setBillingForm({ actualWorkHours: 0, notes: null });
-      setIsAutoFilledFromClient(false);
-      setClientBillableHours(null);
       setTimesheetFile(null);
       setTimesheetFileError(null);
       setTimesheetFileError(null);
@@ -1271,21 +1268,17 @@ export default function PartnerContractDetailPage() {
                         try {
                           const clientHoursData = await partnerContractPaymentService.getClientBillableHours(contractPayment.id);
                           const clientHours = clientHoursData.billableHours || 0;
-                          setClientBillableHours(clientHoursData.billableHours);
                           setBillingForm(prev => ({
                             ...prev,
                             actualWorkHours: clientHours
                           }));
-                          setIsAutoFilledFromClient(true);
                         } catch (error) {
                           console.warn("Không thể lấy số giờ từ client contract:", error);
                           // Fallback: set to 0 if API fails
-                          setClientBillableHours(null);
                           setBillingForm(prev => ({
                             ...prev,
                             actualWorkHours: 0
                           }));
-                          setIsAutoFilledFromClient(false);
                         }
                         setShowStartBillingModal(true);
                       }}
@@ -1778,165 +1771,79 @@ export default function PartnerContractDetailPage() {
 
       {/* Modals */}
       {/* Verify Confirmation Modal */}
-      {showVerifyConfirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Xác nhận xác minh hợp đồng</h3>
-              <button
-                onClick={() => setShowVerifyConfirmation(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-yellow-800 mb-2">
-                      Bạn có chắc chắn muốn xác minh hợp đồng đối tác này?
-                    </p>
-                    <div className="text-sm text-yellow-700 space-y-1">
-                      <p>• Số giờ tiêu chuẩn: <span className="font-medium">160 giờ</span></p>
-                      <p>• Đơn giá: <span className="font-medium">{verifyForm.unitPriceForeignCurrency.toLocaleString("vi-VN")} {verifyForm.currencyCode}</span></p>
-                      <p>• Tỷ giá: <span className="font-medium">{verifyForm.exchangeRate.toLocaleString("vi-VN")}</span></p>
-                      <p>• Phương pháp tính: <span className="font-medium">
-                        {verifyForm.calculationMethod === "Percentage"
-                          ? `Theo phần trăm (${verifyForm.percentageValue}%)`
-                          : "Số tiền cố định"
-                        }
-                      </span></p>
-                      <p>• File PO: <span className="font-medium">{poFile?.name}</span></p>
-                      <p>• File hợp đồng: <span className="font-medium">{contractFile?.name}</span></p>
-                      {calculatePlannedAmountVND() && (
-                        <p>• Chi phí dự kiến: <span className="font-medium">{calculatePlannedAmountVND()?.toLocaleString("vi-VN")} VND</span></p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <p className="text-sm text-gray-600">
-                Hợp đồng sẽ chuyển sang trạng thái "Đã duyệt" và sẵn sàng để bắt đầu thanh toán.
-              </p>
-            </div>
-            <div className="flex gap-3 justify-end mt-6">
-              <button
-                onClick={() => setShowVerifyConfirmation(false)}
-                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={() => {
-                  setShowVerifyConfirmation(false);
-                  handleVerifyContract();
-                }}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-              >
-                Xác nhận xác minh
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Verify Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showVerifyConfirmation}
+        onClose={() => setShowVerifyConfirmation(false)}
+        onConfirm={() => {
+          setShowVerifyConfirmation(false);
+          handleVerifyContract();
+        }}
+        title="Xác nhận xác minh hợp đồng"
+        message={`Bạn có chắc chắn muốn xác minh hợp đồng đối tác này?
+
+• Số giờ tiêu chuẩn: 160 giờ
+• Đơn giá: ${verifyForm.unitPriceForeignCurrency.toLocaleString("vi-VN")} ${verifyForm.currencyCode}
+• Tỷ giá: ${verifyForm.exchangeRate.toLocaleString("vi-VN")}
+• Phương pháp tính: ${verifyForm.calculationMethod === "Percentage"
+  ? `Theo phần trăm (${verifyForm.percentageValue}%)`
+  : "Số tiền cố định"
+}
+• File PO: ${poFile?.name}
+• File hợp đồng: ${contractFile?.name}${calculatePlannedAmountVND() ? `\n• Chi phí dự kiến: ${calculatePlannedAmountVND()?.toLocaleString("vi-VN")} VND` : ''}
+
+Hợp đồng sẽ chuyển sang trạng thái "Đã duyệt" và sẵn sàng để bắt đầu thanh toán.`}
+        confirmText="Xác nhận xác minh"
+        cancelText="Hủy"
+        isLoading={isProcessing}
+        variant="info"
+      />
 
       {/* Mark as Paid Confirmation Modal */}
-      {showMarkAsPaidConfirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Xác nhận ghi nhận đã thanh toán</h3>
-              <button
-                onClick={() => setShowMarkAsPaidConfirmation(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-green-800 mb-2">
-                      Bạn có chắc chắn muốn ghi nhận đã thanh toán?
-                    </p>
-                    <div className="text-sm text-green-700 space-y-1">
-                      <p>• Số tiền thanh toán: <span className="font-medium">{formatCurrency(contractPayment?.actualAmountVND || 0)}</span></p>
-                      <p>• Ngày thanh toán: <span className="font-medium">{markAsPaidForm.paymentDate}</span></p>
-                      <p>• File chứng từ: <span className="font-medium">{paymentProofFile?.name}</span></p>
-                      <p>• File biên lai: <span className="font-medium">{partnerReceiptFile?.name}</span></p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <p className="text-sm text-gray-600">
-                Hợp đồng sẽ chuyển sang trạng thái "Đã thanh toán" và quy trình thanh toán hoàn tất.
-              </p>
-            </div>
-            <div className="flex gap-3 justify-end mt-6">
-              <button
-                onClick={() => setShowMarkAsPaidConfirmation(false)}
-                disabled={isProcessing}
-                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={() => handleMarkAsPaid()}
-                disabled={isProcessing}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {isProcessing ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Đang xử lý...
-                  </>
-                ) : (
-                  "Xác nhận thanh toán"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Mark as Paid Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showMarkAsPaidConfirmation}
+        onClose={() => setShowMarkAsPaidConfirmation(false)}
+        onConfirm={handleMarkAsPaid}
+        title="Xác nhận ghi nhận đã thanh toán"
+        message={`Bạn có chắc chắn muốn ghi nhận đã thanh toán?
+
+• Số tiền thanh toán: ${formatCurrency(contractPayment?.actualAmountVND || 0)}
+• Ngày thanh toán: ${markAsPaidForm.paymentDate}
+• File chứng từ: ${paymentProofFile?.name}
+• File biên lai: ${partnerReceiptFile?.name}
+
+Hợp đồng sẽ chuyển sang trạng thái "Đã thanh toán" và quy trình thanh toán hoàn tất.`}
+        confirmText="Xác nhận thanh toán"
+        cancelText="Hủy"
+        isLoading={isProcessing}
+        variant="info"
+      />
 
       {/* Success Message Toast */}
-      {showSuccessMessage && (
-        <div className="fixed top-4 right-4 z-50 animate-slide-in">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 shadow-lg max-w-sm transform transition-all duration-300 ease-in-out">
-            <div className="flex items-start gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-green-800">
-                  {showSuccessMessage === "verify" ? "Xác minh hợp đồng thành công!" :
-                   showSuccessMessage === "billing" ? "Ghi nhận giờ làm việc thành công!" :
-                   showSuccessMessage === "paid" ? "Đánh dấu đã thanh toán thành công!" :
-                   "Thao tác thành công!"}
-                </p>
-                <p className="text-xs text-green-600 mt-1">
-                  {showSuccessMessage === "verify"
-                    ? "Hợp đồng đã được xác minh và chuyển sang trạng thái chờ duyệt."
-                    : showSuccessMessage === "billing"
-                    ? "Đã ghi nhận giờ làm việc và bắt đầu quy trình thanh toán."
-                    : showSuccessMessage === "paid"
-                    ? "Đã đánh dấu đã thanh toán và hoàn tất quy trình thanh toán."
-                    : "Thao tác đã được thực hiện thành công."
-                  }
-                </p>
-              </div>
-              <button
-                onClick={() => setShowSuccessMessage(false)}
-                className="text-green-400 hover:text-green-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SuccessToast
+        isOpen={!!showSuccessMessage}
+        onClose={() => setShowSuccessMessage(false)}
+        title={showSuccessMessage === "verify" ? "Xác minh hợp đồng thành công!" :
+               showSuccessMessage === "billing" ? "Ghi nhận giờ làm việc thành công!" :
+               showSuccessMessage === "paid" ? "Đánh dấu đã thanh toán thành công!" :
+               "Thao tác thành công!"}
+        message={showSuccessMessage === "verify"
+          ? "Hợp đồng đã được xác minh và chuyển sang trạng thái chờ duyệt."
+          : showSuccessMessage === "billing"
+          ? "Đã ghi nhận giờ làm việc và bắt đầu quy trình thanh toán."
+          : showSuccessMessage === "paid"
+          ? "Đã đánh dấu đã thanh toán và hoàn tất quy trình thanh toán."
+          : "Thao tác đã được thực hiện thành công."
+        }
+      />
+
+      <ErrorToast
+        isOpen={showErrorToast}
+        onClose={() => setShowErrorToast(false)}
+        title={errorToastMessage.title}
+        message={errorToastMessage.message}
+      />
 
       {/* Verify Contract Modal */}
       {showVerifyContractModal && (
@@ -2517,8 +2424,6 @@ export default function PartnerContractDetailPage() {
               <button 
                 onClick={() => {
                   setShowStartBillingModal(false);
-                  setIsAutoFilledFromClient(false);
-                  setClientBillableHours(null);
                   setShowCalculationDetails(false);
                 }} 
                 className="text-gray-400 hover:text-gray-600"
@@ -2532,33 +2437,12 @@ export default function PartnerContractDetailPage() {
                   <label className="block text-sm font-medium mb-2">
                     Số giờ làm việc thực tế <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={billingForm.actualWorkHours || ""}
-                    onChange={(e) => {
-                      setBillingForm({ ...billingForm, actualWorkHours: parseFloat(e.target.value) || 0 });
-                      // Reset calculation details khi thay đổi số giờ
-                      setShowCalculationDetails(false);
-                    }}
-                    className={`w-full border rounded-lg p-2 ${
-                      clientBillableHours !== null && billingForm.actualWorkHours !== clientBillableHours
-                        ? 'border-yellow-400 bg-yellow-50'
-                        : ''
-                    }`}
-                    required
-                  />
-                  {isAutoFilledFromClient && clientBillableHours !== null && billingForm.actualWorkHours === clientBillableHours && (
-                    <p className="mt-1 text-xs text-green-600">
-                      ℹ️ Số giờ đã được tự động điền từ hợp đồng khách hàng
-                    </p>
-                  )}
-                  {clientBillableHours !== null && billingForm.actualWorkHours !== clientBillableHours && (
-                    <p className="mt-1 text-xs text-yellow-600">
-                      ⚠️ Số giờ làm việc không giống với thông tin bên phía khách hàng gửi qua ({clientBillableHours}h)
-                    </p>
-                  )}
+                  <div className="w-full border border-gray-300 rounded-lg p-2 bg-gray-50 text-gray-700 cursor-not-allowed">
+                    {billingForm.actualWorkHours || 0} giờ
+                  </div>
+                  <p className="mt-1 text-xs text-blue-600">
+                    ℹ️ Số giờ được lấy tự động từ hợp đồng khách hàng
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Phương pháp tính</label>
@@ -2575,23 +2459,10 @@ export default function PartnerContractDetailPage() {
                 <textarea
                   value={billingForm.notes || ""}
                   onChange={(e) => setBillingForm({ ...billingForm, notes: e.target.value || null })}
-                  className={`w-full border rounded-lg p-2 ${
-                    clientBillableHours !== null &&
-                    billingForm.actualWorkHours !== clientBillableHours &&
-                    (!billingForm.notes || billingForm.notes.trim() === "")
-                      ? 'border-yellow-400 bg-yellow-50'
-                      : 'border-neutral-200'
-                  }`}
+                  className="w-full border border-neutral-200 rounded-lg p-2"
                   rows={3}
-                  placeholder="Ví dụ: Timesheet: 160h đúng như dự kiến"
+                  placeholder="Nhập ghi chú nếu cần"
                 />
-                {clientBillableHours !== null &&
-                 billingForm.actualWorkHours !== clientBillableHours &&
-                 (!billingForm.notes || billingForm.notes.trim() === "") && (
-                  <p className="mt-1 text-xs text-yellow-600">
-                    ⚠️ Bắt buộc phải ghi chú tại sao lại có sự chênh lệch số giờ làm việc
-                  </p>
-                )}
               </div>
               {(() => {
                 // Check if timesheet already exists (synced from client contract)
@@ -2777,8 +2648,6 @@ export default function PartnerContractDetailPage() {
                 onClick={() => {
                   setShowStartBillingModal(false);
                   setBillingForm({ actualWorkHours: 0, notes: null });
-                  setIsAutoFilledFromClient(false);
-                  setClientBillableHours(null);
                   setTimesheetFile(null);
                   setTimesheetFileError(null);
                   setShowCalculationDetails(false);
@@ -2802,16 +2671,11 @@ export default function PartnerContractDetailPage() {
                   const timesheetRequired = !existingTimesheet && !timesheetFile;
 
                   // Check if notes is required when hours differ from client
-                  const notesRequired = clientBillableHours !== null &&
-                                       billingForm.actualWorkHours !== clientBillableHours &&
-                                       (!billingForm.notes || billingForm.notes.trim() === "");
-
                   return isProcessing ||
                          !billingForm.actualWorkHours ||
                          billingForm.actualWorkHours <= 0 ||
                          timesheetRequired ||
-                         !!timesheetFileError ||
-                         notesRequired;
+                         !!timesheetFileError;
                 })()}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
@@ -2823,72 +2687,25 @@ export default function PartnerContractDetailPage() {
       )}
 
       {/* Start Billing Confirmation Modal */}
-      {showStartBillingConfirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Xác nhận ghi nhận giờ làm việc</h3>
-              <button
-                onClick={() => setShowStartBillingConfirmation(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <Calculator className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-blue-800 mb-2">
-                      Bạn có chắc chắn muốn ghi nhận giờ làm việc này?
-                    </p>
-                    <div className="text-sm text-blue-700 space-y-1">
-                      <p>• Số giờ làm việc: <span className="font-medium">{billingForm.actualWorkHours}h</span>
-                        {clientBillableHours !== null && billingForm.actualWorkHours === clientBillableHours && (
-                          <span className="text-xs text-green-600 ml-2">(khớp với thông tin khách hàng: {clientBillableHours}h)</span>
-                        )}
-                        {clientBillableHours !== null && billingForm.actualWorkHours !== clientBillableHours && (
-                          <span className="text-xs text-orange-600 ml-2">(khác với thông tin khách hàng: {clientBillableHours}h)</span>
-                        )}
-                      </p>
-                      {billingForm.notes && billingForm.notes.trim() && (
-                        <p>• Ghi chú: <span className="font-medium">{billingForm.notes}</span></p>
-                      )}
-                      {timesheetFile && (
-                        <p>• File Timesheet: <span className="font-medium">{timesheetFile.name}</span></p>
-                      )}
-                      {calculateBillingPreview() && (
-                        <p>• Tổng thanh toán: <span className="font-medium">{formatNumberVi(calculateBillingPreview()?.actualAmountVND ?? 0)} VND</span></p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <p className="text-sm text-gray-600">
-                Hành động này sẽ bắt đầu quy trình thanh toán cho hợp đồng này.
-              </p>
-            </div>
-            <div className="flex gap-3 justify-end mt-6">
-              <button
-                onClick={() => setShowStartBillingConfirmation(false)}
-                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-700"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={() => {
-                  setShowStartBillingConfirmation(false);
-                  handleStartBilling();
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Xác nhận ghi nhận
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Start Billing Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showStartBillingConfirmation}
+        onClose={() => setShowStartBillingConfirmation(false)}
+        onConfirm={() => {
+          setShowStartBillingConfirmation(false);
+          handleStartBilling();
+        }}
+        title="Xác nhận ghi nhận giờ làm việc"
+        message={`Bạn có chắc chắn muốn ghi nhận giờ làm việc này?
+
+• Số giờ làm việc: ${billingForm.actualWorkHours}h (từ hợp đồng khách hàng)${billingForm.notes && billingForm.notes.trim() ? `\n• Ghi chú: ${billingForm.notes}` : ''}${timesheetFile ? `\n• File Timesheet: ${timesheetFile.name}` : ''}${calculateBillingPreview() ? `\n• Tổng thanh toán: ${formatNumberVi(calculateBillingPreview()?.actualAmountVND ?? 0)} VND` : ''}
+
+Hành động này sẽ bắt đầu quy trình thanh toán cho hợp đồng này.`}
+        confirmText="Xác nhận ghi nhận"
+        cancelText="Hủy"
+        isLoading={isProcessing}
+        variant="info"
+      />
 
       {/* Mark as Paid Modal */}
       {showMarkAsPaidModal && (

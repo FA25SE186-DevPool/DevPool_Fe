@@ -11,7 +11,8 @@ import type {
   CreateInvoiceModel,
   ApproveContractModel,
   RejectContractModel,
-  RequestMoreInformationModel
+  RequestMoreInformationModel,
+  CreateAcceptanceModel
 } from "../types/clientcontractpayment.types";
 
 export type {
@@ -25,7 +26,8 @@ export type {
   CreateInvoiceModel,
   ApproveContractModel,
   RejectContractModel,
-  RequestMoreInformationModel
+  RequestMoreInformationModel,
+  CreateAcceptanceModel
 };
 
 export const clientContractPaymentService = {
@@ -200,6 +202,18 @@ export const clientContractPaymentService = {
       if (error instanceof AxiosError)
         throw error.response?.data || { message: "Không thể ghi nhận thanh toán" };
       throw { message: "Lỗi không xác định khi ghi nhận thanh toán" };
+    }
+  },
+
+  // Create acceptance - Tạo biên bản nghiệm thu
+  async createAcceptance(id: number, payload: CreateAcceptanceModel) {
+    try {
+      const response = await apiClient.post(`/clientcontractpayment/${id}/create-acceptance`, payload);
+      return response.data as ClientContractPaymentModel;
+    } catch (error: unknown) {
+      if (error instanceof AxiosError)
+        throw error.response?.data || { message: "Không thể tạo biên bản nghiệm thu" };
+      throw { message: "Lỗi không xác định khi tạo biên bản nghiệm thu" };
     }
   },
 };
