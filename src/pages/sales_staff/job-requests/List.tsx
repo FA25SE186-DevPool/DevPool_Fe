@@ -34,6 +34,7 @@ type AugmentedJobRequest = JobRequest & {
   projectName: string;
   clientCompanyName: string;
   applicationCount: number;
+  hiredCount: number;
   createdAt?: string;
   positionName?: string;
 };
@@ -271,9 +272,13 @@ export default function JobRequestListPage() {
         positionsAllArray.forEach((p) => (positionDict[p.id] = p));
 
         const applicationCountMap: Record<number, number> = {};
+        const hiredCountMap: Record<number, number> = {};
         applicationsArray.forEach((app) => {
           const key = app.jobRequestId;
           applicationCountMap[key] = (applicationCountMap[key] ?? 0) + 1;
+          if (app.status === "Hired") {
+            hiredCountMap[key] = (hiredCountMap[key] ?? 0) + 1;
+          }
         });
 
         const merged: AugmentedJobRequest[] = reqArray
@@ -293,6 +298,7 @@ export default function JobRequestListPage() {
               clientCompanyName: company?.name ?? "—",
               positionName: position?.name ?? "—",
               applicationCount: applicationCountMap[r.id] ?? 0,
+              hiredCount: hiredCountMap[r.id] ?? 0,
               createdAt
             };
           })
@@ -1197,6 +1203,7 @@ export default function JobRequestListPage() {
                   <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Công ty</th>
                   <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Dự án</th>
                   <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Vị trí</th>
+                  <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">Đã tuyển</th>
                   <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">Hồ sơ</th>
                   <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider whitespace-nowrap min-w-[110px]">Trạng thái</th>
                 </tr>
@@ -1204,7 +1211,7 @@ export default function JobRequestListPage() {
               <tbody className="divide-y divide-neutral-200">
                 {filteredRequests.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-12">
+                    <td colSpan={9} className="text-center py-12">
                       <div className="flex flex-col items-center justify-center">
                         <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
                           <Briefcase className="w-8 h-8 text-neutral-400" />
@@ -1231,7 +1238,11 @@ export default function JobRequestListPage() {
                           }
                         }}
                       >
-                        <td className="py-4 px-6 text-sm font-medium text-neutral-900">{startIndex + i + 1}</td>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-semibold text-sm">
+                            {startIndex + i + 1}
+                          </div>
+                        </td>
                         <td className="py-4 px-6">
                           <div className="text-sm font-medium text-neutral-600">
                             {req.code || "—"}
@@ -1245,7 +1256,9 @@ export default function JobRequestListPage() {
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-2">
                             <Building2 className="w-4 h-4 text-neutral-400" />
-                            <span className="text-sm text-neutral-700">{req.clientCompanyName}</span>
+                            <span className="text-sm text-neutral-700 line-clamp-3" title={req.clientCompanyName}>
+                              {req.clientCompanyName}
+                            </span>
                           </div>
                         </td>
                         <td className="py-4 px-6">
@@ -1258,6 +1271,19 @@ export default function JobRequestListPage() {
                           <div className="flex items-center gap-2">
                             <Users className="w-4 h-4 text-neutral-400" />
                             <span className="text-sm text-neutral-700">{req.positionName || "—"}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6 text-center">
+                          <div className="flex items-center justify-center">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                              req.hiredCount >= req.quantity
+                                ? 'bg-green-100 text-green-800 border border-green-200'
+                                : req.hiredCount > 0
+                                ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                : 'bg-gray-100 text-gray-600 border border-gray-200'
+                            }`}>
+                              {req.hiredCount}/{req.quantity}
+                            </span>
                           </div>
                         </td>
                         <td className="py-4 px-6 text-center">

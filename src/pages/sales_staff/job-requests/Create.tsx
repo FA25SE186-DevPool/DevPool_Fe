@@ -469,6 +469,14 @@ export default function JobRequestCreatePage() {
       return;
     }
 
+    // Validate format tiêu đề: [CODE_PROJECT] [LEVEL_NAME] [JOB_ROLE_NAME]
+    const titleRegex = /^\[([A-Z0-9\-]+)\]\s+(Junior|Middle|Senior|Lead)\s+(.+)$/;
+    if (!titleRegex.test(form.title.trim())) {
+      setError("⚠️ Tiêu đề phải theo format: [CODE_PROJECT] [LEVEL_NAME] [JOB_ROLE_NAME] (VD: [INNO-26-01] Junior Backend Developer)");
+      setLoading(false);
+      return;
+    }
+
     if (!form.projectId || Number(form.projectId) <= 0) {
       setError("⚠️ Vui lòng chọn dự án.");
       setLoading(false);
@@ -657,7 +665,7 @@ export default function JobRequestCreatePage() {
                   name="title"
                   value={form.title}
                   onChange={handleChange}
-                  placeholder="VD: Senior Backend Developer cho dự án Fintech"
+                  placeholder="[INNO-26-01] Junior Backend Developer"
                   required
                   className="w-full border border-neutral-200 rounded-xl px-4 py-3 focus:border-primary-500 focus:ring-primary-500 bg-white"
                 />

@@ -1923,6 +1923,7 @@ export default function TalentCVApplicationDetailPage() {
             <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
               {/* Cột 1 */}
               <div className="space-y-4">
+                <InfoRow label="Mã nhân sự" value={detailedApplication.talent.code || "—"} icon={<UserIcon className="w-4 h-4" />} />
                 <InfoRow label="Email" value={detailedApplication.talent.email} icon={<Mail className="w-4 h-4" />} />
                 <InfoRow label="Số điện thoại" value={detailedApplication.talent.phone || "—"} icon={<Phone className="w-4 h-4" />} />
                 <InfoRow label="Ngày sinh" value={formatDate(detailedApplication.talent.dateOfBirth)} icon={<Calendar className="w-4 h-4" />} />
