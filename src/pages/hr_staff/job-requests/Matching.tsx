@@ -172,40 +172,6 @@ const checkSkillsVerification = async (
     }
 };
 
-// Helper function to calculate availability bonus based on TalentAvailableTime and project dates
-const calculateAvailabilityBonus = (
-    talentId: number,
-    talentAvailableTimes: TalentAvailableTime[],
-    projectData: { startDate?: string; endDate?: string } | null
-): number => {
-    // Nếu không có project data, không thể tính availability
-    if (!projectData?.startDate) {
-        return 0; // Không có thông tin project dates - không thưởng không phạt
-    }
-
-    // Lấy available times của talent này
-    const talentAvailableTimesForTalent = talentAvailableTimes.filter(at => at.talentId === talentId);
-
-    // Nếu talent không có available time defined
-    if (!talentAvailableTimesForTalent.length) {
-        return 0; // Không có thông tin availability - không thưởng không phạt
-    }
-
-    // Parse project dates
-    const projectStart = new Date(projectData.startDate);
-    const projectEnd = projectData.endDate ? new Date(projectData.endDate) : new Date(2099, 11, 31); // Max date if no end date
-
-    // Check if any available time overlaps with project dates
-    const hasOverlap = talentAvailableTimesForTalent.some(availableTime => {
-        const availStart = new Date(availableTime.startTime);
-        const availEnd = availableTime.endTime ? new Date(availableTime.endTime) : new Date(2099, 11, 31);
-
-        // Overlap condition: availStart <= projectEnd && availEnd >= projectStart
-        return availStart <= projectEnd && availEnd >= projectStart;
-    });
-
-    return hasOverlap ? 5 : 0;
-};
 
 export default function CVMatchingPage() {
     const { user } = useAuth();
@@ -597,21 +563,9 @@ export default function CVMatchingPage() {
         if (!jobRequestId) return;
 
         // Tính lại điểm cho confirmation (đơn giản hóa)
-        const totalRequiredSkills = (match.matchedSkills?.length || 0) + (match.missingSkills?.length || 0);
-        const skillPoints = totalRequiredSkills > 0
-            ? Math.round((50.0 / totalRequiredSkills) * (match.matchedSkills?.length || 0))
-            : 50;
-        const levelPoints = match.levelMatch ? 20 : 0;
-        const availabilityBonus = calculateAvailabilityBonus(
-            match.talentCV.talentId,
-            talentAvailableTimes,
-            projectData
-        );
-        const calculatedScoreForConfirm = levelPoints + 10 + 15 + skillPoints + availabilityBonus; // working mode + location default
-
         const confirm = window.confirm(
             `⚠️ Bạn có chắc muốn tạo hồ sơ ứng tuyển cho ${match.talentInfo?.fullName || 'talent này'}?\n\n` +
-            `Điểm khớp: ${calculatedScoreForConfirm}%\n` +
+            `Điểm khớp: ${match.matchScore}%\n` +
             `CV: v${match.talentCV.version}`
         );
         
@@ -648,7 +602,7 @@ export default function CVMatchingPage() {
                 jobRequestId: Number(jobRequestId),
                 cvId: match.talentCV.id,
                 submittedBy: submittedBy,
-                note: `Điểm khớp: ${calculatedScoreForConfirm}%`,
+                note: `Điểm khớp: ${match.matchScore}%`,
             });
 
       // Cập nhật trạng thái nhân sự sang Applying
@@ -978,35 +932,38 @@ export default function CVMatchingPage() {
                             const workingModeRequirementText = workingModeRequired ? formatWorkingMode(jobWorkingMode) : "";
                             const talentWorkingModeText = talentWorkingMode !== WorkingMode.None ? formatWorkingMode(talentWorkingMode) : "";
 
-                            // Tính điểm chi tiết theo công thức backend
-                            const levelPoints = match.levelMatch ? 20 : 0;
-                            
-                            // Working mode: 10 points
-                            const workingModePoints = workingModeRequired
-                                ? (workingModeMatch ? 10 : 0)
-                                : 10; // Nếu không yêu cầu thì cho đủ điểm
-                            
-                            // Location: 15 points
-                            const locationPoints = isRemoteOrFlexible
-                                ? 15 // Remote/Flexible thì cho đủ điểm
-                                : locationRequired
-                                    ? (locationMatch ? 15 : 0)
-                                    : 15; // Nếu không yêu cầu thì cho đủ điểm
-                            
-                            // Skills: 50 points
-                            const skillPoints = totalRequiredSkills > 0
-                                ? Math.round((50.0 / totalRequiredSkills) * (match.matchedSkills?.length || 0))
-                                : 50; // Nếu không có skill yêu cầu thì cho đủ điểm
-                            
-                            // Availability bonus: Tính chính xác dựa trên TalentAvailableTime và project dates
-                            const availabilityBonus = calculateAvailabilityBonus(
-                                match.talentCV.talentId,
-                                talentAvailableTimes,
-                                projectData
-                            );
+                            // Parse matchSummary từ BE để lấy thông tin chi tiết điểm số
+                            const parseMatchSummary = (summary: string) => {
+                                const skillsMatch = summary.match(/Skills: (\d+)\/(\d+)/);
+                                const workingModeMatch = summary.match(/WorkingMode: (Match|Not Match|Not Required)/);
+                                const locationMatch = summary.match(/Location: (Match|Not Match|Not Required)/);
+                                const availabilityMatch = summary.match(/Availability: (Available \(\+5\)|\+5|Not Available \(-5\)|Unknown \(0\))/);
+                                const levelMatch = summary.match(/Level: (.+)/);
 
-                            // Tính tổng điểm từ frontend (bao gồm availability bonus đã sửa)
-                            const calculatedScore = levelPoints + workingModePoints + locationPoints + skillPoints + availabilityBonus;
+                                return {
+                                    skills: skillsMatch ? `${skillsMatch[1]}/${skillsMatch[2]}` : '0/0',
+                                    workingMode: workingModeMatch ? workingModeMatch[1] : 'Not Required',
+                                    location: locationMatch ? locationMatch[1] : 'Not Required',
+                                    availability: availabilityMatch ? availabilityMatch[1] : 'Unknown (0)',
+                                    level: levelMatch ? levelMatch[1] : 'Unknown'
+                                };
+                            };
+
+                            const matchDetails = parseMatchSummary(match.matchSummary || '');
+
+                            // Tính điểm từ matchSummary (giữ nguyên logic hiển thị)
+                            const skillsMatch = matchDetails.skills.split('/');
+                            const matchedSkillsCount = parseInt(skillsMatch[0] || '0');
+                            const totalSkillsCount = parseInt(skillsMatch[1] || '0');
+                            const skillPoints = totalSkillsCount > 0 ? Math.round((50.0 / totalSkillsCount) * matchedSkillsCount) : 50;
+
+                            const levelPoints = match.levelMatch ? 20 : 0;
+                            const workingModePoints = matchDetails.workingMode === 'Match' || matchDetails.workingMode === 'Not Required' ? 10 : 0;
+                            const locationPoints = matchDetails.location === 'Match' || matchDetails.location === 'Not Required' ? 15 : 0;
+                            const availabilityBonus = matchDetails.availability.includes('+5') ? 5 : matchDetails.availability.includes('-5') ? -5 : 0;
+
+                            // Sử dụng điểm số từ BE thay vì tính lại
+                            const calculatedScore = match.matchScore;
                             
                             // Xác định tiêu chí phù hợp - rút gọn
                             // Lấy cấp độ của Talent
