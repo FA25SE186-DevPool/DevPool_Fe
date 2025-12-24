@@ -223,11 +223,13 @@ export function TalentBasicInfoForm({
               }`}
             >
               <option value="">-- Chọn khu vực --</option>
-              {locations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.name}
-                </option>
-              ))}
+              {locations
+                .filter(location => !location.name.toLowerCase().includes('remote'))
+                .map((location) => (
+                  <option key={location.id} value={location.id}>
+                    {location.name}
+                  </option>
+                ))}
             </select>
             {errors.locationId && <p className="mt-1 text-sm text-red-500">{errors.locationId}</p>}
           </div>

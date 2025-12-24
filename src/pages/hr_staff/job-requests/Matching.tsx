@@ -15,6 +15,7 @@ import { talentAvailableTimeService, type TalentAvailableTime } from "../../../s
 import { projectService } from "../../../services/Project";
 import { decodeJWT } from "../../../services/Auth";
 import { useAuth } from "../../../context/AuthContext";
+import { talentSkillGroupAssessmentService, type TalentSkillGroupAssessment } from "../../../services/TalentSkillGroupAssessment";
 import {
     Sparkles,
     Target,
@@ -47,6 +48,7 @@ interface EnrichedMatchResult extends TalentCVMatchResult {
     hasFailedApplication?: boolean;
     failedApplicationStatus?: string | null;
     failedApplicationId?: number | null;
+    areSkillsVerified?: boolean; // Trạng thái verification của skills
 }
 
 interface EnrichedCVWithoutScore {
@@ -65,6 +67,13 @@ const WORKING_MODE_OPTIONS = [
     { value: WorkingMode.Hybrid, label: "(Kết hợp)" },
     { value: WorkingMode.Flexible, label: "(Linh hoạt)" },
 ];
+
+interface JobSkillItem {
+    id?: number;
+    jobRequestId?: number;
+    skillsId?: number;
+    skillName?: string;
+}
 
 const statusLabels: Record<string, { label: string; badgeClass: string }> = {
     Available: {
@@ -134,6 +143,35 @@ const formatAvailabilityTimes = (talentId: number, talentAvailableTimes: TalentA
     return sortedTimes.length > 2 ? `${result}...` : result;
 };
 
+// Helper function to check if required skills are verified for a talent
+const checkSkillsVerification = async (
+    talentId: number,
+    requiredSkillIds: number[]
+): Promise<boolean> => {
+    if (!requiredSkillIds.length) return true; // No skills required = verified
+
+    try {
+        // Get all skill group assessments for this talent
+        const assessments = await talentSkillGroupAssessmentService.getAll({
+            talentId: talentId,
+            excludeDeleted: true
+        });
+
+        // If there are no assessments at all, consider as not verified
+        if (!assessments || assessments.length === 0) return false;
+
+        // Check if talent has any verified skill groups
+        // For now, if they have at least one verified assessment, consider skills verified
+        // This is a simplified approach since we can't easily map skills to skill groups
+        const hasVerifiedAssessment = assessments.some((assessment: TalentSkillGroupAssessment) => assessment.isVerified === true);
+
+        return hasVerifiedAssessment;
+    } catch (error) {
+        console.warn("⚠️ Failed to check skill verification:", error);
+        return false; // Assume not verified if check fails
+    }
+};
+
 // Helper function to calculate availability bonus based on TalentAvailableTime and project dates
 const calculateAvailabilityBonus = (
     talentId: number,
@@ -166,7 +204,7 @@ const calculateAvailabilityBonus = (
         return availStart <= projectEnd && availEnd >= projectStart;
     });
 
-    return hasOverlap ? 5 : -5;
+    return hasOverlap ? 5 : 0;
 };
 
 export default function CVMatchingPage() {
@@ -188,7 +226,7 @@ export default function CVMatchingPage() {
     const [showFilters, setShowFilters] = useState(false);
     const [showMatchingDetails, setShowMatchingDetails] = useState<{[key: string]: boolean}>({});
     const [isTalentPopupOpen, setIsTalentPopupOpen] = useState(false);
-    const [selectedTalent, setSelectedTalent] = useState<any>(null);
+    const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
     const [talentPopupLoading, setTalentPopupLoading] = useState(false);
 
     // Helper function to ensure data is an array
@@ -333,6 +371,9 @@ export default function CVMatchingPage() {
                 });
                 setJobRoleLevelObjectMap(jobRoleLevelObjectMapTemp);
 
+                // Get required skills IDs for verification check
+                const requiredSkillIds = jobReq.jobSkills?.map((js: JobSkillItem) => js.skillsId).filter(Boolean) || [];
+
                 // Enrich CHỈ CV đã được BE filter với talent information
                 const enrichedCVs = await Promise.all(
                     filteredMatches.map(async (match: TalentCVMatchResult): Promise<EnrichedMatchResult | null> => {
@@ -356,6 +397,9 @@ export default function CVMatchingPage() {
 
                             const talentInfo = { ...talent, locationName: talentLocationName } as Talent & { locationName?: string | null };
 
+                            // Check skill verification status
+                            const areSkillsVerified = await checkSkillsVerification(match.talentCV.talentId, requiredSkillIds);
+
                             // Lấy tên vị trí tuyển dụng của CV
                             const jobRoleLevelName = jobRoleLevelMap.get(match.talentCV.jobRoleLevelId) || "—";
 
@@ -366,7 +410,7 @@ export default function CVMatchingPage() {
                             // Luôn tính toán lại missingSkills từ jobReq.jobSkills để đảm bảo đầy đủ
                             if (jobReq.jobSkills && jobReq.jobSkills.length > 0) {
                                 // jobReq.jobSkills có cấu trúc {id, jobRequestId, skillsId}
-                                const requiredSkillNames = jobReq.jobSkills.map((js: any) => {
+                                const requiredSkillNames = jobReq.jobSkills.map((js: JobSkillItem) => {
                                     if (js.skillName) {
                                         return js.skillName;
                                     } else if (js.skillsId) {
@@ -392,6 +436,7 @@ export default function CVMatchingPage() {
                                 matchedSkills: matchedSkills,
                                 missingSkills: missingSkills,
                                 jobRoleLevelName: jobRoleLevelName,
+                                areSkillsVerified: areSkillsVerified,
                             };
                         } catch (err) {
                             console.warn("⚠️ Failed to load talent info for ID:", match.talentCV.talentId, err);
@@ -401,10 +446,13 @@ export default function CVMatchingPage() {
                 );
 
                 // Lọc bỏ các CV null (talent có trạng thái không phù hợp)
-                const filteredEnrichedCVs = enrichedCVs.filter((cv): cv is EnrichedMatchResult => cv !== null);
+                const filteredEnrichedCVsLocal = enrichedCVs.filter((cv): cv is EnrichedMatchResult => cv !== null);
+
+                // HARD FILTER: Lọc bỏ CV có skills không được verified
+                const skillVerifiedCVsLocal = filteredEnrichedCVsLocal.filter(cv => cv.areSkillsVerified !== false);
 
                 // Fetch TalentAvailableTime cho tất cả talents để tính availability bonus chính xác
-                const talentIds = filteredEnrichedCVs.map(cv => cv.talentCV.talentId).filter((id, index, arr) => arr.indexOf(id) === index); // unique
+                const talentIds = skillVerifiedCVsLocal.map(cv => cv.talentCV.talentId).filter((id, index, arr) => arr.indexOf(id) === index); // unique
                 try {
                     // Fetch available times cho từng talent (vì API chỉ support single talentId)
                     const allAvailableTimes: TalentAvailableTime[] = [];
@@ -427,7 +475,7 @@ export default function CVMatchingPage() {
                 }
 
                 // Sắp xếp theo BE logic: failed applications xuống cuối, sau đó theo điểm từ cao xuống thấp
-                const sortedCVs = filteredEnrichedCVs.sort((a, b) => {
+                const sortedCVs = skillVerifiedCVsLocal.sort((a, b) => {
                     // Failed applications (Rejected/Withdrawn) xuống cuối
                     if (a.hasFailedApplication && !b.hasFailedApplication) return 1;
                     if (!a.hasFailedApplication && b.hasFailedApplication) return -1;
@@ -1149,15 +1197,15 @@ export default function CVMatchingPage() {
                                                         }
                                                     </p>
                                                     {talentAvailableTimes.some(at => at.talentId === match.talentCV.talentId) && (
-                                                        <p className="text-xs text-gray-500 mt-1">
-                                                            Dự án: {projectData?.startDate ? new Date(projectData.startDate).toLocaleDateString('vi-VN') : 'Chưa xác định'}
-                                                            {projectData?.endDate ? ` - ${new Date(projectData.endDate).toLocaleDateString('vi-VN')}` : ' (Chưa xác định kết thúc)'}
-                                                        </p>
-                                                    )}
-                                                    {talentAvailableTimes.some(at => at.talentId === match.talentCV.talentId) && (
-                                                        <p className="text-xs text-gray-500 mt-1">
-                                                            Thời gian rảnh: {formatAvailabilityTimes(match.talentCV.talentId, talentAvailableTimes)}
-                                                        </p>
+                                                        <>
+                                                            <p className="text-xs text-gray-600 mt-1 font-medium">
+                                                                Dự án: {projectData?.startDate ? new Date(projectData.startDate).toLocaleDateString('vi-VN') : 'Chưa xác định'}
+                                                                {projectData?.endDate ? ` - ${new Date(projectData.endDate).toLocaleDateString('vi-VN')}` : ' - Đến khi có cập nhật'}
+                                                            </p>
+                                                            <p className="text-xs text-gray-500 mt-1">
+                                                                Thời gian rảnh: {formatAvailabilityTimes(match.talentCV.talentId, talentAvailableTimes)}
+                                                            </p>
+                                                        </>
                                                     )}
                                                 </div>
 
@@ -1381,6 +1429,25 @@ export default function CVMatchingPage() {
 
                                         {/* Skills */}
                                         <div className="space-y-3">
+                                            {/* Skill Verification Status */}
+                                            <div className="flex items-center gap-2 mb-2">
+                                                {match.areSkillsVerified ? (
+                                                    <>
+                                                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                                        <span className="text-sm font-semibold text-green-700">
+                                                            Kỹ năng đã được xác minh
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <X className="w-4 h-4 text-yellow-600" />
+                                                        <span className="text-sm font-semibold text-yellow-700">
+                                                            Kỹ năng chưa được xác minh
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </div>
+
                                             {/* Matched Skills */}
                                             {(match.matchedSkills?.length || 0) > 0 && (
                                                 <div>
@@ -1585,7 +1652,7 @@ export default function CVMatchingPage() {
                                             <MapPin className="w-4 h-4 text-neutral-400" />
                                             <span className="text-sm font-medium text-neutral-700">Khu vực làm việc:</span>
                                         </div>
-                                        <p className="text-sm text-neutral-900 ml-6">{selectedTalent.locationName || "—"}</p>
+                                        <p className="text-sm text-neutral-900 ml-6">{(selectedTalent as Talent & { locationName?: string | null }).locationName || "—"}</p>
                                     </div>
 
                                     <div className="space-y-3">
