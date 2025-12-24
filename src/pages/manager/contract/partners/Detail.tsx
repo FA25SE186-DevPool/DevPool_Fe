@@ -31,10 +31,6 @@ import {
   type ClientContractPaymentModel,
 } from "../../../../services/ClientContractPayment";
 import { projectPeriodService, type ProjectPeriodModel } from "../../../../services/ProjectPeriod";
-import { talentAssignmentService, type TalentAssignmentModel } from "../../../../services/TalentAssignment";
-import { projectService } from "../../../../services/Project";
-import { partnerService } from "../../../../services/Partner";
-import { talentService } from "../../../../services/Talent";
 import { partnerDocumentService, type PartnerDocument } from "../../../../services/PartnerDocument";
 import { documentTypeService, type DocumentType } from "../../../../services/DocumentType";
 import { useAuth } from "../../../../context/AuthContext";
@@ -188,7 +184,6 @@ export default function PartnerContractDetailPage() {
   const [contractPayment, setContractPayment] = useState<PartnerContractPaymentModel | null>(null);
   const [clientContractPayment, setClientContractPayment] = useState<ClientContractPaymentModel | null>(null);
   const [projectPeriod, setProjectPeriod] = useState<ProjectPeriodModel | null>(null);
-  const [talentAssignment, setTalentAssignment] = useState<TalentAssignmentModel | null>(null);
   const [projectName, setProjectName] = useState<string>("—");
   const [partnerName, setPartnerName] = useState<string>("—");
   const [talentName, setTalentName] = useState<string>("—");
@@ -251,68 +246,34 @@ export default function PartnerContractDetailPage() {
       const paymentData = await partnerContractPaymentService.getById(Number(id));
       setContractPayment(paymentData);
 
-      // Fetch related data in parallel
-      const [periodData, assignmentData] = await Promise.all([
-        projectPeriodService.getById(paymentData.projectPeriodId).catch(() => null),
-        talentAssignmentService.getById(paymentData.talentAssignmentId).catch(() => null),
-      ]);
+      // Fetch related data
+      const periodData = await projectPeriodService.getById(paymentData.projectPeriodId).catch(() => null);
 
       setProjectPeriod(periodData);
-      setTalentAssignment(assignmentData);
+
+      // Set names from contract data (navigation properties)
+      setProjectName(paymentData.projectName || "—");
+      setPartnerName(paymentData.partnerName || "—");
+      setTalentName(paymentData.talentName || "—");
 
       // Fetch corresponding client contract payment
-      try {
-        const data = await clientContractPaymentService.getAll({
-          projectPeriodId: paymentData.projectPeriodId,
-          talentAssignmentId: paymentData.talentAssignmentId,
-          excludeDeleted: true,
-        });
-        // Xử lý format dữ liệu trả về (có thể là array hoặc object có items)
-        const clientPayments = Array.isArray(data) ? data : ((data as any)?.items || []);
-        if (clientPayments && clientPayments.length > 0) {
-          setClientContractPayment(clientPayments[0]);
-        } else {
-          setClientContractPayment(null);
-        }
-      } catch (err) {
-        console.error("❌ Lỗi tải hợp đồng khách hàng tương ứng:", err);
-        setClientContractPayment(null);
-      }
-
-      // Fetch project info
-      if (assignmentData) {
+      if (periodData) {
         try {
-          const project = await projectService.getById(assignmentData.projectId);
-          setProjectName(project?.name || "—");
-        } catch (err) {
-          console.error("❌ Lỗi fetch project:", err);
-          setProjectName("—");
-        }
-
-        // Fetch partner info - ưu tiên lấy từ assignment data
-        if (assignmentData.partnerCompanyName || assignmentData.partnerName) {
-          setPartnerName(assignmentData.partnerCompanyName || assignmentData.partnerName || "—");
-        } else if (assignmentData.partnerId) {
-          try {
-            const response = await partnerService.getDetailedById(assignmentData.partnerId);
-            // Handle response structure: { data: {...} } or direct data
-            const partnerData = response?.data || response;
-            setPartnerName(partnerData?.companyName || "—");
-          } catch (err) {
-            console.error("❌ Lỗi fetch partner với ID", assignmentData.partnerId, ":", err);
-            setPartnerName("—");
+          const data = await clientContractPaymentService.getAll({
+            projectPeriodId: paymentData.projectPeriodId,
+            talentAssignmentId: paymentData.talentAssignmentId,
+            excludeDeleted: true,
+          });
+          // Xử lý format dữ liệu trả về (có thể là array hoặc object có items)
+          const clientPayments = Array.isArray(data) ? data : ((data as any)?.items || []);
+          if (clientPayments && clientPayments.length > 0) {
+            setClientContractPayment(clientPayments[0]);
+          } else {
+            setClientContractPayment(null);
           }
-        } else {
-          setPartnerName("—");
-        }
-
-        // Fetch talent info
-        try {
-          const talent = await talentService.getById(assignmentData.talentId);
-          setTalentName(talent?.fullName || "—");
         } catch (err) {
-          console.error("❌ Lỗi fetch talent:", err);
-          setTalentName("—");
+          console.error("❌ Lỗi tải hợp đồng khách hàng tương ứng:", err);
+          setClientContractPayment(null);
         }
       }
     } catch (err: unknown) {
@@ -541,10 +502,10 @@ export default function PartnerContractDetailPage() {
           <div className="flex justify-between items-start gap-6 flex-wrap">
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Hợp đồng #{contractPayment.contractNumber}
+                Tập hồ sơ #{contractPayment.contractNumber}
               </h1>
               <p className="text-neutral-600 mb-4">
-                Thông tin chi tiết hợp đồng thanh toán đối tác
+                Thông tin chi tiết tập hồ sơ thanh toán đối tác
               </p>
               <div className="flex items-center gap-3 flex-wrap">
                 {contractPayment.isFinished ? (
@@ -626,7 +587,7 @@ export default function PartnerContractDetailPage() {
                 }`}
               >
                 <FileText className="w-4 h-4" />
-                Thông tin hợp đồng
+                Thông tin
               </button>
               <button
                 onClick={() => setActiveMainTab("payment")}
@@ -717,6 +678,16 @@ export default function PartnerContractDetailPage() {
                     />
                   </>
                 )}
+                <InfoItem
+                  icon={<Calendar className="w-4 h-4" />}
+                  label="Ngày bắt đầu hợp đồng"
+                  value={formatDate(contractPayment.contractStartDate)}
+                />
+                <InfoItem
+                  icon={<Calendar className="w-4 h-4" />}
+                  label="Ngày kết thúc hợp đồng"
+                  value={formatDate(contractPayment.contractEndDate)}
+                />
                   </div>
                 </div>
 
@@ -752,20 +723,6 @@ export default function PartnerContractDetailPage() {
                     label="Chu kỳ thanh toán"
                     value={`Tháng ${projectPeriod.periodMonth}/${projectPeriod.periodYear}`}
                   />
-                )}
-                {talentAssignment && (
-                  <>
-                    <InfoItem
-                      icon={<Calendar className="w-4 h-4" />}
-                      label="Ngày bắt đầu assignment"
-                      value={formatDate(talentAssignment.startDate)}
-                    />
-                    <InfoItem
-                      icon={<Calendar className="w-4 h-4" />}
-                      label="Ngày kết thúc assignment"
-                      value={talentAssignment.endDate ? formatDate(talentAssignment.endDate) : "Đang hiệu lực"}
-                    />
-                  </>
                 )}
                 <InfoItem
                   icon={<Calendar className="w-4 h-4" />}

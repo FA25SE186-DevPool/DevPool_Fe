@@ -32,11 +32,6 @@ import {
   type SubmitContractModel,
 } from "../../../../services/ClientContractPayment";
 import { projectPeriodService, type ProjectPeriodModel } from "../../../../services/ProjectPeriod";
-import { talentAssignmentService, type TalentAssignmentModel } from "../../../../services/TalentAssignment";
-import { projectService } from "../../../../services/Project";
-import { clientCompanyService } from "../../../../services/ClientCompany";
-import { partnerService } from "../../../../services/Partner";
-import { talentService } from "../../../../services/Talent";
 import { clientDocumentService, type ClientDocument } from "../../../../services/ClientDocument";
 import { documentTypeService, type DocumentType } from "../../../../services/DocumentType";
 import { exchangeRateService, AVAILABLE_CURRENCIES, type CurrencyCode } from "../../../../services/ExchangeRate";
@@ -201,7 +196,6 @@ export default function ClientContractDetailPage() {
   const navigate = useNavigate();
   const [contractPayment, setContractPayment] = useState<ClientContractPaymentModel | null>(null);
   const [projectPeriod, setProjectPeriod] = useState<ProjectPeriodModel | null>(null);
-  const [talentAssignment, setTalentAssignment] = useState<TalentAssignmentModel | null>(null);
   const [projectName, setProjectName] = useState<string>("—");
   const [clientCompanyName, setClientCompanyName] = useState<string>("—");
   const [partnerName, setPartnerName] = useState<string>("—");
@@ -274,58 +268,15 @@ export default function ClientContractDetailPage() {
         setContractPayment(paymentData);
 
         // Fetch related data in parallel
-        const [periodData, assignmentData] = await Promise.all([
-          projectPeriodService.getById(paymentData.projectPeriodId).catch(() => null),
-          talentAssignmentService.getById(paymentData.talentAssignmentId).catch(() => null),
-        ]);
+        const periodData = await projectPeriodService.getById(paymentData.projectPeriodId).catch(() => null);
 
         setProjectPeriod(periodData);
-        setTalentAssignment(assignmentData);
 
-        // Fetch project info
-        if (assignmentData) {
-          try {
-            const project = await projectService.getById(assignmentData.projectId);
-            setProjectName(project?.name || paymentData.projectName || "—");
-          } catch {
-            setProjectName(paymentData.projectName || "—");
-          }
-
-          // Fetch client company info
-          try {
-            const project = await projectService.getById(assignmentData.projectId);
-            if (project?.clientCompanyId) {
-              const company = await clientCompanyService.getById(project.clientCompanyId);
-              setClientCompanyName(company?.name || paymentData.clientCompanyName || "—");
-            } else {
-              setClientCompanyName(paymentData.clientCompanyName || "—");
-            }
-          } catch {
-            setClientCompanyName(paymentData.clientCompanyName || "—");
-          }
-
-          // Fetch partner info
-          try {
-            const partner = await partnerService.getDetailedById(assignmentData.partnerId);
-            setPartnerName(partner?.companyName || paymentData.partnerName || "—");
-          } catch {
-            setPartnerName(paymentData.partnerName || "—");
-          }
-
-          // Fetch talent info
-          try {
-            const talent = await talentService.getById(assignmentData.talentId);
-            setTalentName(talent?.fullName || paymentData.talentName || "—");
-          } catch {
-            setTalentName(paymentData.talentName || "—");
-          }
-        } else {
-          // Fallback to navigation properties if assignment not found
-          setProjectName(paymentData.projectName || "—");
-          setClientCompanyName(paymentData.clientCompanyName || "—");
-          setPartnerName(paymentData.partnerName || "—");
-          setTalentName(paymentData.talentName || "—");
-        }
+        // Set names from paymentData
+        setProjectName(paymentData.projectName || "—");
+        setClientCompanyName(paymentData.clientCompanyName || "—");
+        setPartnerName(paymentData.partnerName || "—");
+        setTalentName(paymentData.talentName || "—");
       } catch (err: unknown) {
         console.error("❌ Lỗi tải thông tin hợp đồng thanh toán khách hàng:", err);
         setError(
@@ -597,10 +548,10 @@ export default function ClientContractDetailPage() {
           <div className="flex justify-between items-start gap-6 flex-wrap">
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Hợp đồng #{contractPayment.contractNumber}
+                Tập hồ sơ #{contractPayment.contractNumber}
               </h1>
               <p className="text-neutral-600 mb-4">
-                Thông tin chi tiết hợp đồng thanh toán khách hàng
+                Thông tin chi tiết tập hồ sơ khách hàng
               </p>
               <div className="flex items-center gap-3 flex-wrap">
                 {contractPayment.isFinished ? (
@@ -676,7 +627,7 @@ export default function ClientContractDetailPage() {
                 }`}
               >
                 <FileText className="w-4 h-4" />
-                Thông tin hợp đồng
+                Thông tin
               </button>
               <button
                 onClick={() => setActiveMainTab("payment")}
@@ -767,17 +718,6 @@ export default function ClientContractDetailPage() {
                     />
                   </>
                 )}
-                {contractPayment.isFinished && (
-                  <InfoItem
-                    icon={<CheckCircle className="w-4 h-4" />}
-                    label="Trạng thái hoàn thành"
-                    value={
-                      <span className="px-2 py-1 rounded text-xs font-medium bg-green-50 text-green-800 border border-green-200">
-                        Đã hoàn thành
-                      </span>
-                    }
-                  />
-                )}
                 <InfoItem
                   icon={<Calendar className="w-4 h-4" />}
                   label="Ngày bắt đầu hợp đồng"
@@ -828,20 +768,6 @@ export default function ClientContractDetailPage() {
                     label="Chu kỳ thanh toán"
                     value={`Tháng ${projectPeriod.periodMonth}/${projectPeriod.periodYear}`}
                   />
-                )}
-                {talentAssignment && (
-                  <>
-                    <InfoItem
-                      icon={<Calendar className="w-4 h-4" />}
-                      label="Ngày bắt đầu assignment"
-                      value={formatDate(talentAssignment.startDate)}
-                    />
-                    <InfoItem
-                      icon={<Calendar className="w-4 h-4" />}
-                      label="Ngày kết thúc assignment"
-                      value={talentAssignment.endDate ? formatDate(talentAssignment.endDate) : "Đang hiệu lực"}
-                    />
-                  </>
                 )}
                 <InfoItem
                   icon={<Calendar className="w-4 h-4" />}
@@ -1479,7 +1405,7 @@ export default function ClientContractDetailPage() {
                 <label className="block text-sm font-medium mb-2">File Statement of Work <span className="text-red-500">*</span></label>
                 <input
                   type="file"
-                  accept=".pdf,.xlsx,.xls,.docx"
+                  accept=".pdf,.xlsx,.xls,.docx,.doc"
                   onChange={(e) => {
                     const file = e.target.files?.[0] || null;
                     if (file) {
@@ -1491,10 +1417,10 @@ export default function ClientContractDetailPage() {
                         return;
                       }
                       // Validate file extension
-                      const allowedExtensions = ['.pdf', '.xlsx', '.xls', '.docx'];
+                      const allowedExtensions = ['.pdf', '.xlsx', '.xls', '.docx', '.doc'];
                       const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
                       if (!allowedExtensions.includes(fileExtension)) {
-                        setSowFileError('Chỉ chấp nhận file PDF, Excel (.xlsx, .xls), Word (.docx)');
+                        setSowFileError('Chỉ chấp nhận file PDF, Excel (.xlsx, .xls), Word (.docx, .doc)');
                         setSowExcelFile(null);
                         return;
                       }
@@ -1506,7 +1432,7 @@ export default function ClientContractDetailPage() {
                   required
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Định dạng được phép: PDF, Excel (.xlsx, .xls), Word (.docx). Kích thước tối đa: 10MB
+                  Định dạng được phép: PDF, Excel (.xlsx, .xls), Word (.docx, .doc). Kích thước tối đa: 10MB
                 </p>
                 {sowFileError && (
                   <p className="mt-1 text-xs text-red-600">{sowFileError}</p>

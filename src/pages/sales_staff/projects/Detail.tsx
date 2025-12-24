@@ -1008,8 +1008,6 @@ export default function ProjectDetailPage() {
 
     // Validation
     setUpdateErrors({});
-    
-    // Khi ở trạng thái Draft: ngày bắt đầu phải >= ngày lên lịch của activity cuối cùng của application gắn với TalentAssignment (nếu có)
     if (selectedAssignment.status === "Draft" && editLastActivityScheduledDate) {
       const effectiveStartIso = updateForm.startDate || selectedAssignment.startDate;
       if (effectiveStartIso && isValidDate(effectiveStartIso)) {
@@ -1020,7 +1018,7 @@ export default function ProjectDetailPage() {
 
         if (effectiveStart < lastActivityDate) {
           setUpdateErrors({
-            startDate: `Ngày bắt đầu phải lớn hơn hoặc bằng ngày đã thuê nhân sự (${formatViDate(editLastActivityScheduledDate)})`
+            startDate: `Ngày bắt đầu phải sau hoặc bằng ngày đã thuê nhân sự (${formatViDate(editLastActivityScheduledDate)})`
           });
           return;
         }
@@ -1038,7 +1036,7 @@ export default function ProjectDetailPage() {
 
         if (effectiveStart < projectStartDate) {
           setUpdateErrors({
-            startDate: `Ngày bắt đầu phải lớn hơn hoặc bằng ngày bắt đầu dự án (${formatViDate(project.startDate)})`
+            startDate: `Ngày bắt đầu phải sau hoặc bằng ngày bắt đầu dự án (${formatViDate(project.startDate)})`
           });
           return;
         }
@@ -1096,7 +1094,7 @@ export default function ProjectDetailPage() {
       if (effectiveClientRate < effectivePartnerRate) {
         setUpdateErrors({
           estimatedClientRate: "Chi phí ước tính với khách hàng đang ít hơn so với đối tác",
-          estimatedPartnerRate: "Chi phí ước tính với đối tác đang nhiều hơn so với khách hàng"
+          estimatedPartnerRate: "Chi phí ước tính với đối tác đang cao hơn so với khách hàng"
         });
         return;
       }
@@ -1802,7 +1800,7 @@ export default function ProjectDetailPage() {
           }
         }
       } catch (err) {
-        console.error("❌ Lỗi tải hợp đồng thanh toán:", err);
+        console.error("❌ Lỗi tải tập hồ sơ:", err);
         setClientContractPayments([]);
         // setPartnerContractPayments([]); // Không được sử dụng
       } finally {
@@ -2451,7 +2449,7 @@ export default function ProjectDetailPage() {
                         {loadingPayments ? (
                           <div className="text-center py-12">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
-                            <p className="text-gray-500">Đang tải hợp đồng...</p>
+                            <p className="text-gray-500">Đang tải tập hồ sơ...</p>
                           </div>
                         ) : (
                           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -2460,16 +2458,16 @@ export default function ProjectDetailPage() {
                               <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                                   <Building2 className="w-5 h-5 text-primary-600" />
-                                  Hợp đồng khách hàng
+                                  Tập hồ sơ khách hàng
                                 </h3>
                                 <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
-                                  {clientContractPayments.length} hợp đồng
+                                  {clientContractPayments.length} tập hồ sơ
                                 </span>
                               </div>
                               {clientContractPayments.length === 0 ? (
                                 <div className="text-center py-12 bg-neutral-50 rounded-lg border border-neutral-200">
                                   <FileCheck className="w-8 h-8 text-neutral-400 mx-auto mb-2" />
-                                  <p className="text-sm text-neutral-500">Chưa có hợp đồng khách hàng</p>
+                                  <p className="text-sm text-neutral-500">Chưa có tập hồ sơ khách hàng</p>
                                 </div>
                               ) : (
                                 <div className="space-y-4">
@@ -2551,7 +2549,7 @@ export default function ProjectDetailPage() {
                                 </h4>
                                 <div className="space-y-4">
                                   <div>
-                                    <p className="text-xs text-neutral-600 mb-1">Tổng số hợp đồng</p>
+                                    <p className="text-xs text-neutral-600 mb-1">Tổng số tập hồ sơ</p>
                                     <p className="text-lg font-semibold text-gray-900">{clientContractPayments.length}</p>
                                   </div>
                                   <div className="pt-3 border-t border-neutral-200">
@@ -2581,7 +2579,7 @@ export default function ProjectDetailPage() {
                                     </div>
                                   )}
                                   <div className="pt-3 border-t border-neutral-200">
-                                    <p className="text-xs text-neutral-600 mb-2">Trạng thái hợp đồng</p>
+                                    <p className="text-xs text-neutral-600 mb-2">Trạng thái tập hồ sơ</p>
                                     <div className="space-y-1">
                                       {Object.entries(
                                         clientContractPayments.reduce((acc, p) => {
@@ -3745,14 +3743,14 @@ export default function ProjectDetailPage() {
                       <div className="mt-1 space-y-1">
                         {editLastActivityScheduledDate && (
                           <p className="text-sm text-neutral-500">
-                            Ngày bắt đầu phải lớn hơn hoặc bằng ngày lên lịch của hoạt động cuối cùng ({formatViDate(editLastActivityScheduledDate)})
+                            Ngày bắt đầu phải sau hoặc bằng ngày lên lịch của hoạt động cuối cùng ({formatViDate(editLastActivityScheduledDate)})
                           </p>
                         )}
-                        {project?.startDate && (
+                        {/* {project?.startDate && (
                           <p className="text-sm text-neutral-500">
                             Ngày bắt đầu phải lớn hơn ngày bắt đầu dự án ({formatViDate(project.startDate)})
                           </p>
-                        )}
+                        )} */}
                       </div>
                     )}
                   </div>
@@ -4647,7 +4645,7 @@ export default function ProjectDetailPage() {
                   <div>
                     <h4 className="text-sm font-semibold text-amber-900 mb-1">⚠️ Lưu ý quan trọng</h4>
                     <p className="text-sm text-amber-700">
-                      Gia hạn phân công nhân sự sẽ ảnh hưởng đến thời gian làm việc và các hợp đồng thanh toán liên quan. 
+                      Gia hạn phân công nhân sự sẽ ảnh hưởng đến thời gian làm việc và các tập hồ sơ liên quan. 
                       Vui lòng kiểm tra kỹ thông tin trước khi xác nhận.
                     </p>
                   </div>

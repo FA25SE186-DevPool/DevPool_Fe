@@ -313,7 +313,7 @@ export default function AccountantProjectDetailPage() {
           }
         }
       } catch (err) {
-        console.error("❌ Lỗi tải hợp đồng thanh toán:", err);
+        console.error("❌ Lỗi tải tập hồ sơ:", err);
         setClientContractPayments([]);
         setPartnerContractPayments([]);
       } finally {
@@ -712,7 +712,7 @@ export default function AccountantProjectDetailPage() {
 
       if (existingPeriod) {
         // Chu kỳ đã tồn tại, chỉ cần thông báo thành công (đã tạo contract payments ở bước 1)
-        setSuccessToastMessage(`Chu kỳ thanh toán của tháng ${currentPeriod.month}/${currentPeriod.year} đã tồn tại.\n\nĐã kiểm tra và tạo hợp đồng cho các nhân sự tham gia còn thiếu trong chu kỳ này.`);
+        setSuccessToastMessage(`Chu kỳ thanh toán của tháng ${currentPeriod.month}/${currentPeriod.year} đã tồn tại.\n\nĐã kiểm tra và tạo tập hồ sơ cho các nhân sự tham gia còn thiếu trong chu kỳ này.`);
         setShowSuccessToast(true);
         setSelectedPeriodId(existingPeriod.id);
         setCreatingPeriod(false);
@@ -723,7 +723,7 @@ export default function AccountantProjectDetailPage() {
       const periodsToCreate = await calculatePeriodsToCreate();
 
       if (periodsToCreate.length === 0) {
-        setErrorToastMessage("Không có chu kỳ thanh toán nào cần được tạo và không có hợp đồng nào mới cần tạo trong dự án này.\n\nLý do: Không có nhân sự tham gia nào đang hoạt động.");
+        setErrorToastMessage("Không có chu kỳ thanh toán nào cần được tạo và không có tập hồ sơ nào mới cần tạo trong dự án này.\n\nLý do: Không có nhân sự tham gia nào đang hoạt động.");
         setShowErrorToast(true);
         setCreatingPeriod(false);
         return;
@@ -833,7 +833,7 @@ setShowErrorToast(true);
       }
 
       if (createdPeriods.length === 0) {
-        setErrorToastMessage(`Không thể tạo chu kỳ thanh toán. Có thể do:\n- Lỗi khi tạo các hợp đồng thanh toán tự động\n- Hoặc chu kỳ đã tồn tại trong database\n\nVui lòng kiểm tra console để biết chi tiết lỗi hoặc liên hệ quản trị viên.`);
+        setErrorToastMessage(`Không thể tạo chu kỳ thanh toán. Có thể do:\n- Lỗi khi tạo các tập hồ sơ tự động\n- Hoặc chu kỳ đã tồn tại.`);
         setShowErrorToast(true);
         setCreatingPeriod(false);
         return;
@@ -847,7 +847,7 @@ setShowErrorToast(true);
         // Hiển thị thông báo thành công
         // Hiển thị success toast
         setShowSuccessToast(true);
-        setSuccessToastMessage(`Tạo thành công chu kỳ thanh toán tháng ${newPeriod.periodMonth}/${newPeriod.periodYear}!\n\nHệ thống đã tự động tạo các hợp đồng cho các nhân sự tham gia đang hoạt động trong chu kỳ này.`);
+        setSuccessToastMessage(`Tạo thành công chu kỳ thanh toán tháng ${newPeriod.periodMonth}/${newPeriod.periodYear}!\n\nHệ thống đã tự động tạo các tập hồ sơ cho các nhân sự tham gia đang hoạt động trong chu kỳ này.`);
       }
     } catch (err: unknown) {
       console.error("❌ Lỗi tạo chu kỳ thanh toán:", err);
@@ -1369,7 +1369,7 @@ setShowErrorToast(true);
                         {loadingPayments ? (
                           <div className="text-center py-12">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
-                            <p className="text-gray-500">Đang tải hợp đồng...</p>
+                            <p className="text-gray-500">Đang tải tập hồ sơ...</p>
                           </div>
                         ) : (
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1378,16 +1378,16 @@ setShowErrorToast(true);
                               <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                                   <Building2 className="w-5 h-5 text-primary-600" />
-                                  Hợp đồng khách hàng
+                                  Tập hồ sơ khách hàng
                                 </h3>
                                 <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
-                                  {clientContractPayments.length} hợp đồng
+                                  {clientContractPayments.length} tập hồ sơ
                                 </span>
                               </div>
                               {clientContractPayments.length === 0 ? (
                                 <div className="text-center py-12 bg-neutral-50 rounded-lg border border-neutral-200">
                                   <FileCheck className="w-8 h-8 text-neutral-400 mx-auto mb-2" />
-                                  <p className="text-sm text-neutral-500">Chưa có hợp đồng khách hàng</p>
+                                  <p className="text-sm text-neutral-500">Chưa có tập hồ sơ khách hàng</p>
                                 </div>
                               ) : (
                                 <div className="space-y-4">
@@ -1480,16 +1480,16 @@ setShowErrorToast(true);
                               <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                                   <FileCheck className="w-5 h-5 text-secondary-600" />
-                                  Hợp đồng đối tác
+                                  Tập hồ sơ đối tác
                                 </h3>
                                 <span className="px-3 py-1 bg-secondary-100 text-secondary-700 rounded-full text-sm font-medium">
-                                  {partnerContractPayments.length} hợp đồng
+                                  {partnerContractPayments.length} tập hồ sơ
                                 </span>
                               </div>
                               {partnerContractPayments.length === 0 ? (
                                 <div className="text-center py-12 bg-neutral-50 rounded-lg border border-neutral-200">
                                   <FileCheck className="w-8 h-8 text-neutral-400 mx-auto mb-2" />
-                                  <p className="text-sm text-neutral-500">Chưa có hợp đồng đối tác</p>
+                                  <p className="text-sm text-neutral-500">Chưa có tập hồ sơ đối tác</p>
                                 </div>
                               ) : (
                                 <div className="space-y-4">
@@ -2160,7 +2160,7 @@ setShowErrorToast(true);
         title="Xác nhận tạo chu kỳ thanh toán"
         message="Bạn có chắc chắn muốn tạo chu kỳ thanh toán cho tháng hiện tại?
 
-Hệ thống sẽ tự động tạo các hợp đồng cho các nhân sự tham gia đang hoạt động trong chu kỳ này."
+Hệ thống sẽ tự động tạo các tập hồ sơ cho các nhân sự tham gia đang hoạt động trong chu kỳ này."
         confirmText="Tạo chu kỳ"
         cancelText="Hủy"
         variant="info"

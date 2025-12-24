@@ -13,6 +13,11 @@ export interface PartnerContractPaymentModel {
   percentageValue?: number | null;
   fixedAmount?: number | null;
   standardHours: number;
+
+  // Contract Dates
+  contractStartDate: string; // ISO string
+  contractEndDate: string; // ISO string
+
   contractStatus: string;
 
   // Payment Info
@@ -28,6 +33,12 @@ export interface PartnerContractPaymentModel {
   // Rejection
   rejectionReason?: string | null;
   notes?: string | null;
+
+  // Navigation Properties
+  partnerName?: string | null;
+  talentName?: string | null;
+  projectName?: string | null;
+
   createdAt: string; // ISO string
   updatedAt?: string | null; // ISO string
 

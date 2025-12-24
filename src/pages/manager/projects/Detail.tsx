@@ -320,7 +320,7 @@ export default function ManagerProjectDetailPage() {
           }
         }
       } catch (err) {
-        console.error("❌ Lỗi tải hợp đồng thanh toán:", err);
+        console.error("❌ Lỗi tải tập hồ sơ:", err);
         setClientContractPayments([]);
         setPartnerContractPayments([]);
       } finally {
@@ -842,7 +842,7 @@ export default function ManagerProjectDetailPage() {
                         {loadingPayments ? (
                           <div className="text-center py-12">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
-                            <p className="text-gray-500">Đang tải hợp đồng...</p>
+                            <p className="text-gray-500">Đang tải tập hồ sơ...</p>
                           </div>
                         ) : (
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -851,16 +851,16 @@ export default function ManagerProjectDetailPage() {
                               <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                                   <Building2 className="w-5 h-5 text-primary-600" />
-                                  Hợp đồng khách hàng
+                                  Tập hồ sơ khách hàng
                                 </h3>
                                 <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
-                                  {clientContractPayments.length} hợp đồng
+                                  {clientContractPayments.length} tập hồ sơ
                                 </span>
                               </div>
                               {clientContractPayments.length === 0 ? (
                                 <div className="text-center py-12 bg-neutral-50 rounded-lg border border-neutral-200">
                                   <FileCheck className="w-8 h-8 text-neutral-400 mx-auto mb-2" />
-                                  <p className="text-sm text-neutral-500">Chưa có hợp đồng khách hàng</p>
+                                  <p className="text-sm text-neutral-500">Chưa có tập hồ sơ khách hàng</p>
                                 </div>
                               ) : (
                                 <div className="space-y-4">
@@ -953,16 +953,16 @@ export default function ManagerProjectDetailPage() {
                               <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                                   <FileCheck className="w-5 h-5 text-secondary-600" />
-                                  Hợp đồng đối tác
+                                  Tập hồ sơ đối tác
                                 </h3>
                                 <span className="px-3 py-1 bg-secondary-100 text-secondary-700 rounded-full text-sm font-medium">
-                                  {partnerContractPayments.length} hợp đồng
+                                  {partnerContractPayments.length} tập hồ sơ
                                 </span>
                               </div>
                               {partnerContractPayments.length === 0 ? (
                                 <div className="text-center py-12 bg-neutral-50 rounded-lg border border-neutral-200">
                                   <FileCheck className="w-8 h-8 text-neutral-400 mx-auto mb-2" />
-                                  <p className="text-sm text-neutral-500">Chưa có hợp đồng đối tác</p>
+                                  <p className="text-sm text-neutral-500">Chưa có tập hồ sơ đối tác</p>
                                 </div>
                               ) : (
                                 <div className="space-y-4">

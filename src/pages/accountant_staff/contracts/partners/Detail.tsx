@@ -39,10 +39,6 @@ import {
   type ClientContractPaymentModel,
 } from "../../../../services/ClientContractPayment";
 import { projectPeriodService, type ProjectPeriodModel } from "../../../../services/ProjectPeriod";
-import { talentAssignmentService, type TalentAssignmentModel } from "../../../../services/TalentAssignment";
-import { projectService } from "../../../../services/Project";
-import { partnerService } from "../../../../services/Partner";
-import { talentService } from "../../../../services/Talent";
 import { partnerDocumentService, type PartnerDocument, type PartnerDocumentCreate } from "../../../../services/PartnerDocument";
 import { documentTypeService, type DocumentType } from "../../../../services/DocumentType";
 import { exchangeRateService, AVAILABLE_CURRENCIES, type CurrencyCode } from "../../../../services/ExchangeRate";
@@ -258,7 +254,6 @@ export default function PartnerContractDetailPage() {
   const [contractPayment, setContractPayment] = useState<PartnerContractPaymentModel | null>(null);
   const [clientContractPayment, setClientContractPayment] = useState<ClientContractPaymentModel | null>(null);
   const [projectPeriod, setProjectPeriod] = useState<ProjectPeriodModel | null>(null);
-  const [talentAssignment, setTalentAssignment] = useState<TalentAssignmentModel | null>(null);
   const [projectName, setProjectName] = useState<string>("—");
   const [partnerName, setPartnerName] = useState<string>("—");
   const [talentName, setTalentName] = useState<string>("—");
@@ -322,11 +317,9 @@ export default function PartnerContractDetailPage() {
 
   // File states
   const [timesheetFile, setTimesheetFile] = useState<File | null>(null);
-  const [poFile, setPoFile] = useState<File | null>(null);
   const [contractFile, setContractFile] = useState<File | null>(null);
 
   // File validation states
-  const [poFileError, setPoFileError] = useState<string | null>(null);
   const [contractFileError, setContractFileError] = useState<string | null>(null);
   
   // Client SOW file state
@@ -381,17 +374,18 @@ export default function PartnerContractDetailPage() {
       const paymentData = await partnerContractPaymentService.getById(Number(id));
       setContractPayment(paymentData);
 
-      // Fetch related data in parallel
-      const [periodData, assignmentData] = await Promise.all([
-        projectPeriodService.getById(paymentData.projectPeriodId).catch(() => null),
-        talentAssignmentService.getById(paymentData.talentAssignmentId).catch(() => null),
-      ]);
+      // Fetch related data
+      const periodData = await projectPeriodService.getById(paymentData.projectPeriodId).catch(() => null);
 
       setProjectPeriod(periodData);
-      setTalentAssignment(assignmentData);
+
+      // Set names from contract data (navigation properties)
+      setProjectName(paymentData.projectName || "—");
+      setPartnerName(paymentData.partnerName || "—");
+      setTalentName(paymentData.talentName || "—");
 
       // Fetch corresponding client contract payment
-      if (periodData && assignmentData) {
+      if (periodData) {
         try {
           const clientPayments = await clientContractPaymentService.getAll({
             projectPeriodId: paymentData.projectPeriodId,
@@ -410,42 +404,10 @@ export default function PartnerContractDetailPage() {
         }
       }
 
-      // Fetch project info
-      if (assignmentData) {
-        try {
-          const project = await projectService.getById(assignmentData.projectId);
-          setProjectName(project?.name || "—");
-        } catch (err) {
-          console.error("❌ Lỗi fetch project:", err);
-          setProjectName("—");
-        }
-
-        // Fetch partner info - ưu tiên lấy từ assignment data
-        if (assignmentData.partnerCompanyName || assignmentData.partnerName) {
-          setPartnerName(assignmentData.partnerCompanyName || assignmentData.partnerName || "—");
-        } else if (assignmentData.partnerId) {
-          try {
-            const response = await partnerService.getDetailedById(assignmentData.partnerId);
-            // Handle response structure: { data: {...} } or direct data
-            const partnerData = response?.data || response;
-            setPartnerName(partnerData?.companyName || "—");
-          } catch (err) {
-            console.error("❌ Lỗi fetch partner với ID", assignmentData.partnerId, ":", err);
-            setPartnerName("—");
-          }
-        } else {
-          setPartnerName("—");
-        }
-
-        // Fetch talent info
-        try {
-          const talent = await talentService.getById(assignmentData.talentId);
-          setTalentName(talent?.fullName || "—");
-        } catch (err) {
-          console.error("❌ Lỗi fetch talent:", err);
-          setTalentName("—");
-        }
-      }
+      // Set names from contract data (navigation properties)
+      setProjectName(paymentData.projectName || "—");
+      setPartnerName(paymentData.partnerName || "—");
+      setTalentName(paymentData.talentName || "—");
     } catch (err: unknown) {
       console.error("❌ Lỗi tải thông tin hợp đồng thanh toán đối tác:", err);
       setError(
@@ -676,12 +638,6 @@ export default function PartnerContractDetailPage() {
       }
     }
 
-    // Validate PO file
-    if (!poFile) {
-      alert("Vui lòng upload file PO (Purchase Order)");
-      return;
-    }
-
     // Validate contract file
     if (!contractFile) {
       alert("Vui lòng upload file hợp đồng");
@@ -701,29 +657,13 @@ export default function PartnerContractDetailPage() {
     try {
       setIsProcessing(true);
       
-      // Upload PO file
+      // Upload contract file (PDF) - BẮT BUỘC
       const userId = getCurrentUserId();
       if (!userId) {
         alert("Không thể lấy thông tin người dùng");
         return;
       }
 
-      const filePath = `partner-po/${contractPayment.id}/po_${Date.now()}.${poFile.name.split('.').pop()}`;
-      const fileUrl = await uploadFile(poFile, filePath);
-
-      // Create PartnerDocument for PO
-      const documentPayload: PartnerDocumentCreate = {
-        partnerContractPaymentId: Number(id),
-        documentTypeId: poType.id,
-        fileName: poFile.name,
-        filePath: fileUrl,
-        uploadedByUserId: userId,
-        description: "Purchase Order (PO)",
-        source: "Accountant",
-      };
-      await partnerDocumentService.create(documentPayload);
-
-      // Upload contract file (PDF) - BẮT BUỘC
       // Find Contract document type
       const contractType = Array.from(documentTypes.values()).find(
         (type) => type.typeName.toLowerCase() === "contract"
@@ -809,9 +749,7 @@ export default function PartnerContractDetailPage() {
         standardHours: 160,
         notes: null,
       });
-      setPoFile(null);
       setContractFile(null);
-      setPoFileError(null);
       setContractFileError(null);
       setClientSowFileData(null);
       setClientSowFileError(null);
@@ -1167,10 +1105,10 @@ export default function PartnerContractDetailPage() {
           <div className="flex justify-between items-start gap-6 flex-wrap">
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Hợp đồng #{contractPayment.contractNumber}
+                Tập hồ sơ #{contractPayment.contractNumber}
               </h1>
               <p className="text-neutral-600 mb-4">
-                Thông tin chi tiết hợp đồng thanh toán đối tác
+                Thông tin chi tiết tập hồ sơ thanh toán đối tác
               </p>
               <div className="flex items-center gap-3 flex-wrap">
                 {contractPayment.isFinished ? (
@@ -1331,7 +1269,7 @@ export default function PartnerContractDetailPage() {
                 }`}
               >
                 <FileText className="w-4 h-4" />
-                Thông tin hợp đồng
+                Thông tin
               </button>
               <button
                 onClick={() => setActiveMainTab("payment")}
@@ -1422,6 +1360,16 @@ export default function PartnerContractDetailPage() {
                     />
                   </>
                 )}
+                <InfoItem
+                  icon={<Calendar className="w-4 h-4" />}
+                  label="Ngày bắt đầu hợp đồng"
+                  value={formatDate(contractPayment.contractStartDate)}
+                />
+                <InfoItem
+                  icon={<Calendar className="w-4 h-4" />}
+                  label="Ngày kết thúc hợp đồng"
+                  value={formatDate(contractPayment.contractEndDate)}
+                />
                   </div>
                 </div>
 
@@ -1457,20 +1405,6 @@ export default function PartnerContractDetailPage() {
                         label="Chu kỳ thanh toán"
                         value={`Tháng ${projectPeriod.periodMonth}/${projectPeriod.periodYear}`}
                       />
-                    )}
-                    {talentAssignment && (
-                      <>
-                        <InfoItem
-                          icon={<Calendar className="w-4 h-4" />}
-                          label="Ngày bắt đầu assignment"
-                          value={formatDate(talentAssignment.startDate)}
-                        />
-                        <InfoItem
-                          icon={<Calendar className="w-4 h-4" />}
-                          label="Ngày kết thúc assignment"
-                          value={talentAssignment.endDate ? formatDate(talentAssignment.endDate) : "Đang hiệu lực"}
-                        />
-                      </>
                     )}
                     <InfoItem
                       icon={<Calendar className="w-4 h-4" />}
@@ -1789,7 +1723,6 @@ export default function PartnerContractDetailPage() {
   ? `Theo phần trăm (${verifyForm.percentageValue}%)`
   : "Số tiền cố định"
 }
-• File PO: ${poFile?.name}
 • File hợp đồng: ${contractFile?.name}${calculatePlannedAmountVND() ? `\n• Chi phí dự kiến: ${calculatePlannedAmountVND()?.toLocaleString("vi-VN")} VND` : ''}
 
 Hợp đồng sẽ chuyển sang trạng thái "Đã duyệt" và sẵn sàng để bắt đầu thanh toán.`}
@@ -2232,45 +2165,6 @@ Hợp đồng sẽ chuyển sang trạng thái "Đã thanh toán" và quy trình
               
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  File PO (Purchase Order) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="file"
-                  accept=".pdf"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    if (file) {
-                      // Validate file size (max 5MB)
-                      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
-                      if (file.size > maxSize) {
-                        setPoFileError(`Kích thước file không được vượt quá 5MB. File hiện tại: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
-                        setPoFile(null);
-                        return;
-                      }
-                      // Validate file extension
-                      const allowedExtensions = ['.pdf'];
-                      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-                      if (!allowedExtensions.includes(fileExtension)) {
-                        setPoFileError('Chỉ chấp nhận file PDF');
-                        setPoFile(null);
-                        return;
-                      }
-                    }
-                    setPoFileError(null);
-                    setPoFile(file);
-                  }}
-                  className={`w-full border rounded-lg p-2 ${poFileError ? 'border-red-500' : ''}`}
-                  required
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Định dạng được phép: PDF. Kích thước tối đa: 5MB
-                </p>
-                {poFileError && (
-                  <p className="mt-1 text-xs text-red-600">{poFileError}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">
                   File hợp đồng <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -2382,9 +2276,7 @@ Hợp đồng sẽ chuyển sang trạng thái "Đã thanh toán" và quy trình
                     standardHours: 160,
                     notes: null,
                   });
-                  setPoFile(null);
                   setContractFile(null);
-                  setPoFileError(null);
                   setContractFileError(null);
                   setExchangeRateData(null);
                   setExchangeRateError(null);
@@ -2399,7 +2291,6 @@ Hợp đồng sẽ chuyển sang trạng thái "Đã thanh toán" và quy trình
                 onClick={() => setShowVerifyConfirmation(true)}
                 disabled={
                   isProcessing ||
-                  !poFile ||
                   !contractFile ||
                   !verifyForm.unitPriceForeignCurrency ||
                   !verifyForm.exchangeRate ||
