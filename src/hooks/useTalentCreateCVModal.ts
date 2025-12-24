@@ -10,7 +10,6 @@ import { type TalentCVCreate } from '../services/TalentCV';
 import { useCVExtraction } from './useCVExtraction';
 import { uploadFile } from '../utils/firebaseStorage';
 import { WorkingMode } from '../constants/WORKING_MODE';
-import { type TalentJobRoleLevelCreateModel } from '../services/Talent';
 
 interface UseTalentCreateCVModalProps {
   talentSkills: TalentSkillCreateModel[];
@@ -112,24 +111,24 @@ export function useTalentCreateCVModal({
     updateBasicField('githubUrl', result.basicInfo.githubUrl);
     updateBasicField('portfolioUrl', result.basicInfo.portfolioUrl);
 
-    // Fill related data
+    // Fill related data (không tự điền talentJobRoleLevels)
     setTalentSkills((prev) => [...result.skills, ...prev]);
     setTalentWorkExperiences((prev) => [...result.workExperiences, ...prev]);
     setTalentProjects((prev) => [...result.projects, ...prev]);
     setTalentCertificates((prev) => [...result.certificates, ...prev]);
-    setTalentJobRoleLevels((prev) => [...result.jobRoleLevels, ...prev]);
+    // setTalentJobRoleLevels((prev) => [...result.jobRoleLevels, ...prev]); // Không tự điền
 
     // If should create CV, upload to Firebase
     if (createCVFromExtract && modalCVFile) {
       try {
-        // Find jobRoleLevelId from extracted job role levels
-        let jobRoleLevelIdForCV = 0;
-        if (result.jobRoleLevels.length > 0) {
-          const firstMatchedJRL = result.jobRoleLevels.find((jrl: TalentJobRoleLevelCreateModel) => jrl.jobRoleLevelId > 0);
-          if (firstMatchedJRL) {
-            jobRoleLevelIdForCV = firstMatchedJRL.jobRoleLevelId;
-          }
-        }
+        // Không tự động set jobRoleLevelId cho CV vì không tự điền talentJobRoleLevels
+        // let jobRoleLevelIdForCV = 0;
+        // if (result.jobRoleLevels.length > 0) {
+        //   const firstMatchedJRL = result.jobRoleLevels.find((jrl: TalentJobRoleLevelCreateModel) => jrl.jobRoleLevelId > 0);
+        //   if (firstMatchedJRL) {
+        //     jobRoleLevelIdForCV = firstMatchedJRL.jobRoleLevelId;
+        //   }
+        // }
 
         // Upload CV to Firebase
         const timestamp = Date.now();
@@ -150,7 +149,7 @@ export function useTalentCreateCVModal({
             index === 0
               ? {
                   ...cv,
-                  jobRoleLevelId: jobRoleLevelIdForCV > 0 ? jobRoleLevelIdForCV : undefined,
+                  // jobRoleLevelId: jobRoleLevelIdForCV > 0 ? jobRoleLevelIdForCV : undefined, // Không tự điền
                   version: 1,
                   cvFileUrl: downloadURL,
                   summary: result.summary,
@@ -166,9 +165,7 @@ export function useTalentCreateCVModal({
         const previewUrl = URL.createObjectURL(modalCVFile);
         setCvPreviewUrl(previewUrl);
 
-        if (jobRoleLevelIdForCV === 0) {
-          alert('⚠️ CV đã được upload nhưng chưa có vị trí công việc. Vui lòng chọn vị trí công việc cho CV sau.');
-        }
+        // Không cần alert về jobRoleLevelId nữa
       } catch (uploadError: any) {
         console.error('Lỗi upload CV:', uploadError);
         alert(`⚠️ Đã trích xuất thông tin nhưng không thể upload CV: ${uploadError.message || 'Vui lòng thử lại.'}`);
