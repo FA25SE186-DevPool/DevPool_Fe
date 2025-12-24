@@ -685,8 +685,8 @@ export default function JobRequestDetailHRPage() {
                                     Matching CV
                                 </Button>
                             )}
-                            {/* Ẩn nút duyệt/từ chối nếu đã duyệt hoặc từ chối */}
-                            {Number(jobRequest.status) !== 1 && Number(jobRequest.status) !== 3 && (
+                            {/* Ẩn nút duyệt/từ chối nếu đã duyệt, đóng hoặc từ chối */}
+                            {Number(jobRequest.status) !== 1 && Number(jobRequest.status) !== 2 && Number(jobRequest.status) !== 3 && (
                                 <>
                                     <Button
                                         onClick={handleApproveWithConfirm}

@@ -1398,6 +1398,11 @@ export default function TalentCVApplicationDetailPage() {
                 </div>
                 {(() => {
                   const isTerminal = TalentApplicationStatusConstants.isTerminalStatus(application.status);
+                  const isHired = application.status === TalentApplicationStatusConstants.Hired;
+
+                  // Không hiển thị nút blacklist nếu đã hired
+                  if (isHired) return false;
+
                   return isTerminal
                     ? (!isBlacklisted && isCurrentUserRecruiter && !hasActiveInterviewingApplicationInJobRequest)
                     : (hasFailedActivity() && clientCompanyId && talentId && !isBlacklisted && isCurrentUserRecruiter);
