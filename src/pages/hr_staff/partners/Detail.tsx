@@ -5,7 +5,6 @@ import Breadcrumb from "../../../components/common/Breadcrumb";
 import { sidebarItems } from "../../../components/sidebar/ta_staff";
 import { partnerService, type PartnerDetailedModel, type PartnerTalentModel, PartnerType } from "../../../services/Partner";
 import { talentService, type Talent } from "../../../services/Talent";
-import { partnerContractPaymentService, type PartnerContractPaymentModel } from "../../../services/PartnerContractPayment";
 import { Button } from "../../../components/ui/button";
 import { InfoItem } from "../../../components/ta_staff/talents/InfoItem";
 import { 
@@ -18,7 +17,6 @@ import {
   User, 
   XCircle,
   FileText,
-  FileCheck,
   Users,
   Calendar,
   DollarSign,
@@ -33,14 +31,10 @@ export default function PartnerDetailPage() {
   const [partner, setPartner] = useState<PartnerDetailedModel | null>(null);
   const [loading, setLoading] = useState(true);
   const [talentDetails, setTalentDetails] = useState<Record<number, Talent>>({});
-  const [contractPayments, setContractPayments] = useState<PartnerContractPaymentModel[]>([]);
-  const [loadingContracts, setLoadingContracts] = useState(false);
-  const [activeTab, setActiveTab] = useState<'basic' | 'contracts' | 'talents'>('basic');
-  
+  const [activeTab, setActiveTab] = useState<'basic' | 'talents'>('basic');
+
   // Pagination states
-  const [pageContracts, setPageContracts] = useState(1);
   const [pageTalents, setPageTalents] = useState(1);
-  const itemsPerPageContracts = 10;
   const itemsPerPageTalents = 10;
 
   // Success overlay state
@@ -66,62 +60,13 @@ export default function PartnerDetailPage() {
 
 
   // Reset pagination when switching tabs
-  const handleTabChange = (tab: 'basic' | 'contracts' | 'talents') => {
+  const handleTabChange = (tab: 'basic' | 'talents') => {
     setActiveTab(tab);
-    if (tab === 'contracts') {
-      setPageContracts(1);
-      // Fetch contracts when switching to contracts tab
-      if (partner && partner.talents && partner.talents.length > 0) {
-        fetchContractPayments();
-      }
-    } else if (tab === 'talents') {
+    if (tab === 'talents') {
       setPageTalents(1);
     }
   };
 
-  // Fetch contract payments for all talents of this partner
-  const fetchContractPayments = async () => {
-    if (!partner || !partner.talents || partner.talents.length === 0) {
-      setContractPayments([]);
-      return;
-    }
-
-    try {
-      setLoadingContracts(true);
-      const talentIds = partner.talents.map((t: PartnerTalentModel) => t.talentId);
-      
-      // Fetch contracts for all talents in parallel
-      const contractPromises = talentIds.map((talentId: number) =>
-        partnerContractPaymentService.getAll({ 
-          talentId: talentId, 
-          excludeDeleted: true 
-        })
-      );
-      
-      const contractResults = await Promise.all(contractPromises);
-      
-      // Flatten and combine all contracts
-      const allContracts: PartnerContractPaymentModel[] = [];
-      contractResults.forEach((result) => {
-        const contracts = Array.isArray(result) ? result : ((result as any)?.items || []);
-        allContracts.push(...contracts);
-      });
-      
-      // Sort by createdAt (newest first)
-      allContracts.sort((a, b) => {
-        const dateA = new Date(a.createdAt).getTime();
-        const dateB = new Date(b.createdAt).getTime();
-        return dateB - dateA;
-      });
-      
-      setContractPayments(allContracts);
-    } catch (err) {
-      console.error("❌ Lỗi khi tải hợp đồng:", err);
-      setContractPayments([]);
-    } finally {
-      setLoadingContracts(false);
-    }
-  };
 
   useEffect(() => {
     const fetchPartner = async () => {
@@ -398,19 +343,6 @@ export default function PartnerDetailPage() {
                   </div>
                 </button>
                 <button
-                  onClick={() => handleTabChange('contracts')}
-                  className={`px-6 py-3 font-medium text-sm transition-all duration-200 border-b-2 ${
-                    activeTab === 'contracts'
-                      ? 'border-primary-600 text-primary-600 bg-primary-50'
-                      : 'border-transparent text-neutral-600 hover:text-neutral-900 hover:border-neutral-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <FileCheck className="w-4 h-4" />
-                    Hợp đồng {contractPayments.length > 0 ? `(${contractPayments.length})` : ''}
-                  </div>
-                </button>
-                <button
                   onClick={() => handleTabChange('talents')}
                   className={`px-6 py-3 font-medium text-sm transition-all duration-200 border-b-2 ${
                     activeTab === 'talents'
@@ -517,70 +449,6 @@ export default function PartnerDetailPage() {
                 </div>
               )}
 
-              {/* Hợp đồng */}
-              {activeTab === 'contracts' && (
-                <div>
-                  {loadingContracts ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
-                      <p className="text-neutral-500">Đang tải hợp đồng...</p>
-                    </div>
-                  ) : contractPayments.length > 0 ? (
-                    <>
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b border-neutral-200">
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Mã hợp đồng</th>
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Mức giá</th>
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Trạng thái</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(() => {
-                              const startIndex = (pageContracts - 1) * itemsPerPageContracts;
-                              const endIndex = startIndex + itemsPerPageContracts;
-                              const paginatedContracts = contractPayments.slice(startIndex, endIndex);
-                              
-                              return paginatedContracts.map((contract) => (
-                                <tr key={contract.id} className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
-                                  <td className="py-4 px-4">
-                                    <p className="text-sm font-medium text-gray-900">{contract.contractNumber}</p>
-                                  </td>
-                                  <td className="py-4 px-4">
-                                    <p className="text-sm text-gray-900">
-                                      {(() => {
-                                        const monthlyRate = (contract.unitPriceForeignCurrency * contract.exchangeRate) || contract.actualAmountVND || 0;
-                                        return monthlyRate > 0 ? `${monthlyRate.toLocaleString('vi-VN')} VND/tháng` : '—';
-                                      })()}
-                                    </p>
-                                  </td>
-                                  <td className="py-4 px-4">
-                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(contract.contractStatus)}`}>
-                                      {getStatusText(contract.contractStatus)}
-                                    </span>
-                                  </td>
-                                </tr>
-                              ));
-                            })()}
-                          </tbody>
-                        </table>
-                      </div>
-                      <SectionPagination
-                        currentPage={pageContracts}
-                        totalItems={contractPayments.length}
-                        itemsPerPage={itemsPerPageContracts}
-                        onPageChange={setPageContracts}
-                      />
-                    </>
-                  ) : (
-                    <div className="text-center py-8">
-                      <FileCheck className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
-                      <p className="text-neutral-500 text-lg font-medium">Không có hợp đồng</p>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Nhân sự */}
               {activeTab === 'talents' && (
