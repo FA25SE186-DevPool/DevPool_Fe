@@ -326,7 +326,7 @@ export function useCVExtraction(
       cvSkills.forEach((skillObj: any) => {
         const skillName = typeof skillObj === 'string' ? skillObj : skillObj.skillName;
         const skillLevel =
-          typeof skillObj === 'object' ? skillObj.level || 'Intermediate' : 'Intermediate';
+          typeof skillObj === 'object' ? skillObj.level || 'Beginner' : 'Beginner';
         const skillYearsExp = typeof skillObj === 'object' ? skillObj.yearsExp || 0 : 0;
 
         // Find skill in system (exact match first, then fuzzy)
@@ -342,7 +342,7 @@ export function useCVExtraction(
           // Map level to valid level
           let mappedLevel = skillLevel;
           if (!['Beginner', 'Intermediate', 'Advanced', 'Expert'].includes(skillLevel)) {
-            mappedLevel = 'Intermediate';
+            mappedLevel = 'Beginner';
           }
 
           // Auto set yearsExp = 1 if 0

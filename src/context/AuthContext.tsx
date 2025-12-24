@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         // Firebase user authenticated (silent)
       } else {
-        console.warn('Firebase auth state: No user authenticated');
+        console.warn('Firebase auth state: No user authenticated')  ;
       }
       setIsLoading(false);
     });
