@@ -53,15 +53,26 @@ export default function MarketDetailPage() {
         navigate("/admin/categories/markets");
       }, 2000);
     } catch (err: any) {
-      console.error("❌ Lỗi khi xóa thị trường:", err);
-
       // Handle InvalidOperationException from backend
-      if (err?.response?.status === 400 && err?.response?.data?.title?.includes("InvalidOperationException")) {
-        const errorMessage = err.response.data.detail || "Không thể xóa thị trường này vì đang được sử dụng bởi các project.";
+      // Check if this is a business logic error with message
+      const isInvalidOperationException =
+        (err?.response?.status === 409 || err?.response?.status === 400) &&
+        err?.response?.data?.title?.includes("InvalidOperationException") ||
+        (err?.statusCode === 409 || err?.statusCode === 400) &&
+        err?.errorType === "InvalidOperationException" ||
+        (err?.success === false && err?.message); // Direct error object with message
+
+      if (isInvalidOperationException) {
+        const errorMessage =
+          err?.message ||
+          err?.response?.data?.detail ||
+          "Không thể xóa thị trường này vì đang được sử dụng bởi các project.";
         alert(`❌ ${errorMessage}`);
         return;
       }
 
+      // Log error for unhandled cases
+      console.error("❌ Lỗi khi xóa thị trường:", err);
       alert("Không thể xóa thị trường!");
     }
   };

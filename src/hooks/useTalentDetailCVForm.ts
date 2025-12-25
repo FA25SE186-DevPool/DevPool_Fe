@@ -380,7 +380,6 @@ export function useTalentDetailCVForm({
             : (Array.isArray(cvsResponse?.data) 
               ? cvsResponse.data 
               : []));
-        console.log(`🔍 Fetch CVs for validation - jobRoleLevelId: ${inlineCVForm.jobRoleLevelId}, count: ${cvs.length}`, cvs);
         setExistingCVsForValidation(cvs);
       } catch (error) {
         console.error("❌ Error loading CVs for validation", error);

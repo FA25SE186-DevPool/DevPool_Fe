@@ -726,7 +726,26 @@ export function useTalentDetailOperations() {
             });
           });
         }, 2000);
-      } catch (err) {
+      } catch (err: any) {
+        // Handle InvalidOperationException from backend
+        // Check if this is a business logic error with message
+        const isInvalidOperationException =
+          (err?.response?.status === 409 || err?.response?.status === 400) &&
+          err?.response?.data?.title?.includes("InvalidOperationException") ||
+          (err?.statusCode === 409 || err?.statusCode === 400) &&
+          err?.errorType === "InvalidOperationException" ||
+          (err?.success === false && err?.message); // Direct error object with message
+
+        if (isInvalidOperationException) {
+          const errorMessage =
+            err?.message ||
+            err?.response?.data?.detail ||
+            "Không thể xóa kỹ năng này vì đang được sử dụng.";
+          alert(`❌ ${errorMessage}`);
+          return;
+        }
+
+        // Log error for unhandled cases
         console.error('❌ Lỗi khi xóa kỹ năng:', err);
         alert('Không thể xóa kỹ năng!');
       }
@@ -804,15 +823,14 @@ export function useTalentDetailOperations() {
           }
         }, 2000);
       } catch (err: any) {
-        console.error('❌ Lỗi khi xóa vị trí:', err);
-
         // Handle InvalidOperationException from backend
-        // Có thể là axios error (err.response) hoặc direct error (err.statusCode)
+        // Check if this is a business logic error with message
         const isInvalidOperationException =
           (err?.response?.status === 409 || err?.response?.status === 400) &&
           err?.response?.data?.title?.includes("InvalidOperationException") ||
           (err?.statusCode === 409 || err?.statusCode === 400) &&
-          err?.errorType === "InvalidOperationException";
+          err?.errorType === "InvalidOperationException" ||
+          (err?.success === false && err?.message); // Direct error object with message
 
         if (isInvalidOperationException) {
           const errorMessage =
@@ -823,6 +841,8 @@ export function useTalentDetailOperations() {
           return;
         }
 
+        // Log error for unhandled cases
+        console.error('❌ Lỗi khi xóa vị trí:', err);
         alert('Không thể xóa vị trí!');
       }
     },

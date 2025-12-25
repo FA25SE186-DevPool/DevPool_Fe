@@ -148,7 +148,26 @@ export default function ExpertListPage() {
     try {
       await expertService.delete(id);
       setExperts((prev) => prev.filter((e) => e.id !== id));
-    } catch (err) {
+    } catch (err: any) {
+      // Handle InvalidOperationException from backend
+      // Check if this is a business logic error with message
+      const isInvalidOperationException =
+        (err?.response?.status === 409 || err?.response?.status === 400) &&
+        err?.response?.data?.title?.includes("InvalidOperationException") ||
+        (err?.statusCode === 409 || err?.statusCode === 400) &&
+        err?.errorType === "InvalidOperationException" ||
+        (err?.success === false && err?.message); // Direct error object with message
+
+      if (isInvalidOperationException) {
+        const errorMessage =
+          err?.message ||
+          err?.response?.data?.detail ||
+          "Không thể xóa chuyên gia này vì đang được sử dụng.";
+        alert(`❌ ${errorMessage}`);
+        return;
+      }
+
+      // Log error for unhandled cases
       console.error("❌ Lỗi khi xóa expert:", err);
       alert("Không thể xóa chuyên gia, vui lòng thử lại.");
     }
