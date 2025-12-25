@@ -13,7 +13,7 @@ export interface TalentCV {
 
 export interface TalentCVFilter {
   talentId?: number;
-  jobRoleLevelId?: number; 
+  jobRoleLevelId?: number;
   isActive?: boolean;
   isGeneratedFromTemplate?: boolean;
   excludeDeleted?: boolean;
@@ -70,6 +70,7 @@ export interface TalentCVExtractResponse {
   originalText: string;
   generateText: string;
   isSuccess: boolean;
+  cvValidationWarning?: string | null;
 }
 
 export interface BasicInfoData {
