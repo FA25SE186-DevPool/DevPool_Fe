@@ -82,25 +82,6 @@ export default function SalesApplyProcessTemplateDetailPage() {
   const handleDelete = async () => {
     if (!id) return;
 
-    try {
-      // Kiểm tra xem template có được sử dụng trong job request nào không
-      const jobRequests = await jobRequestService.getAll({
-        applyProcessTemplateId: Number(id),
-        excludeDeleted: true
-      });
-
-      const jobRequestCount = Array.isArray(jobRequests) ? jobRequests.length :
-                             (jobRequests?.data ? jobRequests.data.length : 0);
-
-      if (jobRequestCount > 0) {
-        alert(`⚠️ Không thể xóa template này vì đang được sử dụng trong ${jobRequestCount} yêu cầu tuyển dụng!`);
-        return;
-      }
-    } catch (err) {
-      console.error("❌ Lỗi khi kiểm tra job requests:", err);
-      // Tiếp tục với việc xóa nếu không thể kiểm tra
-    }
-
     const confirm = window.confirm("⚠️ Bạn có chắc muốn xóa template này?");
     if (!confirm) return;
 
@@ -108,8 +89,16 @@ export default function SalesApplyProcessTemplateDetailPage() {
       await applyProcessTemplateService.delete(Number(id));
       alert("Đã xóa template thành công!");
       navigate("/sales/apply-process-templates");
-    } catch (err) {
+    } catch (err: any) {
       console.error("❌ Lỗi khi xóa:", err);
+
+      // Handle InvalidOperationException from backend
+      if (err?.response?.status === 400 && err?.response?.data?.title?.includes("InvalidOperationException")) {
+        const errorMessage = err.response.data.detail || "Không thể xóa template này vì đang được sử dụng bởi các job request hoặc apply process steps.";
+        alert(`❌ ${errorMessage}`);
+        return;
+      }
+
       alert("Không thể xóa template!");
     }
   };

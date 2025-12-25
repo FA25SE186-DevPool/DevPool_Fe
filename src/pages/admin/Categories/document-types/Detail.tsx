@@ -41,11 +41,11 @@ export default function DocumentTypeDetailPage() {
 
   const handleDelete = async () => {
     if (!id || !documentType) return;
-    
+
     const confirmDelete = window.confirm(
       `⚠️ Bạn có chắc muốn xóa loại tài liệu "${documentType.typeName}"?\n\nHành động này không thể hoàn tác!`
     );
-    
+
     if (!confirmDelete) return;
 
     try {
@@ -55,6 +55,14 @@ export default function DocumentTypeDetailPage() {
       navigate("/admin/categories/document-types");
     } catch (err: any) {
       console.error("❌ Lỗi khi xóa loại tài liệu:", err);
+
+      // Handle InvalidOperationException from backend
+      if (err?.response?.status === 400 && err?.response?.data?.title?.includes("InvalidOperationException")) {
+        const errorMessage = err.response.data.detail || "Không thể xóa loại tài liệu này vì đang được sử dụng bởi các document.";
+        alert(`❌ ${errorMessage}`);
+        return;
+      }
+
       alert(err?.message || "Không thể xóa loại tài liệu. Vui lòng thử lại.");
     } finally {
       setDeleting(false);
