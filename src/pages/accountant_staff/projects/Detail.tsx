@@ -1873,11 +1873,11 @@ setShowErrorToast(true);
               {/* Commitment Files */}
               {(selectedAssignment.clientCommitmentFileUrl || selectedAssignment.partnerCommitmentFileUrl) && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-2">File cam kết</label>
+                  <label className="block text-sm font-medium text-gray-500 mb-2">File thỏa thuận</label>
                   <div className="space-y-2">
                     {selectedAssignment.clientCommitmentFileUrl && (
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-neutral-500">Client:</span>
+                        <span className="text-xs text-neutral-500">Đối tác:</span>
                         <a
                           href={selectedAssignment.clientCommitmentFileUrl}
                           target="_blank"
@@ -1891,7 +1891,7 @@ setShowErrorToast(true);
                     )}
                     {selectedAssignment.partnerCommitmentFileUrl && (
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-neutral-500">Partner:</span>
+                        <span className="text-xs text-neutral-500">Khách hàng:</span>
                         <a
                           href={selectedAssignment.partnerCommitmentFileUrl}
                           target="_blank"

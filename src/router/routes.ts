@@ -160,6 +160,10 @@ export const ROUTES = {
         EDIT: '/admin/categories/industries/edit/:id',
         CREATE: '/admin/categories/industries/create',
       },
+      OT:
+      {
+        LIST: '/admin/categories/ot',
+      },
     },
 
     AUDIT: {

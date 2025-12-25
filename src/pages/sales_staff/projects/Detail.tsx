@@ -649,12 +649,12 @@ export default function ProjectDetailPage() {
 
       // Validate required commitment files
       if (!directBookingClientCommitmentFile && !directBookingForm.clientCommitmentFileUrl) {
-        setDirectBookingErrors(prev => ({ ...prev, clientCommitmentFile: "Vui lòng upload file cam kết Client" }));
+        setDirectBookingErrors(prev => ({ ...prev, clientCommitmentFile: "Vui lòng upload file thỏa thuận khách hàng" }));
         return;
       }
 
       if (!directBookingPartnerCommitmentFile && !directBookingForm.partnerCommitmentFileUrl) {
-        setDirectBookingErrors(prev => ({ ...prev, partnerCommitmentFile: "Vui lòng upload file cam kết Partner" }));
+        setDirectBookingErrors(prev => ({ ...prev, partnerCommitmentFile: "Vui lòng upload file thỏa thuận đối tác" }));
         return;
       }
 
@@ -1224,12 +1224,12 @@ export default function ProjectDetailPage() {
 
       // Validate required commitment files
       if (!updateClientCommitmentFile && !updateForm.clientCommitmentFileUrl) {
-        setUpdateErrors(prev => ({ ...prev, clientCommitmentFile: "Vui lòng upload file cam kết Client" }));
+        setUpdateErrors(prev => ({ ...prev, clientCommitmentFile: "Vui lòng upload file thỏa thuận khách hàng" }));
         return;
       }
 
       if (!updatePartnerCommitmentFile && !updateForm.partnerCommitmentFileUrl) {
-        setUpdateErrors(prev => ({ ...prev, partnerCommitmentFile: "Vui lòng upload file cam kết Partner" }));
+        setUpdateErrors(prev => ({ ...prev, partnerCommitmentFile: "Vui lòng upload file thỏa thuận đối tác" }));
         return;
       }
 
@@ -1552,12 +1552,12 @@ export default function ProjectDetailPage() {
 
       // Validate required commitment files
       if (!extendClientCommitmentFile && !extendForm.clientCommitmentFileUrl) {
-        setExtendErrors(prev => ({ ...prev, clientCommitmentFile: "Vui lòng upload file cam kết Client" }));
+        setExtendErrors(prev => ({ ...prev, clientCommitmentFile: "Vui lòng upload file thỏa thuận khách hàng" }));
         return;
       }
 
       if (!extendPartnerCommitmentFile && !extendForm.partnerCommitmentFileUrl) {
-        setExtendErrors(prev => ({ ...prev, partnerCommitmentFile: "Vui lòng upload file cam kết Partner" }));
+        setExtendErrors(prev => ({ ...prev, partnerCommitmentFile: "Vui lòng upload file thỏa thuận đối tác" }));
         return;
       }
 
@@ -3449,7 +3449,7 @@ export default function ProjectDetailPage() {
                   {/* Client Commitment File */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      File cam kết Client <span className="text-red-500">*</span>
+                      File thỏa thuận khách hàng <span className="text-red-500">*</span>
                     </label>
                     <div className="flex items-center gap-3">
                       <label className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors ${
@@ -3500,7 +3500,7 @@ export default function ProjectDetailPage() {
                   {/* Partner Commitment File */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      File cam kết Partner <span className="text-red-500">*</span>
+                      File thỏa thuận đối tác <span className="text-red-500">*</span>
                     </label>
                     <div className="flex items-center gap-3">
                       <label className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors ${
@@ -3858,7 +3858,7 @@ export default function ProjectDetailPage() {
                   {/* Client Commitment File */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      File cam kết Client <span className="text-red-500">*</span>
+                      File thỏa thuận khách hàng <span className="text-red-500">*</span>
                     </label>
                     <div className="flex items-center gap-3">
                       <label className="flex items-center gap-2 px-4 py-2 border border-neutral-200 rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors">
@@ -3883,7 +3883,7 @@ export default function ProjectDetailPage() {
                   {/* Partner Commitment File */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      File cam kết Partner <span className="text-red-500">*</span>
+                      File thỏa thuận đối tác <span className="text-red-500">*</span>
                     </label>
                     <div className="flex items-center gap-3">
                       <label className="flex items-center gap-2 px-4 py-2 border border-neutral-200 rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors">
@@ -4202,7 +4202,7 @@ export default function ProjectDetailPage() {
                 {/* Client Commitment File */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    File cam kết Client <span className="text-red-500">*</span>
+                    File thỏa thuận khách hàng <span className="text-red-500">*</span>
                   </label>
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
@@ -4255,7 +4255,7 @@ export default function ProjectDetailPage() {
                 {/* Partner Commitment File */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    File cam kết Partner <span className="text-red-500">*</span>
+                    File thỏa thuận đối tác <span className="text-red-500">*</span>
                   </label>
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
@@ -4488,11 +4488,11 @@ export default function ProjectDetailPage() {
               {/* Commitment Files */}
               {(selectedAssignment.clientCommitmentFileUrl || selectedAssignment.partnerCommitmentFileUrl) && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-2">File cam kết</label>
+                  <label className="block text-sm font-medium text-gray-500 mb-2">File thỏa thuận</label>
                   <div className="space-y-2">
                     {selectedAssignment.clientCommitmentFileUrl && (
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-neutral-500">Client:</span>
+                        <span className="text-xs text-neutral-500">Khách hàng:</span>
                         <a
                           href={selectedAssignment.clientCommitmentFileUrl}
                           target="_blank"
@@ -4506,7 +4506,7 @@ export default function ProjectDetailPage() {
                     )}
                     {selectedAssignment.partnerCommitmentFileUrl && (
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-neutral-500">Partner:</span>
+                        <span className="text-xs text-neutral-500">Đối tác:</span>
                         <a
                           href={selectedAssignment.partnerCommitmentFileUrl}
                           target="_blank"
@@ -5041,7 +5041,7 @@ export default function ProjectDetailPage() {
                 {/* Client Commitment File */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    File cam kết Client <span className="text-red-500">*</span>
+                    File thỏa thuận khách hàng <span className="text-red-500">*</span>
                   </label>
                   <div className="flex items-center gap-3">
                     <label className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors ${
@@ -5092,7 +5092,7 @@ export default function ProjectDetailPage() {
                 {/* Partner Commitment File */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    File cam kết Partner <span className="text-red-500">*</span>
+                    File thỏa thuận đối tác <span className="text-red-500">*</span>
                   </label>
                   <div className="flex items-center gap-3">
                     <label className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors ${

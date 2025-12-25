@@ -99,6 +99,9 @@ const SkillGroupListPage = React.lazy(() => import('../pages/admin/Categories/sk
 const ExpertListPage = React.lazy(() => import('../pages/admin/Categories/experts/List'));
 const ExpertDetailPage = React.lazy(() => import('../pages/admin/Categories/experts/Detail'));
 
+// Categories - OT
+const OvertimeTierCoefficientListPage = React.lazy(() => import('../pages/admin/Categories/ot/List'));
+
 // ========================================
 // TA STAFF PAGES - Lazy Loading
 // ========================================
@@ -524,6 +527,9 @@ const AppRouter: React.FC = () => {
               {/* Categories - Experts */}
               <Route path="/admin/categories/experts" element={<ExpertListPage />} />
               <Route path="/admin/categories/experts/:id" element={<ExpertDetailPage />} />
+
+              {/* Categories - OT */}
+              <Route path={ROUTES.ADMIN.CATEGORIES.OT.LIST} element={<OvertimeTierCoefficientListPage />} />
 
               {/* Audit Log */}
               <Route path={ROUTES.ADMIN.AUDIT.LIST} element={<AuditLogListPage />} />

@@ -54,6 +54,7 @@ export const sidebarItems = [
           { label: 'Lĩnh vực', href: '/admin/categories/industries' },
           { label: 'Loại tài liệu', href: '/admin/categories/document-types' },
           { label: 'Chuyên gia đánh giá', href: '/admin/categories/experts', icon: UserCog },
+          { label: 'OT', href: '/admin/categories/ot' },
         ]
       },
     ]
