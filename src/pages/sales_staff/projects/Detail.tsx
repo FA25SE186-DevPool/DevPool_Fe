@@ -18,7 +18,6 @@ import { jobRoleLevelService, type JobRoleLevel } from "../../../services/JobRol
 import { locationService, type Location } from "../../../services/location";
 import { type JobRequest } from "../../../services/JobRequest";
 import { WorkingMode } from "../../../constants/WORKING_MODE";
-import { uploadFile } from "../../../utils/firebaseStorage";
 import { formatNumberInput, parseNumberInput } from "../../../utils/formatters";
 import ConfirmModal from "../../../components/ui/confirm-modal";
 import SuccessToast from "../../../components/ui/success-toast";
@@ -38,7 +37,6 @@ import {
   FileCheck,
   UserCheck,
   Clock,
-  Download,
   Search,
   Filter,
   X,
@@ -46,10 +44,8 @@ import {
   ChevronRight,
   Layers,
   Plus,
-  Upload,
   User,
   Eye,
-  ExternalLink,
   Hash,
   DollarSign,
   Mail,
@@ -196,7 +192,6 @@ export default function ProjectDetailPage() {
     talentApplicationId: null,
     startDate: "",
     endDate: null,
-    commitmentFileUrl: null,
     status: "Active",
     terminationDate: null,
     terminationReason: null,
@@ -205,10 +200,6 @@ export default function ProjectDetailPage() {
     estimatedPartnerRate: null,
     currencyCode: "VND"
   });
-  const [commitmentFile, setCommitmentFile] = useState<File | null>(null);
-  const [updateCommitmentFile, setUpdateCommitmentFile] = useState<File | null>(null);
-  const [extendCommitmentFile, setExtendCommitmentFile] = useState<File | null>(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
   
   // Form state for terminating assignment
   const [terminateForm, setTerminateForm] = useState<{
@@ -240,11 +231,9 @@ export default function ProjectDetailPage() {
   // Form state for extending assignment
   const [extendForm, setExtendForm] = useState<{
     endDate: string;
-    commitmentFileUrl?: string | null;
     notes?: string | null;
   }>({
     endDate: "",
-    commitmentFileUrl: null,
     notes: null
   });
   const [extendErrors, setExtendErrors] = useState<{ endDate?: string }>({});
@@ -289,7 +278,6 @@ export default function ProjectDetailPage() {
   const [updateForm, setUpdateForm] = useState<{
     startDate: string;
     endDate: string;
-    commitmentFileUrl?: string | null;
     terminationDate?: string | null;
     terminationReason?: string | null;
     notes?: string | null;
@@ -299,7 +287,6 @@ export default function ProjectDetailPage() {
   }>({
     startDate: "",
     endDate: "",
-    commitmentFileUrl: null,
     terminationDate: null,
     terminationReason: null,
     notes: null,
@@ -866,13 +853,6 @@ export default function ProjectDetailPage() {
     try {
       setSubmittingAssignment(true);
 
-      // Upload commitment file if exists
-      let commitmentFileUrl = null;
-      if (commitmentFile) {
-        const path = `talent-assignments/${id}/${Date.now()}_${commitmentFile.name}`;
-        commitmentFileUrl = await uploadFile(commitmentFile, path, setUploadProgress);
-      }
-
       // Create assignment
       // Convert dates to UTC ISO string for PostgreSQL
       const payload: TalentAssignmentCreateModel = {
@@ -880,7 +860,6 @@ export default function ProjectDetailPage() {
         projectId: Number(id),
         startDate: assignmentForm.startDate ? toUTCISOString(assignmentForm.startDate) || "" : "",
         endDate: assignmentForm.endDate ? toUTCISOString(assignmentForm.endDate) : null,
-        commitmentFileUrl,
         currencyCode: (assignmentForm.estimatedClientRate || assignmentForm.estimatedPartnerRate) ? (assignmentForm.currencyCode || "VND") : null
       };
 
@@ -975,7 +954,6 @@ export default function ProjectDetailPage() {
         talentApplicationId: null,
         startDate: "",
         endDate: null,
-        commitmentFileUrl: null,
         status: "Active",
         terminationDate: null,
         terminationReason: null,
@@ -984,8 +962,6 @@ export default function ProjectDetailPage() {
         estimatedPartnerRate: null,
         currencyCode: "VND"
       });
-      setCommitmentFile(null);
-      setUploadProgress(0);
       setAssignmentErrors({});
       setAssignmentWarnings({});
       setCompletedActivityDate(null);
@@ -1137,12 +1113,6 @@ export default function ProjectDetailPage() {
     try {
       setSubmittingUpdate(true);
 
-      // Upload commitment file if exists
-      let commitmentFileUrl = selectedAssignment.commitmentFileUrl || null;
-      if (updateCommitmentFile) {
-        const path = `talent-assignments/${id}/${Date.now()}_${updateCommitmentFile.name}`;
-        commitmentFileUrl = await uploadFile(updateCommitmentFile, path, setUploadProgress);
-      }
 
       const isDraft = selectedAssignment.status === "Draft";
       const isActiveWithStartDate = selectedAssignment.status === "Active" && selectedAssignment.startDate;
@@ -1151,12 +1121,11 @@ export default function ProjectDetailPage() {
         // Use update API for Draft status
         // Note: We need to include startDate even though it's not in the standard interface
         // Convert dates to UTC ISO string for PostgreSQL
-        // Khi status là Draft, chỉ cho phép cập nhật: startDate, endDate, commitmentFileUrl, estimatedClientRate, estimatedPartnerRate, currencyCode, notes
+        // Khi status là Draft, chỉ cho phép cập nhật: startDate, endDate, estimatedClientRate, estimatedPartnerRate, currencyCode, notes
         // KHÔNG cho phép cập nhật terminationDate và terminationReason
         const payload: TalentAssignmentUpdateModel & { startDate?: string | null; status?: string } = {
           startDate: updateForm.startDate ? toUTCISOString(updateForm.startDate) : (selectedAssignment.startDate ? toUTCISOString(selectedAssignment.startDate) : null),
           endDate: updateForm.endDate ? toUTCISOString(updateForm.endDate) : null,
-          commitmentFileUrl,
           status: "Active", // Change status to Active
           // Không gửi terminationDate và terminationReason khi status là Draft
           notes: updateForm.notes || null,
@@ -1183,7 +1152,6 @@ export default function ProjectDetailPage() {
         }
         const extendPayload: TalentAssignmentExtendModel = {
           endDate: endDateUTC,
-          commitmentFileUrl: commitmentFileUrl || null,
           notes: updateForm.notes || null
         };
         await talentAssignmentService.extend(selectedAssignment.id, extendPayload);
@@ -1202,11 +1170,8 @@ export default function ProjectDetailPage() {
       setUpdateForm({
         startDate: "",
         endDate: "",
-        commitmentFileUrl: null,
         notes: null
       });
-      setUpdateCommitmentFile(null);
-      setUploadProgress(0);
       setUpdateErrors({});
       setSelectedAssignment(null);
       setShowUpdateAssignmentModal(false);
@@ -1445,16 +1410,8 @@ export default function ProjectDetailPage() {
     try {
       setSubmittingExtend(true);
 
-      // Upload commitment file if exists
-      let commitmentFileUrl = selectedAssignment.commitmentFileUrl || null;
-      if (extendCommitmentFile) {
-        const path = `talent-assignments/${id}/${Date.now()}_${extendCommitmentFile.name}`;
-        commitmentFileUrl = await uploadFile(extendCommitmentFile, path, setUploadProgress);
-      }
-
       const payload = {
         endDate: toUTCISOString(extendForm.endDate) || "",
-        commitmentFileUrl,
         notes: extendForm.notes || null
       };
 
@@ -1469,10 +1426,8 @@ export default function ProjectDetailPage() {
       // Reset form and close modal
       setExtendForm({
         endDate: "",
-        commitmentFileUrl: null,
         notes: null
       });
-      setExtendCommitmentFile(null);
       setExtendErrors({});
       setShowExtendAssignmentModal(false);
       setShowDetailAssignmentModal(false);
@@ -2666,7 +2621,6 @@ export default function ProjectDetailPage() {
                         <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Ngày bắt đầu</th>
                         <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Ngày kết thúc</th>
                         <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Trạng thái</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">File cam kết</th>
                         <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Ngày cập nhật gần nhất</th>
                         <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-700">Thao tác</th>
                       </tr>
@@ -2705,37 +2659,6 @@ export default function ProjectDetailPage() {
                               }`}>
                                 {assignment.status ? (assignmentStatusLabels[assignment.status] || "Không xác định") : "—"}
                               </span>
-                            </td>
-                            <td className="py-3 px-4">
-                              {assignment.commitmentFileUrl ? (
-                                <div className="flex items-center gap-2">
-                                  <a
-                                    href={assignment.commitmentFileUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-xs font-medium transition-colors"
-                                    onClick={(e) => e.stopPropagation()}
-                                    title="Xem file trong tab mới"
-                                  >
-                                    <ExternalLink className="w-3 h-3" />
-                                    Xem
-                                  </a>
-                                  <a
-                                    href={assignment.commitmentFileUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    download
-                                    className="inline-flex items-center gap-1 px-2 py-1 bg-primary-100 hover:bg-primary-200 text-primary-700 rounded text-xs font-medium transition-colors"
-                                    onClick={(e) => e.stopPropagation()}
-                                    title="Tải file xuống"
-                                  >
-                                    <Download className="w-3 h-3" />
-                                    Tải xuống
-                                  </a>
-                                </div>
-                              ) : (
-                                <span className="text-sm text-neutral-400">—</span>
-                              )}
                             </td>
                             <td className="py-3 px-4 text-sm text-neutral-700">
                               {assignment.updatedAt 
@@ -3556,30 +3479,6 @@ export default function ProjectDetailPage() {
                   )}
                 </div>
 
-                {/* Commitment File */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    File cam kết (Tùy chọn)
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 px-4 py-2 border border-neutral-200 rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors">
-                      <Upload className="w-4 h-4" />
-                      <span className="text-sm">Chọn file</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx"
-                        onChange={(e) => setCommitmentFile(e.target.files?.[0] || null)}
-                        className="hidden"
-                      />
-                    </label>
-                    {commitmentFile && (
-                      <span className="text-sm text-neutral-600">{commitmentFile.name}</span>
-                    )}
-                    {uploadProgress > 0 && uploadProgress < 100 && (
-                      <span className="text-sm text-primary-600">Đang upload: {uploadProgress}%</span>
-                    )}
-                  </div>
-                </div>
 
                 {/* Estimated Client Rate */}
                 <div>
@@ -3801,43 +3700,6 @@ export default function ProjectDetailPage() {
                 )}
               </div>
 
-              {/* Commitment File - Optional */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  File cam kết (Tùy chọn)
-                </label>
-                {selectedAssignment.commitmentFileUrl && !updateCommitmentFile && (
-                  <div className="mb-2">
-                    <a
-                      href={selectedAssignment.commitmentFileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 text-sm"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span>File hiện tại</span>
-                    </a>
-                  </div>
-                )}
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 px-4 py-2 border border-neutral-200 rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors">
-                    <Upload className="w-4 h-4" />
-                    <span className="text-sm">{updateCommitmentFile ? "Thay đổi file" : "Chọn file mới"}</span>
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx"
-                      onChange={(e) => setUpdateCommitmentFile(e.target.files?.[0] || null)}
-                      className="hidden"
-                    />
-                  </label>
-                  {updateCommitmentFile && (
-                    <span className="text-sm text-neutral-600">{updateCommitmentFile.name}</span>
-                  )}
-                  {uploadProgress > 0 && uploadProgress < 100 && (
-                    <span className="text-sm text-primary-600">Đang upload: {uploadProgress}%</span>
-                  )}
-                </div>
-              </div>
 
               {/* Termination Date - Optional - Only show when status is Terminated (not Draft) */}
               {selectedAssignment.status === "Terminated" && (
@@ -3991,10 +3853,9 @@ export default function ProjectDetailPage() {
                   onClick={() => {
                     setShowUpdateAssignmentModal(false);
                               setSelectedAssignment(null);
-                    setUpdateForm({ 
-                      startDate: "", 
-                      endDate: "", 
-                      commitmentFileUrl: null, 
+                    setUpdateForm({
+                      startDate: "",
+                      endDate: "",
                       terminationDate: null,
                       terminationReason: null,
                       notes: null,
@@ -4002,7 +3863,6 @@ export default function ProjectDetailPage() {
                       estimatedPartnerRate: null,
                       currencyCode: "VND"
                     });
-                    setUpdateCommitmentFile(null);
                   }}
                   className="px-4 py-2 border border-neutral-200 rounded-lg text-neutral-700 hover:bg-neutral-50 transition-colors"
                 >
@@ -4116,37 +3976,6 @@ export default function ProjectDetailPage() {
                 </div>
               )}
 
-              {/* Commitment File */}
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">File cam kết</label>
-                {selectedAssignment.commitmentFileUrl ? (
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={selectedAssignment.commitmentFileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium transition-colors"
-                      title="Xem file trong tab mới"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Xem file
-                    </a>
-                    <a
-                      href={selectedAssignment.commitmentFileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download
-                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-100 hover:bg-primary-200 text-primary-700 rounded-lg text-sm font-medium transition-colors"
-                      title="Tải file xuống"
-                    >
-                      <Download className="w-4 h-4" />
-                      Tải xuống
-                    </a>
-                  </div>
-                ) : (
-                  <p className="text-sm text-neutral-400">Chưa có file</p>
-                )}
-              </div>
 
               {/* Termination Reason */}
               {selectedAssignment.terminationReason && (
@@ -4277,7 +4106,6 @@ export default function ProjectDetailPage() {
                         setUpdateForm({
                           startDate: initialStartDate,
                           endDate: selectedAssignment.endDate || "",
-                          commitmentFileUrl: selectedAssignment.commitmentFileUrl || null,
                           terminationDate: selectedAssignment.terminationDate || null,
                           terminationReason: selectedAssignment.terminationReason || null,
                           notes: selectedAssignment.notes || null,
@@ -4285,7 +4113,6 @@ export default function ProjectDetailPage() {
                           estimatedPartnerRate: selectedAssignment.estimatedPartnerRate || null,
                           currencyCode: selectedAssignment.currencyCode || "VND"
                         });
-                        setUpdateCommitmentFile(null);
                         setShowDetailAssignmentModal(false);
                         setShowUpdateAssignmentModal(true);
                       }}
@@ -4319,10 +4146,8 @@ export default function ProjectDetailPage() {
                       onClick={() => {
                         setExtendForm({
                           endDate: selectedAssignment.endDate || "",
-                          commitmentFileUrl: selectedAssignment.commitmentFileUrl || null,
                           notes: selectedAssignment.notes || null
                         });
-                        setExtendCommitmentFile(null);
                         setExtendErrors({});
                         setShowDetailAssignmentModal(false);
                         setShowExtendAssignmentModal(true);
@@ -4690,43 +4515,6 @@ export default function ProjectDetailPage() {
                 )}
               </div>
 
-              {/* Commitment File */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  File cam kết (Tùy chọn)
-                </label>
-                {selectedAssignment.commitmentFileUrl && !extendCommitmentFile && (
-                  <div className="mb-2">
-                    <a
-                      href={selectedAssignment.commitmentFileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 text-sm"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span>File hiện tại</span>
-                    </a>
-                  </div>
-                )}
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 px-4 py-2 border border-neutral-200 rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors">
-                    <Upload className="w-4 h-4" />
-                    <span className="text-sm">{extendCommitmentFile ? "Thay đổi file" : "Chọn file mới"}</span>
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx"
-                      onChange={(e) => setExtendCommitmentFile(e.target.files?.[0] || null)}
-                      className="hidden"
-                    />
-                  </label>
-                  {extendCommitmentFile && (
-                    <span className="text-sm text-neutral-600">{extendCommitmentFile.name}</span>
-                  )}
-                  {uploadProgress > 0 && uploadProgress < 100 && (
-                    <span className="text-sm text-primary-600">Đang upload: {uploadProgress}%</span>
-                  )}
-                </div>
-              </div>
 
               {/* Notes */}
               <div>
@@ -4748,8 +4536,7 @@ export default function ProjectDetailPage() {
                   type="button"
                   onClick={() => {
                     setShowExtendAssignmentModal(false);
-                    setExtendForm({ endDate: "", commitmentFileUrl: null, notes: null });
-                    setExtendCommitmentFile(null);
+                    setExtendForm({ endDate: "", notes: null });
                     setExtendErrors({});
                   }}
                   className="px-4 py-2 border border-neutral-200 rounded-lg text-neutral-700 hover:bg-neutral-50 transition-colors"
