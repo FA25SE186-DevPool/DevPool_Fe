@@ -31,7 +31,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { talentCVService } from '../../services/TalentCV';
 import { talentService } from '../../services/Talent';
 import { jobRoleLevelService } from '../../services/JobRoleLevel';
-import { startNotificationConnection, stopNotificationConnection } from '../../services/notificationHub';
+import { startNotificationConnection, stopNotificationConnection, onReceiveNotification, offReceiveNotification, onUnreadCountUpdated, offUnreadCountUpdated } from '../../services/notificationHub';
 
 type ExtendedNotification = Notification & {
   metaData?: Record<string, string | number | boolean> | null;
@@ -86,7 +86,7 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { unread, items, setUnread, setItems, updateItemById } = useNotification();
+  const { unread, items, setUnread, setItems, updateItemById, pushItem } = useNotification();
   
   // Kiểm tra xem có đang ở trang login hoặc register không
   const isAuthPage = location.pathname === ROUTES.GUEST.LOGIN || location.pathname === ROUTES.REGISTER;
@@ -145,10 +145,38 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
           await stopNotificationConnection(); // Ensure clean state
           await new Promise(resolve => setTimeout(resolve, 200));
           await startNotificationConnection(false);
+
+          // Đăng ký event handlers để nhận notification real-time
+          const handleReceiveNotification = (notification: any) => {
+            pushItem(notification);
+          };
+
+          const handleUnreadCountUpdate = (count: number) => {
+            setUnread(count);
+          };
+
+          onReceiveNotification(handleReceiveNotification);
+          onUnreadCountUpdated(handleUnreadCountUpdate);
+
+          // Store handlers for cleanup
+          (window as any).__notificationHandlers = { handleReceiveNotification, handleUnreadCountUpdate };
+
         } catch (error) {
           console.warn('⚠️ Failed to start notification connection:', error);
         }
       })();
+
+      // Cleanup function
+      return () => {
+        // Hủy đăng ký event handlers
+        if ((window as any).__notificationHandlers) {
+          const { handleReceiveNotification, handleUnreadCountUpdate } = (window as any).__notificationHandlers;
+          offReceiveNotification(handleReceiveNotification);
+          offUnreadCountUpdated(handleUnreadCountUpdate);
+          delete (window as any).__notificationHandlers;
+        }
+        stopNotificationConnection();
+      };
     }
   }, []); // Empty dependency array - chỉ chạy 1 lần khi mount
 

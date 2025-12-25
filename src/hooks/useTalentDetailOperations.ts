@@ -807,8 +807,18 @@ export function useTalentDetailOperations() {
         console.error('❌ Lỗi khi xóa vị trí:', err);
 
         // Handle InvalidOperationException from backend
-        if (err?.response?.status === 400 && err?.response?.data?.title?.includes("InvalidOperationException")) {
-          const errorMessage = err.response.data.detail || "Không thể xóa vị trí này vì đang được sử dụng bởi CV hoặc Application.";
+        // Có thể là axios error (err.response) hoặc direct error (err.statusCode)
+        const isInvalidOperationException =
+          (err?.response?.status === 409 || err?.response?.status === 400) &&
+          err?.response?.data?.title?.includes("InvalidOperationException") ||
+          (err?.statusCode === 409 || err?.statusCode === 400) &&
+          err?.errorType === "InvalidOperationException";
+
+        if (isInvalidOperationException) {
+          const errorMessage =
+            err?.message ||
+            err?.response?.data?.detail ||
+            "Không thể xóa vị trí này vì đang được sử dụng bởi CV hoặc Application.";
           alert(`❌ ${errorMessage}`);
           return;
         }
