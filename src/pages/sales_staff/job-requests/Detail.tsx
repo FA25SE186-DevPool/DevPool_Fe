@@ -476,7 +476,7 @@ export default function JobRequestDetailPage() {
 
   const statusConfig = getStatusConfig(Number(jobRequest.status));
   const isOwner = user && jobRequest.ownerId === user.id;
-  const isDisabled = !isOwner || [1, 2, 3].includes(Number(jobRequest.status));
+  const isDisabled = !isOwner || ![0, 3].includes(Number(jobRequest.status));
 
   return (
     <div className="flex bg-gray-50 min-h-screen">
@@ -506,6 +506,14 @@ export default function JobRequestDetailPage() {
                   {statusConfig.label}
                 </span>
               </div>
+              {Number(jobRequest.status) === 3 && (
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  <span className="text-sm font-medium text-amber-800">
+                    Sửa sẽ chuyển về trạng thái chờ duyệt
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3">
@@ -515,8 +523,10 @@ export default function JobRequestDetailPage() {
                 title={
                   !isOwner
                     ? "Chỉ owner của job request mới có thể sửa"
-                    : [1, 2, 3].includes(Number(jobRequest.status))
-                    ? "Không thể sửa job request đã được duyệt"
+                    : Number(jobRequest.status) === 3
+                    ? "Sửa job request bị từ chối sẽ chuyển trạng thái về chờ duyệt"
+                    : ![0, 3].includes(Number(jobRequest.status))
+                    ? "Chỉ có thể sửa job request đang chờ duyệt hoặc bị từ chối"
                     : ""
                 }
                 className={`group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${
@@ -534,8 +544,8 @@ export default function JobRequestDetailPage() {
                 title={
                   !isOwner
                     ? "Chỉ owner của job request mới có thể xóa"
-                    : [1, 2, 3].includes(Number(jobRequest.status))
-                    ? "Không thể xóa job request đã được duyệt"
+                    : ![0, 3].includes(Number(jobRequest.status))
+                    ? "Chỉ có thể xóa job request đang chờ duyệt hoặc bị từ chối"
                     : ""
                 }
                 className={`group flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 ${

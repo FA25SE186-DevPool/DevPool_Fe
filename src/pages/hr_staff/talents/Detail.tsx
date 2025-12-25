@@ -615,10 +615,10 @@ export default function TalentDetailPage() {
   }, [operations, setWorkExperiences]);
 
   const handleDeleteJobRoleLevels = useCallback(async () => {
-    await operations.handleDeleteJobRoleLevels(talentCVs, (jobRoleLevels) => {
+    await operations.handleDeleteJobRoleLevels((jobRoleLevels) => {
       setJobRoleLevels(jobRoleLevels);
     });
-  }, [operations, talentCVs, setJobRoleLevels]);
+  }, [operations, setJobRoleLevels]);
 
   const handleDeleteCertificates = useCallback(async () => {
     await operations.handleDeleteCertificates((certificates) => {

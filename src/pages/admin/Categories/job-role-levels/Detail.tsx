@@ -230,8 +230,16 @@ export default function JobRoleLevelDetailPage() {
           navigate("/admin/categories/job-role-levels");
         }
       }, 2000);
-    } catch (err) {
+    } catch (err: any) {
       console.error("❌ Lỗi khi xóa vị trí:", err);
+
+      // Handle InvalidOperationException from backend
+      if (err?.response?.status === 400 && err?.response?.data?.title?.includes("InvalidOperationException")) {
+        const errorMessage = err.response.data.detail || "Không thể xóa vị trí này vì đang được sử dụng bởi các entity khác.";
+        alert(`❌ ${errorMessage}`);
+        return;
+      }
+
       alert("Không thể xóa vị trí!");
     }
   };

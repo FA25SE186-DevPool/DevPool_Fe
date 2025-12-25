@@ -51,8 +51,16 @@ export default function IndustryDetailPage() {
         setShowDeleteSuccessOverlay(false);
         navigate("/admin/categories/industries");
       }, 2000);
-    } catch (err) {
+    } catch (err: any) {
       console.error("❌ Lỗi khi xóa:", err);
+
+      // Handle InvalidOperationException from backend
+      if (err?.response?.status === 400 && err?.response?.data?.title?.includes("InvalidOperationException")) {
+        const errorMessage = err.response.data.detail || "Không thể xóa lĩnh vực này vì đang được sử dụng bởi các project.";
+        alert(`❌ ${errorMessage}`);
+        return;
+      }
+
       alert("Không thể xóa lĩnh vực!");
     }
   };

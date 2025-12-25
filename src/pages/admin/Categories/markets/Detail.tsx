@@ -50,10 +50,18 @@ export default function MarketDetailPage() {
       // Hiển thị loading overlay trong 2 giây rồi navigate
       setTimeout(() => {
         setShowDeleteSuccessOverlay(false);
-        navigate("/sales/markets");
+        navigate("/admin/categories/markets");
       }, 2000);
-    } catch (err) {
+    } catch (err: any) {
       console.error("❌ Lỗi khi xóa thị trường:", err);
+
+      // Handle InvalidOperationException from backend
+      if (err?.response?.status === 400 && err?.response?.data?.title?.includes("InvalidOperationException")) {
+        const errorMessage = err.response.data.detail || "Không thể xóa thị trường này vì đang được sử dụng bởi các project.";
+        alert(`❌ ${errorMessage}`);
+        return;
+      }
+
       alert("Không thể xóa thị trường!");
     }
   };

@@ -72,8 +72,16 @@ export default function DocumentTypeEditPage() {
       await documentTypeService.update(Number(id), formData);
       setSuccess(true);
       setTimeout(() => navigate(`/admin/categories/document-types/${id}`), 1500);
-    } catch (err) {
+    } catch (err: any) {
       console.error("❌ Lỗi khi cập nhật loại tài liệu:", err);
+
+      // Handle InvalidOperationException from backend
+      if (err?.response?.status === 400 && err?.response?.data?.title?.includes("InvalidOperationException")) {
+        const errorMessage = err.response.data.detail || "Không thể cập nhật loại tài liệu này vì đang được sử dụng.";
+        setError(`❌ ${errorMessage}`);
+        return;
+      }
+
       setError("Không thể cập nhật loại tài liệu. Vui lòng thử lại.");
     } finally {
       setSaving(false);

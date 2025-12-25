@@ -215,8 +215,16 @@ export default function JobRoleDetailPage() {
         setShowDeleteJobRoleSuccessOverlay(false);
         navigate("/admin/categories/job-roles");
       }, 2000);
-    } catch (err) {
+    } catch (err: any) {
       console.error("❌ Lỗi khi xóa:", err);
+
+      // Handle InvalidOperationException from backend
+      if (err?.response?.status === 400 && err?.response?.data?.title?.includes("InvalidOperationException")) {
+        const errorMessage = err.response.data.detail || "Không thể xóa loại vị trí này vì có JobRoleLevel đang được sử dụng.";
+        alert(`❌ ${errorMessage}`);
+        return;
+      }
+
       alert("Không thể xóa loại vị trí!");
     }
   };
