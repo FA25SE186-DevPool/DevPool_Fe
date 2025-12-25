@@ -114,6 +114,7 @@ export function useCVExtraction(
     certificateTypes?: string[];
     jobRoles?: string[];
   }>({});
+  const [cvValidationWarning, setCvValidationWarning] = useState<string | null>(null);
 
   /**
    * Clean phone number to digits only
@@ -771,8 +772,26 @@ export function useCVExtraction(
         setExtractingCV(true);
         setExtractedData(null);
         setUnmatchedData({});
+        setCvValidationWarning(null);
 
         const extractResult: TalentCVExtractResponse = await talentCVService.extractFromPDF(file);
+
+        // Check for CV validation warning and ask user if they want to continue
+        if (extractResult.cvValidationWarning) {
+          setCvValidationWarning(extractResult.cvValidationWarning);
+          
+          // Ask user if they want to continue despite the warning
+          const userWantsToContinue = window.confirm(
+            `⚠️ CẢNH BÁO: ${extractResult.cvValidationWarning}\n\n` +
+            `Bạn có muốn tiếp tục trích xuất thông tin từ file này không?\n\n` +
+            `Nhấn "OK" để tiếp tục hoặc "Cancel" để hủy.`
+          );
+          
+          if (!userWantsToContinue) {
+            // User chose to cancel
+            return null;
+          }
+        }
 
         if (extractResult.isSuccess && extractResult.generateText) {
           // Clean the response text by removing markdown code blocks
@@ -818,6 +837,8 @@ export function useCVExtraction(
     setExtractedData,
     unmatchedData,
     setUnmatchedData,
+    cvValidationWarning,
+    setCvValidationWarning,
     extractAndFillDataFromCV,
     fuzzyMatch,
     normalizeVietnamese,

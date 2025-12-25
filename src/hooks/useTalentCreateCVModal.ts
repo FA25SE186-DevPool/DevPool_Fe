@@ -172,7 +172,7 @@ export function useTalentCreateCVModal({
       }
     }
 
-    // Show success message
+    // Show success message (warning was already shown in confirm dialog)
     const successMessage = `Trích xuất thông tin CV thành công!${
       result.basicInfo.locationId !== undefined ? `\nĐã tự động chọn khu vực làm việc.` : ''
     }${
