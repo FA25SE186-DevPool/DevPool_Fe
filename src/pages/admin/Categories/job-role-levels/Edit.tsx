@@ -16,6 +16,7 @@ export default function JobRoleLevelEditPage() {
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUpdateSuccessOverlay, setShowUpdateSuccessOverlay] = useState(false);
+  const [occupiedLevels, setOccupiedLevels] = useState<Set<number>>(new Set());
 
   const [formData, setFormData] = useState<JobRoleLevelPayload>({
     jobRoleId: 0,
@@ -53,6 +54,9 @@ export default function JobRoleLevelEditPage() {
           description: positionData.description ?? "",
           level: positionData.level,
         });
+
+        // Load occupied levels for the current name
+        await loadOccupiedLevels(positionData.name);
       } catch (err) {
         console.error("❌ Lỗi tải dữ liệu:", err);
         alert("Không thể tải thông tin vị trí tuyển dụng!");
@@ -62,6 +66,31 @@ export default function JobRoleLevelEditPage() {
     };
     fetchData();
   }, [id]);
+
+  // Load occupied levels for a given name
+  const loadOccupiedLevels = async (name: string) => {
+    if (!name.trim()) {
+      setOccupiedLevels(new Set());
+      return;
+    }
+
+    try {
+      const existingJobRoleLevels = await jobRoleLevelService.getAll({
+        excludeDeleted: true,
+        name: name.trim(),
+      }) as any[];
+
+      const occupied = new Set<number>();
+      existingJobRoleLevels.forEach((jrl: any) => {
+        if (jrl.id !== Number(id)) { // Exclude current record
+          occupied.add(jrl.level);
+        }
+      });
+      setOccupiedLevels(occupied);
+    } catch (err) {
+      console.error("❌ Lỗi tải cấp độ đã chiếm:", err);
+    }
+  };
 
   // ✍️ Cập nhật form
   const handleChange = (
@@ -188,7 +217,6 @@ export default function JobRoleLevelEditPage() {
                     placeholder="VD: Frontend Developer, Backend Engineer..."
                     required
                   />
-                  <p className="text-xs text-neutral-500 mt-1">Tên rõ ràng giúp TA/khách hàng dễ nhận biết.</p>
                 </div>
 
                 {/* Loại vị trí */}
@@ -197,8 +225,9 @@ export default function JobRoleLevelEditPage() {
                   <select
                     name="jobRoleId"
                     value={formData.jobRoleId}
-                    onChange={handleChange}
-                    className="border border-gray-300 rounded-md px-3 py-2 w-full"
+                    disabled
+                    className="border border-gray-300 rounded-md px-3 py-2 w-full bg-neutral-50 text-neutral-500 cursor-not-allowed"
+                    title="Không được phép chỉnh sửa loại vị trí sau khi tạo"
                     required
                   >
                     <option value={0}>-- Chọn loại vị trí --</option>
@@ -206,7 +235,6 @@ export default function JobRoleLevelEditPage() {
                       <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
                   </select>
-                  <p className="text-xs text-neutral-500 mt-1">Chọn nhóm vai trò tương ứng.</p>
                 </div>
 
                 {/* Cấp độ */}
@@ -218,10 +246,10 @@ export default function JobRoleLevelEditPage() {
                     onChange={handleChange}
                     className="border border-gray-300 rounded-md px-3 py-2 w-full"
                   >
-                    <option value={0}>Junior</option>
-                    <option value={1}>Middle</option>
-                    <option value={2}>Senior</option>
-                    <option value={3}>Lead</option>
+                    <option value={0} disabled={occupiedLevels.has(0)}>Junior{occupiedLevels.has(0) ? " (đã có)" : ""}</option>
+                    <option value={1} disabled={occupiedLevels.has(1)}>Middle{occupiedLevels.has(1) ? " (đã có)" : ""}</option>
+                    <option value={2} disabled={occupiedLevels.has(2)}>Senior{occupiedLevels.has(2) ? " (đã có)" : ""}</option>
+                    <option value={3} disabled={occupiedLevels.has(3)}>Lead{occupiedLevels.has(3) ? " (đã có)" : ""}</option>
                   </select>
                 </div>
 
