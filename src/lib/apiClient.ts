@@ -214,7 +214,8 @@ apiClient.interceptors.response.use(
             }
         } else if (status && status >= 400 && status < 500) {
             // Không log error cho logout request vì 401 là expected behavior
-            if (!isLogoutRequest) {
+            // Không log error cho business logic errors (409 Conflict) vì sẽ được handle ở tầng trên
+            if (!isLogoutRequest && status !== 409) {
                 console.error('⚠️ Client Error:', error.response?.data || error.message);
             }
             // Hiển thị cảnh báo thân thiện cho một số lỗi phổ biến
