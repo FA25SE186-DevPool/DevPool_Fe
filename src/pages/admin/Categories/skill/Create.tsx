@@ -161,9 +161,14 @@ export default function SkillCreatePage() {
                 <select
                   name="skillGroupId"
                   value={form.skillGroupId}
-                  onChange={handleChange}
-                  required
-                  className="w-full border border-neutral-200 rounded-xl px-4 py-3 focus:border-primary-500 focus:ring-primary-500 bg-white"
+                  disabled={!!skillGroupIdFromQuery}
+                  onChange={skillGroupIdFromQuery ? undefined : handleChange}
+                  className={`w-full border border-neutral-200 rounded-xl px-4 py-3 ${
+                    skillGroupIdFromQuery
+                      ? 'bg-neutral-50 text-neutral-500 cursor-not-allowed'
+                      : 'focus:border-primary-500 focus:ring-primary-500 bg-white'
+                  }`}
+                  title={skillGroupIdFromQuery ? "Nhóm kỹ năng được xác định từ trang trước" : undefined}
                 >
                   <option value={0}>Chọn nhóm kỹ năng</option>
                   {skillGroups.map((group) => (
@@ -172,6 +177,11 @@ export default function SkillCreatePage() {
                     </option>
                   ))}
                 </select>
+                {skillGroupIdFromQuery && (
+                  <p className="text-xs text-neutral-500 mt-1">
+                    Nhóm kỹ năng được xác định từ trang trước và không thể thay đổi
+                  </p>
+                )}
               </div>
 
               {/* Tên kỹ năng */}
