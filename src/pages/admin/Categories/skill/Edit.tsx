@@ -213,9 +213,9 @@ export default function SkillEditPage() {
                 <select
                   name="skillGroupId"
                   value={formData.skillGroupId}
-                  onChange={handleChange}
-                  required
-                  className="w-full border border-neutral-200 rounded-xl px-4 py-3 focus:border-primary-500 focus:ring-primary-500 bg-white"
+                  disabled
+                  className="w-full border border-neutral-200 rounded-xl px-4 py-3 bg-neutral-50 text-neutral-500 cursor-not-allowed"
+                  title="Không được phép chỉnh sửa nhóm kỹ năng"
                 >
                   <option value={0}>Chọn nhóm kỹ năng</option>
                   {skillGroups.map((group) => (

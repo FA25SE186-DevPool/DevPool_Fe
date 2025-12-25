@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Sidebar from "../../../components/common/Sidebar";
 import Breadcrumb from "../../../components/common/Breadcrumb";
@@ -16,6 +16,7 @@ import { talentApplicationService, type TalentApplication } from "../../../servi
 import { talentCVService, type TalentCV } from "../../../services/TalentCV";
 import { talentService, type Talent } from "../../../services/Talent";
 import { sidebarItems } from "../../../components/sidebar/ta_staff";
+import { userService } from "../../../services/User";
 import {
   CheckCircle,
   XCircle,
@@ -47,9 +48,6 @@ import {
   Phone,
   Calendar
 } from "lucide-react";
-import { notificationService, NotificationPriority, NotificationType } from "../../../services/Notification";
-import { userService } from "../../../services/User";
-import { decodeJWT } from "../../../services/Auth";
 
 interface JobRequestDetail {
     id: number;
@@ -454,40 +452,6 @@ export default function JobRequestDetailHRPage() {
         "Chưa có thông tin quyền lợi cụ thể.",
     ];
 
-    const sendRejectionNotification = useCallback(async (note: string) => {
-        if (!jobRequest) return;
-        try {
-            const salesUsers = await userService.getAll({ role: "Sale", excludeDeleted: true, pageNumber: 1, pageSize: 100 });
-            const salesUserIds = (salesUsers.items || [])
-                .filter((u) => (u.roles || []).some((role) => role === "Sale" || role === "Staff Sales"))
-                .map((u) => u.id)
-                .filter(Boolean);
-
-            if (!salesUserIds.length) return;
-
-            const token = localStorage.getItem("accessToken");
-            const decoded = token ? decodeJWT(token) : null;
-            const hrName = decoded?.unique_name || decoded?.email || decoded?.name || "TA Staff";
-
-            await notificationService.create({
-                title: `Yêu cầu tuyển dụng bị từ chối`,
-                message: note || `Yêu cầu "${jobRequest.title}" đã bị từ chối bởi ${hrName}.`,
-                type: NotificationType.JobStatusChanged,
-                priority: NotificationPriority.High,
-                userIds: salesUserIds as string[],
-                entityType: "JobRequest",
-                entityId: jobRequest.id,
-                actionUrl: `/sales/job-requests/${jobRequest.id}`,
-                metaData: {
-                    jobTitle: jobRequest.title,
-                    status: "Rejected",
-                    rejectedBy: hrName,
-                },
-            });
-        } catch (error) {
-            console.error("Không thể gửi thông báo tới Sales:", error);
-        }
-    }, [jobRequest]);
 
     const handleOpenRejectDialog = () => {
         if (updating || Number(jobRequest?.status) === 3 || Number(jobRequest?.status) === 1) return;
@@ -502,7 +466,6 @@ export default function JobRequestDetailHRPage() {
             return;
         }
         await handleApprove(3, { notes: note });
-        await sendRejectionNotification(note);
         setShowRejectDialog(false);
         setRejectNote("");
     };

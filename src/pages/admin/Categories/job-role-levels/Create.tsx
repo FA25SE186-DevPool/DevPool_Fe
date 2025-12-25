@@ -34,7 +34,6 @@ export default function JobRoleLevelCreatePage() {
   });
 
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
-  const selectedJobRoleName = jobRoles.find(j => j.id === formData.jobRoleId)?.name ?? "—";
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
@@ -170,6 +169,36 @@ export default function JobRoleLevelCreatePage() {
               </div>
             </div>
             <div className="p-6 space-y-6">
+              {/* Loại vị trí */}
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
+                  <Layers className="w-4 h-4" />
+                  Loại vị trí <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    name="jobRoleId"
+                    value={formData.jobRoleId.toString()}
+                    disabled={!!jobRoleIdFromQuery}
+                    onChange={jobRoleIdFromQuery ? undefined : handleChange}
+                    className={`w-full border border-neutral-200 rounded-xl px-4 py-3 ${
+                      jobRoleIdFromQuery
+                        ? 'bg-neutral-50 text-neutral-500 cursor-not-allowed'
+                        : 'focus:border-primary-500 focus:ring-primary-500 bg-white'
+                    }`}
+                    title={jobRoleIdFromQuery ? "Loại vị trí được xác định từ trang trước" : undefined}
+                    required
+                  >
+                    <option value="0">-- Chọn loại vị trí --</option>
+                    {jobRoles.map((t) => (
+                      <option key={t.id} value={t.id.toString()}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               {/* Tên vị trí */}
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
@@ -184,33 +213,6 @@ export default function JobRoleLevelCreatePage() {
                   required
                   className="w-full border border-neutral-200 rounded-xl px-4 py-3 focus:border-primary-500 focus:ring-primary-500 bg-white"
                 />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Loại vị trí */}
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
-                    <Layers className="w-4 h-4" />
-                    Loại vị trí <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      name="jobRoleId"
-                      value={formData.jobRoleId.toString()}
-                      onChange={handleChange}
-                      className="w-full border border-neutral-200 rounded-xl px-4 py-3 focus:border-primary-500 focus:ring-primary-500 bg-white"
-                      required
-                    >
-                      <option value="0">-- Chọn loại vị trí --</option>
-                      {jobRoles.map((t) => (
-                        <option key={t.id} value={t.id.toString()}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <p className="text-sm text-neutral-600 mt-2">Tên vai trò đã chọn: <span className="font-medium text-neutral-800">{selectedJobRoleName}</span></p>
-                </div>
               </div>
             </div>
           </div>

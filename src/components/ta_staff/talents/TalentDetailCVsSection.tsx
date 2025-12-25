@@ -157,7 +157,6 @@ interface TalentDetailCVsSectionProps {
 export function TalentDetailCVsSection({
   talentCVs,
   selectedCVs,
-  setSelectedCVs,
   pageCVs,
   setPageCVs,
   itemsPerPage,
@@ -308,7 +307,8 @@ export function TalentDetailCVsSection({
             className="hover:bg-accent-50 transition-colors duration-200 cursor-pointer"
             onClick={() => openEditCVModal(cv.id)}
           >
-            <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+            {/* Checkbox đã bị ẩn */}
+            {/* <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
               <input
                 type="checkbox"
                 checked={selectedCVs.includes(cv.id)}
@@ -322,7 +322,7 @@ export function TalentDetailCVsSection({
                 }}
                 className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 focus:ring-2"
               />
-            </td>
+            </td> */}
             <td className="px-4 py-3 whitespace-nowrap">
               <div className="text-sm font-medium text-accent-800">{cv.jobRoleLevelName || 'Chưa xác định'}</div>
             </td>
@@ -427,7 +427,8 @@ export function TalentDetailCVsSection({
                 className="hover:bg-neutral-50 transition-colors duration-200 cursor-pointer bg-neutral-50/50"
                 onClick={() => openEditCVModal(cv.id)}
               >
-                <td className="px-4 py-3 whitespace-nowrap pl-8" onClick={(e) => e.stopPropagation()}>
+                {/* Checkbox đã bị ẩn */}
+                {/* <td className="px-4 py-3 whitespace-nowrap pl-8" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={selectedCVs.includes(cv.id)}
@@ -441,7 +442,7 @@ export function TalentDetailCVsSection({
                     }}
                     className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 focus:ring-2"
                   />
-                </td>
+                </td> */}
                 <td className="px-4 py-3 whitespace-nowrap">
                   <div className="text-sm font-medium text-neutral-600">{cv.jobRoleLevelName || 'Chưa xác định'}</div>
                 </td>
@@ -571,7 +572,8 @@ export function TalentDetailCVsSection({
                         <Upload className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
                       </Button>
                     )}
-                    {selectedCVs.length > 0 && (
+                    {/* Nút xóa CV đã bị vô hiệu hóa */}
+                    {false && selectedCVs.length > 0 && (
                       <Button
                         onClick={onDelete}
                         disabled={!canEdit}
@@ -644,7 +646,8 @@ export function TalentDetailCVsSection({
                           <table className="w-full border-collapse">
                             <thead>
                               <tr className="bg-neutral-50 border-b border-neutral-200">
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider w-12">
+                                {/* Checkbox column đã bị ẩn */}
+                                {/* <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider w-12">
                                   <input
                                     type="checkbox"
                                     checked={
@@ -667,7 +670,7 @@ export function TalentDetailCVsSection({
                                     }}
                                     className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 focus:ring-2"
                                   />
-                                </th>
+                                </th> */}
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Vị trí</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Phiên bản</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Trạng thái</th>

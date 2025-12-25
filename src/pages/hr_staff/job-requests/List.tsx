@@ -40,6 +40,7 @@ interface HRJobRequest {
     status: string;
     skills: string[];
     applicationCount: number; // Số lượng hồ sơ ứng tuyển
+    hiredCount: number; // Số lượng đã tuyển
 }
 
 const workingModeLabels: Record<number, string> = {
@@ -296,11 +297,20 @@ const stats = [
 
                 // Đếm số lượng hồ sơ ứng tuyển cho mỗi job request
                 const applicationCountMap: Record<number, number> = {};
+                const hiredCountMap: Record<number, number> = {};
                 applicationsArray.forEach((app: TalentApplication) => {
                     if (!applicationCountMap[app.jobRequestId]) {
                         applicationCountMap[app.jobRequestId] = 0;
                     }
                     applicationCountMap[app.jobRequestId]++;
+
+                    // Đếm số lượng đã tuyển (status = "Hired")
+                    if (app.status === "Hired") {
+                        if (!hiredCountMap[app.jobRequestId]) {
+                            hiredCountMap[app.jobRequestId] = 0;
+                        }
+                        hiredCountMap[app.jobRequestId]++;
+                    }
                 });
 
                 const mapped: HRJobRequest[] = filteredReqs.map((r) => {
@@ -327,6 +337,7 @@ const stats = [
                         status: statusLabels[r.status] ?? "—",
                         skills: groupedJobSkills[r.id] ?? [],
                         applicationCount: applicationCountMap[r.id] || 0,
+                        hiredCount: hiredCountMap[r.id] || 0,
                     };
                 });
 
@@ -1173,6 +1184,7 @@ const stats = [
                                     <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Công ty</th>
                                     <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Dự án</th>
                                     <th className="py-4 px-6 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Vị trí</th>
+                                    <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">Đã tuyển</th>
                                     <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">Hồ sơ</th>
                                     <th className="py-4 px-6 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider whitespace-nowrap min-w-[110px]">Trạng thái</th>
                                 </tr>
@@ -1180,7 +1192,7 @@ const stats = [
                             <tbody className="divide-y divide-neutral-200">
                                 {filteredRequests.length === 0 ? (
                                     <tr>
-                                        <td colSpan={8} className="text-center py-12">
+                                        <td colSpan={9} className="text-center py-12">
                                             <div className="flex flex-col items-center justify-center">
                                                 <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
                                                     <Briefcase className="w-8 h-8 text-neutral-400" />
@@ -1239,6 +1251,17 @@ const stats = [
                                                     <Users className="w-4 h-4 text-neutral-400" />
                                                     <span className="text-sm text-neutral-700">{req.positionName}</span>
                                                 </div>
+                                            </td>
+                                            <td className="py-4 px-6 text-center">
+                                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                                                    req.hiredCount >= req.quantity
+                                                        ? 'bg-green-100 text-green-700'
+                                                        : req.hiredCount > 0
+                                                        ? 'bg-blue-100 text-blue-700'
+                                                        : 'bg-neutral-100 text-neutral-500'
+                                                }`}>
+                                                    {req.hiredCount}/{req.quantity}
+                                                </span>
                                             </td>
                                             <td className="py-4 px-6 text-center">
                                                 <button

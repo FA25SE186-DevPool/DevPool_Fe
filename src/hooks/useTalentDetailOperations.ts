@@ -763,7 +763,6 @@ export function useTalentDetailOperations() {
 
   const handleDeleteJobRoleLevels = useCallback(
     async (
-      talentCVs: (TalentCV & { jobRoleLevelName?: string })[],
       onSuccess: (jobRoleLevels: (TalentJobRoleLevel & { jobRoleLevelName: string; jobRoleLevelLevel: string })[]) => void
     ) => {
       if (!id) return;
@@ -772,56 +771,23 @@ export function useTalentDetailOperations() {
         return;
       }
 
-      // Kiểm tra xem các jobrolelevel name có đang được sử dụng trong CV không
-      const jobRoleLevelsData = await talentJobRoleLevelService.getAll({
-        talentId: Number(id),
-        excludeDeleted: true,
-      });
-      const allJobRoleLevels = await jobRoleLevelService.getAll({ excludeDeleted: true });
-
-      // Lấy danh sách jobrolelevel name từ các jobrolelevel được chọn
-      const selectedJobRoleLevelNames = selectedJobRoleLevels
-        .map((jrlId: number) => {
-          const jrl = jobRoleLevelsData.find((item: TalentJobRoleLevel) => item.id === jrlId);
-          if (!jrl) return null;
-          const jobRoleLevelInfo = allJobRoleLevels.find((j: JobRoleLevel) => j.id === jrl.jobRoleLevelId);
-          return jobRoleLevelInfo?.name;
-        })
-        .filter(name => name && name.trim() !== '')
-        .filter((name, index, self) => self.indexOf(name) === index); // Unique names
-
-      // Kiểm tra xem có CV nào sử dụng các jobrolelevel name này không
-      const usedInCVs: string[] = [];
-      if (Array.isArray(talentCVs)) {
-        selectedJobRoleLevelNames.forEach(name => {
-          const cvUsingThisName = talentCVs.find(cv => cv.jobRoleLevelName === name);
-          if (cvUsingThisName) {
-            usedInCVs.push(name);
-          }
-        });
-      }
-
-      let confirmMessage = `⚠️ Bạn có chắc muốn xóa ${selectedJobRoleLevels.length} vị trí đã chọn?\n\nHiện tại CV có vị trí này.`;
-
-      if (usedInCVs.length > 0) {
-        confirmMessage = `⚠️ CẢNH BÁO: Các vị trí sau đang được sử dụng trong CV:\n${usedInCVs.map(name => `• ${name}`).join('\n')}\n\nBạn có chắc muốn xóa ${selectedJobRoleLevels.length} vị trí đã chọn?`;
-      }
-
-      const confirm = window.confirm(confirmMessage);
-      if (!confirm) return;
-
       try {
         await Promise.all(selectedJobRoleLevels.map((jrlId) => talentJobRoleLevelService.deleteById(jrlId)));
         setShowDeleteJobRoleLevelsSuccessOverlay(true);
 
         // Hiển thị loading overlay trong 2 giây rồi refresh
-        setTimeout(() => {
+        setTimeout(async () => {
           setShowDeleteJobRoleLevelsSuccessOverlay(false);
           setSelectedJobRoleLevels([]);
-          talentJobRoleLevelService.getAll({
-            talentId: Number(id),
-            excludeDeleted: true,
-          }).then((updatedJobRoleLevelsData) => {
+          try {
+            const [updatedJobRoleLevelsData, allJobRoleLevels] = await Promise.all([
+              talentJobRoleLevelService.getAll({
+                talentId: Number(id),
+                excludeDeleted: true,
+              }),
+              jobRoleLevelService.getAll({ excludeDeleted: true })
+            ]);
+
             const jobRoleLevelsWithNames = updatedJobRoleLevelsData.map((jrl: TalentJobRoleLevel) => {
               const jobRoleLevelInfo = allJobRoleLevels.find((j: JobRoleLevel) => j.id === jrl.jobRoleLevelId);
               if (!jobRoleLevelInfo) {
@@ -833,10 +799,30 @@ export function useTalentDetailOperations() {
             if (typeof onSuccess === 'function') {
               onSuccess(jobRoleLevelsWithNames);
             }
-          });
+          } catch (err) {
+            console.error('❌ Lỗi khi refresh data:', err);
+          }
         }, 2000);
-      } catch (err) {
+      } catch (err: any) {
         console.error('❌ Lỗi khi xóa vị trí:', err);
+
+        // Handle InvalidOperationException from backend
+        // Có thể là axios error (err.response) hoặc direct error (err.statusCode)
+        const isInvalidOperationException =
+          (err?.response?.status === 409 || err?.response?.status === 400) &&
+          err?.response?.data?.title?.includes("InvalidOperationException") ||
+          (err?.statusCode === 409 || err?.statusCode === 400) &&
+          err?.errorType === "InvalidOperationException";
+
+        if (isInvalidOperationException) {
+          const errorMessage =
+            err?.message ||
+            err?.response?.data?.detail ||
+            "Không thể xóa vị trí này vì đang được sử dụng bởi CV hoặc Application.";
+          alert(`❌ ${errorMessage}`);
+          return;
+        }
+
         alert('Không thể xóa vị trí!');
       }
     },

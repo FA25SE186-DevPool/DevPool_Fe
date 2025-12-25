@@ -65,8 +65,16 @@ export default function CertificateTypeDetailPage() {
       await certificateTypeService.deleteById(Number(id));
       alert("Đã xóa loại chứng chỉ thành công!");
       navigate("/admin/categories/certificate-types");
-    } catch (err) {
+    } catch (err: any) {
       console.error("❌ Lỗi khi xóa:", err);
+
+      // Handle InvalidOperationException from backend
+      if (err?.response?.status === 400 && err?.response?.data?.title?.includes("InvalidOperationException")) {
+        const errorMessage = err.response.data.detail || "Không thể xóa loại chứng chỉ này vì đang được sử dụng bởi các talent.";
+        alert(`❌ ${errorMessage}`);
+        return;
+      }
+
       alert("Không thể xóa loại chứng chỉ!");
     }
   };

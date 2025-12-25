@@ -67,8 +67,16 @@ export default function LocationDetailPage() {
       await locationService.delete(Number(id));
       showSuccessOverlay("Đã xóa khu vực làm việc thành công!");
       navigate("/admin/categories/locations");
-    } catch (err) {
+    } catch (err: any) {
       console.error("❌ Lỗi khi xóa:", err);
+
+      // Handle InvalidOperationException from backend
+      if (err?.response?.status === 400 && err?.response?.data?.title?.includes("InvalidOperationException")) {
+        const errorMessage = err.response.data.detail || "Không thể xóa khu vực này vì đang được sử dụng bởi các talent hoặc job request.";
+        alert(`❌ ${errorMessage}`);
+        return;
+      }
+
       alert("Không thể xóa khu vực làm việc!");
     }
   };
