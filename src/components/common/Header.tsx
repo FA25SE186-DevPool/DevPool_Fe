@@ -6,7 +6,6 @@ import {
   User,
   Bell,
   LogOut,
-  Loader2,
   Shield,
   UserCog,
   UserCheck,
@@ -820,12 +819,7 @@ export default function Header({ showPublicBranding = true }: HeaderProps) {
                       </div>
 
                       <div className="flex-1 overflow-y-auto min-h-0">
-                        {isLoadingNotifications ? (
-                          <div className="flex items-center justify-center py-10 text-neutral-500">
-                            <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                            Đang tải thông báo...
-                          </div>
-                        ) : groupedNotifications.length === 0 ? (
+                        {groupedNotifications.length === 0 ? (
                           <div className="py-10 text-center text-neutral-500 text-sm">Không có thông báo nào</div>
                         ) : (
                           groupedNotifications.map((group) => (

@@ -1,24 +1,21 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import Sidebar from "../../../../components/common/Sidebar";
 import { sidebarItems } from "../../../../components/sidebar/admin";
 import { documentTypeService, type DocumentType } from "../../../../services/DocumentType";
 import { Button } from "../../../../components/ui/button";
-import { 
-  ArrowLeft, 
-  Edit, 
-  FileText, 
+import {
+  ArrowLeft,
+  Edit,
+  FileText,
   XCircle,
-  Trash2,
 } from "lucide-react";
 
 export default function DocumentTypeDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const [documentType, setDocumentType] = useState<DocumentType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -39,35 +36,6 @@ export default function DocumentTypeDetailPage() {
     fetchData();
   }, [id]);
 
-  const handleDelete = async () => {
-    if (!id || !documentType) return;
-
-    const confirmDelete = window.confirm(
-      `⚠️ Bạn có chắc muốn xóa loại tài liệu "${documentType.typeName}"?\n\nHành động này không thể hoàn tác!`
-    );
-
-    if (!confirmDelete) return;
-
-    try {
-      setDeleting(true);
-      await documentTypeService.deleteById(Number(id));
-      alert("Xóa loại tài liệu thành công!");
-      navigate("/admin/categories/document-types");
-    } catch (err: any) {
-      console.error("❌ Lỗi khi xóa loại tài liệu:", err);
-
-      // Handle InvalidOperationException from backend
-      if (err?.response?.status === 400 && err?.response?.data?.title?.includes("InvalidOperationException")) {
-        const errorMessage = err.response.data.detail || "Không thể xóa loại tài liệu này vì đang được sử dụng bởi các document.";
-        alert(`❌ ${errorMessage}`);
-        return;
-      }
-
-      alert(err?.message || "Không thể xóa loại tài liệu. Vui lòng thử lại.");
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -132,20 +100,14 @@ export default function DocumentTypeDetailPage() {
             </div>
             <div className="flex gap-3">
               <Button
-                onClick={() => navigate(`/admin/categories/document-types/edit/${id}`)}
-                className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105"
+                disabled
+                className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl font-medium transition-all duration-300 shadow-soft opacity-50 cursor-not-allowed"
+                title="Chức năng chỉnh sửa đã bị vô hiệu hóa"
               >
-                <Edit className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+                <Edit className="w-4 h-4" />
                 Chỉnh sửa
               </Button>
-              <Button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl font-medium transition-all duration-300 shadow-soft hover:shadow-glow transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
-                {deleting ? "Đang xóa..." : "Xóa"}
-              </Button>
+              {/* Nút xóa đã bị ẩn */}
             </div>
           </div>
         </div>
