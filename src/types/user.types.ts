@@ -43,6 +43,7 @@ export interface UserFilter {
   name?: string;
   role?: string;
   isActive?: boolean;
+  isDeleted?: boolean;
   excludeDeleted?: boolean;
   pageNumber?: number;
   pageSize?: number;

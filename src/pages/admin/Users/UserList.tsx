@@ -64,7 +64,7 @@ export default function StaffManagementPage() {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(6); // Match PartnerList page size
+  const [pageSize] = useState(10); // Match PartnerList page size
   const [pagination, setPagination] = useState<PagedResult<User> | null>(null);
 
   // Modal states
@@ -83,16 +83,14 @@ export default function StaffManagementPage() {
   } | null>(null);
 
   // Fetch users from API with pagination
-  const fetchUsers = async (page = 1) => {
+  const fetchUsers = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       setError(null);
 
       const filter: UserFilter = {
         name: query || undefined,
-        role: roleFilter === "All" ? undefined : roleFilter,
-        isActive: statusFilter === "All" ? undefined : (statusFilter === "Active" ? true : false),
-        excludeDeleted: statusFilter === "Inactive" ? false : true, // Include deleted only when filtering inactive
+        excludeDeleted: false, // Always include all users, filter client-side
         pageNumber: page,
         pageSize: pageSize,
       };
@@ -100,14 +98,29 @@ export default function StaffManagementPage() {
       const result = await userService.getAll(filter);
 
       // Lọc bỏ Admin khỏi danh sách
-      const filteredItems = result.items.filter((user: User) =>
+      let filteredItems = result.items.filter((user: User) =>
         !user.roles.includes("Admin")
       );
+
+      // Client-side filter for role
+      if (roleFilter !== "All") {
+        filteredItems = filteredItems.filter((user: User) =>
+          user.roles.includes(roleFilter)
+        );
+      }
+
+      // Client-side filter for status
+      if (statusFilter === "Active") {
+        filteredItems = filteredItems.filter((user: User) => !user.isDeleted);
+      } else if (statusFilter === "Inactive") {
+        filteredItems = filteredItems.filter((user: User) => user.isDeleted);
+      }
 
       setUsers(filteredItems.map(convertToUserRow));
       setPagination({
         ...result,
-        items: filteredItems // Update pagination with filtered items
+        items: filteredItems, // Update pagination with filtered items
+        totalCount: statusFilter === "All" ? result.totalCount : filteredItems.length // Adjust total count for client-side filtering
       });
     } catch (err: any) {
       console.error("❌ Lỗi khi tải danh sách người dùng:", err);
@@ -115,21 +128,24 @@ export default function StaffManagementPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [query, roleFilter, statusFilter, pageSize]);
 
-  // Load users on component mount and when page change
-  useEffect(() => {
-    fetchUsers(currentPage);
-  }, [currentPage]); // Only depend on currentPage
-
-  // Debounced search - reset to page 1 when filters change
+  // Debounced search and filter - fetch users when filters change
   useEffect(() => {
     const timeoutId = setTimeout(() => {
+      fetchUsers(1); // Always start from page 1 when filtering
       setCurrentPage(1);
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [query, roleFilter, statusFilter]);
+  }, [query, roleFilter, statusFilter, fetchUsers]);
+
+  // Load users when page changes (but not when filters change)
+  useEffect(() => {
+    if (currentPage !== 1) {
+      fetchUsers(currentPage);
+    }
+  }, [currentPage, fetchUsers]);
 
   // Since filtering is now done on the server, we just use the users directly
   const filtered = users;
@@ -139,14 +155,29 @@ export default function StaffManagementPage() {
 
   async function banUser(user: UserRow) {
     try {
+      // Update local state first for immediate feedback
+      setUsers(prevUsers =>
+        prevUsers.map(u =>
+          u.id === user.id ? { ...u, isDeleted: true } : u
+        )
+      );
+
+      // Then call API
       await userService.ban(user.id);
-      await fetchUsers();
+
       setSuccessToast({
         isOpen: true,
         title: "Cấm người dùng thành công",
         message: `Đã cấm người dùng ${user.fullName}`
       });
     } catch (err: any) {
+      // Revert local state on error
+      setUsers(prevUsers =>
+        prevUsers.map(u =>
+          u.id === user.id ? { ...u, isDeleted: false } : u
+        )
+      );
+
       console.error("❌ Lỗi khi cấm người dùng:", err);
       setSuccessToast({
         isOpen: true,
@@ -158,8 +189,16 @@ export default function StaffManagementPage() {
 
   async function unbanUser(user: UserRow) {
     try {
+      // Update local state first for immediate feedback
+      setUsers(prevUsers =>
+        prevUsers.map(u =>
+          u.id === user.id ? { ...u, isDeleted: false } : u
+        )
+      );
+
+      // Then call API
       await userService.unban(user.id);
-      await fetchUsers();
+
       setSuccessToast({
         isOpen: true,
         title: "Gỡ cấm người dùng thành công",
@@ -167,6 +206,13 @@ export default function StaffManagementPage() {
       });
 
     } catch (err: any) {
+      // Revert local state on error
+      setUsers(prevUsers =>
+        prevUsers.map(u =>
+          u.id === user.id ? { ...u, isDeleted: true } : u
+        )
+      );
+
       console.error("❌ Lỗi khi gỡ cấm người dùng:", err);
       setSuccessToast({
         isOpen: true,
@@ -528,7 +574,7 @@ export default function StaffManagementPage() {
               try {
                 // Xác nhận trước khi tạo tài khoản
                 const confirmed = window.confirm(
-                  `Bạn có chắc muốn tạo tài khoản cho:\n\n- Họ tên: ${payload.fullName}\n- Email: ${payload.email}\n- Vai trò: ${payload.roles[0] || "TA"}\n\nMật khẩu sẽ được tạo tự động và gửi qua email này.`
+                  `Bạn có chắc muốn tạo tài khoản cho:\n\n- Họ tên: ${payload.fullName}\n- Email: ${payload.email}\n- Vai trò: ${(payload.roles && payload.roles[0]) || "TA"}\n\nMật khẩu sẽ được tạo tự động và gửi qua email này.`
                 );
                 if (!confirmed) return;
 
@@ -536,7 +582,7 @@ export default function StaffManagementPage() {
                   email: payload.email,
                   fullName: payload.fullName,
                   phoneNumber: payload.phone || null,
-                  role: payload.roles[0] || "TA"
+                  role: (payload.roles && payload.roles[0]) || "TA"
                 };
 
                 const response = await authService.adminProvision(provisionPayload);
@@ -562,18 +608,31 @@ export default function StaffManagementPage() {
             onClose={() => setShowEdit(null)}
             onSubmit={async (payload) => {
               try {
-                await userService.update(showEdit.id, {
+                console.log("Edit user payload:", {
+                  id: showEdit.id,
                   fullName: payload.fullName,
                   phoneNumber: payload.phone,
+                  phoneLength: payload.phone?.length
                 });
-              
-                // Update role if changed
-                if (payload.roles[0] !== showEdit.roles[0]) {
-                  await userService.updateRole(showEdit.id, {
-                    role: payload.roles[0] || "TA",
-                  });
+
+                // Validate required fields
+                if (!payload.fullName || payload.fullName.trim() === "") {
+                  throw new Error("Họ tên không được để trống");
                 }
-                
+
+                // Update basic info (fullName and phone only)
+                const updatePayload: any = {
+                  fullName: payload.fullName.trim(),
+                };
+
+                // Only include phoneNumber if it's provided and not empty
+                if (payload.phone && payload.phone.trim() !== "") {
+                  updatePayload.phoneNumber = payload.phone.trim();
+                }
+
+                console.log("Sending update payload:", updatePayload);
+                await userService.update(showEdit.id, updatePayload);
+
                 await fetchUsers();
                 setShowEdit(null);
               } catch (err: any) {
@@ -624,7 +683,7 @@ function UserModal({
     fullName: string;
     email: string;
     phone?: string;
-    roles: StaffRole[];
+    roles?: StaffRole[];
   }) => void;
   onClose: () => void;
 }) {
@@ -656,11 +715,13 @@ function UserModal({
       newErrors.fullName = "Họ và tên là bắt buộc";
     }
 
-    // Validate email (required)
-    if (!email.trim()) {
-      newErrors.email = "Email là bắt buộc";
-    } else if (!validateEmail(email)) {
-      newErrors.email = "Email không hợp lệ";
+    // Validate email (required for new users, skip for existing users)
+    if (!initial?.email) {
+      if (!email.trim()) {
+        newErrors.email = "Email là bắt buộc";
+      } else if (!validateEmail(email)) {
+        newErrors.email = "Email không hợp lệ";
+      }
     }
 
     // Validate phone (optional but must be 10 digits if provided)
@@ -668,8 +729,8 @@ function UserModal({
       newErrors.phone = "Số điện thoại phải có 10 chữ số";
     }
 
-    // Validate roles (required)
-    if (roles.length === 0) {
+    // Validate roles (required only when creating new user)
+    if (!initial && roles.length === 0) {
       newErrors.roles = "Vui lòng chọn ít nhất một vai trò";
     }
 
@@ -726,12 +787,15 @@ function UserModal({
                 type="email"
                 value={email}
                 onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (errors.email) {
-                    setErrors(prev => ({ ...prev, email: "" }));
+                  if (!initial?.email) { // Only allow email change when creating new user
+                    setEmail(e.target.value);
+                    if (errors.email) {
+                      setErrors(prev => ({ ...prev, email: "" }));
+                    }
                   }
                 }}
-                className={`mt-1 w-full px-3 py-2 rounded-xl border ${errors.email ? 'border-red-500' : 'border-gray-200'}`}
+                disabled={!!initial?.email} // Disable email field when editing existing user
+                className={`mt-1 w-full px-3 py-2 rounded-xl border ${errors.email ? 'border-red-500' : 'border-gray-200'} ${initial?.email ? 'bg-gray-50 cursor-not-allowed' : ''}`}
                 placeholder="email@devpool.com"
               />
               {errors.email && (
@@ -758,37 +822,40 @@ function UserModal({
             </div>
           </div>
 
-          <div>
-            <label className="text-sm text-gray-600">
-              Vai trò & quyền <span className="text-red-500">*</span>
-            </label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {(
-                [
-                  "Manager",
-                  "TA",
-                  "Sale",
-                  "Accountant",
-                ] as StaffRole[]
-              ).map((r) => (
-                <button
-                  type="button"
-                  key={r}
-                  onClick={() => toggleRole(r)}
-                  className={`px-3 py-1.5 rounded-lg text-sm border transition ${roles.includes(r)
-                    ? "border-transparent bg-primary-600 text-white"
-                    : "border-gray-200 hover:bg-gray-50"
-                    }`}
-                >
-                  {roles.includes(r) ? <ShieldCheck className="w-4 h-4 inline mr-1" /> : <Shield className="w-4 h-4 inline mr-1" />}
-                  {r}
-                </button>
-              ))}
+          {/* Hide role selection when editing existing user */}
+          {!initial && (
+            <div>
+              <label className="text-sm text-gray-600">
+                Vai trò & quyền <span className="text-red-500">*</span>
+              </label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(
+                  [
+                    "Manager",
+                    "TA",
+                    "Sale",
+                    "Accountant",
+                  ] as StaffRole[]
+                ).map((r) => (
+                  <button
+                    type="button"
+                    key={r}
+                    onClick={() => toggleRole(r)}
+                    className={`px-3 py-1.5 rounded-lg text-sm border transition ${roles.includes(r)
+                      ? "border-transparent bg-primary-600 text-white"
+                      : "border-gray-200 hover:bg-gray-50"
+                      }`}
+                  >
+                    {roles.includes(r) ? <ShieldCheck className="w-4 h-4 inline mr-1" /> : <Shield className="w-4 h-4 inline mr-1" />}
+                    {r}
+                  </button>
+                ))}
+              </div>
+              {errors.roles && (
+                <p className="text-xs text-red-600 mt-1">{errors.roles}</p>
+              )}
             </div>
-            {errors.roles && (
-              <p className="text-xs text-red-600 mt-1">{errors.roles}</p>
-            )}
-          </div>
+          )}
         </div>
 
         <div className="p-6 border-t border-gray-100 flex items-center justify-end gap-3">
@@ -798,7 +865,13 @@ function UserModal({
           <button
             onClick={() => {
               if (validateForm()) {
-                onSubmit({ fullName, email, phone, roles });
+                if (initial) {
+                  // Edit mode: don't send roles
+                  onSubmit({ fullName, email, phone } as any);
+                } else {
+                  // Create mode: send all fields
+                  onSubmit({ fullName, email, phone, roles });
+                }
               }
             }}
             className="px-4 py-2 rounded-xl bg-primary-600 text-white hover:bg-primary-700"

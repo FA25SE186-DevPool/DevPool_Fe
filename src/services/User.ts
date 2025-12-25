@@ -16,6 +16,8 @@ export const userService = {
         params.append("Role", filter.role);
       if (filter?.isActive !== undefined)
         params.append("IsActive", filter.isActive ? "true" : "false");
+      if (filter?.isDeleted !== undefined)
+        params.append("IsDeleted", filter.isDeleted ? "true" : "false");
       if (filter?.excludeDeleted !== undefined)
         params.append("ExcludeDeleted", filter.excludeDeleted ? "true" : "false");
       if (filter?.pageNumber)
