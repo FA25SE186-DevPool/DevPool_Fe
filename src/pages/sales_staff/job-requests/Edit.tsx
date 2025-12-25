@@ -563,6 +563,14 @@ export default function JobRequestEditPage() {
       return;
     }
 
+    // Validate format tiêu đề: [CODE_PROJECT] [LEVEL_NAME] [JOB_ROLE_NAME]
+    // Chỉ bắt buộc CODE_PROJECT trong ngoặc vuông, LEVEL_NAME và JOB_ROLE_NAME có thể điền gì cũng được
+    const titleRegex = /^\[([A-Z0-9\-]+)\]\s+(.+)\s+(.+)$/;
+    if (!titleRegex.test(formData.title.trim())) {
+      alert("⚠️ Tiêu đề phải theo format: [CODE_PROJECT] [LEVEL_NAME] [JOB_ROLE_NAME] (VD: [INNO-26-01] Junior Backend Developer)");
+      return;
+    }
+
     if (!Number(formData.projectId)) {
       alert("⚠️ Vui lòng chọn Dự án trước khi lưu!");
       return;
@@ -935,6 +943,15 @@ export default function JobRequestEditPage() {
                       </div>
                     )}
                   </div>
+                  {/* Hiển thị code của project đã chọn */}
+                  {formData.projectId && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-sm text-neutral-600">Mã dự án:</span>
+                      <span className="px-3 py-1 bg-neutral-100 text-neutral-800 rounded-lg text-sm font-mono">
+                        [{projects.find(p => p.id === formData.projectId)?.code || "—"}]
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Mẫu quy trình ứng tuyển */}
