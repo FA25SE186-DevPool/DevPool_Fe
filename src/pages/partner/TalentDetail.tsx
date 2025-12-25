@@ -576,18 +576,32 @@ export default function TalentDetailPage() {
                         </div>
                       </div>
 
-                      {assignment.commitmentFileUrl && (
-                        <div className="mt-4 pt-4 border-t border-gray-200">
-                          <a
-                            href={assignment.commitmentFileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"
-                          >
-                            <FileText className="w-4 h-4" />
-                            <span className="text-sm">Xem tài liệu cam kết</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
+                      {(assignment.clientCommitmentFileUrl || assignment.partnerCommitmentFileUrl) && (
+                        <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
+                          {assignment.clientCommitmentFileUrl && (
+                            <a
+                              href={assignment.clientCommitmentFileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                              <FileText className="w-4 h-4" />
+                              <span className="text-sm">Xem tài liệu cam kết (Client)</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                          {assignment.partnerCommitmentFileUrl && (
+                            <a
+                              href={assignment.partnerCommitmentFileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-green-600 hover:text-green-800 transition-colors"
+                            >
+                              <FileText className="w-4 h-4" />
+                              <span className="text-sm">Xem tài liệu cam kết (Partner)</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
                         </div>
                       )}
                     </div>

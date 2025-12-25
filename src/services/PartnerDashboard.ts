@@ -76,8 +76,9 @@ export interface PartnerAssignmentSummary {
   buyingRate?: number; // EstimatedPartnerRate
   currencyCode?: string;
 
-  // Document
-  commitmentFileUrl?: string; // Work Order / Assignment document
+  // Documents
+  clientCommitmentFileUrl?: string; // Client commitment document
+  partnerCommitmentFileUrl?: string; // Partner commitment document
 }
 
 export interface PartnerMonthlyPayment {

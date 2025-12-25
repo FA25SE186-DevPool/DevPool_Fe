@@ -31,8 +31,8 @@ import {
   ChevronUp,
   Hash,
   UserCheck,
+  Eye,
   ExternalLink,
-  Download,
   User,
   MapPin,
   Mail,
@@ -1666,8 +1666,8 @@ setShowErrorToast(true);
                           <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Ngày bắt đầu</th>
                           <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Ngày kết thúc</th>
                           <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Trạng thái</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">File cam kết</th>
                           <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Ngày cập nhật gần nhất</th>
+                          <th className="text-center py-3 px-4 text-sm font-semibold text-neutral-700">Thao tác</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1709,43 +1709,25 @@ setShowErrorToast(true);
                                     {assignment.status ? (assignmentStatusLabels[assignment.status] || "Không xác định") : "—"}
                                   </span>
                                 </td>
-                                <td className="py-3 px-4">
-                                  {assignment.commitmentFileUrl ? (
-                                    <div className="flex items-center gap-2">
-                                      <a
-                                        href={assignment.commitmentFileUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-xs font-medium transition-colors"
-                                        onClick={(e) => e.stopPropagation()}
-                                        title="Xem file trong tab mới"
-                                      >
-                                        <ExternalLink className="w-3 h-3" />
-                                        Xem
-                                      </a>
-                                      <a
-                                        href={assignment.commitmentFileUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        download
-                                        className="inline-flex items-center gap-1 px-2 py-1 bg-primary-100 hover:bg-primary-200 text-primary-700 rounded text-xs font-medium transition-colors"
-                                        onClick={(e) => e.stopPropagation()}
-                                        title="Tải file xuống"
-                                      >
-                                        <Download className="w-3 h-3" />
-                                        Tải xuống
-                                      </a>
-                                    </div>
-                                  ) : (
-                                    <span className="text-sm text-neutral-400">—</span>
-                                  )}
-                                </td>
                                 <td className="py-3 px-4 text-sm text-neutral-700">
-                                  {assignment.updatedAt 
+                                  {assignment.updatedAt
                                     ? formatViDateTime(assignment.updatedAt)
-                                    : assignment.createdAt 
+                                    : assignment.createdAt
                                       ? formatViDateTime(assignment.createdAt)
                                       : "—"}
+                                </td>
+                                <td className="py-3 px-4 text-center">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedAssignment(assignment);
+                                      setShowDetailAssignmentModal(true);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary-100 hover:bg-primary-200 text-primary-700 rounded-lg text-sm font-medium transition-colors"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                    Xem chi tiết
+                                  </button>
                                 </td>
                               </tr>
                             );
@@ -1888,37 +1870,42 @@ setShowErrorToast(true);
                 </span>
               </div>
 
-              {/* Commitment File */}
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">File cam kết</label>
-                {selectedAssignment.commitmentFileUrl ? (
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={selectedAssignment.commitmentFileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium transition-colors"
-                      title="Xem file trong tab mới"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Xem file
-                    </a>
-                    <a
-                      href={selectedAssignment.commitmentFileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download
-                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-100 hover:bg-primary-200 text-primary-700 rounded-lg text-sm font-medium transition-colors"
-                      title="Tải file xuống"
-                    >
-                      <Download className="w-4 h-4" />
-                      Tải xuống
-                    </a>
+              {/* Commitment Files */}
+              {(selectedAssignment.clientCommitmentFileUrl || selectedAssignment.partnerCommitmentFileUrl) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-2">File cam kết</label>
+                  <div className="space-y-2">
+                    {selectedAssignment.clientCommitmentFileUrl && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-neutral-500">Client:</span>
+                        <a
+                          href={selectedAssignment.clientCommitmentFileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary-600 hover:text-primary-700 text-sm font-medium underline flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Xem file
+                        </a>
+                      </div>
+                    )}
+                    {selectedAssignment.partnerCommitmentFileUrl && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-neutral-500">Partner:</span>
+                        <a
+                          href={selectedAssignment.partnerCommitmentFileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary-600 hover:text-primary-700 text-sm font-medium underline flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Xem file
+                        </a>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-sm text-neutral-400">Chưa có file</p>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Termination Reason */}
               {selectedAssignment.terminationReason && (

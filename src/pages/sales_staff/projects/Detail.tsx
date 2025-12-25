@@ -19,8 +19,9 @@ import { locationService, type Location } from "../../../services/location";
 import { type JobRequest } from "../../../services/JobRequest";
 import { WorkingMode } from "../../../constants/WORKING_MODE";
 import { formatNumberInput, parseNumberInput } from "../../../utils/formatters";
+import { uploadFile } from "../../../utils/firebaseStorage";
 import ConfirmModal from "../../../components/ui/confirm-modal";
-import SuccessToast from "../../../components/ui/success-toast";
+import SuccessToast, { ErrorToast } from "../../../components/ui/success-toast";
 import { 
   Briefcase, 
   Edit, 
@@ -44,13 +45,15 @@ import {
   ChevronRight,
   Layers,
   Plus,
+  Upload,
   User,
   Eye,
   Hash,
   DollarSign,
   Mail,
   Phone,
-  MapPin
+  MapPin,
+  ExternalLink
 } from "lucide-react";
 
 export default function ProjectDetailPage() {
@@ -112,6 +115,13 @@ export default function ProjectDetailPage() {
     title: string;
     message?: string;
   } | null>(null);
+
+  // Error toast states
+  const [showErrorToast, setShowErrorToast] = useState(false);
+  const [errorToastConfig, setErrorToastConfig] = useState<{
+    title: string;
+    message?: string;
+  } | null>(null);
   const [hiredApplications, setHiredApplications] = useState<TalentApplication[]>([]);
   const [talents, setTalents] = useState<Talent[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -126,8 +136,26 @@ export default function ProjectDetailPage() {
   const [assignmentErrors, setAssignmentErrors] = useState<{ startDate?: string; endDate?: string }>({});
   const [assignmentWarnings, setAssignmentWarnings] = useState<{ startDate?: string }>({});
   const [completedActivityDate, setCompletedActivityDate] = useState<string | null>(null); // Lưu CompletedDate của ApplyActivity
-  const [updateErrors, setUpdateErrors] = useState<{ startDate?: string; endDate?: string; estimatedClientRate?: string; estimatedPartnerRate?: string }>({});
+  const [updateErrors, setUpdateErrors] = useState<{
+    startDate?: string;
+    endDate?: string;
+    clientCommitmentFile?: string;
+    partnerCommitmentFile?: string;
+    estimatedClientRate?: string;
+    estimatedPartnerRate?: string;
+  }>({});
   const [editLastActivityScheduledDate, setEditLastActivityScheduledDate] = useState<string | null>(null);
+
+  // File upload states for commitment files
+  const [clientCommitmentFile, setClientCommitmentFile] = useState<File | null>(null);
+  const [partnerCommitmentFile, setPartnerCommitmentFile] = useState<File | null>(null);
+  const [updateClientCommitmentFile, setUpdateClientCommitmentFile] = useState<File | null>(null);
+  const [updatePartnerCommitmentFile, setUpdatePartnerCommitmentFile] = useState<File | null>(null);
+  const [extendClientCommitmentFile, setExtendClientCommitmentFile] = useState<File | null>(null);
+  const [extendPartnerCommitmentFile, setExtendPartnerCommitmentFile] = useState<File | null>(null);
+  const [directBookingClientCommitmentFile, setDirectBookingClientCommitmentFile] = useState<File | null>(null);
+  const [directBookingPartnerCommitmentFile, setDirectBookingPartnerCommitmentFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Direct booking (re-hiring) states
   const [directBookingTalentIds, setDirectBookingTalentIds] = useState<number[]>([]);
@@ -143,6 +171,8 @@ export default function ProjectDetailPage() {
     estimatedPartnerRate: number | null;
     currencyCode: string;
     notes: string;
+    clientCommitmentFileUrl: string | null;
+    partnerCommitmentFileUrl: string | null;
   }>({
     talentId: 0,
     jobRoleLevelId: 0,
@@ -153,7 +183,9 @@ export default function ProjectDetailPage() {
     estimatedClientRate: null,
     estimatedPartnerRate: null,
     currencyCode: "VND",
-    notes: ""
+    notes: "",
+    clientCommitmentFileUrl: null,
+    partnerCommitmentFileUrl: null
   });
   const [directBookingErrors, setDirectBookingErrors] = useState<Record<string, string>>({});
 
@@ -184,6 +216,16 @@ export default function ProjectDetailPage() {
     setSuccessToastConfig(null);
   };
 
+  const displayErrorToast = (title: string, message?: string) => {
+    setErrorToastConfig({ title, message });
+    setShowErrorToast(true);
+  };
+
+  const hideErrorToast = () => {
+    setShowErrorToast(false);
+    setErrorToastConfig(null);
+  };
+
   // Form state for creating assignment
   const [assignmentForm, setAssignmentForm] = useState<TalentAssignmentCreateModel>({
     talentId: 0,
@@ -192,6 +234,8 @@ export default function ProjectDetailPage() {
     talentApplicationId: null,
     startDate: "",
     endDate: null,
+    clientCommitmentFileUrl: null,
+    partnerCommitmentFileUrl: null,
     status: "Active",
     terminationDate: null,
     terminationReason: null,
@@ -231,12 +275,20 @@ export default function ProjectDetailPage() {
   // Form state for extending assignment
   const [extendForm, setExtendForm] = useState<{
     endDate: string;
+    clientCommitmentFileUrl?: string | null;
+    partnerCommitmentFileUrl?: string | null;
     notes?: string | null;
   }>({
     endDate: "",
+    clientCommitmentFileUrl: null,
+    partnerCommitmentFileUrl: null,
     notes: null
   });
-  const [extendErrors, setExtendErrors] = useState<{ endDate?: string }>({});
+  const [extendErrors, setExtendErrors] = useState<{
+    endDate?: string;
+    clientCommitmentFile?: string;
+    partnerCommitmentFile?: string;
+  }>({});
   const [submittingExtend, setSubmittingExtend] = useState(false);
 
   // Success overlay state
@@ -278,6 +330,8 @@ export default function ProjectDetailPage() {
   const [updateForm, setUpdateForm] = useState<{
     startDate: string;
     endDate: string;
+    clientCommitmentFileUrl?: string | null;
+    partnerCommitmentFileUrl?: string | null;
     terminationDate?: string | null;
     terminationReason?: string | null;
     notes?: string | null;
@@ -287,6 +341,8 @@ export default function ProjectDetailPage() {
   }>({
     startDate: "",
     endDate: "",
+    clientCommitmentFileUrl: null,
+    partnerCommitmentFileUrl: null,
     terminationDate: null,
     terminationReason: null,
     notes: null,
@@ -591,6 +647,31 @@ export default function ProjectDetailPage() {
     try {
       setSubmittingDirectBooking(true);
 
+      // Validate required commitment files
+      if (!directBookingClientCommitmentFile && !directBookingForm.clientCommitmentFileUrl) {
+        setDirectBookingErrors(prev => ({ ...prev, clientCommitmentFile: "Vui lòng upload file cam kết Client" }));
+        return;
+      }
+
+      if (!directBookingPartnerCommitmentFile && !directBookingForm.partnerCommitmentFileUrl) {
+        setDirectBookingErrors(prev => ({ ...prev, partnerCommitmentFile: "Vui lòng upload file cam kết Partner" }));
+        return;
+      }
+
+      // Upload commitment files if exists
+      let clientCommitmentFileUrl = directBookingForm.clientCommitmentFileUrl || null;
+      let partnerCommitmentFileUrl = directBookingForm.partnerCommitmentFileUrl || null;
+
+      if (directBookingClientCommitmentFile) {
+        const path = `talent-assignments/${id}/${Date.now()}_${directBookingClientCommitmentFile.name}`;
+        clientCommitmentFileUrl = await uploadFile(directBookingClientCommitmentFile, path, setUploadProgress);
+      }
+
+      if (directBookingPartnerCommitmentFile) {
+        const path = `talent-assignments/${id}/${Date.now()}_${directBookingPartnerCommitmentFile.name}`;
+        partnerCommitmentFileUrl = await uploadFile(directBookingPartnerCommitmentFile, path, setUploadProgress);
+      }
+
       const currencyCode: string | null =
         directBookingForm.estimatedClientRate || directBookingForm.estimatedPartnerRate
           ? (directBookingForm.currencyCode || "VND")
@@ -604,6 +685,8 @@ export default function ProjectDetailPage() {
         endDate: endUTC as string,
         jobRoleLevelId: directBookingForm.jobRoleLevelId,
         jobDescription: directBookingForm.jobDescription.trim(),
+        clientCommitmentFileUrl,
+        partnerCommitmentFileUrl,
         estimatedClientRate: directBookingForm.estimatedClientRate ?? null,
         estimatedPartnerRate: directBookingForm.estimatedPartnerRate ?? null,
         currencyCode,
@@ -626,8 +709,13 @@ export default function ProjectDetailPage() {
         estimatedClientRate: null,
         estimatedPartnerRate: null,
         currencyCode: "VND",
-        notes: ""
+        notes: "",
+        clientCommitmentFileUrl: null,
+        partnerCommitmentFileUrl: null
       });
+      setDirectBookingClientCommitmentFile(null);
+      setDirectBookingPartnerCommitmentFile(null);
+      setUploadProgress(0);
       setDirectBookingErrors({});
 
       showSuccessOverlay("Thuê lại nhân sự thành công!");
@@ -853,6 +941,20 @@ export default function ProjectDetailPage() {
     try {
       setSubmittingAssignment(true);
 
+      // Upload commitment files if exists
+      let clientCommitmentFileUrl = null;
+      let partnerCommitmentFileUrl = null;
+
+      if (clientCommitmentFile) {
+        const path = `talent-assignments/${id}/${Date.now()}_${clientCommitmentFile.name}`;
+        clientCommitmentFileUrl = await uploadFile(clientCommitmentFile, path, setUploadProgress);
+      }
+
+      if (partnerCommitmentFile) {
+        const path = `talent-assignments/${id}/${Date.now()}_${partnerCommitmentFile.name}`;
+        partnerCommitmentFileUrl = await uploadFile(partnerCommitmentFile, path, setUploadProgress);
+      }
+
       // Create assignment
       // Convert dates to UTC ISO string for PostgreSQL
       const payload: TalentAssignmentCreateModel = {
@@ -860,6 +962,8 @@ export default function ProjectDetailPage() {
         projectId: Number(id),
         startDate: assignmentForm.startDate ? toUTCISOString(assignmentForm.startDate) || "" : "",
         endDate: assignmentForm.endDate ? toUTCISOString(assignmentForm.endDate) : null,
+        clientCommitmentFileUrl,
+        partnerCommitmentFileUrl,
         currencyCode: (assignmentForm.estimatedClientRate || assignmentForm.estimatedPartnerRate) ? (assignmentForm.currencyCode || "VND") : null
       };
 
@@ -954,6 +1058,8 @@ export default function ProjectDetailPage() {
         talentApplicationId: null,
         startDate: "",
         endDate: null,
+        clientCommitmentFileUrl: null,
+        partnerCommitmentFileUrl: null,
         status: "Active",
         terminationDate: null,
         terminationReason: null,
@@ -965,6 +1071,9 @@ export default function ProjectDetailPage() {
       setAssignmentErrors({});
       setAssignmentWarnings({});
       setCompletedActivityDate(null);
+      setClientCommitmentFile(null);
+      setPartnerCommitmentFile(null);
+      setUploadProgress(0);
       setShowCreateAssignmentModal(false);
 
       showSuccessOverlay("Tạo phân công nhân sự thành công!");
@@ -1113,6 +1222,30 @@ export default function ProjectDetailPage() {
     try {
       setSubmittingUpdate(true);
 
+      // Validate required commitment files
+      if (!updateClientCommitmentFile && !updateForm.clientCommitmentFileUrl) {
+        setUpdateErrors(prev => ({ ...prev, clientCommitmentFile: "Vui lòng upload file cam kết Client" }));
+        return;
+      }
+
+      if (!updatePartnerCommitmentFile && !updateForm.partnerCommitmentFileUrl) {
+        setUpdateErrors(prev => ({ ...prev, partnerCommitmentFile: "Vui lòng upload file cam kết Partner" }));
+        return;
+      }
+
+      // Upload commitment files if exists
+      let clientCommitmentFileUrl = updateForm.clientCommitmentFileUrl || null;
+      let partnerCommitmentFileUrl = updateForm.partnerCommitmentFileUrl || null;
+
+      if (updateClientCommitmentFile) {
+        const path = `talent-assignments/${id}/${Date.now()}_${updateClientCommitmentFile.name}`;
+        clientCommitmentFileUrl = await uploadFile(updateClientCommitmentFile, path, setUploadProgress);
+      }
+
+      if (updatePartnerCommitmentFile) {
+        const path = `talent-assignments/${id}/${Date.now()}_${updatePartnerCommitmentFile.name}`;
+        partnerCommitmentFileUrl = await uploadFile(updatePartnerCommitmentFile, path, setUploadProgress);
+      }
 
       const isDraft = selectedAssignment.status === "Draft";
       const isActiveWithStartDate = selectedAssignment.status === "Active" && selectedAssignment.startDate;
@@ -1126,14 +1259,16 @@ export default function ProjectDetailPage() {
         const payload: TalentAssignmentUpdateModel & { startDate?: string | null; status?: string } = {
           startDate: updateForm.startDate ? toUTCISOString(updateForm.startDate) : (selectedAssignment.startDate ? toUTCISOString(selectedAssignment.startDate) : null),
           endDate: updateForm.endDate ? toUTCISOString(updateForm.endDate) : null,
+          clientCommitmentFileUrl,
+          partnerCommitmentFileUrl,
           status: "Active", // Change status to Active
           // Không gửi terminationDate và terminationReason khi status là Draft
           notes: updateForm.notes || null,
           estimatedClientRate: updateForm.estimatedClientRate !== undefined ? updateForm.estimatedClientRate : selectedAssignment.estimatedClientRate,
           estimatedPartnerRate: updateForm.estimatedPartnerRate !== undefined ? updateForm.estimatedPartnerRate : selectedAssignment.estimatedPartnerRate,
-          currencyCode: ((updateForm.estimatedClientRate !== undefined ? updateForm.estimatedClientRate : selectedAssignment.estimatedClientRate) || 
-                        (updateForm.estimatedPartnerRate !== undefined ? updateForm.estimatedPartnerRate : selectedAssignment.estimatedPartnerRate)) 
-                        ? (updateForm.currencyCode !== undefined ? (updateForm.currencyCode || "VND") : (selectedAssignment.currencyCode || "VND")) 
+          currencyCode: ((updateForm.estimatedClientRate !== undefined ? updateForm.estimatedClientRate : selectedAssignment.estimatedClientRate) ||
+                        (updateForm.estimatedPartnerRate !== undefined ? updateForm.estimatedPartnerRate : selectedAssignment.estimatedPartnerRate))
+                        ? (updateForm.currencyCode !== undefined ? (updateForm.currencyCode || "VND") : (selectedAssignment.currencyCode || "VND"))
                         : null
         };
 
@@ -1142,12 +1277,12 @@ export default function ProjectDetailPage() {
         // Use extend API for Active status with startDate
         // For extend, we use the extend model
         if (!updateForm.endDate) {
-          displaySuccessToast("Lỗi", "Vui lòng nhập ngày kết thúc");
+          displayErrorToast("Lỗi", "Vui lòng nhập ngày kết thúc");
           return;
         }
         const endDateUTC = toUTCISOString(updateForm.endDate);
         if (!endDateUTC) {
-          displaySuccessToast("Lỗi", "Ngày kết thúc không hợp lệ");
+          displayErrorToast("Lỗi", "Ngày kết thúc không hợp lệ");
           return;
         }
         const extendPayload: TalentAssignmentExtendModel = {
@@ -1170,9 +1305,14 @@ export default function ProjectDetailPage() {
       setUpdateForm({
         startDate: "",
         endDate: "",
+        clientCommitmentFileUrl: null,
+        partnerCommitmentFileUrl: null,
         notes: null
       });
       setUpdateErrors({});
+      setUpdateClientCommitmentFile(null);
+      setUpdatePartnerCommitmentFile(null);
+      setUploadProgress(0);
       setSelectedAssignment(null);
       setShowUpdateAssignmentModal(false);
 
@@ -1183,7 +1323,7 @@ export default function ProjectDetailPage() {
       console.error("❌ Lỗi khi cập nhật phân công:", error);
       const message =
         error instanceof Error ? error.message : (typeof error === "string" ? error : "");
-      displaySuccessToast("Lỗi", message || "Không thể cập nhật phân công nhân sự");
+      displayErrorToast("Lỗi", message || "Không thể cập nhật phân công nhân sự");
     } finally {
       setSubmittingUpdate(false);
     }
@@ -1306,7 +1446,7 @@ export default function ProjectDetailPage() {
       console.error("❌ Lỗi khi chấm dứt phân công:", error);
       const message =
         error instanceof Error ? error.message : (typeof error === "string" ? error : "");
-      displaySuccessToast("Lỗi", message || "Không thể chấm dứt phân công nhân sự");
+      displayErrorToast("Lỗi", message || "Không thể chấm dứt phân công nhân sự");
     } finally {
       setSubmittingTerminate(false);
     }
@@ -1410,8 +1550,35 @@ export default function ProjectDetailPage() {
     try {
       setSubmittingExtend(true);
 
+      // Validate required commitment files
+      if (!extendClientCommitmentFile && !extendForm.clientCommitmentFileUrl) {
+        setExtendErrors(prev => ({ ...prev, clientCommitmentFile: "Vui lòng upload file cam kết Client" }));
+        return;
+      }
+
+      if (!extendPartnerCommitmentFile && !extendForm.partnerCommitmentFileUrl) {
+        setExtendErrors(prev => ({ ...prev, partnerCommitmentFile: "Vui lòng upload file cam kết Partner" }));
+        return;
+      }
+
+      // Upload commitment files if exists
+      let clientCommitmentFileUrl = extendForm.clientCommitmentFileUrl || null;
+      let partnerCommitmentFileUrl = extendForm.partnerCommitmentFileUrl || null;
+
+      if (extendClientCommitmentFile) {
+        const path = `talent-assignments/${id}/${Date.now()}_${extendClientCommitmentFile.name}`;
+        clientCommitmentFileUrl = await uploadFile(extendClientCommitmentFile, path, setUploadProgress);
+      }
+
+      if (extendPartnerCommitmentFile) {
+        const path = `talent-assignments/${id}/${Date.now()}_${extendPartnerCommitmentFile.name}`;
+        partnerCommitmentFileUrl = await uploadFile(extendPartnerCommitmentFile, path, setUploadProgress);
+      }
+
       const payload = {
         endDate: toUTCISOString(extendForm.endDate) || "",
+        clientCommitmentFileUrl,
+        partnerCommitmentFileUrl,
         notes: extendForm.notes || null
       };
 
@@ -1426,9 +1593,14 @@ export default function ProjectDetailPage() {
       // Reset form and close modal
       setExtendForm({
         endDate: "",
+        clientCommitmentFileUrl: null,
+        partnerCommitmentFileUrl: null,
         notes: null
       });
       setExtendErrors({});
+      setExtendClientCommitmentFile(null);
+      setExtendPartnerCommitmentFile(null);
+      setUploadProgress(0);
       setShowExtendAssignmentModal(false);
       setShowDetailAssignmentModal(false);
       setSelectedAssignment(null);
@@ -1439,7 +1611,7 @@ export default function ProjectDetailPage() {
       console.error("❌ Lỗi khi gia hạn phân công:", error);
       const message =
         error instanceof Error ? error.message : (typeof error === "string" ? error : "");
-      displaySuccessToast("Lỗi", message || "Không thể gia hạn phân công nhân sự");
+      displayErrorToast("Lỗi", message || "Không thể gia hạn phân công nhân sự");
     } finally {
       setSubmittingExtend(false);
     }
@@ -1635,7 +1807,7 @@ export default function ProjectDetailPage() {
       console.error("❌ Lỗi khi hủy phân công:", error);
       const message =
         error instanceof Error ? error.message : (typeof error === "string" ? error : "");
-      displaySuccessToast("Lỗi", message || "Không thể hủy phân công nhân sự");
+      displayErrorToast("Lỗi", message || "Không thể hủy phân công nhân sự");
     } finally {
       setSubmittingCancel(false);
     }
@@ -2599,7 +2771,9 @@ export default function ProjectDetailPage() {
                         estimatedClientRate: null,
                         estimatedPartnerRate: null,
                         currencyCode: "VND",
-                        notes: ""
+                        notes: "",
+                        clientCommitmentFileUrl: null,
+                        partnerCommitmentFileUrl: null
                       });
                       setDirectBookingErrors({});
                       setShowDirectBookingModal(true);
@@ -3270,10 +3444,134 @@ export default function ProjectDetailPage() {
                   />
                 </div>
 
+                {/* Commitment Files */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Client Commitment File */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      File cam kết Client <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <label className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors ${
+                        directBookingErrors.clientCommitmentFile ? 'border-red-500 bg-red-50' : 'border-neutral-200'
+                      }`}>
+                        <Upload className="w-4 h-4" />
+                        <span className="text-sm">Chọn file</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            let errorMessage: string | undefined;
+
+                            if (file) {
+                              const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/jpg', 'image/png'];
+                              if (!allowedTypes.includes(file.type)) {
+                                errorMessage = "Chỉ chấp nhận file PDF, DOC, DOCX, JPG, PNG";
+                              }
+                              // Validate file size but allow upload
+                              const maxSize = 10 * 1024 * 1024; // 10MB
+                              if (file.size > maxSize) {
+                                errorMessage = `Kích thước file không được vượt quá 10MB. File hiện tại: ${(file.size / 1024 / 1024).toFixed(2)}MB`;
+                              }
+                            }
+
+                            setDirectBookingClientCommitmentFile(file || null);
+                            setDirectBookingErrors(prev => ({ ...prev, clientCommitmentFile: errorMessage || "" }));
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                      {directBookingClientCommitmentFile && !directBookingErrors.clientCommitmentFile && (
+                        <span className="text-sm text-green-600">
+                          File đã chọn: {directBookingClientCommitmentFile.name} ({(directBookingClientCommitmentFile.size / 1024 / 1024).toFixed(2)}MB)
+                        </span>
+                      )}
+                      {uploadProgress > 0 && uploadProgress < 100 && (
+                        <span className="text-sm text-primary-600">Đang upload: {uploadProgress}%</span>
+                      )}
+                    </div>
+                    {directBookingErrors.clientCommitmentFile && (
+                      <p className="text-sm font-medium text-red-600">{directBookingErrors.clientCommitmentFile}</p>
+                    )}
+                    <p className="text-xs text-gray-500">Định dạng: PDF, DOC, DOCX, JPG, PNG. Kích cỡ tối đa: 10MB</p>
+                  </div>
+
+                  {/* Partner Commitment File */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      File cam kết Partner <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <label className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors ${
+                        directBookingErrors.partnerCommitmentFile ? 'border-red-500 bg-red-50' : 'border-neutral-200'
+                      }`}>
+                        <Upload className="w-4 h-4" />
+                        <span className="text-sm">Chọn file</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            let errorMessage: string | undefined;
+
+                            if (file) {
+                              const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/jpg', 'image/png'];
+                              if (!allowedTypes.includes(file.type)) {
+                                errorMessage = "Chỉ chấp nhận file PDF, DOC, DOCX, JPG, PNG";
+                              }
+                              // Validate file size but allow upload
+                              const maxSize = 10 * 1024 * 1024; // 10MB
+                              if (file.size > maxSize) {
+                                errorMessage = `Kích thước file không được vượt quá 10MB. File hiện tại: ${(file.size / 1024 / 1024).toFixed(2)}MB`;
+                              }
+                            }
+
+                            setDirectBookingPartnerCommitmentFile(file || null);
+                            setDirectBookingErrors(prev => ({ ...prev, partnerCommitmentFile: errorMessage || "" }));
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                      {directBookingPartnerCommitmentFile && !directBookingErrors.partnerCommitmentFile && (
+                        <span className="text-sm text-green-600">
+                          File đã chọn: {directBookingPartnerCommitmentFile.name} ({(directBookingPartnerCommitmentFile.size / 1024 / 1024).toFixed(2)}MB)
+                        </span>
+                      )}
+                      {uploadProgress > 0 && uploadProgress < 100 && (
+                        <span className="text-sm text-primary-600">Đang upload: {uploadProgress}%</span>
+                      )}
+                    </div>
+                    {directBookingErrors.partnerCommitmentFile && (
+                      <p className="text-sm font-medium text-red-600">{directBookingErrors.partnerCommitmentFile}</p>
+                    )}
+                    <p className="text-xs text-gray-500">Định dạng: PDF, DOC, DOCX, JPG, PNG. Kích cỡ tối đa: 10MB</p>
+                  </div>
+                </div>
+
                 <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
                   <button
                     type="button"
-                    onClick={() => setShowDirectBookingModal(false)}
+                    onClick={() => {
+                      setShowDirectBookingModal(false);
+                      setDirectBookingForm({
+                        talentId: 0,
+                        jobRoleLevelId: 0,
+                        partnerId: 0,
+                        startDate: "",
+                        endDate: "",
+                        jobDescription: "",
+                        estimatedClientRate: null,
+                        estimatedPartnerRate: null,
+                        currencyCode: "VND",
+                        notes: "",
+                        clientCommitmentFileUrl: null,
+                        partnerCommitmentFileUrl: null
+                      });
+                      setDirectBookingClientCommitmentFile(null);
+                      setDirectBookingPartnerCommitmentFile(null);
+                      setDirectBookingErrors({});
+                    }}
                     className="px-4 py-2 border border-neutral-200 rounded-lg text-neutral-700 hover:bg-neutral-50 transition-colors"
                   >
                     Đóng
@@ -3553,6 +3851,59 @@ export default function ProjectDetailPage() {
                     className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-primary-500"
                     placeholder="Nhập ghi chú..."
                   />
+                </div>
+
+                {/* Commitment Files */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Client Commitment File */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      File cam kết Client <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 px-4 py-2 border border-neutral-200 rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors">
+                        <Upload className="w-4 h-4" />
+                        <span className="text-sm">Chọn file</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={(e) => setClientCommitmentFile(e.target.files?.[0] || null)}
+                          className="hidden"
+                        />
+                      </label>
+                      {clientCommitmentFile && (
+                        <span className="text-sm text-neutral-600">{clientCommitmentFile.name}</span>
+                      )}
+                      {uploadProgress > 0 && uploadProgress < 100 && (
+                        <span className="text-sm text-primary-600">Đang upload: {uploadProgress}%</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Partner Commitment File */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      File cam kết Partner <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 px-4 py-2 border border-neutral-200 rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors">
+                        <Upload className="w-4 h-4" />
+                        <span className="text-sm">Chọn file</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={(e) => setPartnerCommitmentFile(e.target.files?.[0] || null)}
+                          className="hidden"
+                        />
+                      </label>
+                      {partnerCommitmentFile && (
+                        <span className="text-sm text-neutral-600">{partnerCommitmentFile.name}</span>
+                      )}
+                      {uploadProgress > 0 && uploadProgress < 100 && (
+                        <span className="text-sm text-primary-600">Đang upload: {uploadProgress}%</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Submit Button */}
@@ -3846,6 +4197,115 @@ export default function ProjectDetailPage() {
                 />
               </div>
 
+              {/* Commitment Files */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Client Commitment File */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    File cam kết Client <span className="text-red-500">*</span>
+                  </label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <label className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors ${
+                        updateErrors.clientCommitmentFile ? 'border-red-500 bg-red-50' : 'border-neutral-200'
+                      }`}>
+                        <Upload className="w-4 h-4" />
+                        <span className="text-sm">Chọn file</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          let errorMessage: string | undefined;
+
+                          if (file) {
+                            const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/jpg', 'image/png'];
+                            if (!allowedTypes.includes(file.type)) {
+                              errorMessage = "Chỉ chấp nhận file PDF, DOC, DOCX, JPG, PNG";
+                            }
+                            // Validate file size but allow upload
+                            const maxSize = 10 * 1024 * 1024; // 10MB
+                            if (file.size > maxSize) {
+                              errorMessage = `Kích thước file không được vượt quá 10MB. File hiện tại: ${(file.size / 1024 / 1024).toFixed(2)}MB`;
+                            }
+                          }
+
+                          setUpdateClientCommitmentFile(file || null);
+                          setUpdateErrors(prev => ({ ...prev, clientCommitmentFile: errorMessage }));
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                    {updateClientCommitmentFile && !updateErrors.clientCommitmentFile && (
+                      <span className="text-sm text-green-600">
+                        File đã chọn: {updateClientCommitmentFile.name} ({(updateClientCommitmentFile.size / 1024 / 1024).toFixed(2)}MB)
+                      </span>
+                    )}
+                    {uploadProgress > 0 && uploadProgress < 100 && (
+                      <span className="text-sm text-primary-600">Đang upload: {uploadProgress}%</span>
+                    )}
+                  </div>
+                  {updateErrors.clientCommitmentFile && (
+                    <p className="text-sm font-medium text-red-600">{updateErrors.clientCommitmentFile}</p>
+                  )}
+                  <p className="text-xs text-gray-500">Định dạng: PDF, DOC, DOCX, JPG, PNG. Kích cỡ tối đa: 10MB</p>
+                </div>
+                </div>
+
+                {/* Partner Commitment File */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    File cam kết Partner <span className="text-red-500">*</span>
+                  </label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <label className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors ${
+                        updateErrors.partnerCommitmentFile ? 'border-red-500 bg-red-50' : 'border-neutral-200'
+                      }`}>
+                        <Upload className="w-4 h-4" />
+                        <span className="text-sm">Chọn file</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          let errorMessage: string | undefined;
+
+                          if (file) {
+                            const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/jpg', 'image/png'];
+                            if (!allowedTypes.includes(file.type)) {
+                              errorMessage = "Chỉ chấp nhận file PDF, DOC, DOCX, JPG, PNG";
+                            }
+                            // Validate file size but allow upload
+                            const maxSize = 10 * 1024 * 1024; // 10MB
+                            if (file.size > maxSize) {
+                              errorMessage = `Kích thước file không được vượt quá 10MB. File hiện tại: ${(file.size / 1024 / 1024).toFixed(2)}MB`;
+                            }
+                          }
+
+                          setUpdatePartnerCommitmentFile(file || null);
+                          setUpdateErrors(prev => ({ ...prev, partnerCommitmentFile: errorMessage }));
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                    {updatePartnerCommitmentFile && !updateErrors.partnerCommitmentFile && (
+                      <span className="text-sm text-green-600">
+                        File đã chọn: {updatePartnerCommitmentFile.name} ({(updatePartnerCommitmentFile.size / 1024 / 1024).toFixed(2)}MB)
+                      </span>
+                    )}
+                    {uploadProgress > 0 && uploadProgress < 100 && (
+                      <span className="text-sm text-primary-600">Đang upload: {uploadProgress}%</span>
+                    )}
+                  </div>
+                  {updateErrors.partnerCommitmentFile && (
+                    <p className="text-sm font-medium text-red-600">{updateErrors.partnerCommitmentFile}</p>
+                  )}
+                  <p className="text-xs text-gray-500">Định dạng: PDF, DOC, DOCX, JPG, PNG. Kích cỡ tối đa: 10MB</p>
+                </div>
+                </div>
+              </div>
+
               {/* Submit Button */}
               <div className="flex justify-end gap-3 pt-4">
                 <button
@@ -3856,6 +4316,8 @@ export default function ProjectDetailPage() {
                     setUpdateForm({
                       startDate: "",
                       endDate: "",
+                      clientCommitmentFileUrl: null,
+                      partnerCommitmentFileUrl: null,
                       terminationDate: null,
                       terminationReason: null,
                       notes: null,
@@ -3863,6 +4325,9 @@ export default function ProjectDetailPage() {
                       estimatedPartnerRate: null,
                       currencyCode: "VND"
                     });
+                    setUpdateClientCommitmentFile(null);
+                    setUpdatePartnerCommitmentFile(null);
+                    setUploadProgress(0);
                   }}
                   className="px-4 py-2 border border-neutral-200 rounded-lg text-neutral-700 hover:bg-neutral-50 transition-colors"
                 >
@@ -4020,6 +4485,43 @@ export default function ProjectDetailPage() {
                 </p>
               </div>
 
+              {/* Commitment Files */}
+              {(selectedAssignment.clientCommitmentFileUrl || selectedAssignment.partnerCommitmentFileUrl) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-2">File cam kết</label>
+                  <div className="space-y-2">
+                    {selectedAssignment.clientCommitmentFileUrl && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-neutral-500">Client:</span>
+                        <a
+                          href={selectedAssignment.clientCommitmentFileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary-600 hover:text-primary-700 text-sm font-medium underline flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Xem file
+                        </a>
+                      </div>
+                    )}
+                    {selectedAssignment.partnerCommitmentFileUrl && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-neutral-500">Partner:</span>
+                        <a
+                          href={selectedAssignment.partnerCommitmentFileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary-600 hover:text-primary-700 text-sm font-medium underline flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Xem file
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Timestamps */}
               <div className="grid grid-cols-2 gap-4 pt-4 border-t border-neutral-200">
                 <div>
@@ -4106,6 +4608,8 @@ export default function ProjectDetailPage() {
                         setUpdateForm({
                           startDate: initialStartDate,
                           endDate: selectedAssignment.endDate || "",
+                          clientCommitmentFileUrl: selectedAssignment.clientCommitmentFileUrl || null,
+                          partnerCommitmentFileUrl: selectedAssignment.partnerCommitmentFileUrl || null,
                           terminationDate: selectedAssignment.terminationDate || null,
                           terminationReason: selectedAssignment.terminationReason || null,
                           notes: selectedAssignment.notes || null,
@@ -4146,6 +4650,8 @@ export default function ProjectDetailPage() {
                       onClick={() => {
                         setExtendForm({
                           endDate: selectedAssignment.endDate || "",
+                          clientCommitmentFileUrl: selectedAssignment.clientCommitmentFileUrl || null,
+                          partnerCommitmentFileUrl: selectedAssignment.partnerCommitmentFileUrl || null,
                           notes: selectedAssignment.notes || null
                         });
                         setExtendErrors({});
@@ -4530,13 +5036,120 @@ export default function ProjectDetailPage() {
                 />
               </div>
 
+              {/* Commitment Files */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Client Commitment File */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    File cam kết Client <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <label className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors ${
+                      extendErrors.clientCommitmentFile ? 'border-red-500 bg-red-50' : 'border-neutral-200'
+                    }`}>
+                      <Upload className="w-4 h-4" />
+                      <span className="text-sm">Chọn file</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          let errorMessage: string | undefined;
+
+                          if (file) {
+                            const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/jpg', 'image/png'];
+                            if (!allowedTypes.includes(file.type)) {
+                              errorMessage = "Chỉ chấp nhận file PDF, DOC, DOCX, JPG, PNG";
+                            }
+                            // Validate file size but allow upload
+                            const maxSize = 10 * 1024 * 1024; // 10MB
+                            if (file.size > maxSize) {
+                              errorMessage = `Kích thước file không được vượt quá 10MB. File hiện tại: ${(file.size / 1024 / 1024).toFixed(2)}MB`;
+                            }
+                          }
+
+                          setExtendClientCommitmentFile(file || null);
+                          setExtendErrors(prev => ({ ...prev, clientCommitmentFile: errorMessage }));
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                    {extendClientCommitmentFile && !extendErrors.clientCommitmentFile && (
+                      <span className="text-sm text-green-600">
+                        File đã chọn: {extendClientCommitmentFile.name} ({(extendClientCommitmentFile.size / 1024 / 1024).toFixed(2)}MB)
+                      </span>
+                    )}
+                    {uploadProgress > 0 && uploadProgress < 100 && (
+                      <span className="text-sm text-primary-600">Đang upload: {uploadProgress}%</span>
+                    )}
+                  </div>
+                  {extendErrors.clientCommitmentFile && (
+                    <p className="text-sm font-medium text-red-600">{extendErrors.clientCommitmentFile}</p>
+                  )}
+                  <p className="text-xs text-gray-500">Định dạng: PDF, DOC, DOCX, JPG, PNG. Kích cỡ tối đa: 10MB</p>
+                </div>
+
+                {/* Partner Commitment File */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    File cam kết Partner <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <label className={`flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors ${
+                      extendErrors.partnerCommitmentFile ? 'border-red-500 bg-red-50' : 'border-neutral-200'
+                    }`}>
+                      <Upload className="w-4 h-4" />
+                      <span className="text-sm">Chọn file</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          let errorMessage: string | undefined;
+
+                          if (file) {
+                            const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/jpg', 'image/png'];
+                            if (!allowedTypes.includes(file.type)) {
+                              errorMessage = "Chỉ chấp nhận file PDF, DOC, DOCX, JPG, PNG";
+                            }
+                            // Validate file size but allow upload
+                            const maxSize = 10 * 1024 * 1024; // 10MB
+                            if (file.size > maxSize) {
+                              errorMessage = `Kích thước file không được vượt quá 10MB. File hiện tại: ${(file.size / 1024 / 1024).toFixed(2)}MB`;
+                            }
+                          }
+
+                          setExtendPartnerCommitmentFile(file || null);
+                          setExtendErrors(prev => ({ ...prev, partnerCommitmentFile: errorMessage }));
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                    {extendPartnerCommitmentFile && !extendErrors.partnerCommitmentFile && (
+                      <span className="text-sm text-green-600">
+                        File đã chọn: {extendPartnerCommitmentFile.name} ({(extendPartnerCommitmentFile.size / 1024 / 1024).toFixed(2)}MB)
+                      </span>
+                    )}
+                    {uploadProgress > 0 && uploadProgress < 100 && (
+                      <span className="text-sm text-primary-600">Đang upload: {uploadProgress}%</span>
+                    )}
+                  </div>
+                  {extendErrors.partnerCommitmentFile && (
+                    <p className="text-sm font-medium text-red-600">{extendErrors.partnerCommitmentFile}</p>
+                  )}
+                  <p className="text-xs text-gray-500">Định dạng: PDF, DOC, DOCX, JPG, PNG. Kích cỡ tối đa: 10MB</p>
+                </div>
+              </div>
+
               {/* Submit Button */}
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     setShowExtendAssignmentModal(false);
-                    setExtendForm({ endDate: "", notes: null });
+                    setExtendForm({ endDate: "", clientCommitmentFileUrl: null, partnerCommitmentFileUrl: null, notes: null });
+                    setExtendClientCommitmentFile(null);
+                    setExtendPartnerCommitmentFile(null);
                     setExtendErrors({});
                   }}
                   className="px-4 py-2 border border-neutral-200 rounded-lg text-neutral-700 hover:bg-neutral-50 transition-colors"
@@ -4598,6 +5211,14 @@ export default function ProjectDetailPage() {
         onClose={hideSuccessToast}
         title={successToastConfig?.title || ""}
         message={successToastConfig?.message}
+      />
+
+      {/* Error Toast */}
+      <ErrorToast
+        isOpen={showErrorToast}
+        onClose={hideErrorToast}
+        title={errorToastConfig?.title || ""}
+        message={errorToastConfig?.message}
       />
     </div>
   );

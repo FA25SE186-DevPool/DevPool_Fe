@@ -52,7 +52,8 @@ export interface TalentAssignmentModel {
   jobRoleLevelName?: string | null;
   startDate: string; // ISO string
   endDate?: string | null; // ISO string
-  commitmentFileUrl?: string | null;
+  clientCommitmentFileUrl?: string | null;
+  partnerCommitmentFileUrl?: string | null;
   status: string;
   terminationDate?: string | null; // ISO string
   terminationReason?: string | null;
@@ -78,7 +79,8 @@ export interface TalentAssignmentCreateModel {
   talentApplicationId?: number | null;
   startDate: string; // ISO string
   endDate?: string | null; // ISO string
-  commitmentFileUrl?: string | null;
+  clientCommitmentFileUrl: string | null;
+  partnerCommitmentFileUrl: string | null;
   status?: string; // Default: "Active"
   terminationDate?: string | null; // ISO string
   terminationReason?: string | null;
@@ -91,7 +93,8 @@ export interface TalentAssignmentCreateModel {
 // Model for EXTEND
 export interface TalentAssignmentExtendModel {
   endDate: string; // ISO string
-  commitmentFileUrl?: string | null;
+  clientCommitmentFileUrl?: string | null;
+  partnerCommitmentFileUrl?: string | null;
   notes?: string | null;
 }
 
@@ -105,8 +108,10 @@ export interface TalentAssignmentTerminateModel {
 
 // Model for UPDATE
 export interface TalentAssignmentUpdateModel {
+  startDate?: string | null; // ISO string
   endDate?: string | null; // ISO string
-  commitmentFileUrl?: string | null;
+  clientCommitmentFileUrl?: string | null;
+  partnerCommitmentFileUrl?: string | null;
   status?: string | null;
   terminationDate?: string | null; // ISO string
   terminationReason?: string | null;
@@ -145,7 +150,8 @@ export interface TalentAssignmentDirectBookingModel {
   jobRoleLevelId: number;
   startDate: string; // ISO string
   endDate: string; // ISO string
-  commitmentFileUrl?: string | null;
+  clientCommitmentFileUrl: string | null;
+  partnerCommitmentFileUrl: string | null;
   jobDescription: string;
   estimatedClientRate?: number | null;
   estimatedPartnerRate?: number | null;
